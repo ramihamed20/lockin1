@@ -58,7 +58,7 @@ for (const viewport of [
         const r = element.getBoundingClientRect(), style = getComputedStyle(element);
         return [selector, { x: r.x, y: r.y, width: r.width, height: r.height, position: style.position, display: style.display, transform: style.transform, overflow: style.overflow }];
       });
-    }))));
+    })));
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-drag-attempt.png`, fullPage: false });
     await expect(page.locator(".workspace-tab-drop-highlight.is-end")).toBeVisible({ timeout: 10000 });
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-dragging.png`, fullPage: false });
@@ -76,7 +76,7 @@ for (const viewport of [
         const r = element.getBoundingClientRect(), style = getComputedStyle(element);
         return [selector, { x:r.x, y:r.y, width:r.width, height:r.height, position:style.position, display:style.display, transform:style.transform, zIndex:style.zIndex }];
       });
-    }))));
+    })));
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-after.png`, fullPage: false });
   });
 }
