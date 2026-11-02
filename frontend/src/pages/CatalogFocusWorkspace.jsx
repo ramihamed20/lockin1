@@ -1,4 +1,5 @@
 import { currentAppLocale } from "../lib/i18n.js";
+import { createPortal } from "react-dom";
 import { localSaveError } from "../lib/userErrors.js";
 import { StudyDock } from "../components/lock-in/StudyDock.jsx";
 import { SheetTranslationPanel } from "../workspace/catalog/SheetTranslationPanel.jsx";
@@ -85,7 +86,7 @@ import { coverRectangle, coveredSearchMatchIds, MAX_COVERS_PER_ACTION, searchCov
 import { assetPath, cssVars } from "../lib/utils.js";
 import { subscribeViewport } from "../lib/viewport.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
-import { useWorkspacePaneActive } from "../workspace/catalog/workspacePane.js";
+import { useWorkspacePaneActive, useWorkspaceSplit } from "../workspace/catalog/workspacePane.js";
 import {
   centeredScrollLeft,
   continuousPinchScale,
@@ -423,6 +424,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const { t } = useI18n();
   // False while this reader is a tab kept open behind the one on screen.
   const paneActive = useWorkspacePaneActive();
+  const { isMulti, toolbarHost } = useWorkspaceSplit();
   // Effects that report status read the current language through a ref, so a
   // language change never re-runs them (their dependencies stay as they were).
   const translateRef = useRef(t);
@@ -6095,11 +6097,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     </>;
   }
 
-  return (
-    <main className={`workspace-v2${zoomWindow ? " has-zoom-window" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}${singleTab ? " has-single-tab" : ""}`} ref={rootRef} data-knowledge-open={knowledgeOpen ? "true" : undefined} aria-busy={!workspaceReady} aria-label={t("focus.workspaceLabel", { title: sheet.title })}>
-      <div className={`workspace-v2-body${sideOpen ? " has-side" : ""}`}>
-        <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
-          <nav className="workspace-v2-toolbar" aria-label={t("focus.documentTools")} ref={toolbarRef}>
+  // The existing Focus toolbar is rendered only once. The selected pane portals
+  // its genuine controls into the shared full-width chrome (no duplicate tools).
+  const toolbarMarkup = (
+    <nav className="workspace-v2-toolbar" aria-label={t("focus.documentTools")} ref={toolbarRef}>
             {showWorkspaceTabs && <WorkspaceTabBar tabs={tabBarTabs} activeId={currentTabId} materials={tabMaterials} portalRef={rootRef} onSelect={showWorkspaceTab} onClose={closeTab} onNewWhiteboard={openNewWhiteboard} onOpenSheet={openSheetTab} />}
             <div className="workspace-v2-control-group is-exit">
               <WorkspaceIconButton label={t("focus.exitWorkspace")} onClick={requestWorkspaceExit}><ArrowLeft size={19} /></WorkspaceIconButton>
@@ -6166,10 +6167,27 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 }}
               />}
               <WorkspaceIconButton label={sideOpen ? t("focus.closeNotes") : t("focus.openNotes")} className="workspace-v3-utility-button is-phone-overflow" active={sideOpen} aria-pressed={sideOpen} aria-expanded={sideOpen} aria-controls="workspace-notes-panel" data-workspace-tool="note" disabled={!workspaceReady} onClick={() => selectTool("note")}><MessageSquare size={18} /></WorkspaceIconButton>
+              {isMulti && showWorkspaceTabs && <label className="workspace-split-study-sheet">
+                <span>{currentAppLocale() === "ar" ? "الشيت" : "Sheet"}</span>
+                <select aria-label={currentAppLocale() === "ar" ? "الشيت المستخدم للدراسة والمؤقت والملخص" : "Sheet for Active Study, Pomodoro and Summary"}
+                  value={currentTabId} onChange={(event) => {
+                    const selected = tabBarTabs.find((item) => item.id === event.target.value);
+                    if (selected && selected.id !== currentTabId) showWorkspaceTab(selected);
+                  }}>
+                  {tabBarTabs.map((tab) => <option key={tab.id} value={tab.id}>{tab.title || (tab.kind === "whiteboard" ? `Whiteboard ${tab.number || 1}` : tab.id)}</option>)}
+                </select>
+              </label>}
               {!whiteboard && !personal && <button type="button" className={`workspace-v2-study-mode-button is-narrow-overflow is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}${openSurface === "study" ? " is-active" : ""}`} data-workspace-surface="study" aria-haspopup="dialog" aria-expanded={openSurface === "study"} aria-controls="workspace-study-popover" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "study" ? null : "study")} aria-label={studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.study")} title={studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.study")}><Brain size={18} />{!(studyMode === "active" && activeStudy) && <span className="workspace-v2-study-mode-label" aria-hidden="true">{t("focus.study")}</span>}{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>{t("focus.active")}</strong><small>{t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page })}</small></span>}</button>}
               <WorkspaceIconButton label={t("focus.moreWorkspaceActions")} className={`workspace-v3-utility-button${studyInProgress ? " has-study-progress" : ""}`} active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} />{studyInProgress && <span className="workspace-v3-more-badge" aria-hidden="true" />}</WorkspaceIconButton>
             </div>
           </nav>
+  );
+
+  return (
+    <main className={`workspace-v2${zoomWindow ? " has-zoom-window" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}${singleTab ? " has-single-tab" : ""}`} ref={rootRef} data-knowledge-open={knowledgeOpen ? "true" : undefined} aria-busy={!workspaceReady} aria-label={t("focus.workspaceLabel", { title: sheet.title })}>
+      <div className={`workspace-v2-body${sideOpen ? " has-side" : ""}`}>
+        <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
+          {!isMulti ? toolbarMarkup : paneActive && toolbarHost ? createPortal(toolbarMarkup, toolbarHost) : null}
 
           {marksSet && <button type="button" className="workspace-marks-chip" data-workspace-marks-chip="" onClick={() => setMarksOpen(true)}>
             <Users size={14} aria-hidden="true" />
