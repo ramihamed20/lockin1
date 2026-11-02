@@ -53,7 +53,13 @@ export function readCompanionPreferences(userId) {
 export function saveCompanionPreferences(userId, value) {
   try {
     const key = companionPreferenceKey(userId);
-    if (key) localStorage.setItem(key, JSON.stringify(companionPreferences(value)));
+    if (key) {
+      const preferences = companionPreferences(value);
+      const serialized = JSON.stringify(preferences);
+      if (localStorage.getItem(key) === serialized) return;
+      localStorage.setItem(key, serialized);
+      window.dispatchEvent(new window.CustomEvent("lockin:companion-preferences", { detail: { userId, preferences } }));
+    }
   } catch { /* Reader help still works when preference storage is unavailable. */ }
 }
 

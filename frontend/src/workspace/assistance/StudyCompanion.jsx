@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { Bookmark, ChevronLeft, MoreHorizontal, Settings, Sparkles, X } from "lucide-react";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { studyAssistanceApi } from "../../api/studyAssistance.js";
-import { assistanceForPage, assistanceScopeKey, readCompanionPreferences, saveCompanionPreferences, savedAssistanceForRange } from "../../lib/studyAssistance.js";
+import { assistanceForPage, assistanceScopeKey, savedAssistanceForRange } from "../../lib/studyAssistance.js";
+import { useCompanionPreferences } from "../../hooks/useCompanionPreferences.js";
 import { TypedExplanation } from "./TypedExplanation.jsx";
 import { CompanionCharacter, companionCharacters } from "./CompanionCharacter.jsx";
 import { useCompanionMotion } from "./useCompanionMotion.js";
@@ -61,7 +62,7 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
   const readyCopy = companionReadyCopy[locale] || companionReadyCopy.en;
   const [retry, setRetry] = useState(0);
   const reduced = useReducedMotion();
-  const [preferences, setPreferences] = useState(() => readCompanionPreferences(userId));
+  const [preferences, setPreferences] = useCompanionPreferences(userId);
   const [data, setData] = useState({ key: "", ideas: [] });
   const [selected, setSelected] = useState(0);
   const [surface, setSurface] = useState("");
@@ -83,7 +84,6 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
   const motion = preferences.motion && !reduced;
   const characterMotion = useCompanionMotion(key + "/" + (idea?.id || ""), surface, motion && enabled && Boolean(idea));
 
-  useEffect(() => { saveCompanionPreferences(userId, preferences); }, [preferences, userId]);
   useEffect(() => {
     if (loadedScope.current !== key) {
       setSurface(""); setReviewIdea(null); setSelected(0); setError(""); setBusy(false); saveRequest.current += 1;
