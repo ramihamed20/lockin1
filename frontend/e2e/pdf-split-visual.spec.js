@@ -49,7 +49,7 @@ for (const viewport of [
     await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
     await page.mouse.down();
     await page.mouse.move(source.x + source.width / 2 + 25, source.y + 45, { steps: 4 });
-    await page.mouse.move(stage.x + stage.width * .78, stage.y + stage.height * .45, { steps: 14 });
+    await page.mouse.move(stage.x + stage.width * .78, stage.y + stage.height * .78, { steps: 14 });
     console.log("SPLIT_DRAG_GEOMETRY", viewport.name, JSON.stringify(await page.evaluate(() => {
       const keys = [".workspace-split-layout", ".workspace-pane.is-active", ".workspace-v2-document-stage", ".workspace-tab-drag-ghost", ".workspace-tab-drop-highlight"];
       return keys.map(selector => {
@@ -67,6 +67,14 @@ for (const viewport of [
     await expect(page.locator(".workspace-split-layout.is-split")).toBeVisible({ timeout: 15000 });
     await expect(page.locator(".workspace-pane.is-secondary .workspace-v3-document-context strong")).toHaveText("Vitamin -2");
     await expect(page.locator(".workspace-pane.is-secondary .workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 25000 });
+    const firstBox = await page.locator(".workspace-pane.is-active").boundingBox();
+    const secondBox = await page.locator(".workspace-pane.is-secondary").boundingBox();
+    expect(firstBox.width).toBeGreaterThan(100);
+    expect(firstBox.height).toBeGreaterThan(100);
+    expect(secondBox.width).toBeGreaterThan(100);
+    expect(secondBox.height).toBeGreaterThan(100);
+    if (viewport.name === "phone") expect(secondBox.y).toBeGreaterThan(firstBox.y);
+    else expect(secondBox.x).toBeGreaterThan(firstBox.x);
     await page.waitForTimeout(600);
     console.log("SPLIT_AFTER_GEOMETRY", viewport.name, JSON.stringify(await page.evaluate(() => {
       const keys = [".workspace-split-layout", ".workspace-pane.is-active", ".workspace-pane.is-secondary", ".workspace-pane.is-active .workspace-v2", ".workspace-pane.is-secondary .workspace-v2", ".workspace-split-divider"];
