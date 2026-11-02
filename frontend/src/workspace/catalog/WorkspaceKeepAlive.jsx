@@ -70,7 +70,11 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     if (splitId && !tabs.tabs.some((tab) => tab.id === splitId)) setSplitId("");
   }, [splitId, tabs.tabs]);
 
-  const splitTab = tabs.tabs.find((tab) => tab.id === splitId && tab.id !== primaryId);
+  // Swapping to the second tab must not flash back to a single viewport
+  // while the route effect exchanges the pair.
+  const previousId = workspaceTabIdForPath(previousPrimaryPath.current);
+  const displayedSplitId = splitId === primaryId && previousId !== primaryId ? previousId : splitId;
+  const splitTab = tabs.tabs.find((tab) => tab.id === displayedSplitId && tab.id !== primaryId);
   const splitPath = splitTab ? workspaceTabRoute(splitTab) : "";
   const visiblePaths = new Set([location.pathname, ...(splitPath ? [splitPath] : [])]);
   const openTabIds = new Set(tabs.tabs.map((tab) => tab.id));
@@ -152,7 +156,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     );
   });
 
-  const readers = <WorkspaceSplitContext.Provider value={{ splitId: splitPath ? splitId : "", dropSplit, closeSplit: () => setSplitId("") }}>
+  const readers = <WorkspaceSplitContext.Provider value={{ splitId: splitPath ? displayedSplitId : "", dropSplit, closeSplit: () => setSplitId("") }}>
     <div className={`workspace-split-layout${splitPath ? " is-split" : ""}`} data-secondary-side={secondarySide} ref={layoutRef} style={splitPath ? { "--workspace-split-primary": `${splitPercent}%` } : undefined}>
       {paneNodes}
       {splitPath && <div
