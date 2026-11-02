@@ -53,7 +53,7 @@
 .workspace-split-layout.is-split .workspace-v3-document-context { max-width: 120px; }
 .workspace-split-layout.is-split .workspace-v3-quick-colors { gap: 1px; padding-inline: 3px; }
 .workspace-split-layout.is-split .workspace-tabs-scroller { max-width: 100%; }
-.workspace-split-layout.is-split @media (max-width: 640px) {
+@media (max-width: 640px) {
   .workspace-split-layout.is-split { flex-direction: column; }
   .workspace-split-layout.is-split > .workspace-pane.is-active {
     flex-basis: calc(var(--workspace-split-primary, 50%) - 6px);
@@ -137,4 +137,25 @@
   .workspace-tab-drag-ghost, .workspace-tab-drop-highlight,
   .workspace-split-layout.is-split > .workspace-pane.is-secondary,
   .workspace-split-layout.is-split > .workspace-split-divider { animation: none; }
+}
+
+/* Drop feedback uses the actual document stage, not the entire browser area. */
+.workspace-tab-drop-highlight {
+  top: var(--drop-top, 6%) !important;
+  bottom: auto;
+  height: var(--drop-height, 90%);
+  width: calc(var(--drop-width, 100%) / 2 - 7px);
+}
+.workspace-tab-drop-highlight.is-start { left: var(--drop-left, 7px); }
+.workspace-tab-drop-highlight.is-end { left: calc(var(--drop-left, 7px) + var(--drop-width, 100%) / 2 + 3px); right: auto; }
+.workspace-tab-drop-highlight.is-stacked {
+  left: var(--drop-left, 7px) !important;
+  width: var(--drop-width, 100%);
+  height: calc(var(--drop-height, 90%) / 2 - 7px);
+}
+.workspace-tab-drop-highlight.is-stacked.is-start { top: var(--drop-top, 6%) !important; }
+.workspace-tab-drop-highlight.is-stacked.is-end { top: calc(var(--drop-top, 6%) + var(--drop-height, 90%) / 2 + 3px) !important; }
+/* The entire split panel may animate in, but never animate page canvases. */
+@media (prefers-reduced-motion: reduce) {
+  .workspace-tab-drag-overlay, .workspace-split-layout.is-split > .workspace-pane { transition: none !important; }
 }
