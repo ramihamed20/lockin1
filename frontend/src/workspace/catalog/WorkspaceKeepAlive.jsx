@@ -189,7 +189,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       aria-valuemin={20} aria-valuemax={80} aria-valuenow={Math.round(percent)}
       tabIndex={0}
       onPointerDown={(event) => {
-        if (event.target instanceof Element && event.target.closest("button")) return;
+        if (event.target instanceof globalThis.Element && event.target.closest("button")) return;
         event.preventDefault();
         event.currentTarget.setPointerCapture(event.pointerId);
         setRatioMenu("");
@@ -234,7 +234,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       aria-hidden={visible ? undefined : "true"}
       aria-label={visible && isMulti ? (tab?.title || (ar ? "شيت" : "Sheet")) : undefined}
       inert={visible ? undefined : ""}
-      onPointerDownCapture={(event) => { if (event.target instanceof Element && event.target.closest(".workspace-split-pane-remove")) return; if (visible && !focused) setFocusedPath(path); }}
+      onPointerDownCapture={(event) => { if (event.target instanceof globalThis.Element && event.target.closest(".workspace-split-pane-remove")) return; if (visible && !focused) setFocusedPath(path); }}
     >
       <WorkspacePaneVisibleContext.Provider value={visible}>
         <WorkspacePaneActiveContext.Provider value={focused}>
