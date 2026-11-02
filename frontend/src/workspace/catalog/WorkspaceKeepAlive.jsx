@@ -73,6 +73,53 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const isMulti = liveSlots.length > 1;
   const selectedPaths = liveSlots.map((id) => workspaceTabRoute(tabs.tabs.find((tab) => tab.id === id))).filter(Boolean);
   const visiblePaths = new Set([location.pathname, ...selectedPaths]);
+  // Each PDF reader restores its own scroll position after loading/fit.
+  // A restored first page can land at a different vertical inset in a narrow
+  // pane. Reconcile *after* both readers have settled, including late PDF.js
+  // geometry, so the white page edges line up at the same 12px top gutter.
+  // Never reposition a page the student has deliberately scrolled upwards.
+  const slotIdentity = liveSlots.join("|");
+  useEffect(() => {
+    if (!isMulti) return undefined;
+    const host = layoutRef.current;
+    if (!host) return undefined;
+    let frame = 0;
+    const alignTopEdges = () => {
+      frame = 0;
+      for (const pane of host.querySelectorAll(".workspace-pane[data-split-slot]")) {
+        const stage = pane.querySelector(".workspace-v2-document-stage");
+        const firstPage = pane.querySelector(".workspace-v2-a4-page");
+        if (!stage || !firstPage) continue;
+        const viewport = stage.getBoundingClientRect();
+        const pageTop = firstPage.getBoundingClientRect().top;
+        const extra = pageTop - viewport.top - 12;
+        if (viewport.height > 0 && extra > 1 &&
+            extra < Math.max(120, viewport.height * .2)) {
+          stage.scrollTop += extra;
+        }
+      }
+    };
+    const queueAlign = () => {
+      if (!frame) frame = globalThis.requestAnimationFrame(alignTopEdges);
+    };
+    const resizeObserver = new globalThis.ResizeObserver(queueAlign);
+    const mutationObserver = new globalThis.MutationObserver(queueAlign);
+    for (const pane of host.querySelectorAll(".workspace-pane[data-split-slot]")) {
+      resizeObserver.observe(pane);
+      const stage = pane.querySelector(".workspace-v2-document-stage");
+      if (stage) resizeObserver.observe(stage);
+      mutationObserver.observe(pane, { childList: true, subtree: true });
+    }
+    queueAlign();
+    const settling = [120, 360, 700].map((ms) => globalThis.setTimeout(queueAlign, ms));
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      settling.forEach(globalThis.clearTimeout);
+      if (frame) globalThis.cancelAnimationFrame(frame);
+    };
+  }, [isMulti, slotIdentity]);
+
 
   useEffect(() => {
     // Only an actual route change should change focus. Tab metadata updates
