@@ -1,4 +1,3 @@
-import { CompanionCard } from "../components/profile/CompanionCard.jsx";
 import { useEffect, useState } from "react";
 import { accountsApi } from "../api/accounts.js";
 import { motivationApi } from "../api/motivation.js";
@@ -324,8 +323,6 @@ export default function Profile({ user, onUserUpdate }) {
           </div>
           <div className="id-card-footer" aria-hidden="true"><div className="id-card-barcode">{["thin", "thick", "medium", "thin", "thick", "thin", "medium", "thin", "thick", "medium"].map((kind, index) => <span className={`barcode-line ${kind}`} key={index} />)}</div><span className="id-card-serial">LOCK-IN · {(account?.id || "ACCOUNT").slice(0, 8)}</span></div>
         </article>
-
-        <CompanionCard key={account?.id} userId={account?.id} xp={xp} xpAvailable={workspace.availability?.xp === true} />
 
         <section className="profile-v2-section" aria-labelledby="profile-v2-progress-heading">
           <div className="profile-v2-section-head">

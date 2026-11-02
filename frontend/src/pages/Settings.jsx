@@ -1,3 +1,4 @@
+import { CompanionCard } from "../components/profile/CompanionCard.jsx";
 import EmailChangeSettings from "../components/settings/EmailChangeSettings.jsx";
 import AccountDataExport from "../components/settings/AccountDataExport.jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -196,6 +197,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
           {activeSection === "account" && <section className="settings-v2-section" id="settings-account" aria-labelledby="settings-account-heading">
             <AccountSummary user={user} />
             <UsernameCard user={user} onUserUpdate={onUserUpdate} />
+            <AccountCompanion key={user?.id} userId={user?.id} />
             <div className="ui-group">
               {["security", "devices", "billing", "privacy"].map(id => <button type="button" className="ui-row" key={id} onClick={() => openSection(id)}>
                 <span className={`ui-row-icon settings-v2-icon settings-v2-icon--${id}`}><Icon name={SECTIONS.find(section => section.id === id).icon} size={18} /></span>
@@ -323,6 +325,11 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
       </section>
     </Page>
   );
+}
+
+function AccountCompanion({ userId }) {
+  const xp = useAsyncData((signal) => motivationApi.xpSummary({ signal }), [userId]);
+  return <CompanionCard userId={userId} xp={xp.data} xpAvailable={!xp.loading && !xp.error && Boolean(xp.data)} />;
 }
 
 /** The account's own row at the top, the way a settings app opens on "you". */

@@ -225,3 +225,24 @@ test("choosing an app icon stays local and survives reloading settings", async (
   await expect(options.last()).toHaveAttribute("aria-checked", "true");
   expect(state.profileWrites).toEqual([]);
 });
+
+for (const [locale, width, height] of [["ar", 390, 844], ["en", 1024, 768]]) {
+  test(`companion belongs to settings account in ${locale}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await server(page, locale);
+    await page.route("**/api/v1/progression/xp", route => route.fulfill({ json: { level: 3, total_points: 500, level_progress: 40, level_target: 100 } }));
+    await page.goto("/#/settings?section=account");
+    const card = page.locator("#settings-account .profile-companion-card");
+    await expect(card).toBeVisible();
+    await expect(card.getByRole("progressbar")).toHaveAttribute("value", "40");
+    await card.getByRole("button", { name: "Starsea", exact: true }).click();
+    await expect(card.getByRole("button", { name: "Starsea", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.reload();
+    await expect(card.getByRole("button", { name: "Starsea", exact: true })).toHaveAttribute("aria-pressed", "true");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.goto("/#/profile");
+    await expect(page.locator(".profile-academy-id")).toBeVisible();
+    await expect(page.locator(".profile-companion-card")).toHaveCount(0);
+  });
+}
