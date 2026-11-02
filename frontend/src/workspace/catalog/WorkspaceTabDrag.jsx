@@ -12,10 +12,19 @@ function dropGeometry() {
   const stage = pane?.querySelector(".workspace-v2-document-stage");
   const paneRect = pane?.getBoundingClientRect();
   const stageRect = stage?.getBoundingClientRect();
+  const toolbar = document.querySelector(".workspace-split-shared-chrome .workspace-v2-toolbar")
+    || pane?.querySelector(".workspace-v2-toolbar");
+  const toolbarBottom = toolbar?.getBoundingClientRect().bottom || 0;
   if (!paneRect?.width || !paneRect?.height || !stageRect?.width || !stageRect?.height) return null;
+  // The purple drop target must NEVER include or dim the global tools area.
+  // Clamp both its hit testing and visible preview to the uncovered PDF stage.
+  const left = Math.max(stageRect.left, paneRect.left, 0);
+  const right = Math.min(stageRect.right, paneRect.right, window.innerWidth);
+  const top = Math.max(stageRect.top, paneRect.top, toolbarBottom + 8, 0);
+  const bottom = Math.min(stageRect.bottom, paneRect.bottom, window.innerHeight);
+  if (right <= left || bottom <= top) return null;
   return {
-    left: stageRect.left, top: stageRect.top,
-    width: stageRect.width, height: stageRect.height,
+    left, top, width: right - left, height: bottom - top,
     stacked: window.matchMedia(MOBILE_BREAKPOINT).matches
   };
 }
