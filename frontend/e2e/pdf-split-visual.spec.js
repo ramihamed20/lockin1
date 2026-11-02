@@ -65,7 +65,9 @@ for (const viewport of [
     await page.mouse.up();
 
     await expect(page.locator(".workspace-split-layout.is-split")).toBeVisible({ timeout: 15000 });
-    await expect(page.locator(".workspace-pane.is-secondary .workspace-v3-document-context strong")).toHaveText("Vitamin -2");
+    await expect(page.locator(".workspace-pane.is-secondary .workspace-split-pane-select")).toContainText("Vitamin -2");
+    await expect(page.locator(".workspace-split-shared-chrome .workspace-v2-toolbar")).toHaveCount(1);
+    await expect(page.locator(".workspace-pane .workspace-v2-toolbar")).toHaveCount(0);
     await expect(page.locator(".workspace-pane.is-secondary .workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 25000 });
     const firstBox = await page.locator(".workspace-pane.is-active").boundingBox();
     const secondBox = await page.locator(".workspace-pane.is-secondary").boundingBox();
@@ -88,3 +90,64 @@ for (const viewport of [
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-after.png`, fullPage: false });
   });
 }
+
+
+test("one original shared toolbar controls two, three and four PDF cells", async ({ page }) => {
+  test.setTimeout(120000);
+  await mkdir("output/playwright", { recursive: true });
+  await openTwoSheets(page, 1180, 820);
+  for (const [slug, title] of [["vitamin-3", "Vitamin -3"], ["range-probe", "Range probe"]]) {
+    await page.evaluate((value) => { location.hash = "/materials/catalog/biochemistry-1/sheets/" + value + "/workspace"; }, slug);
+    await expect(page.locator(".workspace-pane.is-active .workspace-v3-document-context strong")).toHaveText(title);
+    await page.getByRole("button", { name: /Normal Study/ }).click();
+  }
+  await page.locator(".workspace-pane.is-active .workspace-tab [role=tab]").filter({ hasText: "Vitamin -1" }).click();
+  await expect(page.locator(".workspace-pane.is-active .workspace-v3-document-context strong")).toHaveText("Vitamin -1");
+
+  const addByDragging = async (name) => {
+    const barReady = (await page.locator(".workspace-split-shared-chrome .workspace-tab [role=tab]").count()) > 0;
+    const source = (barReady ? page.locator(".workspace-split-shared-chrome") : page.locator(".workspace-pane.is-active"))
+      .locator(".workspace-tab [role=tab]").filter({ hasText: name });
+    await source.scrollIntoViewIfNeeded();
+    const a = await source.boundingBox();
+    const stage = await page.locator(".workspace-pane.is-active .workspace-v2-document-stage").boundingBox();
+    expect(a).toBeTruthy();
+    expect(stage).toBeTruthy();
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2 + 22, a.y + 42, { steps: 4 });
+    await page.mouse.move(stage.x + stage.width * .77, stage.y + stage.height * .67, { steps: 13 });
+    await page.mouse.up();
+  };
+
+  for (const [n, name, suffix] of [[2, "Vitamin -2", "two"], [3, "Vitamin -3", "three"], [4, "Range probe", "four"]]) {
+    await addByDragging(name);
+    const layout = page.locator(".workspace-split-layout.is-split");
+    await expect(layout).toHaveAttribute("data-pane-count", String(n));
+    await expect(page.locator(".workspace-pane[data-split-slot]")).toHaveCount(n);
+    await expect(page.locator(".workspace-split-shared-chrome .workspace-v2-toolbar")).toHaveCount(1);
+    await expect(page.locator(".workspace-pane .workspace-v2-toolbar")).toHaveCount(0);
+    for (let i = 0; i < n; i++) {
+      const pane = page.locator(`.workspace-pane[data-split-slot="${i}"]`);
+      await expect(pane.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20000 });
+      const box = await pane.boundingBox();
+      expect(box.width).toBeGreaterThan(130);
+      expect(box.height).toBeGreaterThan(130);
+    }
+    await page.screenshot({ path: `output/playwright/pdf-grid-ipad-${suffix}.png`, fullPage: false });
+  }
+  const first = await page.locator('.workspace-pane[data-split-slot="0"]').boundingBox();
+  const rightTop = await page.locator('.workspace-pane[data-split-slot="1"]').boundingBox();
+  const rightBottom = await page.locator('.workspace-pane[data-split-slot="2"]').boundingBox();
+  const leftBottom = await page.locator('.workspace-pane[data-split-slot="3"]').boundingBox();
+  expect(first.x).toBeLessThan(rightTop.x);
+  expect(rightBottom.y).toBeGreaterThan(rightTop.y);
+  expect(leftBottom.y).toBeGreaterThan(first.y);
+  await page.locator('.workspace-pane[data-split-slot="2"] .workspace-split-pane-select').click();
+  await expect(page.locator('.workspace-pane[data-split-slot="2"]')).toHaveAttribute("data-focused", "true");
+  await expect(page.locator(".workspace-split-shared-chrome .workspace-v2-toolbar")).toHaveCount(1);
+  await expect(page.getByRole("combobox", { name: /Sheet for Active Study/ })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".workspace-pane[data-split-slot]")).toHaveCount(4);
+  await page.screenshot({ path: "output/playwright/pdf-grid-phone-four.png", fullPage: false });
+});
