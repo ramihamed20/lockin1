@@ -25,3 +25,10 @@ export const WorkspaceSplitContext = createContext({ splitId: "", toggleSplit: (
 export function useWorkspaceSplit() {
   return useContext(WorkspaceSplitContext);
 }
+
+/** Visible includes both split-screen readers, but excludes kept background tabs. */
+export const WorkspacePaneVisibleContext = createContext(true);
+
+export function useWorkspacePaneVisible() {
+  return useContext(WorkspacePaneVisibleContext);
+}
