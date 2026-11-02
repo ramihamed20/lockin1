@@ -165,7 +165,7 @@ function SheetChoice({ choice, open, onPick }) {
 export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, onSelect, onClose, onNewWhiteboard, onOpenSheet }) {
   const { t } = useI18n();
   const paneActive = useWorkspacePaneActive();
-  const { splitId, dropSplit } = useWorkspaceSplit();
+  const { dropSplit } = useWorkspaceSplit();
   const { startDrag, shouldSuppressClick, preview } = useWorkspaceTabDrag(dropSplit);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
