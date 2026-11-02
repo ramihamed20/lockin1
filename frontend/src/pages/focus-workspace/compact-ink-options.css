@@ -1,0 +1,51 @@
+/* Ink-only inspector; drawing and saved profile values remain unchanged. */
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink { width: min(296px, calc(100% - 16px)); max-width: min(296px, calc(100% - 16px)); border-radius: 16px; overflow: visible; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-options-title { min-height: 40px; padding: 6px 12px; gap: 12px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-options-title strong { font-size: .78rem; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-options-title small { display: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-preview-well { flex: 0 0 92px; min-width: 0; height: 24px; margin-inline-start: auto; border-radius: 7px; box-shadow: none; background: var(--fx-fill); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-panel-body { display: flex; flex-direction: column; padding: 0 10px 6px; max-height: min(440px, calc(100dvh - 120px)); border-radius: 0 0 16px 16px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-panel-body > .workspace-v5-inspector-section { flex: 0 0 auto; padding: 5px 0; gap: 2px; border: 0; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-ink-profiles { order: 0; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-ink-colors { order: 1; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-adjust { order: 2; border-top: 1px solid var(--fx-hair) !important; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-rows { order: 3; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-tool-extras { order: 4; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button { position: relative; min-width: 44px; min-height: 44px; height: 44px; grid-template-rows: 1fr; padding: 5px; border-radius: 11px; background: transparent; border: 1px solid transparent; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button.is-active { background: color-mix(in srgb, var(--fx-accent) 15%, var(--fx-fill)); border-color: color-mix(in srgb, var(--fx-accent) 50%, transparent); box-shadow: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles .workspace-v4-nib { color: var(--workspace-tool-color); filter: drop-shadow(0 0 .35px var(--fx-text)); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-nib svg { width: 26px; height: 28px; }
+.workspace-pen-hint { position: absolute; z-index: 4; top: calc(100% + 2px); inset-inline-start: 0; width: max-content; max-width: 110px; padding: 4px 7px; border-radius: 6px; background: var(--workspace-panel); color: var(--fx-text); font-size: .68rem; box-shadow: 0 3px 14px rgb(0 0 0 / .2); pointer-events: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-ink-colors > h3 { display: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-colors { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; align-items: center; justify-items: center; padding: 0; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-color-item { display: block; position: relative; width: 44px; height: 44px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink :is(.workspace-v2-color-swatch, .workspace-v2-custom-color, .workspace-v4-favorite-color) { position: relative; display: grid; place-items: center; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; box-shadow: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-color-swatch::before { content: ''; position: absolute; width: 23px; height: 23px; border-radius: 50%; background: var(--workspace-tool-color); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-color-swatch.is-active::before { outline: 1.5px solid var(--fx-text); outline-offset: 3px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-color-swatch::after { display: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-color-swatch > svg { position: relative; z-index: 1; color: white; filter: drop-shadow(0 1px 1px rgb(0 0 0 / .6)); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink :is(.workspace-v2-custom-color, .workspace-v4-favorite-color) { color: var(--fx-text-2); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-custom-color::before { content: ''; position: absolute; inset: 9px; border-radius: 50%; border: 1px dashed var(--fx-text-3); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-custom-color-editor { grid-column: 1 / -1; width: 100%; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range { display: grid; grid-template-columns: 76px minmax(0, 1fr); min-height: 38px; gap: 6px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading { font-size: .68rem; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading output { top: auto; bottom: 1px; transform: none; font-size: .67rem; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-control { padding-inline-end: 35px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range input { height: 38px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-tool-extras-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 36px; padding: 4px 2px; border: 0; border-top: 1px solid var(--fx-hair); background: transparent; color: var(--fx-text-2); font-size: .7rem; cursor: pointer; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-tool-extras:not(.is-expanded) > .workspace-tool-extras-body { display: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-tool-extras.is-expanded > button svg { transform: rotate(180deg); }
+@media (pointer: coarse) { .workspace-v2 .workspace-v2-tool-options.is-compact-ink :is(.workspace-v2-tool-range, .workspace-tool-extras-toggle, .workspace-v2-tool-range input) { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .workspace-v2 .workspace-v2-tool-options.is-compact-ink * { transition: none !important; } }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-colors { overflow: visible; mask-image: none; -webkit-mask-image: none; touch-action: auto; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-range { padding-inline-end: 36px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-control { padding-inline-end: 0; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading output { top: 50%; bottom: auto; transform: translateY(-50%); width: 32px; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-favorite-pens.is-panel:has(> .is-add:only-child) { position: static; }
+
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-custom-color::after { display: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading output { width: 38px; white-space: nowrap; line-height: 1.2; }
+/* The base custom-colour button uses an important dashed frame; keep just the circular affordance here. */
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-custom-color { border: 0 !important; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-colors { grid-template-columns: repeat(6, minmax(0, 1fr)); }

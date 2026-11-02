@@ -1,4 +1,6 @@
 /** The small controls the Focus workspace builds its toolbar and panels from. */
+import { useEffect, useRef, useState } from "react";
+import { PenNibIcon } from "./PenNibIcon.jsx";
 import { cssVars } from "../../lib/utils.js";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { PEN_PROFILE_OPTIONS } from "./constants.js";
@@ -50,12 +52,24 @@ export function IconChoiceGroup({ label, value, options, onChange }) {
   </div>;
 }
 
+function PenProfileChoice({ profile, label, active, color, onChoose }) {
+  const [hint, setHint] = useState(false);
+  const hold = useRef(null);
+  const cancelHold = () => window.clearTimeout(hold.current);
+  useEffect(() => () => window.clearTimeout(hold.current), []);
+  return <button type="button" className={active ? "is-active" : ""} aria-label={label} title={label} aria-pressed={active}
+    onPointerDown={() => { cancelHold(); hold.current = window.setTimeout(() => setHint(true), 450); }}
+    onPointerUp={cancelHold} onPointerCancel={() => { cancelHold(); setHint(false); }}
+    onPointerLeave={() => { cancelHold(); setHint(false); }} onBlur={() => setHint(false)} onClick={onChoose}>
+    <span className={`workspace-v4-nib is-${profile}`} style={cssVars({ "--workspace-tool-color": color })}><PenNibIcon profile={profile} /></span>
+    {hint && <span className="workspace-pen-hint" role="tooltip">{label}</span>}
+  </button>;
+}
+
 export function PenProfilePicker({ value, onChange, color }) {
   const { t } = useI18n();
   return <div className="workspace-v4-pen-profiles" role="group" aria-label={t("focus.penType")}>
-    {PEN_PROFILE_OPTIONS.map(([optionValue, optionKey, OptionIcon, shortKey]) => <button key={optionValue} type="button" className={value === optionValue ? "is-active" : ""} aria-label={t(optionKey)} aria-pressed={value === optionValue} onClick={() => onChange(optionValue)}>
-      <span className={`workspace-v4-nib is-${optionValue}`} style={cssVars({ "--workspace-tool-color": color })}><OptionIcon size={15} /><i /></span><strong>{t(shortKey)}</strong>
-    </button>)}
+    {PEN_PROFILE_OPTIONS.map(([optionValue, optionKey]) => <PenProfileChoice key={optionValue} profile={optionValue} label={t(optionKey)} active={value === optionValue} color={color} onChoose={() => onChange(optionValue)} />)}
   </div>;
 }
 

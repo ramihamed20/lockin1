@@ -228,6 +228,8 @@ import { ACTIVE_RESULT_STAGES, clearActiveStudyDraft, clearActiveStudyEntry, cle
 import { ActiveStudyQuiz } from "./focus-workspace/ActiveStudyQuiz.jsx";
 import { cloneAnnotation, copiedAnnotations, loadRecentColors, loadStoredWorkspace, loadStringList, loadToolMemory, loadWorkspaceSettings } from "./focus-workspace/preferences.js";
 import { AnnotationVisuals, COVER_COLOR, DraftAnnotationLayer } from "./focus-workspace/annotationVisuals.jsx";
+import { DockableToolRail } from "./focus-workspace/DockableToolRail.jsx";
+import { WorkspaceToolIcon } from "./focus-workspace/WorkspaceToolIcon.jsx";
 import { WorkspaceIconButton } from "./focus-workspace/controls.jsx";
 import { useToolRail } from "./focus-workspace/useToolRail.js";
 import { PageNavigator, ZoomBar } from "./focus-workspace/pageControls.jsx";
@@ -242,6 +244,7 @@ import "./catalog-focus-workspace.css";
 import "./focus-workspace-glass.css";
 import "./focus-tool-panel-compact.css";
 import "./focus-phone.css";
+import "./focus-workspace/compact-ink-options.css";
 
 /**
  * The workspace mounts a large annotation and PDF stack, so the sheet is
@@ -1088,6 +1091,24 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     panel.scrollTop = 0;
     const resetScroll = window.requestAnimationFrame(() => { panel.scrollTop = 0; });
     const position = () => {
+      const dock = source.closest(".workspace-tool-dock");
+      if (dock && dock.dataset.dockEdge !== "top") {
+        const sourceBounds = source.getBoundingClientRect();
+        const panelBounds = panel.getBoundingClientRect();
+        const width = panelBounds.width;
+        const height = Math.min(panelBounds.height, window.innerHeight - 16);
+        const vertical = dock.classList.contains("is-vertical");
+        const desiredLeft = vertical
+          ? (sourceBounds.right + 10 + width <= window.innerWidth - 8 ? sourceBounds.right + 10 : sourceBounds.left - width - 10)
+          : sourceBounds.left + sourceBounds.width / 2 - width / 2;
+        const desiredTop = vertical ? sourceBounds.top : (sourceBounds.bottom + 10 + height <= window.innerHeight - 8 ? sourceBounds.bottom + 10 : sourceBounds.top - height - 10);
+        panel.style.position = "fixed";
+        panel.style.transform = "none";
+        panel.style.maxHeight = `${window.innerHeight - 16}px`;
+        panel.style.left = `${Math.max(8, Math.min(window.innerWidth - width - 8, desiredLeft))}px`;
+        panel.style.top = `${Math.max(8, Math.min(window.innerHeight - height - 8, desiredTop))}px`;
+        return;
+      }
       if (window.innerWidth <= 560 || window.innerHeight < 600) {
         panel.style.removeProperty("left");
         // The full-width phone panel still points its caret at the tool.
@@ -1108,7 +1129,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     };
     position();
     window.addEventListener("resize", position, { passive: true });
-    return () => { window.cancelAnimationFrame(resetScroll); window.removeEventListener("resize", position); };
+    return () => {
+      window.cancelAnimationFrame(resetScroll);
+      window.removeEventListener("resize", position);
+      for (const property of ["position", "transform", "max-height", "top", "left"]) panel.style.removeProperty(property);
+    };
   }, [toolOptionsOpen]);
   // The inspector stays mounted while switching writing tools. Interpolate its
   // own height after content changes; it is absolutely positioned and does not
@@ -6108,7 +6133,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 <span>{whiteboard ? t("workspaceTabs.whiteboardStoredHere") : personal ? t("personalSheets.readerLabel") : summaryMode ? t("materials.sheetSummary") : sheetEdition?.edition === "lockin" ? t("focus.lockinEdition") : t("focus.universityEdition")}</span>
               </div>
             </div>
-            <div className="workspace-v3-primary" ref={toolRailRef} inert={workspaceReady ? undefined : ""}>
+            <DockableToolRail railRef={toolRailRef} readerRef={readerRef} userId={user?.id} arabic={currentAppLocale() === "ar"} onMove={() => setOpenSurface(null)} inert={workspaceReady ? undefined : ""}>
               <div className="workspace-v2-tool-list" ref={toolListRef} aria-label={t("focus.writingTools")} data-active-tool={activeTool}>
                 <span className="workspace-v2-tool-indicator" ref={toolIndicatorRef} aria-hidden="true" />
                 {PRIMARY_WRITE_TOOLS.map(([id, labelKey, ToolIcon, responsiveClass]) => {
@@ -6126,7 +6151,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                     data-workspace-tool={id}
                     style={id === activeTool && SWATCH_TOOLS.has(id) ? cssVars({ "--workspace-tool-color": activeColor, "--workspace-swatch-size": `${swatchSize}px` }) : undefined}
                     onClick={() => chooseWritingTool(id)}
-                  ><ToolIcon size={19} />{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
+                  ><WorkspaceToolIcon tool={id} fallback={ToolIcon} />{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
                 })}
                 <WorkspaceIconButton label={t("focus.add")} className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
               </div>
@@ -6138,7 +6163,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
-            </div>
+            </DockableToolRail>
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
                 because the rail scrolls them out of reach exactly when writing
                 needs them. */}
