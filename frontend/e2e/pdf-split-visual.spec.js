@@ -50,6 +50,16 @@ for (const viewport of [
     await page.mouse.down();
     await page.mouse.move(source.x + source.width / 2 + 25, source.y + 45, { steps: 4 });
     await page.mouse.move(stage.x + stage.width * .78, stage.y + stage.height * .45, { steps: 14 });
+    console.log("SPLIT_DRAG_GEOMETRY", viewport.name, JSON.stringify(await page.evaluate(() => {
+      const keys = [".workspace-split-layout", ".workspace-pane.is-active", ".workspace-v2-document-stage", ".workspace-tab-drag-ghost", ".workspace-tab-drop-highlight"];
+      return keys.map(selector => {
+        const element = document.querySelector(selector);
+        if (!element) return [selector, "missing"];
+        const r = element.getBoundingClientRect(), style = getComputedStyle(element);
+        return [selector, { x: r.x, y: r.y, width: r.width, height: r.height, position: style.position, display: style.display, transform: style.transform, overflow: style.overflow }];
+      });
+    }))));
+    await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-drag-attempt.png`, fullPage: false });
     await expect(page.locator(".workspace-tab-drop-highlight.is-end")).toBeVisible({ timeout: 10000 });
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-dragging.png`, fullPage: false });
     await page.mouse.up();
@@ -58,6 +68,15 @@ for (const viewport of [
     await expect(page.locator(".workspace-pane.is-secondary .workspace-v3-document-context strong")).toHaveText("Vitamin -2");
     await expect(page.locator(".workspace-pane.is-secondary .workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 25000 });
     await page.waitForTimeout(600);
+    console.log("SPLIT_AFTER_GEOMETRY", viewport.name, JSON.stringify(await page.evaluate(() => {
+      const keys = [".workspace-split-layout", ".workspace-pane.is-active", ".workspace-pane.is-secondary", ".workspace-pane.is-active .workspace-v2", ".workspace-pane.is-secondary .workspace-v2", ".workspace-split-divider"];
+      return keys.map(selector => {
+        const element = document.querySelector(selector);
+        if (!element) return [selector, "missing"];
+        const r = element.getBoundingClientRect(), style = getComputedStyle(element);
+        return [selector, { x:r.x, y:r.y, width:r.width, height:r.height, position:style.position, display:style.display, transform:style.transform, zIndex:style.zIndex }];
+      });
+    }))));
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-after.png`, fullPage: false });
   });
 }
