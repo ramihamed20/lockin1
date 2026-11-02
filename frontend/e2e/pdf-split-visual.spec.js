@@ -22,6 +22,7 @@ async function expectTopAlignedPages(page, count, tolerance = 4) {
       };
     });
   }, count);
+  console.log("TOP_ALIGN_BEFORE_ASSERT", count, JSON.stringify(await collect()));
   await expect.poll(async () => {
     const data = await collect();
     if (data.length !== count || data.some((item) => !item)) return 999;
