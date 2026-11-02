@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ownerStorageKey } from "../storage/workspaceSnapshot.js";
 import { FocusVideoPlayer } from "./FocusVideoPlayer.jsx";
 import { WorkspacePaneActiveContext, WorkspacePaneVisibleContext, WorkspaceSplitContext } from "./workspacePane.js";
@@ -40,6 +40,7 @@ const clampPercent = (value) => Math.max(28, Math.min(72, value));
  */
 export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const ownerKey = useMemo(() => ownerStorageKey(user), [user]);
   const [tabs] = useWorkspaceTabs(ownerKey);
   const [splitId, setSplitId] = useState("");
@@ -65,6 +66,10 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     setFocusedPath(location.pathname);
   }, [location.pathname, primaryId, splitId]);
 
+  useEffect(() => {
+    if (splitId && !tabs.tabs.some((tab) => tab.id === splitId)) setSplitId("");
+  }, [splitId, tabs.tabs]);
+
   const splitTab = tabs.tabs.find((tab) => tab.id === splitId && tab.id !== primaryId);
   const splitPath = splitTab ? workspaceTabRoute(splitTab) : "";
   const visiblePaths = new Set([location.pathname, ...(splitPath ? [splitPath] : [])]);
@@ -89,11 +94,23 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   kept.slice(KEPT_WORKSPACE_PANES).forEach(([path]) => panes.delete(path));
 
   function dropSplit(tabId, side) {
-    if (!tabs.tabs.some((tab) => tab.id === tabId) || tabId === primaryId) return;
+    if (!tabs.tabs.some((tab) => tab.id === tabId) || tabs.tabs.length < 2) return;
     setSplitPercent(50);
     setSecondarySide(side === "start" ? "start" : "end");
-    setSplitId(tabId);
-    setFocusedPath(location.pathname);
+    if (tabId === primaryId) {
+      // The currently selected sheet may be dragged too. Leave its nearest
+      // already-open neighbour in the main pane and dock this sheet beside it.
+      const index = tabs.tabs.findIndex((tab) => tab.id === tabId);
+      const anchor = tabs.tabs[index + 1] || tabs.tabs[index - 1];
+      if (!anchor) return;
+      const anchorPath = workspaceTabRoute(anchor);
+      setSplitId(tabId);
+      setFocusedPath(anchorPath);
+      navigate(anchorPath, { state: { studyMode: anchor.mode || "normal" } });
+    } else {
+      setSplitId(tabId);
+      setFocusedPath(location.pathname);
+    }
   }
 
   function resizeFromPointer(event) {
