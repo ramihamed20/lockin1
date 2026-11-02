@@ -1,5 +1,8 @@
 export const settingsMessages = {
   "en": {
+    "settings.companion": "Study companion",
+    "settings.hint.companion": "Choose Starmo or Starsea, see XP and try emotes.",
+    "settings.keywords.companion": "study companion Starmo Starsea XP emotes رفيق الدراسة مساعد ستارمو ستارسيا",
     "settings.security": "Sign-in & security",
     "settings.devices": "Your devices",
     "settings.billing": "Subscription & payments",
@@ -103,6 +106,9 @@ export const settingsMessages = {
     "reminder.hint": "Saved to your account. Enable device notifications to receive reminders when Lockin is closed; delivery needs device support, permission and a valid sign-in."
   },
   "ar": {
+    "settings.companion": "رفيق الدراسة",
+    "settings.hint.companion": "اختيار Starmo أو Starsea، نقاط التقدم والحركات.",
+    "settings.keywords.companion": "study companion Starmo Starsea XP emotes رفيق الدراسة مساعد ستارمو ستارسيا",
     "settings.security": "الدخول والأمان",
     "settings.devices": "أجهزتك",
     "settings.billing": "الاشتراك والدفع",

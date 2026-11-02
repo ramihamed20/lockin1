@@ -29,9 +29,11 @@ test("legacy links retain their destination and deletion links always open priva
 
 test("search accepts Arabic hamza variants, inner preferences and the other language", () => {
   const translate = key => settingsMessages.ar[key] || key;
-  for (const [query, expected] of [["اشعارات", "notifications"], ["كلمة مرور", "security"], ["حذف حساب", "privacy"], ["payment history", "billing"], ["لغة", "appearance"], ["ايباد", "devices"]]) {
+  for (const [query, expected] of [["رفيق الدراسة", "companion"], ["Starsea", "companion"], ["اشعارات", "notifications"], ["كلمة مرور", "security"], ["حذف حساب", "privacy"], ["payment history", "billing"], ["لغة", "appearance"], ["ايباد", "devices"]]) {
     assert.deepEqual(searchSettingsSections(SETTINGS_SECTIONS, query, translate).map(item => item.id), [expected], query);
   }
+  assert.ok(searchSettingsSections(SETTINGS_SECTIONS, "XP", translate).some(section => section.id === "companion"));
+  assert.equal(resolveSettingsSection("companion").section, "companion");
   assert.equal(searchSettingsSections(SETTINGS_SECTIONS, "doesnotexist", translate).length, 0);
 });
 

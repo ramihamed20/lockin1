@@ -227,13 +227,16 @@ test("choosing an app icon stays local and survives reloading settings", async (
 });
 
 for (const [locale, width, height] of [["ar", 390, 844], ["en", 1024, 768]]) {
-  test(`companion belongs to settings account in ${locale}`, async ({ page }) => {
+  test(`companion has its own settings section in ${locale}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await server(page, locale);
     await page.route("**/api/v1/progression/xp", route => route.fulfill({ json: { level: 3, total_points: 500, level_progress: 40, level_target: 100 } }));
-    await page.goto("/#/settings?section=account");
-    const card = page.locator("#settings-account .profile-companion-card");
+    await page.goto("/#/settings");
+    await page.locator(".settings-v2-nav").getByRole("button", { name: locale === "ar" ? "رفيق الدراسة" : "Study companion", exact: true }).click();
+    await expect(page).toHaveURL(/section=companion/);
+    await expect(page.locator("#settings-companion-heading")).toBeFocused();
+    const card = page.locator("#settings-companion .profile-companion-card");
     await expect(card).toBeVisible();
     await expect(card.getByRole("progressbar")).toHaveAttribute("value", "40");
     await card.getByRole("button", { name: "Starsea", exact: true }).click();
@@ -241,6 +244,9 @@ for (const [locale, width, height] of [["ar", 390, 844], ["en", 1024, 768]]) {
     await page.reload();
     await expect(card.getByRole("button", { name: "Starsea", exact: true })).toHaveAttribute("aria-pressed", "true");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.goto("/#/settings?section=account");
+    await expect(page.locator("#settings-account")).toBeVisible();
+    await expect(page.locator(".profile-companion-card")).toHaveCount(0);
     await page.goto("/#/profile");
     await expect(page.locator(".profile-academy-id")).toBeVisible();
     await expect(page.locator(".profile-companion-card")).toHaveCount(0);

@@ -197,7 +197,6 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
           {activeSection === "account" && <section className="settings-v2-section" id="settings-account" aria-labelledby="settings-account-heading">
             <AccountSummary user={user} />
             <UsernameCard user={user} onUserUpdate={onUserUpdate} />
-            <AccountCompanion key={user?.id} userId={user?.id} />
             <div className="ui-group">
               {["security", "devices", "billing", "privacy"].map(id => <button type="button" className="ui-row" key={id} onClick={() => openSection(id)}>
                 <span className={`ui-row-icon settings-v2-icon settings-v2-icon--${id}`}><Icon name={SECTIONS.find(section => section.id === id).icon} size={18} /></span>
@@ -205,6 +204,10 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
                 <Icon className="ui-row-chevron" name="chevron-right" size={17} />
               </button>)}
             </div>
+          </section>}
+
+          {activeSection === "companion" && <section className="settings-v2-section" id="settings-companion" aria-labelledby="settings-companion-heading">
+            <SettingsCompanion key={user?.id} userId={user?.id} />
           </section>}
 
           {activeSection === "security" && <section className="settings-v2-section" id="settings-security" aria-labelledby="settings-security-heading">
@@ -327,7 +330,7 @@ export default function Settings({ user, onUserUpdate, settings, activeTheme, on
   );
 }
 
-function AccountCompanion({ userId }) {
+function SettingsCompanion({ userId }) {
   const xp = useAsyncData((signal) => motivationApi.xpSummary({ signal }), [userId]);
   return <CompanionCard userId={userId} xp={xp.data} xpAvailable={!xp.loading && !xp.error && Boolean(xp.data)} />;
 }

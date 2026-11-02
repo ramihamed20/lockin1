@@ -4,6 +4,7 @@ export const SETTINGS_SECTIONS = [
   { id: "devices", group: "account", labelKey: "settings.devices", icon: "devices" },
   { id: "billing", group: "account", labelKey: "settings.billing", icon: "coins" },
   { id: "privacy", group: "account", labelKey: "settings.privacy", icon: "shield-alert" },
+  { id: "companion", group: "preferences", labelKey: "settings.companion", icon: "sparkles" },
   { id: "appearance", group: "preferences", labelKey: "common.appearance", icon: "palette" },
   { id: "notifications", group: "preferences", labelKey: "settings.notifications", icon: "bell" },
   { id: "offline", group: "preferences", labelKey: "offline.title", icon: "package" },
