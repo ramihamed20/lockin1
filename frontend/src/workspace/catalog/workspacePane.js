@@ -14,3 +14,14 @@ export const WorkspacePaneActiveContext = createContext(true);
 export function useWorkspacePaneActive() {
   return useContext(WorkspacePaneActiveContext);
 }
+
+/**
+ * Split view is owned by the keep-alive host, not by individual PDF readers.
+ * Both readers remain isolated; the currently focused pane alone receives
+ * global keyboard commands and foreground study effects.
+ */
+export const WorkspaceSplitContext = createContext({ splitId: "", toggleSplit: () => {} });
+
+export function useWorkspaceSplit() {
+  return useContext(WorkspaceSplitContext);
+}
