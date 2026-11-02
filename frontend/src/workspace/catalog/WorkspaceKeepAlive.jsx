@@ -174,7 +174,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       data-focused={focused ? "true" : undefined}
       aria-hidden={visible ? undefined : "true"}
       inert={visible ? undefined : ""}
-      onPointerDownCapture={() => { if (visible && !focused) setFocusedPath(path); }}
+      onPointerDownCapture={(event) => { if (event.target === event.currentTarget.querySelector(".workspace-split-pane-remove")) return; if (visible && !focused) setFocusedPath(path); }}
     >
       <WorkspacePaneVisibleContext.Provider value={visible}>
         <WorkspacePaneActiveContext.Provider value={focused}>
