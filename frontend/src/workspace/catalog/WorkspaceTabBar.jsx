@@ -300,8 +300,8 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
       {tabs.map((tab) => {
         const active = tab.id === activeId;
         const label = tabLabel(tab, t);
-        return <div key={tab.id} ref={active ? activeTabRef : undefined} className={`workspace-tab${active ? " is-active" : ""}${preview?.label === label ? " is-dragging" : ""}`} data-tab-kind={tab.kind}>
-          <button type="button" role="tab" aria-selected={active} title={currentAppLocale() === "ar" ? `${label} — اسحب لتقسيم الشاشة` : `${label} — drag into the reader to split`} onPointerDown={(event) => { if (tabs.length > 1) startDrag(event, tab, label); }} onClick={(event) => { if (shouldSuppressClick()) { event.preventDefault(); event.stopPropagation(); return; } if (!active) onSelect(tab); }} onKeyDown={(event) => { if (event.altKey && event.key === "Enter" && !active) { event.preventDefault(); dropSplit(tab.id, "end"); } }}>
+        return <div key={tab.id} ref={active ? activeTabRef : undefined} className={`workspace-tab${active ? " is-active" : ""}${preview?.id === tab.id ? " is-dragging" : ""}`} data-tab-kind={tab.kind}>
+          <button type="button" role="tab" aria-selected={active} title={currentAppLocale() === "ar" ? (active ? label : `${label} — اسحب لتقسيم الشاشة`) : (active ? label : `${label} — drag into the reader to split`)} onPointerDown={(event) => { if (tabs.length > 1 && !active) startDrag(event, tab, label); }} onClick={(event) => { if (shouldSuppressClick()) { event.preventDefault(); event.stopPropagation(); return; } if (!active) onSelect(tab); }} onKeyDown={(event) => { if (event.altKey && event.key === "Enter" && !active) { event.preventDefault(); dropSplit(tab.id, "end"); } }}>
             {tab.kind === "whiteboard" ? <NotebookPen size={14} aria-hidden="true" /> : tab.kind === "personal" ? <Folder size={14} aria-hidden="true" /> : <FileText size={14} aria-hidden="true" />}
             <span dir="auto">{label}</span>
           </button>
