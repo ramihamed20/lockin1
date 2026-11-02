@@ -105,12 +105,12 @@ export function WorkspaceTabDragPreview({ preview }) {
   if (!preview) return null;
   const ar = currentAppLocale() === "ar";
   const bounds = preview.geometry;
-  const dropStyle = bounds ? {
+  const dropStyle = bounds ? /** @type {import("react").CSSProperties} */ ({
     "--drop-left": `${bounds.left + 7}px`,
     "--drop-top": `${bounds.top + 7}px`,
     "--drop-width": `${Math.max(0, bounds.width - 14)}px`,
     "--drop-height": `${Math.max(0, bounds.height - 14)}px`
-  } : undefined;
+  }) : undefined;
   return createPortal(
     <div className="workspace-tab-drag-overlay" aria-hidden="true">
       {preview.side && <div
