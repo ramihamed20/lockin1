@@ -8,7 +8,9 @@
   display: flex; flex-direction: row; overflow: hidden;
   background: var(--workspace-bg, #080d19);
 }
+/* Active tab normally uses display: contents, but a split pane must be a flex item. */
 .workspace-split-layout.is-split > .workspace-pane {
+  display: block;
   position: relative; min-width: 0; min-height: 0; overflow: hidden;
   transform: translateZ(0); /* Constrain the reader's fixed viewport to its pane. */
 }
