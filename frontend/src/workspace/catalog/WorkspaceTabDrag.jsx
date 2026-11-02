@@ -7,18 +7,26 @@ const DRAG_START_PX = 12;
 const MOBILE_BREAKPOINT = "(max-width: 640px)";
 
 /** Derive a drop zone only when the pointer actually reaches the PDF area. */
+function dropGeometry() {
+  const pane = document.querySelector(".workspace-pane.is-active .workspace-v2");
+  const stage = pane?.querySelector(".workspace-v2-document-stage");
+  const paneRect = pane?.getBoundingClientRect();
+  const stageRect = stage?.getBoundingClientRect();
+  if (!paneRect?.width || !paneRect?.height || !stageRect?.width || !stageRect?.height) return null;
+  return {
+    left: stageRect.left, top: stageRect.top,
+    width: stageRect.width, height: stageRect.height,
+    stacked: window.matchMedia(MOBILE_BREAKPOINT).matches
+  };
+}
+
 export function splitDropZone(x, y) {
-  const workspace = document.querySelector(".workspace-split-layout.is-split")
-    || document.querySelector(".workspace-pane.is-active .workspace-v2");
-  const rect = workspace?.getBoundingClientRect();
-  if (!rect?.width || !rect?.height) return null;
-  const stage = document.querySelector(".workspace-pane.is-active .workspace-v2-document-stage");
-  const toolbarBottom = stage?.getBoundingClientRect().top || rect.top + 64;
-  if (x < rect.left || x > rect.right || y < toolbarBottom + 8 || y > rect.bottom) return null;
-  const stacked = window.matchMedia(MOBILE_BREAKPOINT).matches;
-  return stacked
-    ? (y < rect.top + rect.height / 2 ? "start" : "end")
-    : (x < rect.left + rect.width / 2 ? "start" : "end");
+  const bounds = dropGeometry();
+  if (!bounds) return null;
+  if (x < bounds.left || x > bounds.left + bounds.width || y < bounds.top + 8 || y > bounds.top + bounds.height) return null;
+  return bounds.stacked
+    ? (y < bounds.top + bounds.height / 2 ? "start" : "end")
+    : (x < bounds.left + bounds.width / 2 ? "start" : "end");
 }
 
 /**
@@ -40,19 +48,21 @@ export function useWorkspaceTabDrag(onDrop) {
 
     const id = event.pointerId;
     const startX = event.clientX, startY = event.clientY;
+    const touch = event.pointerType === "touch";
     let active = false;
     const pointer = (nextEvent) => {
       if (nextEvent.pointerId !== id) return;
       const dx = nextEvent.clientX - startX;
       const dy = nextEvent.clientY - startY;
       // Horizontal gestures can still scroll the crowded tab strip.
-      if (!active && Math.hypot(dx, dy) > DRAG_START_PX && Math.abs(dy) > Math.abs(dx) * .35) active = true;
+      if (!active && Math.hypot(dx, dy) > DRAG_START_PX
+        && (!touch || Math.abs(dy) > 10 || Math.abs(dx) > 52)) active = true;
       if (!active) return;
       if (nextEvent.cancelable) nextEvent.preventDefault();
       setPreview({
-        x: nextEvent.clientX, y: nextEvent.clientY, label,
+        id: tab.id, x: nextEvent.clientX, y: nextEvent.clientY, label,
         side: splitDropZone(nextEvent.clientX, nextEvent.clientY),
-        stacked: window.matchMedia(MOBILE_BREAKPOINT).matches
+        geometry: dropGeometry()
       });
     };
     const cleanup = () => {
@@ -94,10 +104,18 @@ export function useWorkspaceTabDrag(onDrop) {
 export function WorkspaceTabDragPreview({ preview }) {
   if (!preview) return null;
   const ar = currentAppLocale() === "ar";
+  const bounds = preview.geometry;
+  const dropStyle = bounds ? {
+    "--drop-left": `${bounds.left + 7}px`,
+    "--drop-top": `${bounds.top + 7}px`,
+    "--drop-width": `${Math.max(0, bounds.width - 14)}px`,
+    "--drop-height": `${Math.max(0, bounds.height - 14)}px`
+  } : undefined;
   return createPortal(
     <div className="workspace-tab-drag-overlay" aria-hidden="true">
       {preview.side && <div
-        className={`workspace-tab-drop-highlight is-${preview.side}${preview.stacked ? " is-stacked" : ""}`}
+        className={`workspace-tab-drop-highlight is-${preview.side}${bounds?.stacked ? " is-stacked" : ""}`}
+        style={dropStyle}
       >
         <span>{ar ? "أفلت لفتح الشيت هنا" : "Release to open here"}</span>
       </div>}
