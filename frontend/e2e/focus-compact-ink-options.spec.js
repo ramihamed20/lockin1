@@ -49,6 +49,7 @@ for (const viewport of [{width:390,height:844},{width:1180,height:820}]) {
   await rail.locator('[data-workspace-tool="pen"]').click();
   const panel=page.locator('.workspace-v2-tool-options.is-compact-ink');
   await expect(panel).toBeVisible();
+  await expect.poll(()=>panel.evaluate(node=>{const p=node.getBoundingClientRect();const bar=node.closest('.workspace-v2-reader').querySelector('.workspace-v2-toolbar').getBoundingClientRect();return p.top-bar.bottom;})).toBeGreaterThanOrEqual(19);
   const profiles=panel.locator('.workspace-v4-pen-profiles');
   await expect(profiles.getByRole('button')).toHaveCount(5);
   await expect(profiles).toHaveText('');

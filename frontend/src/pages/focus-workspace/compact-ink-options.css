@@ -49,3 +49,9 @@
 /* The base custom-colour button uses an important dashed frame; keep just the circular affordance here. */
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-custom-color { border: 0 !important; }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-colors { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+/* A separate card, with visible air between it and the tools. */
+.workspace-v2 .workspace-v2-toolbar[data-tool-dock="top"] ~ .workspace-v2-tool-options.is-compact-ink { top: calc(var(--workspace-toolbar-height, 54px) + 20px); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink::before { display: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles .workspace-v4-nib { color: var(--fx-text-2); filter: none; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button.is-active .workspace-v4-nib { color: var(--fx-text); }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-nib svg { width: 28px; height: 30px; }

@@ -1,11 +1,12 @@
-/** Distinct silhouettes for the existing ink profiles, tinted with the chosen ink. */
+/** Recognisable pen bodies with a restrained ink-coloured tip. */
 export function PenNibIcon({ profile }) {
+  const ink = 'var(--workspace-tool-color, currentColor)';
   const art = {
-    ball: <><path d="M9 3h6l1 13-4 6-4-6Z"/><path d="M8 16h8M10 6h4M12 22v2"/><path d="M9 3h6l1 13H8Z" fill="currentColor" fillOpacity=".18"/></>,
-    fountain: <><path d="M12 2 5 17l7 7 7-7Z"/><path d="M12 9v15M5 17h14"/><circle cx="12" cy="9" r="1.5" fill="currentColor"/><path d="m12 2 7 15h-7Z" fill="currentColor" fillOpacity=".2"/></>,
-    brush: <><path d="M15 2c0 5 4 9 3 13s-5 6-9 6c-2 0-3 1-4 3 0-5 1-9 4-12s6-7 6-10Z" fill="currentColor" fillOpacity=".2"/><path d="M15 2c0 5 4 9 3 13s-5 6-9 6c-2 0-3 1-4 3 0-5 1-9 4-12s6-7 6-10ZM9 17l6-5"/></>,
-    calligraphy: <><path d="M8 3h8l2 14-12 5Z" fill="currentColor" fillOpacity=".2"/><path d="M8 3h8l2 14-12 5ZM7 16l10-4M6 22v2m12-7v3"/></>,
-    pointer: <><path d="m12 3 2.5 7.5L22 13l-7.5 2.5L12 23l-2.5-7.5L2 13l7.5-2.5Z" fill="currentColor" fillOpacity=".16"/><path d="m12 3 2.5 7.5L22 13l-7.5 2.5L12 23l-2.5-7.5L2 13l7.5-2.5ZM21 2v4m-2-2h4"/></>
+    ball: <><rect x="9" y="3" width="8" height="17" rx="3" fill="currentColor" fillOpacity=".13"/><path d="M9 8V6a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3v13H9ZM9 19l4 7 4-7M13 26v2M11 7h4"/><path d="M9 17h8v3H9Z" fill={ink} stroke="none"/><path d="M17 6h2v8"/></>,
+    fountain: <><path d="M9 3h8v9H9Z" fill="currentColor" fillOpacity=".13"/><path d="M9 12V3h8v9M9 12l-3 8 7 7 7-7-3-8Z"/><path d="m9 12-3 8 7 7 7-7-3-8Z" fill={ink} fillOpacity=".35"/><path d="M13 17v10M9 12h8"/><circle cx="13" cy="17" r="1.2" fill="currentColor" stroke="none"/></>,
+    brush: <><path d="M10 3h6l-1 15h-4Z" fill="currentColor" fillOpacity=".13"/><path d="M10 3h6l-1 15h-4ZM11 14h4"/><path d="M11 18c-4 3-2 7-6 9 7 2 14-1 10-9Z" fill={ink} fillOpacity=".65"/><path d="M11 18c-4 3-2 7-6 9 7 2 14-1 10-9Z"/></>,
+    calligraphy: <><rect x="7" y="3" width="12" height="16" rx="2.5" fill="currentColor" fillOpacity=".13"/><path d="M7 17V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12ZM7 17h12M9 17v8l8-3v-5"/><path d="M9 20v5l8-3v-2Z" fill={ink} stroke="none"/><path d="M10 7h6"/></>,
+    pointer: <><rect x="9" y="10" width="8" height="17" rx="3" fill="currentColor" fillOpacity=".13"/><rect x="9" y="10" width="8" height="17" rx="3"/><path d="M9 15h8"/><circle cx="13" cy="19" r="1.3" fill={ink} stroke="none"/><path d="M13 6V2M7 7 5 5m14 2 2-2" stroke={ink} strokeWidth="2"/></>
   }[profile];
-  return <svg width="26" height="28" viewBox="0 0 24 26" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{art}</svg>;
+  return <svg width="28" height="30" viewBox="0 0 28 32" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><g transform="rotate(28 14 16)">{art}</g></svg>;
 }

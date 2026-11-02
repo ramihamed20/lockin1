@@ -1094,14 +1094,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const dock = source.closest(".workspace-tool-dock");
       if (dock && dock.dataset.dockEdge !== "top") {
         const sourceBounds = source.getBoundingClientRect();
+        const dockBounds = dock.getBoundingClientRect();
+        const gap = 20;
         const panelBounds = panel.getBoundingClientRect();
         const width = panelBounds.width;
         const height = Math.min(panelBounds.height, window.innerHeight - 16);
         const vertical = dock.classList.contains("is-vertical");
         const desiredLeft = vertical
-          ? (sourceBounds.right + 10 + width <= window.innerWidth - 8 ? sourceBounds.right + 10 : sourceBounds.left - width - 10)
+          ? (dockBounds.right + gap + width <= window.innerWidth - 8 ? dockBounds.right + gap : dockBounds.left - width - gap)
           : sourceBounds.left + sourceBounds.width / 2 - width / 2;
-        const desiredTop = vertical ? sourceBounds.top : (sourceBounds.bottom + 10 + height <= window.innerHeight - 8 ? sourceBounds.bottom + 10 : sourceBounds.top - height - 10);
+        const desiredTop = vertical ? sourceBounds.top : (dockBounds.bottom + gap + height <= window.innerHeight - 8 ? dockBounds.bottom + gap : dockBounds.top - height - gap);
         panel.style.position = "fixed";
         panel.style.transform = "none";
         panel.style.maxHeight = `${window.innerHeight - 16}px`;
