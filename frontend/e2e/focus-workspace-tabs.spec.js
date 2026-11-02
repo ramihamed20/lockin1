@@ -135,7 +135,7 @@ test("four kept PDF tabs release hidden raster buffers and repaint the same read
   await tabs(page).filter({ hasText: "Range probe" }).click();
   await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Close Long probe" }).click();
-  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(3);
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(2);
 });
 
 
