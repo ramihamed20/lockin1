@@ -3,10 +3,12 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, FileText, Folder, NotebookPen, Plus, X, Youtube } from "lucide-react";
 import { personalSheetsApi } from "../../api/personalSheets.js";
 import { useI18n } from "../../components/I18nProvider.jsx";
+import { currentAppLocale } from "../../lib/i18n.js";
 import { requestFocusVideo } from "./focusVideo.js";
 import { personalTabId, sheetTabId } from "./workspaceTabs.js";
 import { revealWorkspaceTab } from "./workspaceTabScroll.js";
-import { useWorkspacePaneActive } from "./workspacePane.js";
+import { useWorkspacePaneActive, useWorkspaceSplit } from "./workspacePane.js";
+import { WorkspaceTabDragPreview, useWorkspaceTabDrag } from "./WorkspaceTabDrag.jsx";
 
 const SHEET_PICKER_EVENT = "lockin:workspace-sheet-picker";
 
@@ -163,6 +165,8 @@ function SheetChoice({ choice, open, onPick }) {
 export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, onSelect, onClose, onNewWhiteboard, onOpenSheet }) {
   const { t } = useI18n();
   const paneActive = useWorkspacePaneActive();
+  const { dropSplit } = useWorkspaceSplit();
+  const { startDrag, shouldSuppressClick, preview } = useWorkspaceTabDrag(dropSplit);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState(null);
@@ -296,8 +300,8 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
       {tabs.map((tab) => {
         const active = tab.id === activeId;
         const label = tabLabel(tab, t);
-        return <div key={tab.id} ref={active ? activeTabRef : undefined} className={`workspace-tab${active ? " is-active" : ""}`} data-tab-kind={tab.kind}>
-          <button type="button" role="tab" aria-selected={active} title={label} onClick={() => { if (!active) onSelect(tab); }}>
+        return <div key={tab.id} ref={active ? activeTabRef : undefined} className={`workspace-tab${active ? " is-active" : ""}${preview?.id === tab.id ? " is-dragging" : ""}`} data-tab-kind={tab.kind}>
+          <button type="button" role="tab" aria-selected={active} title={currentAppLocale() === "ar" ? (active ? label : `${label} — اسحب لتقسيم الشاشة`) : (active ? label : `${label} — drag into the reader to split`)} onPointerDown={(event) => { if (tabs.length > 1 && !active) startDrag(event, tab, label); }} onClick={(event) => { if (shouldSuppressClick()) { event.preventDefault(); event.stopPropagation(); return; } if (!active) onSelect(tab); }} onKeyDown={(event) => { if (event.altKey && event.key === "Enter" && !active) { event.preventDefault(); dropSplit(tab.id, "end"); } }}>
             {tab.kind === "whiteboard" ? <NotebookPen size={14} aria-hidden="true" /> : tab.kind === "personal" ? <Folder size={14} aria-hidden="true" /> : <FileText size={14} aria-hidden="true" />}
             <span dir="auto">{label}</span>
           </button>
@@ -306,6 +310,7 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
       })}
     </div>
     <button ref={addRef} type="button" className={`workspace-tabs-add${menuOpen ? " is-active" : ""}`} aria-label={t("workspaceTabs.newTab")} title={t("workspaceTabs.newTab")} aria-haspopup="menu" aria-expanded={menuOpen} onClick={toggleMenu}><Plus size={16} /></button>
+    <WorkspaceTabDragPreview preview={preview} />
     {paneActive && menu && portalTarget && createPortal(menu, portalTarget)}
     {paneActive && pickerOpen && portalTarget && createPortal(<SheetPicker materials={materials} openIds={openIds} onClose={() => { setPickerOpen(false); restoreFocus(); }} onPick={(choice) => { setPickerOpen(false); onOpenSheet(choice); }} />, portalTarget)}
   </div>;

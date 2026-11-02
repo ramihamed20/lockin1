@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
  * device.
  */
 
-export const MAX_WORKSPACE_TABS = 12;
+export const MAX_WORKSPACE_TABS = 4;
 const STORAGE_PREFIX = "lock-in.workspace-tabs.v1";
 const CHANGE_EVENT = "lock-in:workspace-tabs";
 const SLUG = /^[a-z0-9][a-z0-9-]{0,199}$/i;

@@ -6,7 +6,7 @@ import { createIsolatedInkPreview } from "./isolatedInkPreview.js";
 import { createLiveStrokeGeometry } from "./liveStrokeGeometry.js";
 import { measureInkCanvas, observeInkCanvas, sizeInkCanvas } from "./inkCanvasViewport.js";
 import { paintInkErasures } from "./inkErasures.js";
-import { useWorkspacePaneActive } from "../catalog/workspacePane.js";
+import { useWorkspacePaneVisible } from "../catalog/workspacePane.js";
 
 /** A dot is round on the page, so in page units it is an ellipse on a page that is not square. */
 function drawDot(context, geometry, color, opacity) {
@@ -173,7 +173,7 @@ function drawDiagnostics(context, diagnostics, cssScale) {
 export const LiveAnnotationCanvas = forwardRef(
 /** @param {{ pageNumber: number, pageAspect?: number }} props */
 function LiveAnnotationCanvas({ pageNumber, pageAspect = 1 }, ref) {
-  const paneActive = useWorkspacePaneActive();
+  const paneActive = useWorkspacePaneVisible();
   const paneActiveRef = useRef(paneActive);
   paneActiveRef.current = paneActive;
   const canvasRef = useRef(null);
