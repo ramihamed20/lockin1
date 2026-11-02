@@ -47,6 +47,7 @@ jobs:
           name: pdf-split-actual-screenshots
           path: |
             frontend/output/playwright/pdf-split-*.png
+            frontend/output/playwright/pdf-grid-*.png
             frontend/test-results/**/*.png
           if-no-files-found: warn
           retention-days: 7
