@@ -3,6 +3,8 @@ export function recentStudyEntries(serverEntries, localEntries = []) {
   const remote = (Array.isArray(serverEntries) ? serverEntries : []).filter(item => item?.material_slug && item?.sheet_slug).map(item => ({
     material: { slug: item.material_slug, title: item.material_title },
     sheet: { slug: item.sheet_slug, title: item.sheet_title, number: "" },
+    currentPage: item.current_page ?? null,
+    pageCount: item.page_count ?? null,
     openedAt: item.updated_at,
     path: `/materials/catalog/${encodeURIComponent(item.material_slug)}/sheets/${encodeURIComponent(item.sheet_slug)}/workspace`
   }));

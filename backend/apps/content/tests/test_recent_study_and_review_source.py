@@ -55,17 +55,34 @@ def test_recent_study_is_owned_reauthorized_and_returns_no_workspace_content():
         user=user,
         document=document,
         revision=1,
-        state={"private_notes": "private writing"},
+        state={"private_notes": "private writing", "view": {"page": 3, "zoom": 1.2}},
     )
+    LearningObjectVersion.objects.filter(pk=document.version_id).update(page_count=12)
     url = "/api/v1/catalog/workspaces/recent"
     response = client_for(user).get(url)
     assert response.status_code == 200
     assert response.json()["results"][0]["sheet_slug"] == document.sheet_slug
+    assert response.json()["results"][0]["current_page"] == 3
+    assert response.json()["results"][0]["page_count"] == 12
     assert "private writing" not in response.content.decode()
     assert client_for(stranger).get(url).json()["results"] == []
     user.cohort = other
     user.save(update_fields=("cohort",))
     assert client_for(user).get(url).json()["results"] == []
+
+
+@pytest.mark.parametrize("saved_page, expected", [(50, 12), (-2, None), (True, None), ("3", None)])
+def test_recent_reading_position_ignores_virtual_or_invalid_pages(saved_page, expected):
+    document, own, _ = catalog_fixture()
+    user = create_user(email="position@example.com", cohort=own)
+    grant_focus(user)
+    LearningObjectVersion.objects.filter(pk=document.version_id).update(page_count=12)
+    CatalogWorkspaceSnapshot.objects.create(
+        user=user, document=document, revision=1, state={"view": {"page": saved_page}}
+    )
+    result = client_for(user).get("/api/v1/catalog/workspaces/recent")
+    assert result.status_code == 200
+    assert result.json()["results"][0]["current_page"] == expected
 
 
 @override_settings(COHORT_CONTENT_ENFORCEMENT=True)

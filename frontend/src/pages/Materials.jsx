@@ -159,8 +159,8 @@ export function CatalogMaterialSheets({ user = null }) {
   if (!material) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 
   return (
-    <Page width="reading" title={material.title} headingHandled>
-      <section className="catalog-directory" aria-labelledby="catalog-subject-heading">
+    <Page width="sheets" title={material.title} headingHandled>
+      <section className="catalog-directory catalog-sheet-directory" aria-labelledby="catalog-subject-heading">
         <CatalogDirectoryHeader id="catalog-subject-heading" title={material.title} backTo="/materials" backLabel={t("route.materials")} />
         {/* The student's own sheets are a branch of every subject, so the
             subject is never a dead end even before anything is published. */}
