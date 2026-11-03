@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    DailyReviewView,
     QuestionAttemptView,
     ReviewBankAnswerView,
     ReviewBankSubjectView,
@@ -18,6 +19,7 @@ urlpatterns = [
     path("question-attempts", QuestionAttemptView.as_view(), name="attempt"),
     path("review-queue", ReviewQueueView.as_view(), name="queue"),
     path("review-bank", ReviewBankView.as_view(), name="bank"),
+    path("review-bank/daily", DailyReviewView.as_view(), name="daily"),
     path(
         "review-bank/subjects/<path:subject_key>",
         ReviewBankSubjectView.as_view(),

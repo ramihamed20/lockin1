@@ -49,7 +49,7 @@ export default function Dashboard({ user, themeSettings, activeTheme }) {
         <button className="btn btn-soft compact" type="button" disabled={failedSummaries.some(section => section.refreshing)} onClick={() => failedSummaries.forEach(section => section.reload())}>{t("common.tryAgain")}</button>
       </div>}
       <section className={`dashboard-secondary${recent.length ? "" : " is-single"}`} aria-label={t("dashboard.studyAndReview")}>
-        <ReviewQueue items={review.data?.results || []} loading={review.loading} refreshing={review.refreshing} error={review.error} onRetry={review.reload} emptyState={emptyState} />
+        <ReviewQueue dueCount={bank.data?.due_count || 0} items={review.data?.results || []} loading={review.loading} refreshing={review.refreshing} error={review.error} onRetry={review.reload} emptyState={emptyState} />
         {recent.length > 0 && <RecentContent sheetEntries={otherRecent} />}
       </section>
       {/* Preserve the timetable's existing request priority after summary reads. */}
@@ -74,7 +74,7 @@ function StudyStates({ learning, bank, xp, streak, loading }) {
   const levelPercent = levelTarget ? Math.min(100, Math.round((levelProgress / levelTarget) * 100)) : 0;
   const streakDays = whole(streak?.current_days);
   const bestDays = whole(streak?.longest_days);
-  const reviewCount = whole(bank?.active_count);
+  const reviewCount = whole(bank?.due_count ?? bank?.active_count);
   const completed = whole(learning?.completed_count);
   const saved = whole(learning?.bookmark_count);
 
@@ -163,7 +163,7 @@ function RecentSheetLink({ entry }) {
   return <Link className="dashboard-review-item dashboard-recent-material" to={path} aria-label={t("materials.openNamed", { name: accessibleName })}><span><strong dir="auto">{sheet.title}</strong><small><bdi dir={direction}>{displayName}</bdi></small></span><Icon className="dashboard-forward" name="arrow-up-right" size={15} aria-hidden="true" /></Link>;
 }
 
-function ReviewQueue({ items, loading, error, onRetry, refreshing = false, emptyState = "new" }) {
+function ReviewQueue({ items, loading, error, onRetry, refreshing = false, emptyState = "new", dueCount = 0 }) {
   const { t } = useI18n();
   const visibleItems = items.slice(0, 4);
   return (
@@ -183,7 +183,7 @@ function ReviewQueue({ items, loading, error, onRetry, refreshing = false, empty
             })}
           </div>
             : <div className="review-queue-empty"><span><Icon name={emptyState === "new" ? "target" : "check"} size={18} /></span><div><h3>{t(emptyState === "cleared" ? "dashboard.reviewCleared" : "dashboard.reviewFirstStep")}</h3><p>{t(emptyState === "cleared" ? "dashboard.reviewClearedBody" : "dashboard.reviewFirstStepBody")}</p></div></div>}
-      <Link className="btn btn-soft compact" to="/review">{t("dashboard.openReviewCenter")} <Icon className="dashboard-forward" name="arrow-up-right" size={15} aria-hidden="true" /></Link>
+      <Link className={`btn ${dueCount > 0 ? "btn-primary" : "btn-soft"} compact`} to={dueCount > 0 ? "/review/daily" : "/review"}>{t(dueCount > 0 ? "review.dashboardDaily" : "dashboard.openReviewCenter")} <Icon className="dashboard-forward" name="arrow-up-right" size={15} aria-hidden="true" /></Link>
     </article>
   );
 }

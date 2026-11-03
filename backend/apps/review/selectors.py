@@ -1,7 +1,18 @@
 from datetime import datetime
 from uuid import UUID
 
-from django.db.models import Count, Max, Q, QuerySet
+from django.db.models import (
+    Case,
+    Count,
+    IntegerField,
+    Max,
+    OuterRef,
+    Q,
+    QuerySet,
+    Subquery,
+    Value,
+    When,
+)
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -76,6 +87,35 @@ def active_review_items(*, user: User, subject_key: str) -> QuerySet[ReviewItem]
     )
 
 
+def with_answer_confidence(items: QuerySet[ReviewItem], *, user: User) -> QuerySet[ReviewItem]:
+    return items.annotate(
+        latest_confidence=Subquery(
+            ReviewAnswerLog.objects.filter(user=user, review_item_id=OuterRef("pk"))
+            .order_by("-answered_at", "-created_at", "-id")
+            .values("confidence")[:1]
+        )
+    ).annotate(
+        is_unsure=Case(
+            When(latest_confidence="unsure", then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+    )
+
+
+def daily_review_items(*, user: User, now: datetime) -> QuerySet[ReviewItem]:
+    """A bounded daily read uses the existing schedule and answer service."""
+    items = (
+        ReviewItem.objects.filter(user=user, state=ReviewItem.State.ACTIVE, next_review_at__lte=now)
+        .exclude(options_snapshot=[])
+        .exclude(correct_option_ids_snapshot=[])
+        .select_related("last_question_version")
+    )
+    return with_answer_confidence(items, user=user).order_by(
+        "-mistake_count", "-review_incorrect_count", "-is_unsure", "next_review_at", "id"
+    )
+
+
 def all_active_review_items(*, user: User) -> QuerySet[ReviewItem]:
     """Every active item, in the order each subject's review session uses."""
 
@@ -100,6 +140,12 @@ def review_bank_overview(*, user: User, now: datetime | None = None) -> dict[str
         .annotate(
             question_count=Count("id"),
             repeated_count=Count("id", filter=Q(mistake_count__gt=1)),
+            due_count=Count(
+                "id",
+                filter=Q(next_review_at__lte=checked_at)
+                & ~Q(options_snapshot=[])
+                & ~Q(correct_option_ids_snapshot=[]),
+            ),
             last_mistake_at=Max("last_mistake_at"),
         )
         .order_by("-question_count", "subject_label_snapshot", "subject_key")
@@ -117,6 +163,7 @@ def review_bank_overview(*, user: User, now: datetime | None = None) -> dict[str
     )
     return {
         "active_count": active_count,
+        "due_count": sum(int(subject["due_count"]) for subject in subjects),
         "mastered_this_week": mastered_this_week,
         "subjects": subjects,
     }

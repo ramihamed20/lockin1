@@ -828,3 +828,31 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 }
 
 }
+
+/* Daily Review: one bounded action; details remain available below it. */
+.review-daily-entry { align-items: start; border-color: var(--accent-border); }
+.review-daily-entry .review-bank-entry-copy { flex: 1 1 0; }
+.review-daily-entry .review-bank-entry-actions { min-width: 0; }
+.review-daily-subjects { overflow-wrap: anywhere; }
+.review-duration-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.review-duration-options .btn { min-height: 44px; flex: 1 1 80px; border-radius: var(--radius-md); }
+.review-duration-options [aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent-border); background: var(--accent-soft); }
+.review-daily-customize { min-height: 44px; display: flex; justify-content: center; align-items: center; color: var(--muted); text-decoration: underline; text-underline-offset: 4px; }
+.review-week-progress { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.review-recent-details summary { cursor: pointer; padding-block: 12px; min-height: 44px; color: var(--muted); }
+.review-result-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; margin: 8px 0; }
+.review-result-stats div { display: flex; flex-direction: column-reverse; gap: 6px; }
+.review-result-stats dt { font-size: var(--text-sm); color: var(--muted); }
+.review-result-stats dd { margin: 0; font-size: var(--text-2xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+[dir="rtl"] .review-daily-entry .btn svg { transform: scaleX(-1); }
+@media (max-width: 600px) {
+  .review-daily-entry { flex-direction: column; gap: 20px; }
+  .review-daily-entry .review-bank-entry-actions { width: 100%; flex-basis: auto; }
+  .review-daily-entry .review-bank-entry-copy { width: 100%; }
+}
+.review-answer-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.review-answer-actions .btn { min-height: 44px; }
+.review-answer-actions .review-submit-answer { margin: 0; }
+.review-confidence[aria-pressed="true"] { border-color: var(--accent-border); color: var(--accent-text); background: var(--accent-soft); }
+.review-priority-note { color: var(--accent-text); font-size: var(--text-sm); margin: 0; }
+.review-daily-entry .btn { min-height: 44px; }

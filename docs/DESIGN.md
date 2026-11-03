@@ -536,3 +536,60 @@ belong in an accessible disclosure.
 - Hard-code colours outside `tokens.css` (Focus glass values are the one scoped exception).
 - Show internal terms (lease, manifest, sync queue) or raw codes (program slugs) to students.
 - Use `window.confirm`; use `ConfirmDialog`.
+
+## Daily Review (2026-11-03)
+
+Review opens with one short daily action before subject selection, Weekly Recall and the
+biweekly archive. Students choose a budget of approximately five or ten minutes (10 or 20
+questions at an initial estimate of 30 seconds per question). This estimate is not yet
+personalised to their answering speed.
+
+`GET /api/v1/review-bank/daily` reads at most 20 owned, answerable, active items whose existing
+`next_review_at` is due. Repeated mistakes, failed reviews and then due time determine order;
+the read does not write a new schedule or create another mistake bank. The bank overview adds
+compatible `due_count` totals for the dashboard and subject rows. Normal review remains
+available for choosing a specific subject. Weekly Recall and archived biweekly reports keep
+their existing behaviour.
+
+The daily player reuses the existing answer endpoint and idempotency keys. Progress counts
+submitted answers. Completion reports actual correct answers, repeated mistakes corrected,
+and items needing another review; it does not label a single correction as durable mastery.
+Offline answers use the existing leased snapshot and sync queue, and results disclose pending
+sync. Correct offline answers leave both the daily queue and its due counters.
+
+The first implementation does not add confidence-based scheduling, exam-weighted priority,
+a personalised time estimate or a separate persistent daily-session model. Study Plan continues
+to consume the existing Review schedule. Those extensions need evidence from the short daily
+flow before changing scheduling policy.
+
+Validation: 30 focused Node tests (including offline and catalogue parity), seven Review API/domain
+tests with the explicit SQLite fast-test setting, and five Chromium browser scenarios passed.
+Browser coverage includes a complete daily session, bounded results, retry, the dashboard shortcut,
+weekly recall regression and Arabic reflow at 320, 820 and 1180 pixels. Frontend typecheck, targeted
+ESLint/Ruff and the E2E bundle build passed. PostgreSQL and real iOS/WebKit were not exercised here.
+
+### Daily Review, phase two
+
+The existing answer log now accepts optional confidence and active answer seconds. The browser
+pauses timing when hidden, during requests and after feedback; this is a client-reported estimate,
+not verified study time. The daily budget uses the median of up to 40 recent owned samples after
+five usable answers (5–300 seconds each, within 60 days), bounded to 15–120 seconds per question.
+Until then, the initial 30-second estimate remains. No additional answer is required to record
+uncertainty: the optional “Not sure” toggle accompanies the normal answer.
+
+An unsure answer keeps the same correctness, XP and next-review interval. Its latest confidence
+adds priority in future recall selection; correct-but-unsure answers are shown separately in the
+session summary. Legacy clients can omit both fields. Replay uses the same idempotency key and
+preserves the original metadata, including offline sync. Migration `review.0004` adds nullable
+answer time, blank-by-default confidence, and validation constraints; it does not rewrite mastery.
+
+Daily selection reads exam priorities through a Study Plan adapter, limited to visible schedules
+for the student's active cohort and the same pilot-access settings as Study Plan. A linked exam
+within 14 days raises the subject's due questions before the usual mistake ordering. It never
+pulls future-due questions forward or changes the schedule. Offline sessions retain saved priority
+context and timing estimates while deriving membership from the updated owned snapshot.
+
+Phase-two validation: 32 focused Node tests, 11 Review/offline backend tests with the explicit
+SQLite setting, and six Chromium browser scenarios passed. Frontend typecheck, targeted ESLint
+and Ruff, migration-drift check and the E2E build passed. The migration and database constraints
+were exercised by those backend tests; PostgreSQL and physical iOS devices were not run here.

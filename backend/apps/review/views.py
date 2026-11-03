@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 
 from .contracts import QuestionAttemptEvent
+from .daily import daily_review_payload
 from .models import ReviewAnswerLog, ReviewItem
 from .selectors import (
     active_review_items,
@@ -127,6 +128,11 @@ class ReviewBankSubjectView(APIView):
         )
 
 
+class DailyReviewView(APIView):
+    def get(self, request: Request) -> Response:
+        return Response(daily_review_payload(user=_user(request), now=timezone.now()))
+
+
 class ReviewSourceView(APIView):
     """Resolve the current published reference, rechecking reader access on every click."""
 
@@ -178,12 +184,16 @@ class ReviewBankAnswerView(APIView):
                 selected_option_ids=tuple(str(value) for value in data["selected_option_ids"]),
                 idempotency_key=data["idempotency_key"],
                 context=ReviewAnswerLog.Context.REVIEW_BANK,
+                confidence=data["confidence"],
+                active_seconds=data["active_seconds"],
             )
         except ReviewRuleError as error:
             _raise_rule(error)
         return Response(
             {
                 "was_correct": result.answer_log.was_correct,
+                "confidence": result.answer_log.confidence,
+                "active_seconds": result.answer_log.active_seconds,
                 "review_item": review_item_payload(result.review_item, reveal_answer=True),
                 "mistake_event_id": result.mistake_event.id if result.mistake_event else None,
             }
@@ -239,6 +249,8 @@ class WeeklyRecallAnswerView(APIView):
                 idempotency_key=data["idempotency_key"],
                 context=ReviewAnswerLog.Context.WEEKLY_RECALL,
                 weekly_question_id=weekly_question.id,
+                confidence=data["confidence"],
+                active_seconds=data["active_seconds"],
             )
         except ReviewRuleError as error:
             _raise_rule(error)
@@ -246,6 +258,8 @@ class WeeklyRecallAnswerView(APIView):
         return Response(
             {
                 "was_correct": result.answer_log.was_correct,
+                "confidence": result.answer_log.confidence,
+                "active_seconds": result.answer_log.active_seconds,
                 "review_item": review_item_payload(result.review_item, reveal_answer=True),
                 "session": weekly_session_payload(refreshed),
                 "mistake_event_id": result.mistake_event.id if result.mistake_event else None,

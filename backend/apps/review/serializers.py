@@ -94,6 +94,12 @@ class ReviewAnswerWriteSerializer(StrictSerializer):
         min_length=1,
         max_length=12,
     )
+    confidence = serializers.ChoiceField(
+        choices=("", "unsure", "confident"), required=False, default="", allow_blank=True
+    )
+    active_seconds = serializers.IntegerField(
+        min_value=1, max_value=900, allow_null=True, required=False, default=None
+    )
 
 
 def _original_source(item: ReviewItem) -> dict[str, object]:

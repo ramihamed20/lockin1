@@ -4,6 +4,7 @@ import { COMING_SOON_STUDY_TOOLS, STUDY_TOOLS_ENABLED } from "../workspace/knowl
 const ReviewRecovery = lazy(() => import("../workspace/knowledge/ReviewRecovery.jsx"));
 const KnowledgeShelf = lazy(() => import("../workspace/knowledge/KnowledgeShelf.jsx"));
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { createReviewTimer, requestedReviewLimit, reviewQuestionLimit } from "../review/session.js";
 import { reviewApi } from "../api/review.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
@@ -41,11 +42,14 @@ export default function ReviewCenter({ user = null }) {
   const bank = bankState.data;
   const queue = queueState.data;
   const weekly = weeklyState.data;
+  const [dailyMinutes, setDailyMinutes] = useState(5);
+  const daily = useAsyncData(signal => reviewApi.getDaily(user?.id || "", { signal }), [user?.id]);
+  const dailyLimit = reviewQuestionLimit(daily.data, dailyMinutes);
+  const dailyItems = daily.data?.results.slice(0, dailyLimit) || [];
+  const secondsPerQuestion = daily.data?.seconds_per_question || 30;
+  const dailySubjects = [...new Set(dailyItems.map(item => item.subject_label).filter(Boolean))];
   const weeklyStatus = weekly?.session?.status;
   const weeklyCount = weekly?.session?.total_questions || weekly?.eligible_count || 0;
-  // Recovery starts where most is waiting: the first subject in the bank's own
-  // order, so the primary action is one tap into answering, not into a list.
-  const firstSubject = bank?.active_count ? bank.subjects[0] : null;
   return (
     <Page width="reading" title={t("review.center")}>
       {/* One focal block (what is waiting and the way into it), then the
@@ -54,27 +58,35 @@ export default function ReviewCenter({ user = null }) {
       <div className="review-center-layout review-v2">
         {bankState.loading && <ReviewCenterSkeleton inline />}
         {bankState.error && <ErrorPanel message={bankState.errorDetails || bankState.error} onRetry={bankState.reload} />}
-        {bank && <section className={`review-bank-entry ${bank.active_count ? "has-work" : "is-clear"}`} aria-labelledby="review-bank-title">
+        {daily.loading && <LoadingPanel variant="list" />}
+        {daily.error && <ErrorPanel message={daily.errorDetails || daily.error} onRetry={daily.reload} />}
+        {daily.data && <section className={`review-bank-entry review-daily-entry ${dailyItems.length ? "has-work" : "is-clear"}`} aria-labelledby="review-daily-title">
           <div className="review-bank-entry-copy">
-            <span className="review-feature-icon"><Icon name={bank.active_count ? "target" : "check"} size={22} /></span>
+            <span className="review-feature-icon"><Icon name={dailyItems.length ? "target" : "check"} size={22} /></span>
             <div>
-              <h2 id="review-bank-title">{t("review.bank")}</h2>
-              {!bank.active_count && <p dir="auto">{t("review.allCaughtUp")}</p>}
+              <h2 id="review-daily-title">{t("review.dailyTitle")}</h2>
+              <p dir="auto" aria-live="polite">{dailyItems.length ? t("review.dailyEstimate", { count: dailyItems.length, minutes: Math.max(1, Math.ceil(dailyItems.length * secondsPerQuestion / 60)) }) : t("review.dailyClear")}</p>
+              {daily.data.personalized_timing && <p className="review-timing-note">{t("review.personalizedTime")}</p>}
+              {dailyItems.some(item => item.priority_reasons?.includes("exam_soon")) && <p className="review-priority-note">{t("review.examPriority")}</p>}
+              {dailySubjects.length > 0 && <p className="review-daily-subjects" dir="auto">{dailySubjects.join(" · ")}</p>}
+              {daily.data.due_count > dailyItems.length && <p dir="auto">{t("review.dailySmallSteps")}</p>}
             </div>
           </div>
           <div className="review-bank-entry-actions">
-            {/* Two zeros say nothing a caught-up heading has not already said. */}
-            {(bank.active_count > 0 || bank.mastered_this_week > 0) && <dl className="review-bank-summary">
-              <div><dt>{t("review.toReview")}</dt><dd>{bank.active_count}</dd></div>
-              <div><dt>{t("review.masteredThisWeek")}</dt><dd>{bank.mastered_this_week}</dd></div>
-            </dl>}
-            {firstSubject
-              ? <div className="review-bank-entry-buttons">
-                <Link className="btn btn-primary" to={`/review/bank/${encodeURIComponent(firstSubject.subject_key)}`}>{t("review.startReview")}</Link>
-                <Link className="btn btn-soft" to="/review/bank">{t("review.openBank")}</Link>
+            {dailyItems.length > 0 && <>
+              <div className="review-duration-options" role="group" aria-label={t("review.dailyLength")}>
+                {[5, 10].map(minutes => <button key={minutes} className="btn btn-soft compact" type="button" aria-pressed={dailyMinutes === minutes} onClick={() => setDailyMinutes(minutes)}>{t("review.dailyMinutes", { minutes })}</button>)}
               </div>
-              : <Link className="btn btn-soft" to="/review/bank">{t("review.openBank")}</Link>}
+              <Link className="btn btn-primary" to={`/review/daily?limit=${dailyLimit}`}>{t("review.startReview")}<Icon name="chevron-right" size={18} /></Link>
+            </>}
+            {!dailyItems.length && weekly?.available && weeklyStatus !== "completed" && <Link className="btn btn-primary" to="/review/weekly">{t("review.startWeekly")}</Link>}
+            <Link className="review-daily-customize" to="/review/bank">{t("review.dailyChooseSubject")}</Link>
           </div>
+        </section>}
+        {bank?.mastered_this_week > 0 && <p className="review-week-progress" dir="auto"><Icon name="check" size={16} />{t("review.weekRecovered", { count: bank.mastered_this_week })}</p>}
+        {bank?.subjects.length > 0 && <section className="review-center-section" aria-labelledby="subjects-title">
+          <header className="review-section-heading"><h2 id="subjects-title">{t("review.subjectsTitle")}</h2><Link to="/review/bank">{t("review.viewAll")}</Link></header>
+          <div className="review-subject-list">{[...bank.subjects].sort((a, b) => (b.due_count || 0) - (a.due_count || 0) || b.repeated_count - a.repeated_count).slice(0, 4).map((subject) => <SubjectRow key={subject.subject_key} subject={subject} />)}</div>
         </section>}
 
         {weeklyState.loading && <LoadingPanel variant="list" />}
@@ -89,18 +101,11 @@ export default function ReviewCenter({ user = null }) {
 
         <BiweeklyCurrent type="review" biweekly={biweekly} />
 
-        {/* Caught up is said once, by the bank above. Empty sections are not
-            printed a second and third time underneath it. */}
-        {bank?.subjects.length > 0 && <section className="review-center-section" aria-labelledby="subjects-title">
-          <header className="review-section-heading"><h2 id="subjects-title">{t("review.subjectsTitle")}</h2><Link to="/review/bank">{t("review.viewAll")}</Link></header>
-          <div className="review-subject-list">{bank.subjects.slice(0, 4).map((subject) => <SubjectRow key={subject.subject_key} subject={subject} />)}</div>
-        </section>}
-
         {queueState.loading && <LoadingPanel variant="list" />}
         {queueState.error && <ErrorPanel message={queueState.errorDetails || queueState.error} onRetry={queueState.reload} />}
         {queue?.results.length > 0 && <section className="review-center-section" aria-labelledby="recent-mistakes-title">
           <header className="review-section-heading"><h2 id="recent-mistakes-title">{t("review.recentMistakes")}</h2><span>{queue.count}</span></header>
-          <div className="recent-mistake-list">{queue.results.map((item) => <RecentMistake key={item.id} item={item} />)}</div>
+          <details className="review-recent-details"><summary>{t("review.showRecent")}</summary><div className="recent-mistake-list">{queue.results.map((item) => <RecentMistake key={item.id} item={item} />)}</div></details>
         </section>}
 
         {STUDY_TOOLS_ENABLED && user?.id && <Suspense fallback={null}><KnowledgeShelf key={user.id} userId={user.id} /></Suspense>}
@@ -118,7 +123,7 @@ function ReviewCenterSkeleton({ inline = false }) {
 
 function SubjectRow({ subject }) {
   const { t } = useI18n();
-  return <Link className="review-subject-row" to={`/review/bank/${encodeURIComponent(subject.subject_key)}`}><span><strong dir="auto">{subject.subject_label_snapshot}</strong><small dir="auto">{subject.repeated_count ? t("review.repeatedMistakes", { count: subject.repeated_count }) : t("review.readyForReview")}</small></span><span className="review-subject-count" dir="auto">{t("review.questionCount", { count: subject.question_count })}<Icon name="chevron-right" size={18} /></span></Link>;
+  return <Link className="review-subject-row" to={`/review/bank/${encodeURIComponent(subject.subject_key)}`}><span><strong dir="auto">{subject.subject_label_snapshot}</strong><small dir="auto">{subject.due_count > 0 ? t("review.subjectDue", { count: subject.due_count }) : subject.repeated_count ? t("review.repeatedMistakes", { count: subject.repeated_count }) : t("review.readyForReview")}</small></span><span className="review-subject-count" dir="auto">{t("review.questionCount", { count: subject.question_count })}<Icon name="chevron-right" size={18} /></span></Link>;
 }
 
 function RecentMistake({ item }) {
@@ -150,12 +155,25 @@ export function ReviewBank({ user = null }) {
 
 function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, error, onSubmit }) {
   const { t } = useI18n();
+  const [confidence, setConfidence] = useState("");
+  const timer = useRef(null);
+  if (!timer.current) timer.current = createReviewTimer();
+  useEffect(() => {
+    function update() {
+      if (!busy && !outcome && document.visibilityState === "visible") timer.current.resume();
+      else timer.current.pause();
+    }
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => { document.removeEventListener("visibilitychange", update); timer.current.pause(); };
+  }, [busy, outcome]);
   const correctIds = new Set(outcome?.review_item?.correct_option_ids || []);
   const multiple = item.answer_mode === "multiple";
   return (
     <article className="review-session-question">
       <div className="review-question-source"><span>{t("review.originallyFrom")}</span><strong dir="auto">{sourceDescription(item, t)}</strong>{item.mistake_count > 1 && <em className="review-missed-count">{t("review.missedTimes", { count: item.mistake_count })}</em>}</div>
       {item.original_source?.has_page && <Link className="btn btn-soft compact" to={`/review/source/${encodeURIComponent(item.id)}`} target="_blank" rel="noopener noreferrer">{t("review.sourcePage")}</Link>}
+      {item.priority_reasons?.includes("exam_soon") && <p className="review-priority-note">{t("review.examSoon")} · <time dateTime={item.exam_on}>{item.exam_on}</time></p>}
       <h2 dir="auto">{item.prompt}</h2>
       <fieldset className="review-choice-list" disabled={busy || Boolean(outcome)}>
         <legend className="visually-hidden">{t(multiple ? "review.chooseEvery" : "review.chooseOne")}</legend>
@@ -167,20 +185,23 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
           return <label className={`review-choice ${state}`} key={option.id}><input type={multiple ? "checkbox" : "radio"} name={`review-answer-${item.id}`} value={option.id} checked={selected} onChange={() => onSelect(option.id, multiple)} /><span className="review-choice-letter">{String.fromCharCode(65 + index)}</span><span dir="auto">{option.text || t("review.optionUnavailable")}</span>{isCorrect && <span className="review-choice-state"><Icon name="check" size={18} /> {t("review.correct")}</span>}{isWrong && <span className="review-choice-state"><Icon name="x" size={18} /> {t("review.yourAnswer")}</span>}</label>;
         })}
       </fieldset>
-      {!outcome && <button className="btn btn-primary review-submit-answer" type="button" disabled={!selectedIds.length || busy} aria-busy={busy || undefined} onClick={onSubmit}>{t(busy ? "review.checking" : "review.checkAnswer")}</button>}
-      {outcome && <section className={`review-answer-outcome ${outcome.was_correct ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={outcome.was_correct ? "check" : "alert-triangle"} size={20} /><div><strong>{t(outcome.was_correct ? "review.correctMoved" : "review.notYet")}</strong><p>{t(outcome.was_correct ? "review.correctBody" : "review.incorrectBody")}</p><QuestionExplanation explanation={outcome.review_item?.explanation} /></div></section>}
+      {!outcome && <div className="review-answer-actions"><button className="btn btn-soft review-confidence" type="button" aria-pressed={confidence === "unsure"} disabled={busy} onClick={() => setConfidence(current => current === "unsure" ? "" : "unsure")}>{t("review.unsure")}</button><button className="btn btn-primary review-submit-answer" type="button" disabled={!selectedIds.length || busy} aria-busy={busy || undefined} onClick={() => onSubmit({ confidence, activeSeconds: timer.current.seconds() })}>{t(busy ? "review.checking" : "review.checkAnswer")}</button></div>}
+      {outcome && <section className={`review-answer-outcome ${outcome.was_correct ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={outcome.was_correct ? "check" : "alert-triangle"} size={20} /><div><strong>{t(outcome.was_correct ? "review.correctMoved" : "review.notYet")}</strong><p>{t(outcome.was_correct ? "review.correctBody" : "review.incorrectBody")}</p>{outcome.was_correct && outcome.confidence === "unsure" && <p>{t("review.correctUnsureBody")}</p>}<QuestionExplanation explanation={outcome.review_item?.explanation} /></div></section>}
       {outcome && !outcome.was_correct && STUDY_TOOLS_ENABLED && !COMING_SOON_STUDY_TOOLS.includes("explain") && <Suspense fallback={null}><ReviewRecovery key={item.id} itemId={item.id} /></Suspense>}
       {error && <p className="inline-error" role="alert" dir="auto">{error}</p>}
     </article>
   );
 }
 
-export function SubjectReviewSession({ user = null }) {
+export function SubjectReviewSession({ user = null, daily = false }) {
   const { t } = useI18n();
   const { subjectKey = "" } = useParams();
   const [searchParams] = useSearchParams();
-  const requestedItem = searchParams.get("item");
-  const detail = useAsyncData(() => reviewApi.getSubject(subjectKey, user?.id || ""), [subjectKey, user?.id], { cacheKey: `review-subject:${user?.id || ""}:${subjectKey}` });
+  const requestedItem = daily ? null : searchParams.get("item");
+  const dailyLimit = requestedReviewLimit(searchParams.get("limit"));
+  const automaticLimit = !searchParams.has("limit");
+  const detail = useAsyncData(() => daily ? reviewApi.getDaily(user?.id || "") : reviewApi.getSubject(subjectKey, user?.id || ""), [subjectKey, user?.id, daily, dailyLimit]);
+  const returnPath = daily ? "/review" : "/review/bank";
   const [items, setItems] = useState([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState({});
@@ -192,20 +213,20 @@ export function SubjectReviewSession({ user = null }) {
 
   useEffect(() => {
     if (!detail.data) return;
-    setItems(detail.data.results);
+    setItems(daily ? detail.data.results.slice(0, automaticLimit ? reviewQuestionLimit(detail.data, 5) : dailyLimit) : detail.data.results);
     setIndex(Math.max(0, detail.data.results.findIndex(item => item.id === requestedItem)));
     setSelected({});
     setOutcomes({});
     setComplete(false);
     answerKeys.current = new Map();
-  }, [detail.data, requestedItem]);
+  }, [detail.data, requestedItem, daily, dailyLimit, automaticLimit]);
 
   const missingRequested = requestedItem && detail.data && !detail.data.results.some(item => item.id === requestedItem);
   const item = missingRequested ? null : items[index];
   const outcome = item ? outcomes[item.id] : null;
   const cleared = items.length > 0 && items.every((candidate) => outcomes[candidate.id]?.was_correct === true);
 
-  async function answer() {
+  async function answer(metadata) {
     if (!item || !selected[item.id]?.length || busy) return;
     let idempotencyKey = answerKeys.current.get(item.id);
     if (!idempotencyKey) {
@@ -215,8 +236,8 @@ export function SubjectReviewSession({ user = null }) {
     setBusy(true);
     setError("");
     try {
-      const response = await reviewApi.answerItem(item.id, { selectedOptionIds: selected[item.id], idempotencyKey });
-      setOutcomes((current) => ({ ...current, [item.id]: response }));
+      const response = await reviewApi.answerItem(item.id, { selectedOptionIds: selected[item.id], idempotencyKey, userId: user?.id || "", ...metadata });
+      setOutcomes((current) => ({ ...current, [item.id]: { ...response, confidence: response.confidence ?? metadata.confidence } }));
     } catch (requestError) {
       setError(requestError?.message || t("review.saveError"));
     } finally {
@@ -235,14 +256,28 @@ export function SubjectReviewSession({ user = null }) {
   if (detail.loading) return <LoadingPanel variant="quiz" />;
   if (detail.error) return <Page width="reading" title={t("review.sessionTitle")}><ErrorPanel message={detail.errorDetails || detail.error} onRetry={detail.reload} /></Page>;
   if (missingRequested) return <Page width="reading" title={t("review.sessionTitle")}><p role="status">{t("connected.reviewUnavailable")}</p><Link className="btn btn-primary" to="/review/bank">{t("review.backToBank")}</Link></Page>;
-  if (!items.length) return <Page width="reading" title={detail.data?.subject_label || t("review.subjectReview")}><EmptyState title={t("review.subjectCleared")} text={t("review.subjectClearedText")} /><div className="result-actions"><Link className="btn btn-primary" to="/review/bank">{t("review.backToBank")}</Link></div></Page>;
-  if (complete) return <Page width="reading" title={detail.data?.subject_label || t("review.subjectReview")}><section className="review-session-complete"><span><Icon name={cleared ? "check" : "target"} size={28} /></span><h2>{t(cleared ? "review.subjectCleared" : "review.passComplete")}</h2><p dir="auto">{cleared ? t("review.clearedIn", { name: detail.data.subject_label }) : t("review.someRemain")}</p><div className="result-actions"><button className="btn btn-primary" type="button" onClick={detail.reload}>{t("review.reviewAgain")}</button><Link className="btn btn-soft" to="/review/bank">{t("review.backToBank")}</Link></div></section></Page>;
+  if (!items.length) return <Page width="reading" title={daily ? t("review.dailyTitle") : detail.data?.subject_label || t("review.subjectReview")}><EmptyState title={daily ? t("review.dailyClearTitle") : t("review.subjectCleared")} text={daily ? t("review.dailyClear") : t("review.subjectClearedText")} /><div className="result-actions"><Link className="btn btn-primary" to={returnPath}>{t(daily ? "review.backToCenter" : "review.backToBank")}</Link></div></Page>;
+  if (complete) {
+    const answers = Object.values(outcomes);
+    const correct = answers.filter(answer => answer.was_correct).length;
+    const repeated = items.filter(candidate => candidate.mistake_count > 1 && outcomes[candidate.id]?.was_correct).length;
+    const pending = answers.some(answer => answer.pending_sync);
+    const unsureCorrect = answers.filter(answer => answer.was_correct && answer.confidence === "unsure").length;
+    return <Page width="reading" title={daily ? t("review.dailyTitle") : detail.data?.subject_label || t("review.subjectReview")}><section className="review-session-complete" aria-labelledby="review-result-title">
+      <span><Icon name={cleared ? "check" : "target"} size={28} /></span>
+      <h2 id="review-result-title">{t(daily ? "review.dailyComplete" : cleared ? "review.subjectCleared" : "review.passComplete")}</h2>
+      <p dir="auto">{t("review.sessionScore", { correct, count: answers.length })}</p>
+      <dl className="review-result-stats"><div><dt>{t("review.recoveredRepeated")}</dt><dd>{repeated}</dd></div><div><dt>{t("review.needsAnotherPass")}</dt><dd>{answers.length - correct}</dd></div>{unsureCorrect > 0 && <div><dt>{t("review.correctUnsure")}</dt><dd>{unsureCorrect}</dd></div>}</dl>
+      <p dir="auto">{t(pending ? "review.resultsPending" : "review.recallLater")}</p>
+      <div className="result-actions"><Link className="btn btn-primary" to={returnPath}>{t(daily ? "review.backToCenter" : "review.backToBank")}</Link><button className="btn btn-soft" type="button" disabled={detail.refreshing} onClick={detail.reload}>{t("review.anotherSession")}</button></div>
+    </section></Page>;
+  }
 
   return (
-    <Page width="reading" title={detail.data.subject_label || t("review.subjectReview")} subtitle={t("review.activeFromBank", { count: items.length })}>
+    <Page width="reading" title={daily ? t("review.dailyTitle") : detail.data.subject_label || t("review.subjectReview")} subtitle={t("review.activeFromBank", { count: items.length })}>
       <section className="review-session-shell">
-        <header className="review-session-header"><div><p dir="auto">{index + 1} / {items.length}</p><div className="review-session-progress" role="progressbar" aria-label={t("review.progress")} aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={index + 1}><span style={{ width: `${((index + 1) / items.length) * 100}%` }} /></div></div><Link className="btn btn-soft compact" to="/review/bank">{t("review.leaveSafely")}</Link></header>
-        <ReviewQuestionCard item={item} selectedIds={selected[item.id] || []} onSelect={(optionId, multiple) => setSelected((current) => { const previous = current[item.id] || []; const next = multiple ? previous.includes(optionId) ? previous.filter((id) => id !== optionId) : [...previous, optionId] : [optionId]; return { ...current, [item.id]: next }; })} outcome={outcome} busy={busy} error={error} onSubmit={() => void answer()} />
+        <header className="review-session-header"><div><p dir="auto">{index + 1} / {items.length}</p><div className="review-session-progress" role="progressbar" aria-label={t("review.progress")} aria-valuemin={0} aria-valuemax={items.length} aria-valuenow={Object.keys(outcomes).length}><span style={{ width: `${(Object.keys(outcomes).length / items.length) * 100}%` }} /></div></div><Link className="btn btn-soft compact" to={returnPath}>{t("review.leaveSafely")}</Link></header>
+        <ReviewQuestionCard key={item.id} item={item} selectedIds={selected[item.id] || []} onSelect={(optionId, multiple) => setSelected((current) => { const previous = current[item.id] || []; const next = multiple ? previous.includes(optionId) ? previous.filter((id) => id !== optionId) : [...previous, optionId] : [optionId]; return { ...current, [item.id]: next }; })} outcome={outcome} busy={busy} error={error} onSubmit={metadata => void answer(metadata)} />
         {outcome && <footer className="review-session-controls"><p dir="auto">{outcome.was_correct ? t("review.remaining", { count: Math.max(0, items.length - index - 1) }) : t("review.remainsActive")}</p><button className="btn btn-primary" type="button" onClick={continueSession}>{t(index >= items.length - 1 ? "review.finishReview" : "review.nextQuestion")}<Icon name="chevron-right" size={18} /></button></footer>}
       </section>
     </Page>
@@ -290,7 +325,7 @@ export function WeeklyRecall({ user = null }) {
     }
   }
 
-  async function answer() {
+  async function answer(metadata) {
     if (!session || !question || !item || !selected[question.id]?.length || busy) return;
     let idempotencyKey = answerKeys.current.get(question.id);
     if (!idempotencyKey) {
@@ -300,7 +335,7 @@ export function WeeklyRecall({ user = null }) {
     setBusy(true);
     setError("");
     try {
-      const response = await reviewApi.answerWeeklyRecall(session.id, question.id, { selectedOptionIds: selected[question.id], idempotencyKey });
+      const response = await reviewApi.answerWeeklyRecall(session.id, question.id, { selectedOptionIds: selected[question.id], idempotencyKey, userId: user?.id || "", ...metadata });
       setWeekly((current) => ({ ...current, session: response.session }));
     } catch (requestError) {
       setError(requestError?.message || t("review.recallSaveError"));
@@ -329,7 +364,7 @@ export function WeeklyRecall({ user = null }) {
     <Page width="reading" title={t("review.weekly")} subtitle={t("review.weeklySessionSubtitle")}>
       <section className="review-session-shell weekly-recall-session">
         <header className="review-session-header"><div><p dir="auto">{index + 1} / {session.total_questions}</p><div className="review-session-progress" role="progressbar" aria-label={t("review.weeklyProgress")} aria-valuemin={0} aria-valuemax={session.total_questions} aria-valuenow={session.answered_count}><span style={{ width: `${(session.answered_count / session.total_questions) * 100}%` }} /></div></div><Link className="btn btn-soft compact" to="/review">{t("review.leaveSafely")}</Link></header>
-        <ReviewQuestionCard item={item} selectedIds={selected[question.id] || question.selected_option_ids || []} onSelect={(optionId, multiple) => setSelected((current) => { const previous = current[question.id] || question.selected_option_ids || []; const next = multiple ? previous.includes(optionId) ? previous.filter((id) => id !== optionId) : [...previous, optionId] : [optionId]; return { ...current, [question.id]: next }; })} outcome={outcome} busy={busy} error={error} onSubmit={() => void answer()} />
+        <ReviewQuestionCard key={item.id} item={item} selectedIds={selected[question.id] || question.selected_option_ids || []} onSelect={(optionId, multiple) => setSelected((current) => { const previous = current[question.id] || question.selected_option_ids || []; const next = multiple ? previous.includes(optionId) ? previous.filter((id) => id !== optionId) : [...previous, optionId] : [optionId]; return { ...current, [question.id]: next }; })} outcome={outcome} busy={busy} error={error} onSubmit={metadata => void answer(metadata)} />
         {outcome && <footer className="review-session-controls"><p>{t(outcome.was_correct ? "review.memoryStrengthened" : "review.returnedToBank")}</p><button className="btn btn-primary" type="button" onClick={continueSession}>{t(session.status === "completed" ? "review.finishWeekly" : "review.nextQuestion")} <Icon name="chevron-right" size={18} /></button></footer>}
       </section>
     </Page>

@@ -241,6 +241,10 @@ class WeeklyRecallQuestion(models.Model):
 
 
 class ReviewAnswerLog(models.Model):
+    class Confidence(models.TextChoices):
+        UNSURE = "unsure", "Not sure"
+        CONFIDENT = "confident", "Confident"
+
     class Context(models.TextChoices):
         REVIEW_BANK = "review_bank", "Review Bank"
         WEEKLY_RECALL = "weekly_recall", "Weekly Recall"
@@ -267,6 +271,8 @@ class ReviewAnswerLog(models.Model):
     context = models.CharField(max_length=16, choices=Context.choices)
     selected_option_ids = models.JSONField(default=list)
     was_correct = models.BooleanField()
+    confidence = models.CharField(max_length=12, choices=Confidence.choices, blank=True, default="")
+    active_seconds = models.PositiveSmallIntegerField(null=True, blank=True)
     answered_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -276,7 +282,16 @@ class ReviewAnswerLog(models.Model):
             models.UniqueConstraint(
                 fields=("user", "idempotency_key"),
                 name="review_answer_user_key_unique",
-            )
+            ),
+            models.CheckConstraint(
+                condition=Q(confidence__in=("", "unsure", "confident")),
+                name="review_answer_confidence_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(active_seconds__isnull=True)
+                | Q(active_seconds__gte=1, active_seconds__lte=900),
+                name="review_answer_seconds_valid",
+            ),
         ]
         indexes = [
             models.Index(

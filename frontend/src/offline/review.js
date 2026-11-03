@@ -42,6 +42,18 @@ function subjectPayload(snapshot, subjectKey) {
 export async function readOfflineReview(userId, key) {
   const snapshot = await offlineDatabase.get(userId, SNAPSHOT_KEY);
   if (snapshot) {
+    if (key === "daily") {
+      // Read the saved bank after queued answers have updated it. Never use
+      // cached daily questions in preference to the current offline snapshot.
+      const now = Date.now();
+      const today = new Date(now).toISOString().slice(0, 10);
+      const examRank = item => item.exam_on >= today ? item.exam_on : "9999-12-31";
+      const due = Object.values(snapshot.subjects || {}).flatMap((subject) => subject.results || [])
+        .map(item => ({ ...item, ...(snapshot.daily?.results.find(saved => saved.id === item.id) || {}), ...item }))
+        .filter((item) => item.state === "active_review" && Date.parse(item.next_review_at) <= now && item.options?.length && snapshot.answer_keys[item.id]?.correct_option_ids?.length)
+        .sort((a, b) => examRank(a).localeCompare(examRank(b)) || b.mistake_count - a.mistake_count || b.review_incorrect_count - a.review_incorrect_count || Number(b.priority_reasons?.includes("unsure") || false) - Number(a.priority_reasons?.includes("unsure") || false) || Date.parse(a.next_review_at) - Date.parse(b.next_review_at) || a.id.localeCompare(b.id));
+      return { seconds_per_question: snapshot.daily?.seconds_per_question || 30, personalized_timing: Boolean(snapshot.daily?.personalized_timing), timing_sample_count: snapshot.daily?.timing_sample_count || 0, due_count: due.length, count: Math.min(20, due.length), results: due.slice(0, 20) };
+    }
     if (key === "queue") return snapshot.queue;
     if (key === "bank") return snapshot.bank;
     if (key === "weekly") return snapshot.weekly;
@@ -52,6 +64,10 @@ export async function readOfflineReview(userId, key) {
 
 function grade(selected, correct) {
   return selected.length === correct.length && selected.every((id) => correct.includes(id));
+}
+
+function answerMetadata(confidence, activeSeconds) {
+  return { ...(confidence === undefined ? {} : { confidence }), ...(activeSeconds === undefined ? {} : { active_seconds: activeSeconds }) };
 }
 
 async function requireSnapshot(userId) {
@@ -72,7 +88,7 @@ function validSelection(item, selected) {
 }
 
 /** A Review Bank answer, graded now and synced later. */
-export async function answerReviewItemOffline(userId, itemId, { selectedOptionIds, idempotencyKey }) {
+export async function answerReviewItemOffline(userId, itemId, { selectedOptionIds, idempotencyKey, confidence = undefined, activeSeconds = undefined }) {
   const prior = await offlineDatabase.get(userId, `review-answer:${idempotencyKey}`);
   if (prior) return prior;
   const snapshot = await requireSnapshot(userId);
@@ -82,7 +98,7 @@ export async function answerReviewItemOffline(userId, itemId, { selectedOptionId
   if (!item || !key) throw offlineUnavailableError("This question hasn’t been saved on this device.");
   if (!validSelection(item, selectedOptionIds)) throw Object.assign(new Error("Choose one or more available answers."), { status: 400 });
   const wasCorrect = grade(selectedOptionIds.map(String), key.correct_option_ids.map(String));
-  const response = { was_correct: wasCorrect, review_item: revealed(item, key), mistake_event_id: null, pending_sync: true };
+  const response = { was_correct: wasCorrect, review_item: revealed(item, key), mistake_event_id: null, pending_sync: true, ...answerMetadata(confidence, activeSeconds) };
   // A correct answer leaves the active bank, as it does on the server.
   const next = globalThis.structuredClone(snapshot);
   if (wasCorrect) {
@@ -92,16 +108,21 @@ export async function answerReviewItemOffline(userId, itemId, { selectedOptionId
     const overview = next.bank.subjects.find((candidate) => candidate.subject_key === subject.subject_key);
     if (overview) overview.question_count = Math.max(0, overview.question_count - 1);
     next.bank.active_count = Math.max(0, next.bank.active_count - 1);
+    if (Date.parse(item.next_review_at) <= Date.now()) {
+      if (typeof next.bank.due_count === "number") next.bank.due_count = Math.max(0, next.bank.due_count - 1);
+      if (typeof overview?.due_count === "number") overview.due_count = Math.max(0, overview.due_count - 1);
+    }
+    next.bank.subjects = next.bank.subjects.filter((candidate) => candidate.question_count > 0);
   }
   await enqueueOperation(userId, {
     type: "review_answer", entityType: "review_item", entityId: itemId,
-    payload: { review_item_id: itemId, selected_option_ids: selectedOptionIds, idempotency_key: idempotencyKey, context: "review_bank" }
+    payload: { review_item_id: itemId, selected_option_ids: selectedOptionIds, idempotency_key: idempotencyKey, context: "review_bank", ...answerMetadata(confidence, activeSeconds) }
   }, [[SNAPSHOT_KEY, next], [`review-answer:${idempotencyKey}`, response]]);
   return response;
 }
 
 /** A Weekly Recall answer for the session already started online. */
-export async function answerWeeklyRecallOffline(userId, sessionId, questionId, { selectedOptionIds, idempotencyKey }) {
+export async function answerWeeklyRecallOffline(userId, sessionId, questionId, { selectedOptionIds, idempotencyKey, confidence = undefined, activeSeconds = undefined }) {
   const prior = await offlineDatabase.get(userId, `review-answer:${idempotencyKey}`);
   if (prior) return prior;
   const snapshot = await requireSnapshot(userId);
@@ -125,12 +146,13 @@ export async function answerWeeklyRecallOffline(userId, sessionId, questionId, {
     nextSession.correct_answers = nextSession.questions.filter((entry) => entry.was_correct).length;
     nextSession.completed_at = new Date().toISOString();
   }
-  const response = { was_correct: wasCorrect, review_item: nextQuestion.review_item, session: nextSession, pending_sync: true };
+  const response = { was_correct: wasCorrect, review_item: nextQuestion.review_item, session: nextSession, pending_sync: true, ...answerMetadata(confidence, activeSeconds) };
   await enqueueOperation(userId, {
     type: "review_answer", entityType: "weekly_question", entityId: questionId,
     payload: {
       review_item_id: question.review_item.id, selected_option_ids: selectedOptionIds, idempotency_key: idempotencyKey,
-      context: "weekly_recall", weekly_session_id: sessionId, weekly_question_id: questionId
+      context: "weekly_recall", weekly_session_id: sessionId, weekly_question_id: questionId,
+      ...answerMetadata(confidence, activeSeconds)
     }
   }, [[SNAPSHOT_KEY, next], [`review-answer:${idempotencyKey}`, response]]);
   return response;

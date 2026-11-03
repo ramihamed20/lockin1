@@ -90,3 +90,60 @@ def test_review_answer_and_weekly_recall_api_round_trip() -> None:
     assert weekly.status_code == 201
     assert resumed.status_code == 200
     assert resumed.json()["session"]["id"] == weekly.json()["session"]["id"]
+
+
+def test_daily_review_is_bounded_due_owned_and_does_not_reveal_answers() -> None:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    owner = create_user(with_trial=True)
+    stranger = create_user(email="daily-stranger@example.com", with_trial=True)
+    client = APIClient()
+    client.force_authenticate(owner)
+    now = timezone.now()
+
+    def item(user, key, **overrides):
+        values = {
+            "user": user,
+            "canonical_key": key,
+            "subject_key": key.split(":")[0],
+            "subject_label_snapshot": "Subject",
+            "source_type": "sheet",
+            "prompt_snapshot": "Question",
+            "explanation_snapshot": "Private explanation",
+            "options_snapshot": [{"id": "x", "text": "X"}, {"id": "y", "text": "Y"}],
+            "correct_option_ids_snapshot": ["y"],
+            "mistake_count": 1,
+            "first_mistake_at": now,
+            "last_mistake_at": now,
+            "next_review_at": now - timedelta(days=1),
+        }
+        values.update(overrides)
+        return ReviewItem.objects.create(**values)
+
+    for index in range(23):
+        item(owner, f"a:{index}")
+    repeated = item(owner, "b:repeated", mistake_count=4)
+    item(owner, "future", next_review_at=now + timedelta(days=1))
+    item(owner, "hidden", state=ReviewItem.State.HIDDEN)
+    item(owner, "unanswerable", correct_option_ids_snapshot=[])
+    item(stranger, "private", mistake_count=100)
+    response = client.get("/api/v1/review-bank/daily")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["count"] == 20
+    assert payload["due_count"] == 24
+    assert payload["results"][0]["id"] == str(repeated.id)
+    assert len({row["id"] for row in payload["results"]}) == 20
+    assert all(row["subject_key"] in {"a", "b"} for row in payload["results"])
+    assert all(
+        "correct_option_ids" not in row and "explanation" not in row for row in payload["results"]
+    )
+    assert ReviewItem.objects.filter(user=owner, state=ReviewItem.State.ACTIVE).count() == 26
+    overview = client.get("/api/v1/review-bank").json()
+    assert overview["due_count"] == 24
+    assert sum(subject["due_count"] for subject in overview["subjects"]) == 24
+    assert client.get("/api/v1/review-bank/daily").json() == payload
+    anonymous = APIClient().get("/api/v1/review-bank/daily")
+    assert anonymous.status_code in (401, 403)

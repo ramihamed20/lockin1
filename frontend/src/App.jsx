@@ -773,6 +773,7 @@ function App() {
                 <Route path="/review" element={<Review user={user} />} />
                 <Route path="/review/source/:itemId" element={<ReviewSource />} />
                 <Route path="/review/bank" element={<ReviewBank user={user} />} />
+                <Route path="/review/daily" element={<SubjectReviewSession key="daily" user={user} daily />} />
                 <Route path="/review/bank/:subjectKey" element={<SubjectReviewSession user={user} />} />
                 <Route path="/review/weekly" element={<WeeklyRecall user={user} />} />
                 <Route path="/review/biweekly/:id" element={<BiweeklyDetail type="review" />} />
