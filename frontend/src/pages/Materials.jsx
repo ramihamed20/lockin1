@@ -154,7 +154,7 @@ export function CatalogMaterialSheets({ user = null }) {
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
 
-  if (loading) return <Page width="reading" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="card-list" /></Page>;
+  if (loading) return <Page width="sheets" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="sheet-library" /></Page>;
   if (error) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 

@@ -123,6 +123,10 @@ function DashboardSkeleton() {
   </div>;
 }
 
+function SheetLibrarySkeleton() {
+  return <div className="skeleton-page skeleton-page--sheet-library"><SkeletonHeader /><Skeleton className="skeleton-sheet-branch" /><section className="skeleton-sheet-library-grid">{Array.from({ length: 4 }, (_, index) => <SkeletonCard className="skeleton-sheet-library-card" key={index}><Skeleton className="skeleton-sheet-library-cover" /><div className="skeleton-sheet-library-copy"><SkeletonText lines={3} /><div className="skeleton-sheet-library-footer"><Skeleton className="skeleton-sheet-library-meta" /><SkeletonAvatar /></div></div></SkeletonCard>)}</section></div>;
+}
+
 function MaterialsListSkeleton({ sheets = false }) {
   return <div className={`skeleton-page skeleton-page--materials${sheets ? " is-sheets" : ""}`}><SkeletonHeader /><section className="skeleton-material-grid">{Array.from({ length: sheets ? 6 : 5 }, (_, index) => <SkeletonCard className="skeleton-material-row" key={index}><SkeletonAvatar /><div><SkeletonText lines={2} /></div><Skeleton className="skeleton-row-end" /></SkeletonCard>)}</section></div>;
 }
@@ -178,6 +182,7 @@ function StandardSkeleton({ variant }) {
   if (variant === "result") return <QuizSkeleton result />;
   if (variant === "document") return <DocumentSkeleton />;
   if (variant === "material-list") return <MaterialsListSkeleton />;
+  if (variant === "sheet-library") return <SheetLibrarySkeleton />;
   if (variant === "card-list") return <MaterialsListSkeleton sheets />;
   if (variant === "sheet") return <SheetSkeleton />;
   return <div className="skeleton-page skeleton-page--grid"><SkeletonHeader /><CardGridSkeleton count={6} card={variant === "list" ? "row" : "standard"} /></div>;
@@ -194,6 +199,7 @@ function loadingVariant(pathname) {
   if (/\/results?\//.test(pathname)) return "result";
   if (/\/attempts?\//.test(pathname)) return "quiz";
   if (/^\/(materials|questions)$/.test(pathname)) return "material-list";
+  if (/^\/materials\/catalog\/[^/]+$/.test(pathname)) return "sheet-library";
   if (/^\/(notifications|review|bookmarks|community|achievements|subscription|my-group|analysis)/.test(pathname)) return "list";
   return "grid";
 }
