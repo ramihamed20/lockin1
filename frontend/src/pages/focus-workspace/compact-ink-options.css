@@ -1,3 +1,5 @@
+@import "./chrome-palette.css";
+
 /* Ink-only inspector; drawing and saved profile values remain unchanged. */
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink { width: min(296px, calc(100% - 16px)); max-width: min(296px, calc(100% - 16px)); border-radius: 16px; overflow: visible; }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-options-title { min-height: 40px; padding: 6px 12px; gap: 12px; }
