@@ -4,7 +4,9 @@ import { COMING_SOON_STUDY_TOOLS, STUDY_TOOLS_ENABLED } from "../workspace/knowl
 const ReviewRecovery = lazy(() => import("../workspace/knowledge/ReviewRecovery.jsx"));
 const KnowledgeShelf = lazy(() => import("../workspace/knowledge/KnowledgeShelf.jsx"));
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { createReviewTimer, requestedReviewLimit, reviewQuestionLimit } from "../review/session.js";
+import { createReviewTimer, recoveryQuestions, requestedReviewLimit, reviewQuestionLimit } from "../review/session.js";
+import { MistakeReflection } from "../review/MistakeReflection.jsx";
+import { RecoveryPass } from "../review/RecoveryPass.jsx";
 import { reviewApi } from "../api/review.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
@@ -153,20 +155,21 @@ export function ReviewBank({ user = null }) {
   );
 }
 
-function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, error, onSubmit }) {
+function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, error, onSubmit, training = false }) {
   const { t } = useI18n();
   const [confidence, setConfidence] = useState("");
+  const explanationRegion = useRef(null);
   const timer = useRef(null);
   if (!timer.current) timer.current = createReviewTimer();
   useEffect(() => {
     function update() {
-      if (!busy && !outcome && document.visibilityState === "visible") timer.current.resume();
+      if (!training && !busy && !outcome && document.visibilityState === "visible") timer.current.resume();
       else timer.current.pause();
     }
     update();
     document.addEventListener("visibilitychange", update);
     return () => { document.removeEventListener("visibilitychange", update); timer.current.pause(); };
-  }, [busy, outcome]);
+  }, [busy, outcome, training]);
   const correctIds = new Set(outcome?.review_item?.correct_option_ids || []);
   const multiple = item.answer_mode === "multiple";
   return (
@@ -185,9 +188,15 @@ function ReviewQuestionCard({ item, selectedIds = [], onSelect, outcome, busy, e
           return <label className={`review-choice ${state}`} key={option.id}><input type={multiple ? "checkbox" : "radio"} name={`review-answer-${item.id}`} value={option.id} checked={selected} onChange={() => onSelect(option.id, multiple)} /><span className="review-choice-letter">{String.fromCharCode(65 + index)}</span><span dir="auto">{option.text || t("review.optionUnavailable")}</span>{isCorrect && <span className="review-choice-state"><Icon name="check" size={18} /> {t("review.correct")}</span>}{isWrong && <span className="review-choice-state"><Icon name="x" size={18} /> {t("review.yourAnswer")}</span>}</label>;
         })}
       </fieldset>
-      {!outcome && <div className="review-answer-actions"><button className="btn btn-soft review-confidence" type="button" aria-pressed={confidence === "unsure"} disabled={busy} onClick={() => setConfidence(current => current === "unsure" ? "" : "unsure")}>{t("review.unsure")}</button><button className="btn btn-primary review-submit-answer" type="button" disabled={!selectedIds.length || busy} aria-busy={busy || undefined} onClick={() => onSubmit({ confidence, activeSeconds: timer.current.seconds() })}>{t(busy ? "review.checking" : "review.checkAnswer")}</button></div>}
-      {outcome && <section className={`review-answer-outcome ${outcome.was_correct ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={outcome.was_correct ? "check" : "alert-triangle"} size={20} /><div><strong>{t(outcome.was_correct ? "review.correctMoved" : "review.notYet")}</strong><p>{t(outcome.was_correct ? "review.correctBody" : "review.incorrectBody")}</p>{outcome.was_correct && outcome.confidence === "unsure" && <p>{t("review.correctUnsureBody")}</p>}<QuestionExplanation explanation={outcome.review_item?.explanation} /></div></section>}
-      {outcome && !outcome.was_correct && STUDY_TOOLS_ENABLED && !COMING_SOON_STUDY_TOOLS.includes("explain") && <Suspense fallback={null}><ReviewRecovery key={item.id} itemId={item.id} /></Suspense>}
+      {!outcome && <div className="review-answer-actions">{!training && <button className="btn btn-soft review-confidence" type="button" aria-pressed={confidence === "unsure"} disabled={busy} onClick={() => setConfidence(current => current === "unsure" ? "" : "unsure")}>{t("review.unsure")}</button>}<button className="btn btn-primary review-submit-answer" type="button" disabled={!selectedIds.length || busy} aria-busy={busy || undefined} onClick={() => onSubmit({ confidence, activeSeconds: timer.current.seconds() })}>{t(busy ? "review.checking" : "review.checkAnswer")}</button></div>}
+      {outcome && <section className={`review-answer-outcome ${outcome.was_correct ? "is-correct" : "is-incorrect"}`} role="status" aria-live="polite"><Icon name={outcome.was_correct ? "check" : "alert-triangle"} size={20} /><div><strong>{t(training ? outcome.was_correct ? "review.practiceCorrect" : "review.practiceAgain" : outcome.was_correct ? "review.correctMoved" : "review.notYet")}</strong><p>{t(training ? "review.practiceFeedback" : outcome.was_correct ? "review.correctBody" : "review.incorrectBody")}</p>{outcome.was_correct && outcome.confidence === "unsure" && <p>{t("review.correctUnsureBody")}</p>}<div ref={explanationRegion}><QuestionExplanation explanation={outcome.review_item?.explanation} /></div></div></section>}
+      {outcome && !outcome.was_correct && !training && <MistakeReflection item={item} outcome={outcome} selectedIds={selectedIds} onExplain={() => {
+        const button = explanationRegion.current?.querySelector("button");
+        if (button?.getAttribute("aria-expanded") === "false") button.click();
+        button?.focus();
+        explanationRegion.current?.scrollIntoView({ block: "nearest" });
+      }} />}
+      {outcome && !outcome.was_correct && !training && STUDY_TOOLS_ENABLED && !COMING_SOON_STUDY_TOOLS.includes("explain") && <Suspense fallback={null}><ReviewRecovery key={item.id} itemId={item.id} /></Suspense>}
       {error && <p className="inline-error" role="alert" dir="auto">{error}</p>}
     </article>
   );
@@ -209,6 +218,8 @@ export function SubjectReviewSession({ user = null, daily = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [complete, setComplete] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryResult, setRecoveryResult] = useState(null);
   const answerKeys = useRef(new Map());
 
   useEffect(() => {
@@ -218,6 +229,8 @@ export function SubjectReviewSession({ user = null, daily = false }) {
     setSelected({});
     setOutcomes({});
     setComplete(false);
+    setRecoveryOpen(false);
+    setRecoveryResult(null);
     answerKeys.current = new Map();
   }, [detail.data, requestedItem, daily, dailyLimit, automaticLimit]);
 
@@ -257,7 +270,9 @@ export function SubjectReviewSession({ user = null, daily = false }) {
   if (detail.error) return <Page width="reading" title={t("review.sessionTitle")}><ErrorPanel message={detail.errorDetails || detail.error} onRetry={detail.reload} /></Page>;
   if (missingRequested) return <Page width="reading" title={t("review.sessionTitle")}><p role="status">{t("connected.reviewUnavailable")}</p><Link className="btn btn-primary" to="/review/bank">{t("review.backToBank")}</Link></Page>;
   if (!items.length) return <Page width="reading" title={daily ? t("review.dailyTitle") : detail.data?.subject_label || t("review.subjectReview")}><EmptyState title={daily ? t("review.dailyClearTitle") : t("review.subjectCleared")} text={daily ? t("review.dailyClear") : t("review.subjectClearedText")} /><div className="result-actions"><Link className="btn btn-primary" to={returnPath}>{t(daily ? "review.backToCenter" : "review.backToBank")}</Link></div></Page>;
+  if (complete && recoveryOpen) return <Page width="reading" title={t("review.practiceTitle")}><RecoveryPass questions={recoveryQuestions(items, outcomes)} QuestionCard={ReviewQuestionCard} onFinish={result => { setRecoveryResult(result); setRecoveryOpen(false); }} /></Page>;
   if (complete) {
+    const recovery = recoveryQuestions(items, outcomes);
     const answers = Object.values(outcomes);
     const correct = answers.filter(answer => answer.was_correct).length;
     const repeated = items.filter(candidate => candidate.mistake_count > 1 && outcomes[candidate.id]?.was_correct).length;
@@ -269,7 +284,9 @@ export function SubjectReviewSession({ user = null, daily = false }) {
       <p dir="auto">{t("review.sessionScore", { correct, count: answers.length })}</p>
       <dl className="review-result-stats"><div><dt>{t("review.recoveredRepeated")}</dt><dd>{repeated}</dd></div><div><dt>{t("review.needsAnotherPass")}</dt><dd>{answers.length - correct}</dd></div>{unsureCorrect > 0 && <div><dt>{t("review.correctUnsure")}</dt><dd>{unsureCorrect}</dd></div>}</dl>
       <p dir="auto">{t(pending ? "review.resultsPending" : "review.recallLater")}</p>
-      <div className="result-actions"><Link className="btn btn-primary" to={returnPath}>{t(daily ? "review.backToCenter" : "review.backToBank")}</Link><button className="btn btn-soft" type="button" disabled={detail.refreshing} onClick={detail.reload}>{t("review.anotherSession")}</button></div>
+      {recoveryResult && <p className="review-practice-receipt" role="status">{t("review.practiceScore", recoveryResult)}</p>}
+      {recovery.length > 0 && !recoveryResult && <section className="review-practice-offer"><h3>{t("review.practiceOffer")}</h3><p>{t("review.practiceNotice")}</p><button className="btn btn-primary" type="button" onClick={() => setRecoveryOpen(true)}>{t("review.startPractice", { count: recovery.length })}</button></section>}
+      <div className="result-actions"><Link className={`btn ${recovery.length > 0 && !recoveryResult ? "btn-soft" : "btn-primary"}`} to={returnPath}>{t(daily ? "review.backToCenter" : "review.backToBank")}</Link><button className="btn btn-soft" type="button" disabled={detail.refreshing} onClick={detail.reload}>{t("review.anotherSession")}</button></div>
     </section></Page>;
   }
 

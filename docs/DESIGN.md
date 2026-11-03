@@ -593,3 +593,26 @@ Phase-two validation: 32 focused Node tests, 11 Review/offline backend tests wit
 SQLite setting, and six Chromium browser scenarios passed. Frontend typecheck, targeted ESLint
 and Ruff, migration-drift check and the E2E build passed. The migration and database constraints
 were exercised by those backend tests; PostgreSQL and physical iOS devices were not run here.
+
+### Mistake reflection and end-of-session practice
+
+After an incorrect answer, an optional session-local reflection offers Forgot, Mixed up facts,
+and Did not understand. It guides recall, compares the actual chosen/correct options, or opens
+the existing explanation/source control. These selections are temporary guidance, not a stored
+learner diagnosis or a new scheduling signal.
+
+A completed daily or subject-bank session can offer up to three earlier mistakes for an extra
+practice pass. Eligibility requires two other submitted questions since the original answer,
+and valid answer keys already revealed by that answer. Unanswered questions, correct answers,
+and very recent mistakes cannot enter this immediate practice pass. Multi-answer questions
+retain exact-set grading. The practice outcome is separate from the original session score.
+
+Practice makes no answer request, creates no attempt, grants no XP and does not mutate Review
+state or next-review dates. The original mistake remains available to the normal later review.
+One pass is offered per open session; returning to results preserves both the original score
+and the separate practice receipt. No new API, database field or browser persistence is added.
+
+Validation: ten focused Node tests and nine Chromium scenarios passed, including actual label
+clicks in Arabic at 320px, reflection guidance, spacing eligibility, exact multi-answer grading,
+unchanged original scores and absence of further graded answer requests during practice.
+Frontend typecheck, targeted ESLint, E2E build and public-knowledge evidence checks passed.

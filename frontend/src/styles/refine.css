@@ -856,3 +856,21 @@ html.ix-hover :is(.theme-section, .settings-panel) > .settings-row:hover {
 .review-confidence[aria-pressed="true"] { border-color: var(--accent-border); color: var(--accent-text); background: var(--accent-soft); }
 .review-priority-note { color: var(--accent-text); font-size: var(--text-sm); margin: 0; }
 .review-daily-entry .btn { min-height: 44px; }
+
+/* Optional mistake reflection and an explicitly separate, unscored practice pass. */
+.review-reflection { padding-block: 16px; border-block-start: 1px solid var(--polish-line); }
+.review-reflection fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.review-reflection legend { color: var(--text); font-weight: 600; margin-block-end: 12px; }
+.review-reflection legend small { color: var(--muted); font-weight: 400; margin-inline-start: 8px; }
+.review-reflection-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.review-reflection-options .btn, .review-reflection-guidance .btn { min-height: 44px; }
+.review-reflection-options [aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-border); }
+.review-reflection-guidance { display: grid; gap: 12px; padding-block-start: 14px; color: var(--muted); }
+.review-reflection-guidance p { margin: 0; }
+.review-reflection-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 14px; margin: 0; }
+.review-reflection-comparison dt { font-size: var(--text-xs); color: var(--muted); }
+.review-reflection-comparison dd { color: var(--text); margin: 4px 0 0; overflow-wrap: anywhere; }
+.review-practice-offer { display: grid; justify-items: center; gap: 12px; padding: 20px; border: 1px solid var(--polish-line); border-radius: var(--radius-md); }
+.review-practice-offer h3, .review-recovery-pass h2, .review-practice-position { margin: 0; }
+.review-recovery-pass { display: grid; gap: 20px; min-width: 0; }
+.review-recovery-pass > header p, .review-practice-position, .review-practice-receipt { color: var(--muted); font-size: var(--text-sm); }
