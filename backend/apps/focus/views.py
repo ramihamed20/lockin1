@@ -141,6 +141,7 @@ from .serializers import (
 )
 from .services import (
     FocusSessionStateError,
+    FocusTeamLimitError,
     abandon_focus_session,
     active_lock_in_session_for_user,
     active_team_lock_in_session,
@@ -406,6 +407,8 @@ def _authorize(request: Request) -> User:
 
 
 def _rule_error(error: ValueError) -> APIException:
+    if isinstance(error, FocusTeamLimitError):
+        return FocusRejected(str(error), code="focus_team_limit_reached")
     if isinstance(error, (FocusWorkspaceConflictError, FocusAnnotationConflictError)):
         return FocusConflict(str(error))
     return FocusRejected(str(error))

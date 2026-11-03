@@ -38,6 +38,27 @@ class FocusSessionStateError(ValueError):
     pass
 
 
+class FocusTeamLimitError(FocusSessionStateError):
+    def __init__(self) -> None:
+        super().__init__(
+            "You can belong to at most 3 open teams. Leave a team before joining another."
+        )
+
+
+MAX_OPEN_TEAMS_PER_USER = 3
+
+
+def _require_team_slot(*, user: User) -> None:
+    # All membership additions serialize on this existing row. Joining locks
+    # its team first, matching the established team -> account lock order.
+    User.objects.select_for_update().get(pk=user.pk)
+    if (
+        FocusTeamMembership.objects.filter(user=user, team__closed_at__isnull=True).count()
+        >= MAX_OPEN_TEAMS_PER_USER
+    ):
+        raise FocusTeamLimitError()
+
+
 UNFINISHED_STATUSES = (
     FocusSession.Status.ACTIVE,
     FocusSession.Status.PAUSED,
@@ -94,6 +115,7 @@ def create_focus_team(
     for _ in range(5):
         try:
             with transaction.atomic():
+                _require_team_slot(user=user)
                 team = FocusTeam(
                     owner=user,
                     name=name.strip(),
@@ -152,6 +174,7 @@ def join_focus_team(
     members = list(FocusTeamMembership.objects.filter(team=team).only("anonymous_alias"))
     if len(members) >= team.max_members:
         raise FocusSessionStateError("This team is full.")
+    _require_team_slot(user=user)
     aliases = {member.anonymous_alias for member in members}
     alias = ""
     if anonymous:

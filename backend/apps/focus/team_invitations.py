@@ -13,7 +13,7 @@ from apps.accounts.models import User
 from apps.notifications.services import create_notification
 
 from .models import FocusTeam, FocusTeamInvitation, FocusTeamMembership
-from .services import FocusSessionStateError, join_focus_team
+from .services import FocusSessionStateError, FocusTeamLimitError, join_focus_team
 
 
 def invitation_payload(user: User) -> dict[str, object]:
@@ -160,6 +160,8 @@ def respond_invitation(*, user: User, invitation_id: UUID, action: str) -> Focus
             team, _ = join_focus_team(
                 user=user, invite_code=team.invite_code, direct_invitation_id=invitation.pk
             )
+        except FocusTeamLimitError:
+            raise
         except FocusSessionStateError as error:
             raise ValidationError(str(error)) from error
     invitation.status = "accepted"

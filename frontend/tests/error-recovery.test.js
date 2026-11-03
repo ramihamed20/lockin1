@@ -140,3 +140,10 @@ test("a malformed 429 error body still keeps its retry and support headers", asy
   globalThis.fetch = async () => new Response("{broken", { status: 429, headers: { "Content-Type": "application/json", "Retry-After": "5", "X-Request-ID": "rate-reference" } });
   await assert.rejects(request("/auth/session"), error => error.status === 429 && error.retryAfterSeconds === 5 && error.request_id === "rate-reference");
 });
+
+
+test("team membership limit has clear English and Arabic messages", () => {
+  const error = { code: "focus_team_limit_reached", status: 400 };
+  assert.match(userErrorMessage(error, { locale: "en" }), /at most 3 open teams/);
+  assert.match(userErrorMessage(error, { locale: "ar" }), /الحد الأقصى 3 فرق/);
+});

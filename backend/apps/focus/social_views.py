@@ -10,8 +10,9 @@ from rest_framework.views import APIView
 
 from platform_core.api.serializers import StrictSerializer
 
+from .services import FocusTeamLimitError
 from .team_invitations import invitation_payload, invite_friend, respond_invitation
-from .views import _authorize, _team_payload
+from .views import _authorize, _rule_error, _team_payload
 
 
 class InviteFriendSerializer(StrictSerializer):
@@ -38,7 +39,10 @@ class TeamInvitationResponseView(APIView):
         if action not in {"accept", "decline"}:
             raise PermissionDenied()
         user = _authorize(request)
-        team = respond_invitation(user=user, invitation_id=invitation_id, action=action)
+        try:
+            team = respond_invitation(user=user, invitation_id=invitation_id, action=action)
+        except FocusTeamLimitError as error:
+            raise _rule_error(error) from error
         return Response(
             {
                 "team": _team_payload(user=user, team=team) if team else None,

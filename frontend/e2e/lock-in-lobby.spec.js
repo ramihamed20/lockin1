@@ -156,6 +156,7 @@ test("full team and long name remain usable on a narrow phone", async ({ page })
   await page.getByRole("button", { name: "Options for Anonymous 02" }).click();
   await expect(page.getByRole("menuitem", { name: "Make host" })).toBeVisible();
   await page.keyboard.press("Escape");
+  await page.locator(".lm-team-settings > summary").click();
   await page.getByRole("textbox", { name: "Team name" }).fill("Renamed team");
   await expect(page.getByRole("button", { name: "Save" })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

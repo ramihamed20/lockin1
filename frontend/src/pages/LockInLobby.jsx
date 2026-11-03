@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, ChevronRight, Copy, Camera, Focus, LogOut, KeyRound, Timer, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Copy, Camera, Settings2, Focus, LogOut, KeyRound, Timer, UserPlus, Users, X } from "lucide-react";
 import { LockInMenu } from "../components/lock-in/LockInMenu.jsx";
 import LockInFriends from "../components/lock-in/LockInFriends.jsx";
+import LockInTeamFriends from "../components/lock-in/LockInTeamFriends.jsx";
+import LockInFriendPicker from "../components/lock-in/LockInFriendPicker.jsx";
+import { teamInvitesApi } from "../api/social.js";
 import { focusApi } from "../api/focus.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
@@ -79,15 +82,21 @@ function AnonymousRow({ id, checked, onChange }) {
   </div>;
 }
 
-function NavRow({ icon: RowIcon, title, hint = null, onClick, value = null }) {
+function NavRow({ icon: RowIcon, title, hint = null, onClick, value = null, disabled = false }) {
   return <li>
-    <button className="ui-row" type="button" onClick={onClick}>
+    <button className="ui-row" type="button" disabled={disabled} onClick={onClick}>
       {RowIcon && <span className="ui-row-icon" aria-hidden="true"><RowIcon /></span>}
       <span className="ui-row-body"><strong dir="auto">{title}</strong>{hint && <small>{hint}</small>}</span>
       {value && <span className="ui-row-value">{value}</span>}
       <ChevronRight className="ui-row-chevron" size={18} aria-hidden="true" />
     </button>
   </li>;
+}
+
+function TeamMark({ team, large = false }) {
+  return <span className={`lm-team-mark${large ? " is-large" : ""}`} aria-hidden="true">
+    {team.image_url ? <img src={team.image_url} alt="" /> : <Users size={large ? 30 : 22} />}
+  </span>;
 }
 
 function TeamRows({ teams, onOpen }) {
@@ -97,7 +106,14 @@ function TeamRows({ teams, onOpen }) {
   return <section className="ui-group-block" aria-labelledby="lm-your-teams">
     <h2 className="ui-group-title" id="lm-your-teams">{t("lockIn.yourTeams")}</h2>
     <ul className="ui-group lm-team-list">
-      {open.map((item) => <NavRow key={item.id} icon={Users} title={item.name} hint={t("lockIn.membersOf", { count: item.member_count, max: item.max_members })} value={item.active_session_id ? t("lockIn.liveNow") : null} onClick={() => onOpen(item)} />)}
+      {open.map((item) => <li key={item.id}>
+        <button className="ui-row" type="button" onClick={() => onOpen(item)}>
+          <TeamMark team={item} />
+          <span className="ui-row-body"><strong dir="auto">{item.name}</strong><small>{t("lockIn.membersOf", { count: item.member_count, max: item.max_members })}</small></span>
+          {item.active_session_id && <span className="lm-team-live"><span className="lm-live-dot is-focused" aria-hidden="true" />{t("lockIn.liveNow")}</span>}
+          <ChevronRight className="ui-row-chevron" size={18} aria-hidden="true" />
+        </button>
+      </li>)}
     </ul>
   </section>;
 }
@@ -230,22 +246,26 @@ function ResumeCard({ active, onResume }) {
   </section>;
 }
 
-function TeamLobby({ team, onAction, onStart, onJoinLive, onImageUpload, onInviteFriends, busy, error }) {
+function TeamLobby({ team, onAction, onStart, onJoinLive, onImageUpload, busy, error }) {
   const { t } = useI18n();
   const [name, setName] = useState(team.name);
   const [maximum, setMaximum] = useState(String(team.max_members));
   const [confirm, setConfirm] = useState(null);
+  const [friendsOpen, setFriendsOpen] = useState(false);
   const host = team.role === "owner" && !team.closed_at;
   useEffect(() => { setName(team.name); setMaximum(String(team.max_members)); }, [team.name, team.max_members]);
   const act = async (action, body = {}) => { setConfirm(null); await onAction(action, body); };
   const settingsChanged = name.trim() !== team.name || maximum !== String(team.max_members);
   const others = team.members.filter((member) => member.member_id !== team.self_member_id);
 
-  return <div className="lm-page" aria-labelledby="lm-team-title">
+  return <div className="lm-page lm-team-page" aria-labelledby="lm-team-title">
     <header className="lm-heading lm-team-heading">
-      <div>
-        <h1 id="lm-team-title" className="lm-team-title" dir="auto">{team.image_url && <img src={team.image_url} className="lm-rank-avatar" alt="" />}{team.name}</h1>
-        <p>{team.closed_at ? t("lockIn.ended") : t("lockIn.membersOf", { count: team.member_count, max: team.max_members })}</p>
+      <div className="lm-team-identity">
+        <TeamMark team={team} large />
+        <div><h1 id="lm-team-title" dir="auto">{team.name}</h1>
+          <p>{t("lockIn.membersOf", { count: team.member_count, max: team.max_members })}</p>
+          <span className={`lm-team-state${team.closed_at || team.joining_locked ? "" : " is-open"}`}><i aria-hidden="true" />{t(team.closed_at ? "lockIn.ended" : team.joining_locked ? "lockIn.invitesLocked" : "lockIn.teamOpen")}</span>
+        </div>
       </div>
       {!team.closed_at && (team.active_session_id
         ? <button className="btn btn-primary" type="button" disabled={busy} onClick={() => onJoinLive(team.id)}>{t("lockIn.joinSession")}</button>
@@ -254,8 +274,10 @@ function TeamLobby({ team, onAction, onStart, onJoinLive, onImageUpload, onInvit
           : <p className="lm-waiting" role="status"><span className="lm-live-dot is-waiting" aria-hidden="true" />{t("lockIn.waitingForHost")}</p>)}
     </header>
 
-    {host && <button className="btn btn-soft" type="button" onClick={onInviteFriends}><UserPlus size={17} aria-hidden="true" />{t("lockIn.inviteFriends")}</button>}
-    {host && <TeamPhotoInput imageUrl={team.image_url} onChange={onImageUpload} busy={busy} />}
+    {host && <section className="lm-team-invite-section">
+      <button className="btn btn-soft" type="button" aria-expanded={friendsOpen} aria-controls="lm-team-invite-panel" onClick={() => setFriendsOpen(value => !value)}><UserPlus size={17} aria-hidden="true" />{t("lockIn.inviteFriends")}</button>
+      {friendsOpen && <div id="lm-team-invite-panel"><LockInTeamFriends key={team.id} team={team} disabled={busy} /></div>}
+    </section>}
     {!team.closed_at && <TeamCode code={team.invite_code} />}
 
     <section className="ui-group-block" aria-labelledby="lm-members-title">
@@ -268,8 +290,10 @@ function TeamLobby({ team, onAction, onStart, onJoinLive, onImageUpload, onInvit
         : null} />
     </section>
 
-    {host && <section className="ui-group-block" aria-labelledby="lm-settings-title">
-      <h2 className="ui-group-title" id="lm-settings-title">{t("lockIn.teamSettings")}</h2>
+    {host && <details className="lm-team-settings">
+      <summary><Settings2 size={19} aria-hidden="true" /><span>{t("lockIn.teamSettings")}</span><ChevronRight size={17} className="lm-disclosure-arrow" aria-hidden="true" /></summary>
+      <div className="lm-settings-content">
+      <TeamPhotoInput imageUrl={team.image_url} onChange={onImageUpload} busy={busy} />
       <form className="ui-group" onSubmit={(event) => { event.preventDefault(); if (settingsChanged) void act("update", { name: name.trim(), ...(maximum !== String(team.max_members) ? { max_members: Number(maximum) } : {}) }); }}>
         <div className="ui-row">
           <label className="ui-row-body" htmlFor="lm-team-name"><span>{t("lockIn.teamName")}</span></label>
@@ -293,7 +317,8 @@ function TeamLobby({ team, onAction, onStart, onJoinLive, onImageUpload, onInvit
           <span className="ui-row-body"><strong>{t("lockIn.endTeam")}</strong></span>
         </button>
       </div>
-    </section>}
+      </div>
+    </details>}
 
     <div className="ui-group">
       <button className="ui-row is-danger" type="button" disabled={busy} onClick={() => setConfirm({ action: "leave", title: t("lockIn.leaveTeamConfirm"), message: host && others.length ? t("lockIn.leaveTeamHostMessage") : t("lockIn.leaveTeamMessage"), label: t("lockIn.leaveTeam") })}>
@@ -322,11 +347,14 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
   const [rankError, setRankError] = useState("");
   const [rankRetry, setRankRetry] = useState(0);
   const [imageFile, setImageFile] = useState(null);
-  const [friendTeamId, setFriendTeamId] = useState("");
+  const [selectedFriends, setSelectedFriends] = useState([]);
+  const [inviteDelivery, setInviteDelivery] = useState(null);
+  const creatingRef = useRef(false);
   const teamMutationRef = useRef(0);
   const [period, setPeriod] = useState("weekly");
   const [rankings, setRankings] = useState({ solo: [], teams: bootstrap.team_rankings || [], minAnswers: 20 });
   const teams = Array.isArray(bootstrap.teams) ? bootstrap.teams : [];
+  const teamLimitReached = teams.filter(item => !item.closed_at).length >= 3;
   const active = bootstrap.active_session;
   const removedMessage = t("lockIn.removedFromTeam");
 
@@ -369,16 +397,44 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
 
   function go(next) { setError(""); setScreen(next); window.scrollTo(0, 0); }
   function openTeam(selected) { setTeamId(selected.id); setTeam(selected); go("lobby"); }
-  async function create(event) {
-    event.preventDefault(); setBusy(true); setError("");
-    try { const result = await focusApi.createLockInTeam({ name: name.trim(), max_members: Number(maximum), anonymous }); openTeam(result.team);
-      if (imageFile) { const uploaded = await focusApi.uploadLockInTeamImage(/** @type {{id: string}} */ (result.team).id, imageFile); teamMutationRef.current++; setTeam(uploaded.team); setImageFile(null); }
-      await onRefresh(); }
-    catch (failure) { setError(failure.message || t("lockIn.error")); }
+  async function deliverInvites(id, people, alreadySent = 0) {
+    // Retrying targets only failures; successful invitations are never resent.
+    const results = await Promise.allSettled(people.map(person => teamInvitesApi.send(id, person.id)));
+    const failed = people.filter((_, index) => results[index].status === "rejected");
+    setInviteDelivery({ teamId: id, failed, sent: alreadySent + people.length - failed.length });
+  }
+  async function retryInvites() {
+    if (busy || !inviteDelivery) return;
+    setBusy(true);
+    try { await deliverInvites(inviteDelivery.teamId, inviteDelivery.failed, inviteDelivery.sent); }
     finally { setBusy(false); }
+  }
+  async function create(event) {
+    event.preventDefault();
+    if (teamLimitReached) { setError(t("lockIn.teamLimit")); return; }
+    if (creatingRef.current || selectedFriends.length > Number(maximum) - 1) return;
+    creatingRef.current = true;
+    setBusy(true); setError(""); setInviteDelivery(null);
+    try {
+      const result = await focusApi.createLockInTeam({ name: name.trim(), max_members: Number(maximum), anonymous });
+      const createdTeam = /** @type {any} */ (result.team);
+      const people = selectedFriends;
+      setSelectedFriends([]);
+      openTeam(createdTeam);
+      // Photo failure must not prevent already-selected friends receiving invites.
+      const tasks = [deliverInvites(createdTeam.id, people)];
+      if (imageFile) tasks.push(focusApi.uploadLockInTeamImage(createdTeam.id, imageFile).then(uploaded => {
+        teamMutationRef.current++; setTeam(uploaded.team); setImageFile(null);
+      }).catch(failure => setError(failure.message || t("lockIn.photoFailed"))));
+      await Promise.all(tasks);
+      await onRefresh();
+    }
+    catch (failure) { setError(failure.message || t("lockIn.error")); }
+    finally { creatingRef.current = false; setBusy(false); }
   }
   async function join(event) {
     event.preventDefault();
+    if (teamLimitReached) { setError(t("lockIn.teamLimit")); return; }
     if (!/^[0-9]{6}$/.test(code)) { setError(t("lockIn.codeInvalid")); return; }
     setBusy(true); setError("");
     try { const result = await focusApi.joinLockInTeam(code, anonymous); openTeam(result.team); await onRefresh(); }
@@ -437,7 +493,7 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
           <NavRow icon={Users} title={t("lockIn.team")} onClick={() => go("team")} />
         </ul>
       </section>
-      <LockInFriends teams={teams} initialTeamId={friendTeamId} onCreateTeam={() => go("create")} onOpenTeam={async (nextTeam) => { await onRefresh(); openTeam(nextTeam); }} />
+      <LockInFriends teams={teams} onCreateTeam={() => go("create")} onOpenTeam={async (nextTeam) => { await onRefresh(); openTeam(nextTeam); }} />
       <TeamRows teams={teams} onOpen={openTeam} />
       {error && <p className="lm-error" role="alert">{error}</p>}
     </div>}
@@ -445,9 +501,10 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
     {screen === "team" && <div className="lm-page">
       <header className="lm-heading"><h1>{t("lockIn.team")}</h1></header>
       <ul className="ui-group">
-        <NavRow icon={UserPlus} title={t("lockIn.createTeam")} onClick={() => go("create")} />
-        <NavRow icon={KeyRound} title={t("lockIn.joinTeam")} onClick={() => go("join")} />
+        <NavRow icon={UserPlus} title={t("lockIn.createTeam")} disabled={teamLimitReached} onClick={() => go("create")} />
+        <NavRow icon={KeyRound} title={t("lockIn.joinTeam")} disabled={teamLimitReached} onClick={() => go("join")} />
       </ul>
+      {teamLimitReached && <p className="lm-social-empty" role="status">{t("lockIn.teamLimit")}</p>}
       <TeamRows teams={teams} onOpen={openTeam} />
     </div>}
 
@@ -465,9 +522,10 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
             <input id="lm-create-max" className="ui-row-input lm-row-input-number" type="number" inputMode="numeric" min="2" max="20" value={maximum} onChange={(event) => setMaximum(event.target.value)} required />
           </div>
         </div>
+        <LockInFriendPicker selected={selectedFriends} onChange={setSelectedFriends} maximum={maximum} disabled={busy} />
         <AnonymousRow id="lm-create-anonymous" checked={anonymous} onChange={setAnonymous} />
         {error && <p className="lm-error" role="alert">{error}</p>}
-        <button className="btn btn-primary lm-submit" type="submit" disabled={busy || !name.trim()}>{t("lockIn.create")}</button>
+        <button className="btn btn-primary lm-submit" type="submit" disabled={busy || teamLimitReached || !name.trim() || selectedFriends.length > Number(maximum) - 1}>{t("lockIn.create")}</button>
       </form>
     </div>}
 
@@ -478,11 +536,15 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
         <input id="lm-join-code" className="lm-code-input" dir="ltr" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} required />
         <AnonymousRow id="lm-join-anonymous" checked={anonymous} onChange={setAnonymous} />
         {error && <p className="lm-error" role="alert">{error}</p>}
-        <button className="btn btn-primary lm-submit" type="submit" disabled={busy || code.length !== 6}>{t("lockIn.join")}</button>
+        <button className="btn btn-primary lm-submit" type="submit" disabled={busy || teamLimitReached || code.length !== 6}>{t("lockIn.join")}</button>
       </form>
     </div>}
 
-    {screen === "lobby" && team && <TeamLobby team={team} onAction={action} onStart={onTeamStart} onJoinLive={joinLive} onImageUpload={uploadTeamImage} onInviteFriends={() => { setFriendTeamId(team.id); go("home"); window.setTimeout(() => document.getElementById("lm-friends")?.scrollIntoView({ block: "start" }), 0); }} busy={busy} error={error} />}
+    {screen === "lobby" && team && inviteDelivery?.teamId === team.id && (inviteDelivery.sent > 0 || inviteDelivery.failed.length > 0) && <div className="lm-page lm-invite-delivery" role="status" aria-live="polite">
+      {inviteDelivery.sent > 0 && <p>{t("lockIn.invitesSent", { count: inviteDelivery.sent })}</p>}
+      {inviteDelivery.failed.length > 0 && <><p>{t("lockIn.invitesFailed", { names: inviteDelivery.failed.map(person => person.name).join(", ") })}</p><button className="btn btn-soft compact" type="button" disabled={busy} onClick={() => void retryInvites()}>{t("lockIn.friendsRetry")}</button></>}
+    </div>}
+    {screen === "lobby" && team && <TeamLobby team={team} onAction={action} onStart={onTeamStart} onJoinLive={joinLive} onImageUpload={uploadTeamImage} busy={busy} error={error} />}
 
     {screen === "leaderboard" && <div className="lm-page lm-leaderboard-page">
       <div className="lm-rank-controls">

@@ -33,3 +33,61 @@ Focus endpoints: `GET /focus/lock-in/invitations`,
 Schema additions: `accounts.0013_friendship` and `focus.0026_focusteaminvitation`.
 The frontend does not send invitations when loading a friend list: the user explicitly
 selects their team and presses Invite for the intended friend.
+
+## Phase 2 — create with friends
+
+The create-team screen can select accepted friends and filter them by public name or
+username. Selection is a local draft: selecting friends sends no invitations. The host
+occupies one seat; selection above the remaining capacity disables creation until the
+user removes selections or increases capacity. The existing backend is still authoritative.
+
+After creation, invitations use the existing consent-based endpoints. Each delivery is
+independent of the photo upload. The lobby reports sent invitations and names for failed
+deliveries; Retry sends only those failures and never creates another team. Invitations
+do not reserve seats and recipients must still accept under the normal joining rules.
+
+Home lists recently active friends first and adds a local filter for lists over four.
+Removing a friend requires the shared confirmation dialog; cancellation sends no request.
+No new backend endpoints, migrations, or private browser persistence are introduced.
+
+## In-team invitations
+
+Hosts can expand Invite friends inside the lobby without navigating away. The panel
+loads accepted friends and existing sent invitations only while open, refreshes every
+30 seconds while visible, and supports public name/username filtering. It shows Joined
+only for an explicitly public matching member identity; anonymous members are never
+matched to a friend. Pending invitations show Invited after a server response, including
+when the panel is reopened. Failed sends remain retryable without a success label.
+
+Joining-locked or full teams show a short state and disable sends; server checks remain
+authoritative if capacity, ownership or membership changes during a request. Members
+who are not hosts do not receive this panel. Incoming invitations can display the
+existing authenticated team image. No API or schema changes are required.
+
+## Lobby design
+
+The lobby prioritizes team identity, member count, joining state and the session action.
+Team cards reuse the team image, with a simple group icon when none is set. Code sharing
+and the member list remain visible. Host administration, including photo editing, is
+inside a native keyboard-operable Team settings disclosure. Incoming friend requests,
+sent friend requests and team invitations have short headings inside the existing inbox.
+The photo picker uses one preview tile and a plain text label.
+
+## Three open teams per account
+
+An account may belong to at most three open teams in total, including teams it owns.
+Create, public-code join and personal-invitation acceptance use the same server check.
+Leaving, being removed, or a team ending releases a slot; ended team history remains.
+An already accepted invitation stays idempotent, and declining is always permitted.
+Existing accounts above the limit keep their memberships but cannot add another until
+below three. Pending invitations do not reserve slots.
+
+Every membership addition locks the existing account row inside its transaction before
+counting open memberships. Existing-team paths retain the established team-then-account
+lock order. The API returns `focus_team_limit_reached` (400), translated in English and
+Arabic; frontend controls provide early feedback but cannot bypass this server rule.
+PostgreSQL concurrency tests cover two joins, create plus join, and two creates competing
+for the final slot. SQLite checks business rules only, not row locking.
+
+Accept and decline controls use rectangular buttons with 9px corners and 44px targets;
+decline has an explicit text label instead of an icon-only action.

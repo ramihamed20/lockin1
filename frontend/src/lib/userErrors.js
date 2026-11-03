@@ -3,6 +3,7 @@ import { normalizeUserError } from "./errors.js";
 // Stable codes are the contract. English validator matching is only a bridge
 // for older servers which do not yet send field_codes.
 const copy = {
+  teamLimit: ["You can belong to at most 3 open teams. Leave a team before joining another.", "الحد الأقصى 3 فرق. غادر فريقًا قبل الانضمام لفريق جديد."],
   unknown: ["The request could not be completed. Try again, or describe the problem to support.", "تعذر إكمال العملية. حاول مجددًا، وإذا تكررت المشكلة أرسل وصف المشكلة للدعم."],
   offline: ["You’re offline. This action needs a connection before it can be confirmed.", "لا يوجد اتصال بالإنترنت. هذه العملية تحتاج اتصالًا لتأكيد نتيجتها."],
   network: ["Network error. Check your connection and try again.", "تعذر الاتصال بـ Lock-in حاليًا. حاول مجددًا بعد قليل."],
@@ -61,6 +62,7 @@ const copy = {
 };
 
 const codeKeys = {
+  focus_team_limit_reached: "teamLimit",
   offline: "offline", network_error: "network", timeout: "timeout", invalid_response: "invalidResponse",
   server_html_error: "service",
   csrf_bootstrap_failed: "secureSession", csrf_token_missing: "secureSession", csrf_failed: "secureSession",

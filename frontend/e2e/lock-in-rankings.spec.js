@@ -75,8 +75,9 @@ test('failed team picture can be retried without creating another team', async (
   await expect(page.getByRole('heading', { name: 'My study team', exact: true })).toBeVisible();
   await expect(page.locator('.lm-error')).toBeVisible();
   expect(requests.creates).toBe(1);
+  await page.locator('.lm-team-settings > summary').click();
   await page.getByLabel('Team picture', { exact: true }).setInputFiles(upload);
-  await expect(page.locator('.lm-team-title img')).toHaveAttribute('src', `/api/v1/files/${imageId}/view`);
+  await expect(page.locator('.lm-team-identity img')).toHaveAttribute('src', `/api/v1/files/${imageId}/view`);
   expect(requests.images).toBe(2);
   expect(requests.creates).toBe(1);
 });

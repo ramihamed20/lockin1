@@ -177,7 +177,7 @@ html.ix-hover .lm-menu button:hover { background: var(--surface-3); }
 .lm-photo-picker { display: flex; align-items: center; gap: 18px; position: relative; width: fit-content; padding: 8px 0; cursor: pointer; }
 .lm-photo-picker input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .lm-photo-picker:focus-within { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius-md); }
-.lm-photo-picker strong, .lm-photo-preview { display: grid; place-items: center; width: 76px; height: 76px; overflow: hidden; border-radius: 24px; background: var(--surface-2); color: var(--accent-text); }
+.lm-photo-preview { display: grid; place-items: center; width: 76px; height: 76px; overflow: hidden; border-radius: 24px; background: var(--surface-2); color: var(--accent-text); }
 .lm-photo-preview img, .lm-rank-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .lm-photo-picker.is-busy { opacity: .6; }
 .lm-leaderboard-page { width: min(100% - 48px, 800px); }
@@ -242,3 +242,68 @@ html.ix-hover .lm-menu button:hover { background: var(--surface-3); }
 .lm-friend-row .lm-menu { max-width: calc(100vw - 48px); }
 @media (max-width: 359px) { .lm-friend-row { padding: 12px 10px; gap: 6px; } .lm-friend-row .btn { padding-inline: 10px; } }
 .lm-friend-list { overflow: visible; }
+
+.lm-invite-picker { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 12px; }
+.lm-invite-picker legend { width: 100%; margin-bottom: 12px; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.lm-invite-picker legend span { float: inline-end; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lm-friend-filter { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px 14px; font: inherit; border: 1px solid var(--separator); border-radius: var(--radius-md); background: var(--surface); color: var(--text); }
+.lm-picker-list { max-height: 280px; overflow-y: auto; border-radius: var(--radius-card); background: var(--surface); }
+.lm-picker-option { cursor: pointer; min-height: 64px; }
+.lm-picker-option input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; flex-shrink: 0; }
+.lm-picker-option:has(input:checked) { background: var(--accent-soft); }
+.lm-picker-option:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lm-picker-option:has(input:disabled:not(:checked)) { opacity: .55; }
+.lm-invite-delivery { padding-block: 12px; gap: 8px; }
+.lm-invite-delivery p { margin: 0; color: var(--muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.lm-team-invite-section, .lm-team-friends { display: grid; gap: 12px; min-width: 0; }
+.lm-team-invite-section > .btn { justify-self: start; display: inline-flex; align-items: center; gap: 8px; }
+.lm-team-friends .lm-friend-row .btn { flex-shrink: 0; min-height: 44px; }
+.lm-invite-image { width: 36px; height: 36px; flex: 0 0 36px; object-fit: cover; border-radius: 12px; }
+
+/* Team lobby: identity and start first, administration on demand. */
+.lm-team-page { gap: 22px; }
+.lm-team-page .lm-team-heading { flex-direction: row; flex-wrap: wrap; padding-block-end: 4px; }
+.lm-team-identity { display: flex; align-items: center; gap: 16px; flex: 1 1 280px; }
+.lm-team-identity > div { min-width: 0; }
+.lm-team-mark { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; overflow: hidden; border-radius: 14px; color: var(--accent-text); background: var(--accent-soft); }
+.lm-team-mark.is-large { flex-basis: 72px; width: 72px; height: 72px; border-radius: 22px; }
+.lm-team-mark img { width: 100%; height: 100%; object-fit: cover; }
+.lm-team-identity h1 { font-size: clamp(1.5rem, 3vw, 1.875rem); text-wrap: pretty; }
+.lm-team-identity p { margin-block: 6px; }
+.lm-team-state { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--text-xs); }
+.lm-team-state i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.lm-team-state.is-open i { background: var(--success); }
+.lm-team-live { display: inline-flex; align-items: center; gap: 6px; color: var(--success); font-size: var(--text-xs); }
+.lm-team-list .ui-row { gap: 12px; }
+.lm-team-list .ui-row-body { min-width: 0; }
+.lm-team-list .ui-row-body strong { overflow-wrap: anywhere; }
+.lm-team-page .lm-code-card { padding: 18px 20px; }
+.lm-team-page .lm-code-card strong { font-size: 2rem; letter-spacing: .14em; }
+.lm-team-page .lm-team-invite-section > .btn { justify-self: stretch; justify-content: center; min-height: 48px; }
+.lm-team-settings { min-width: 0; border-radius: var(--radius-card); background: var(--surface); }
+.lm-team-settings > summary, .lm-social-inbox > summary { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 12px 16px; box-sizing: border-box; cursor: pointer; list-style: none; color: var(--text); font-size: var(--text-sm); }
+.lm-team-settings > summary::-webkit-details-marker, .lm-social-inbox > summary::-webkit-details-marker { display: none; }
+.lm-team-settings > summary > span, .lm-social-inbox > summary > span { flex: 1; color: var(--text); margin: 0; }
+.lm-disclosure-arrow { flex: none; color: var(--muted); transition: transform 160ms ease; }
+[dir="rtl"] .lm-disclosure-arrow { transform: rotate(180deg); }
+details[open] > summary > .lm-disclosure-arrow { transform: rotate(90deg); }
+.lm-settings-content { display: grid; gap: 16px; padding: 0 12px 12px; }
+.lm-settings-content .lm-photo-picker { padding-inline: 8px; }
+.lm-photo-picker > span > strong { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.lm-social-inbox > summary > b { display: grid; place-items: center; min-width: 24px; height: 24px; padding-inline: 5px; border-radius: 8px; color: var(--accent-text); background: var(--accent-soft); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.lm-inbox-heading { margin: 0; padding: 12px 14px 4px; font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--muted); }
+.lm-invite-image { display: grid; place-items: center; color: var(--accent-text); background: var(--accent-soft); overflow: hidden; }
+.lm-invite-image img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 599px) {
+  .lm-team-heading > .btn { width: 100%; min-height: 48px; }
+  .lm-team-identity { flex-basis: 100%; gap: 12px; }
+  .lm-team-mark.is-large { flex-basis: 60px; width: 60px; height: 60px; border-radius: 18px; }
+  .lm-team-live { max-width: 70px; flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) { .lm-disclosure-arrow { transition: none; } }
+.lm-shell .lm-request-action { border-radius: 9px; min-height: 44px; padding-inline: 14px; flex-shrink: 0; }
+.lm-shell .ui-row:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 359px) {
+  .lm-shell .lm-social-inbox .lm-request-action { padding-inline: 9px; }
+  .lm-social-inbox .lm-friend-row { gap: 6px; }
+}
