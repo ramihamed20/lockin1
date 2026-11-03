@@ -449,3 +449,87 @@ for (const language of ['en', 'ar']) {
     await screenshot(page, `lockin-team-study-${language}-320.png`);
   });
 }
+
+
+for (const [language, width] of [['en', 320], ['ar', 820]]) {
+  test(`folding the team panel preserves the draft and selected tab in ${language}`, async ({ page }) => {
+    await connect(page, { team: makeTeam(), active: true, language });
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto(`/#/lock-in/${ID}`);
+    const toggle = page.getByRole('button', { name: language === 'ar' ? 'فريق' : 'Team', exact: true });
+    const room = page.locator('.is-session-room');
+    const input = room.locator('textarea');
+    await input.fill('Keep my question while I focus');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(room).toBeHidden();
+    await expect(input).toHaveValue('Keep my question while I focus');
+    await page.keyboard.press('Enter');
+    await expect(room).toBeVisible();
+    await expect(input).toHaveValue('Keep my question while I focus');
+    await room.getByRole('tab').nth(1).click();
+    await toggle.click();
+    await toggle.click();
+    await expect(room.getByRole('tab').nth(1)).toHaveAttribute('aria-selected', 'true');
+    await room.getByRole('tab').first().click();
+    await input.focus();
+    await input.dispatchEvent('keydown', { key: 'Escape', isComposing: true });
+    await expect(room).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(room).toBeHidden();
+    await expect(toggle).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await toggle.click();
+    await expect(input).toHaveValue('Keep my question while I focus');
+  });
+}
+
+test('a folded room stops chat polling while session time and refresh continue', async ({ page }) => {
+  await page.clock.install();
+  const getLive = await connect(page, { team: makeTeam(), active: true });
+  let messages = 0, refreshes = 0;
+  await page.route(`**/api/v1/focus/lock-in/teams/${TEAM_ID}/messages`, route => { messages++; return route.fulfill({ json: { messages: [] } }); });
+  await page.route(`**/api/v1/focus/lock-in/${ID}`, route => { refreshes++; return route.fallback(); });
+  await page.goto(`/#/lock-in/${ID}`);
+  await expect.poll(() => messages).toBeGreaterThan(0);
+  const toggle = page.getByRole('button', { name: 'Team', exact: true });
+  await toggle.click();
+  const sent = messages;
+  const refreshed = refreshes;
+  const time = await page.locator('.lm-clock-face h1').textContent();
+  await page.clock.runFor(2200);
+  await expect(page.locator('.lm-clock-face h1')).not.toHaveText(time);
+  await page.clock.runFor(11000);
+  expect(messages).toBe(sent);
+  await expect.poll(() => refreshes).toBeGreaterThan(refreshed);
+  expect(getLive().session.status).toBe('active');
+  await toggle.click();
+  await expect.poll(() => messages).toBeGreaterThan(sent);
+});
+
+for (const dirty of [false, true]) {
+  test(`opening a sheet respects the folded panel with unsaved note ${dirty}`, async ({ page }) => {
+    const getLive = await connect(page, { team: makeTeam(), active: true });
+    getLive().session.experience_version = 2;
+    getLive().note = { body: '', revision: 1 };
+    getLive().study_target = { title: 'Vitamin -1', reader_path: '/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace', page_start: 1, page_end: 5 };
+    await page.addInitScript(() => localStorage.setItem('lock-in.pwa-launch.dismissed-at', String(Date.now())));
+    await page.goto(`/#/lock-in/${ID}`);
+    await page.getByRole('button', { name: 'Team', exact: true }).click();
+    if (dirty) {
+      await page.locator('.lm-private-note summary').click();
+      await page.locator('.lm-private-note textarea').fill('My private note');
+    }
+    await page.getByRole('link', { name: 'Open sheet', exact: true }).click();
+    if (dirty) {
+      const dialog = page.getByRole('alertdialog');
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Leave without saving' }).click();
+    }
+    await page.getByRole('button', { name: /Normal Study/ }).click();
+    await expect(page.locator('.workspace-pane.is-active .workspace-v2-a4-canvas.is-visible').first()).toBeVisible();
+    await expect(page.locator('.lm-focus-room')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Team discussion', exact: true }).click();
+    await expect(page.locator('.lm-focus-room')).toBeVisible();
+  });
+}

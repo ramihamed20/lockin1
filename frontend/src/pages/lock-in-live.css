@@ -249,3 +249,21 @@
   .lm-live.is-team .lm-live-clock h1 { font-size: 3.25rem; }
   .lm-live.is-team .lm-room-panel { height: max(300px, calc(100dvh - 96px)); }
 }
+
+/* A folded room stays mounted so its draft and selected tab survive. */
+.lm-room-panel[hidden] { display: none; }
+.lm-live-top-actions { display: inline-flex; align-items: center; gap: 6px; }
+.lm-live-team-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; height: 44px; padding-inline: 10px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); font: inherit; font-size: var(--text-xs); cursor: pointer; font-variant-numeric: tabular-nums; }
+.lm-live-team-toggle[aria-expanded="true"] { color: var(--accent-text); background: var(--accent-soft); }
+.lm-live.is-team.is-room-hidden .lm-live-main { grid-template-columns: minmax(0, 1fr); max-width: 900px; }
+.lm-live.is-team.is-room-hidden .lm-live-study { display: flex; max-width: 760px; }
+@media (max-width: 359px) {
+  .lm-live-top-actions { gap: 0; }
+  .lm-live-team-title { gap: 6px; }
+  .lm-live-team-mark { flex-basis: 28px; width: 28px; height: 28px; }
+  .lm-live-team-toggle { padding-inline: 7px; }
+}
+@media (max-width: 699px) {
+  .lm-live.is-team > .lm-bar { grid-template-columns: 44px minmax(0, 1fr) auto; }
+  .lm-live.is-team .lm-bar-title { max-width: 100%; }
+}

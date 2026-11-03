@@ -3,7 +3,7 @@ import { clock, liveClock } from "../components/lock-in/liveSession.js";
 import { useLiveConnection } from "../components/lock-in/useLiveConnection.js";
 import { SessionNote } from "../components/lock-in/SessionNote.jsx";
 import { SessionRoomPanel } from "../components/lock-in/SessionRoomPanel.jsx";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { ArrowUpRight, BookOpen, Coffee, Focus, Pause, Play, Users, Crown, X } from "lucide-react";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
@@ -57,6 +57,10 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
   const { t } = useI18n();
   const { session, participants = [], team } = payload;
   const teamMode = Boolean(session.team_id);
+  const [roomHidden, setRoomHidden] = useState(false);
+  const roomId = useId();
+  const roomToggleRef = useRef(null);
+  const closeRoom = useCallback(() => { setRoomHidden(true); roomToggleRef.current?.focus({ preventScroll: true }); }, []);
   const [confirm, setConfirm] = useState(null);
   const [noteDirty, setNoteDirty] = useState(false);
   const navigate = useNavigate();
@@ -73,6 +77,16 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
     void onRefresh();
     return undefined;
   }, [remaining, session.status, onRefresh]);
+
+  useEffect(() => {
+    if (!teamMode || roomHidden || ["completed", "abandoned"].includes(session.status)) return undefined;
+    const escape = (event) => {
+      if (event.defaultPrevented || event.isComposing || event.key !== "Escape" || !document.getElementById(roomId)?.contains(event.target)) return;
+      event.preventDefault(); closeRoom();
+    };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [teamMode, roomHidden, roomId, closeRoom, session.status]);
 
   if (["completed", "abandoned"].includes(session.status)) {
     return <LiveSummary payload={payload} onHome={onHome} />;
@@ -102,14 +116,17 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
         })}</ul>
       </section>;
 
-  return <main className={`lm-shell lm-live${teamMode ? " is-team" : ""}`} aria-label={t("lockIn.sessionLabel")}>
+  return <main className={`lm-shell lm-live${teamMode ? " is-team" : ""}${teamMode && roomHidden ? " is-room-hidden" : ""}`} aria-label={t("lockIn.sessionLabel")}>
     <LockInBar
       onBack={() => noteDirty ? setConfirm({ type: "home" }) : onHome()}
       backLabel={t("lockIn.home")}
-      end={teamMode && payload.is_host ? <LockInMenu label={t("lockIn.sessionControls")} items={[
-        { label: team.joining_locked ? t("lockIn.unlockJoining") : t("lockIn.lockJoining"), onSelect: () => void onTeamAction("update", { joining_locked: !team.joining_locked }) },
-        { label: t("lockIn.endSession"), danger: true, onSelect: () => setConfirm({ type: "end" }) }
-      ]} /> : null}
+      end={teamMode ? <div className="lm-live-top-actions">
+        <button ref={roomToggleRef} className="lm-live-team-toggle" type="button" aria-label={t("lockIn.team")} aria-expanded={!roomHidden} aria-controls={roomId} onClick={() => { if (roomHidden) setRoomHidden(false); else closeRoom(); }}><Users size={17} aria-hidden="true" /><span>{participants.length}</span></button>
+        {payload.is_host && <LockInMenu label={t("lockIn.sessionControls")} items={[
+          { label: team.joining_locked ? t("lockIn.unlockJoining") : t("lockIn.lockJoining"), onSelect: () => void onTeamAction("update", { joining_locked: !team.joining_locked }) },
+          { label: t("lockIn.endSession"), danger: true, onSelect: () => setConfirm({ type: "end" }) }
+        ]} />}
+      </div> : null}
     >
       <span className="lm-bar-title lm-live-team-title">{teamMode && <span className="lm-live-team-mark" aria-hidden="true">{team?.image_url ? <img src={team.image_url} alt="" /> : <Users size={19} />}</span>}<span dir="auto">{team?.name || t("lockIn.solo")}</span></span>
     </LockInBar>
@@ -135,13 +152,13 @@ export default function LockInLive({ payload, busy, error, onAction, onHome, onP
         <div className="lm-sheet-copy"><strong dir="auto">{payload.study_target.title}</strong>
           {payload.study_target.page_end && <span>{t("lockIn.pageRange", { start: `⁦${payload.study_target.page_start}`, end: `${payload.study_target.page_end}⁩` })}</span>}
         </div>
-        <Link className="btn btn-primary" to={payload.study_target.reader_path} state={{ lockInPanelOpen: teamMode }} onClick={(event) => { if (noteDirty) { event.preventDefault(); setConfirm({ type: "sheet" }); } }}>{t("lockIn.openSheet")}<ArrowUpRight className="lm-flip" size={16} aria-hidden="true" /></Link>
+        <Link className="btn btn-primary" to={payload.study_target.reader_path} state={{ lockInPanelOpen: teamMode && !roomHidden }} onClick={(event) => { if (noteDirty) { event.preventDefault(); setConfirm({ type: "sheet" }); } }}>{t("lockIn.openSheet")}<ArrowUpRight className="lm-flip" size={16} aria-hidden="true" /></Link>
       </section>}
       {(!teamMode || session.experience_version === 2) && <div className="lm-live-extras"><SessionNote payload={payload} onDirtyChange={setNoteDirty} /></div>}
       </div>
-      {teamMode && <SessionRoomPanel payload={payload} members={members} variant="session" />}
+      {teamMode && <SessionRoomPanel payload={payload} members={members} variant="session" hidden={roomHidden} panelId={roomId} />}
     </div>
     {error && <p className="lm-error lm-live-error" role="alert">{error}</p>}
-    <ConfirmDialog open={Boolean(confirm)} title={confirmCopy.title} message={noteDirty && ["end", "leave"].includes(confirm?.type) ? `${confirmCopy.message} ${t("lockIn.unsavedNoteMessage")}` : confirmCopy.message} confirmLabel={confirmCopy.label} cancelLabel={t("common.cancel")} busy={Boolean(busy)} onCancel={() => setConfirm(null)} onConfirm={() => { const choice = confirm; setConfirm(null); if (choice?.type === "home") onHome(); else if (choice?.type === "sheet") navigate(payload.study_target.reader_path, { state: { lockInPanelOpen: teamMode } }); else if (choice?.type === "kick") void onTeamAction("kick", { member_id: choice.member.member_id }); else if (choice?.type === "leave") void onLeave(); else void onAction("complete"); }} />
+    <ConfirmDialog open={Boolean(confirm)} title={confirmCopy.title} message={noteDirty && ["end", "leave"].includes(confirm?.type) ? `${confirmCopy.message} ${t("lockIn.unsavedNoteMessage")}` : confirmCopy.message} confirmLabel={confirmCopy.label} cancelLabel={t("common.cancel")} busy={Boolean(busy)} onCancel={() => setConfirm(null)} onConfirm={() => { const choice = confirm; setConfirm(null); if (choice?.type === "home") onHome(); else if (choice?.type === "sheet") navigate(payload.study_target.reader_path, { state: { lockInPanelOpen: teamMode && !roomHidden } }); else if (choice?.type === "kick") void onTeamAction("kick", { member_id: choice.member.member_id }); else if (choice?.type === "leave") void onLeave(); else void onAction("complete"); }} />
   </main>;
 }

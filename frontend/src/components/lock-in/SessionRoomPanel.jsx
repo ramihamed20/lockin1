@@ -6,13 +6,13 @@ import { TeamCode, lockInMemberName } from "../../pages/LockInLobby.jsx";
 import { TeamDiscussion } from "./TeamDiscussion.jsx";
 
 /** Same team and message contracts in the room and beside a Focus sheet. */
-export function SessionRoomPanel({ payload, onClose = undefined, members = null, variant = "default" }) {
+export function SessionRoomPanel({ payload, onClose = undefined, members = null, variant = "default", hidden = false, panelId = undefined }) {
   const { t } = useI18n();
   const { team, participants = [] } = payload;
   const [section, setSection] = useState("chat");
   const id = useId();
   if (!team) return null;
-  return <aside className={`lm-room-panel${variant === "session" ? " is-session-room" : ""}`} aria-label={t("lockIn.team")}>
+  return <aside id={panelId} hidden={hidden} className={`lm-room-panel${variant === "session" ? " is-session-room" : ""}`} aria-label={t("lockIn.team")}>
     <header className="lm-room-panel-heading">
       <span className="lm-room-symbol" aria-hidden="true">{variant === "session" && team.image_url ? <img src={team.image_url} alt="" /> : <MessageCircle size={20} />}</span><div className="lm-room-heading-copy"><strong dir="auto">{variant === "session" ? team.name : t("lockIn.team")}</strong><span dir="auto">{variant === "session" ? t("lockIn.membersOf", { count: participants.length, max: team.max_members }) : team.name}</span></div>
       <span className="lm-avatar-stack" aria-hidden="true">{participants.slice(0, 3).map((member) => <span key={member.member_id}>{lockInMemberName(member, t).slice(0, 1)}</span>)}</span>
@@ -34,7 +34,7 @@ export function SessionRoomPanel({ payload, onClose = undefined, members = null,
           <span className="ui-row-value">{t(member.presence === "focused" ? "lockIn.focused" : member.presence === "break" ? "lockIn.onBreak" : "lockIn.away")}</span>
         </li>)}</ul>
       </section>)}
-      <div hidden={section !== "chat"}><TeamDiscussion key={team.id} teamId={team.id} expanded active={section === "chat"} /></div>
+      <div hidden={section !== "chat"}><TeamDiscussion key={team.id} teamId={team.id} expanded active={section === "chat" && !hidden} /></div>
     </div>
   </aside>;
 }
