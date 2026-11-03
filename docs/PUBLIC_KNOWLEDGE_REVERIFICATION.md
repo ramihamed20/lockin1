@@ -271,3 +271,14 @@ are rerun along with the live-session tests. The evidence verifier stays enabled
 The current functional checks cover invitation consent and capacity, private notes,
 public presence projection, room versus personal time, responsive layouts, and RTL.
 This is repository verification, not real-device Safari or production certification.
+
+## Team page goals — 3 November 2026
+
+Compared i18n.js against commit 5397a01: exactly 18 inserted lockIn.* lines,
+English/Arabic strings for optional per-session page goals; no existing strings
+or logic changed. Reviewed the public account, materials, reader, questions,
+privacy and support claims: their meaning and access requirements are unchanged.
+Only the i18n.js evidence digest was refreshed. Group study remains withheld
+(publicDocumentable=false); this work does not enable its public launch. The
+private goals are self-reported and provide no XP, accuracy or leaderboard credit.
+The evidence gate remains enabled.

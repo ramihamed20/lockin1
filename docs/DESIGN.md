@@ -616,3 +616,18 @@ Validation: ten focused Node tests and nine Chromium scenarios passed, including
 clicks in Arabic at 320px, reflection guidance, spacing eligibility, exact multi-answer grading,
 unchanged original scores and absence of further graded answer requests during practice.
 Frontend typecheck, targeted ESLint, E2E build and public-knowledge evidence checks passed.
+
+### Shared team page goals (2026-11-03)
+
+The standalone live team screen starts with a single neutral progress strip:
+member name, completed/target pages, one thin theme-accent bar. No percentages,
+colored completion states or presence totals. Unset goals show a dash; the own
+entry offers Set goal and a small pencil. Editing opens a compact native dialog
+with two labeled numbers and a short shared-visibility notice. Goals are explicitly
+self-reported, scoped to a session, and never affect XP or leaderboards.
+
+Keep the running timer visually quiet; its time label and personal timing remain
+accessible to assistive technology. Break/end actions are neutral rectangles.
+The member tab retains presence, host controls and invitations. Preserve the
+room-folding behavior and unsent chat drafts. End Lockin returns to the source
+site; it does not complete the team's session.

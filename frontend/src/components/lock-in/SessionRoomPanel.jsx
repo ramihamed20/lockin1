@@ -13,16 +13,16 @@ export function SessionRoomPanel({ payload, onClose = undefined, members = null,
   const id = useId();
   if (!team) return null;
   return <aside id={panelId} hidden={hidden} className={`lm-room-panel${variant === "session" ? " is-session-room" : ""}`} aria-label={t("lockIn.team")}>
-    <header className="lm-room-panel-heading">
+    {variant !== "session" && <header className="lm-room-panel-heading">
       <span className="lm-room-symbol" aria-hidden="true">{variant === "session" && team.image_url ? <img src={team.image_url} alt="" /> : <MessageCircle size={20} />}</span><div className="lm-room-heading-copy"><strong dir="auto">{variant === "session" ? team.name : t("lockIn.team")}</strong><span dir="auto">{variant === "session" ? t("lockIn.membersOf", { count: participants.length, max: team.max_members }) : team.name}</span></div>
       <span className="lm-avatar-stack" aria-hidden="true">{participants.slice(0, 3).map((member) => <span key={member.member_id}>{lockInMemberName(member, t).slice(0, 1)}</span>)}</span>
       {onClose && <button type="button" className="lm-icon-button" onClick={onClose} aria-label={t("common.close")}><X size={18} /></button>}
-    </header>
+    </header>}
     <TabList className="ui-segmented lm-room-tabs" label={t("lockIn.team")} value={section} onChange={setSection}>
       <Tab value="chat" id={`${id}-chat-tab`} aria-controls={`${id}-panel`}>{t("lockIn.discussion")}</Tab>
       <Tab value="members" id={`${id}-members-tab`} aria-controls={`${id}-panel`}>{t("lockIn.members")} <span className="lm-count">{participants.length}</span></Tab>
     </TabList>
-    {!team.closed_at && !team.joining_locked && team.invite_code && <details className="lm-room-invite">
+    {(variant !== "session" || section === "members") && !team.closed_at && !team.joining_locked && team.invite_code && <details className="lm-room-invite">
       <summary><UserPlus size={16} aria-hidden="true" /><span>{t("lockIn.inviteFriends")}</span><ChevronDown size={14} aria-hidden="true" /></summary>
       <TeamCode code={team.invite_code} compact />
     </details>}

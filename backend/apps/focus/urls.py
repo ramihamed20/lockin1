@@ -21,6 +21,7 @@ from .views import (
     LockInActionView,
     LockInAvailabilityView,
     LockInBootstrapView,
+    LockInGoalView,
     LockInLeaderboardView,
     LockInNoteView,
     LockInSessionView,
@@ -106,6 +107,7 @@ urlpatterns = [
     path("focus/lock-in/teams/<uuid:team_id>/messages", LockInTeamMessagesView.as_view()),
     path("focus/lock-in/teams/<uuid:team_id>/<str:action>", LockInTeamActionView.as_view()),
     path("focus/lock-in/<uuid:session_id>", LockInSessionView.as_view()),
+    path("focus/lock-in/<uuid:session_id>/goal", LockInGoalView.as_view()),
     path("focus/lock-in/<uuid:session_id>/note", LockInNoteView.as_view()),
     path("focus/lock-in/<uuid:session_id>/tasks", LockInTasksView.as_view()),
     path(

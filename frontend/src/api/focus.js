@@ -276,6 +276,16 @@ export const focusApi = {
     );
   },
 
+  async updateLockInGoal(sessionId, { goalPages, completedPages, expectedRevision }) {
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}/goal`, {
+        method: "PUT",
+        body: { goal_pages: goalPages, completed_pages: completedPages, expected_revision: expectedRevision }
+      }),
+      "Your progress could not be saved."
+    );
+  },
+
   async updateLockInNote(sessionId, { body, expectedRevision = null }) {
     return objectPayload(
       await request(`/focus/lock-in/${sessionId}/note`, {

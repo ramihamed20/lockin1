@@ -22,8 +22,8 @@ function makeLive(team = null) {
     timing: { server_now: now, active_elapsed_seconds: 182, break_elapsed_seconds: 12,
       remaining_seconds: 1318 },
     team, participants: team ? [
-      { member_id: "host", name: "E2E Student", role: "owner", presence: "focused" },
-      { member_id: "private", name: "Anonymous 01", role: "member", anonymous: true, presence: "break" }
+      { member_id: "host", name: "E2E Student", role: "owner", presence: "focused", goal: { pages: null, completed: 0, revision: 1 } },
+      { member_id: "private", name: "Anonymous 01", role: "member", anonymous: true, presence: "break", goal: { pages: 8, completed: 6, revision: 2 } }
     ] : [], member_count: team ? 2 : 1,
     self_presence: team ? team.role === "member" ? "break" : "focused" : null,
     is_host: team ? team.role === "owner" : true
@@ -71,6 +71,14 @@ async function connect(page, { team = null, active = false, language = "en", oth
       live.team = team;
       return json({ team });
     }
+    if (pathname === `/api/v1/focus/lock-in/${ID}/goal` && method === "PUT") {
+      const data = request.postDataJSON();
+      const own = live.participants.find(member => member.member_id === team.self_member_id);
+      if (own.goal.revision !== data.expected_revision) return json({ error: { code: "focus_revision_conflict", message: "Goal changed" } }, 409);
+      own.goal = { pages: data.goal_pages, completed: data.completed_pages, revision: own.goal.revision + 1 };
+      live = { ...live, session_revision: (live.session_revision || 0) + 1, timing: { ...live.timing, server_now: new Date().toISOString() } };
+      return json(live);
+    }
     if (pathname === `/api/v1/focus/lock-in/${ID}/presence` && method === "POST") {
       const presence = request.postDataJSON().presence;
       live = { ...live, self_presence: presence, self_running: presence === "focused", participants: live.participants.map((item, index) =>
@@ -98,6 +106,74 @@ async function screenshot(page, name) {
   mkdirSync(fileURLToPath(OUTPUT), { recursive: true });
   await page.screenshot({ path: fileURLToPath(new URL(name, OUTPUT)), fullPage: true });
 }
+
+for (const [language, width, height] of [["ar", 320, 844], ["en", 1180, 820]]) {
+  test(`shared page goals save and survive reload in ${language} at ${width}`, async ({ page }) => {
+    const getLive = await connect(page, { team: makeTeam(), active: true, language });
+    await page.setViewportSize({ width, height });
+    await page.goto(`/#/lock-in/${ID}`);
+    const strip = page.locator(".lm-team-goals");
+    await expect(strip.locator("progress")).toHaveAttribute("value", "6");
+    await expect(strip.locator("progress")).toHaveAttribute("max", "8");
+    await expect(page.locator(".lm-team-presence")).toHaveCount(0);
+    expect(await page.locator(".lm-timeline").evaluate(node => node.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+    const edit = strip.getByRole("button");
+    await edit.click();
+    const dialog = page.getByRole("dialog");
+    const inputs = dialog.locator("input");
+    await inputs.nth(0).fill("10");
+    await inputs.nth(1).fill("8");
+    await dialog.getByRole("button", { name: language === "ar" ? "حفظ" : "Save", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(edit).toContainText("8 / 10");
+    await expect(edit).toBeFocused();
+    expect(getLive().participants[1].goal.completed).toBe(6);
+    await page.reload();
+    await expect(edit).toContainText("8 / 10");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const bounds = await edit.boundingBox();
+    expect(bounds.height).toBeGreaterThanOrEqual(44);
+    await edit.click();
+    await expect(inputs.nth(0)).toHaveValue("10");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(edit).toBeFocused();
+    await page.getByRole("button", { name: "End Lockin", exact: true }).click();
+    await expect(page).toHaveURL(/#\/dashboard/);
+    expect(getLive().session.status).toBe("active");
+  });
+}
+
+test("goal save failure retains the draft and stale tabs cannot overwrite newer goals", async ({ page }) => {
+  const getLive = await connect(page, { team: makeTeam(), active: true });
+  await page.goto(`/#/lock-in/${ID}`);
+  await page.locator(".lm-team-goals button.lm-goal-member").click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator("input").nth(0).fill("12");
+  await dialog.locator("input").nth(1).fill("7");
+  const fail = (route) => route.fulfill({ status: 503, json: { error: { code: "unavailable", message: "Unavailable" } } });
+  await page.route(`**/focus/lock-in/${ID}/goal`, fail);
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog.locator("input").nth(1)).toHaveValue("7");
+  await page.unroute(`**/focus/lock-in/${ID}/goal`, fail);
+  // Another device changed the goal while this draft was open; polling must
+  // not silently advance its expected revision and permit an overwrite.
+  getLive().participants[0].goal = { pages: 20, completed: 4, revision: 2 };
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(page.locator(".lm-team-goals button.lm-goal-member")).toContainText("4 / 20");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toHaveText("Your goal changed elsewhere. Reopen to load it.");
+  await expect(dialog.locator("input").nth(1)).toHaveValue("7");
+  expect(getLive().participants[0].goal.completed).toBe(4);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.locator(".lm-team-goals button.lm-goal-member").click();
+  await expect(dialog.locator("input").nth(0)).toHaveValue("20");
+  await dialog.locator("input").nth(1).fill("5");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".lm-team-goals button.lm-goal-member")).toContainText("5 / 20");
+});
 
 test("Solo starts, pauses, takes a break, resumes and ends", async ({ page }) => {
   await connect(page);
@@ -137,7 +213,7 @@ test("Team host starts one shared session with anonymous presence", async ({ pag
   await page.getByRole("button", { name: "Start", exact: true }).click();
   await expect(page.getByRole("main", { name: "Lock-in session" })).toBeVisible();
   await page.getByRole("tab", { name: /^Members/ }).click();
-  await expect(page.getByText("Anonymous 01")).toBeVisible();
+  await expect(page.locator(".lm-live-presence").getByText("Anonymous 01", { exact: true })).toBeVisible();
   await screenshot(page, "lockin-live-member-break.png");
   await expect(page.locator(".lm-live-presence").getByText("On break", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Session controls" }).click();
@@ -150,7 +226,7 @@ test("Team member resumes from Break, has no host controls, and can leave", asyn
   await page.goto(`/#/lock-in/${ID}`);
   await expect(page.getByRole("button", { name: "Session controls" })).toHaveCount(0);
   await page.getByRole("tab", { name: /^Members/ }).click();
-  await expect(page.getByText("Anonymous 01")).toBeVisible();
+  await expect(page.locator(".lm-live-presence").getByText("Anonymous 01", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back to focus" }).click();
   await expect(page.getByRole("button", { name: "Break" })).toBeVisible();
   await page.getByRole("button", { name: "Leave session" }).click();
@@ -226,6 +302,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1180, height: 820 
     await page.setViewportSize(viewport);
     await page.goto(`/#/lock-in/${ID}`);
     await expect(page.getByRole("region", { name: "Team discussion" })).toBeVisible();
+    await page.getByRole("tab", { name: /^Members/ }).click();
     await expect(page.locator(".lm-room-invite summary")).toContainText("Invite friends");
     await page.getByRole("link", { name: "Open sheet", exact: true }).click();
     await page.getByRole("button", { name: /Normal Study/ }).click();
@@ -289,6 +366,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 
     const target = await page.locator(".lm-study-target").boundingBox();
     const editor = await page.locator(".lm-discussion textarea").boundingBox();
     const clock = await page.locator(".lm-live-clock").boundingBox();
+    const studyWidth = (await page.locator(".lm-live-study").boundingBox()).width;
+    for (const selector of [".lm-team-goals", ".lm-live-clock", ".lm-study-target"]) {
+      expect((await page.locator(selector).boundingBox()).width).toBeGreaterThanOrEqual(studyWidth - 1);
+    }
     expect(clock.height).toBeLessThan(280);
     expect(target.y + target.height).toBeLessThan(viewport.height);
     expect(editor.y + editor.height).toBeLessThanOrEqual(viewport.height);
@@ -355,6 +436,7 @@ test("invitation code can be selected when clipboard access is denied", async ({
   await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("denied"); } }, configurable: true }));
   await connect(page, { team: makeTeam(), active: true });
   await page.goto(`/#/lock-in/${ID}`);
+  await page.getByRole("tab", { name: /^Members/ }).click();
   await page.locator(".lm-room-invite summary").click();
   await page.getByRole("button", { name: "Copy", exact: true }).click();
   await expect(page.locator(".lm-copy-fallback")).toHaveValue("482731");
@@ -402,18 +484,19 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 
 }
 
 
-test("team activity counts follow a personal break while the room clock keeps running", async ({ page }) => {
+test("team page goals stay unchanged during a personal break while the room clock keeps running", async ({ page }) => {
   await page.clock.install();
   const getLive = await connect(page, { team: makeTeam(), active: true });
   getLive().self_active_seconds = 90;
   getLive().self_running = true;
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto(`/#/lock-in/${ID}`);
-  const counts = page.locator('.lm-team-presence dd');
-  await expect(counts).toHaveText(['1', '1', '0']);
+  const goals = page.locator('.lm-team-goals progress');
+  await expect(goals).toHaveAttribute('value', '6');
   await page.getByRole('button', { name: 'Break', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Back to focus', exact: true })).toBeVisible();
-  await expect(counts).toHaveText(['0', '2', '0']);
+  expect(getLive().self_presence).toBe('break');
+  await expect(goals).toHaveAttribute('value', '6');
   const personal = await page.locator('.lm-timeline > div > span').first().textContent();
   const roomBefore = await page.locator('.lm-clock-face h1').textContent();
   await page.clock.runFor(2200);
@@ -431,7 +514,7 @@ for (const language of ['en', 'ar']) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 320, height: 844 });
     await page.goto(`/#/lock-in/${ID}`);
-    await expect(page.locator('.lm-team-presence dd')).toHaveText(['1', '1', '0']);
+    await expect(page.locator('.lm-team-goals progress')).toHaveAttribute('value', '6');
     const open = page.getByRole('link', { name: language === 'ar' ? 'افتح الشيت' : 'Open sheet', exact: true });
     await expect(open).toBeVisible();
     const labelSize = await open.evaluate(node => parseFloat(getComputedStyle(node).fontSize));

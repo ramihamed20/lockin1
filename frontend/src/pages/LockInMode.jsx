@@ -949,6 +949,12 @@ export default function LockInMode({ user }) {
     if (routeSessionRef.current === liveSessionId) replacePayload(payload, { syncNote: false });
   }, [liveSessionId, replacePayload]);
 
+  const liveGoal = useCallback(async (values) => {
+    if (!liveSessionId) return;
+    const payload = await focusApi.updateLockInGoal(liveSessionId, values);
+    if (routeSessionRef.current === liveSessionId) replacePayload(payload, { syncNote: false });
+  }, [liveSessionId, replacePayload]);
+
   async function liveLeave() {
     if (!liveSessionId) return;
     setBusy("leave");
@@ -992,7 +998,7 @@ export default function LockInMode({ user }) {
   if (state.error && !state.bootstrap && !state.payload) return <main className="lock-in-screen"><ErrorPanel message={state.error} onRetry={load} /></main>;
   if (!state.payload && !setupMode) return <LockInLobby bootstrap={state.bootstrap} onSolo={() => { setSetupTeamId(null); setSetupMode("solo"); }} onTeamStart={(id) => { setSetupTeamId(id); setSetupMode("team-session"); }} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} onResumeSession={(id) => navigate(`/lock-in/${id}`)} onExit={returnToSource} onRefresh={refreshBootstrap} />;
   if (!state.payload) return <LockInSetup bootstrap={state.bootstrap} teamId={setupTeamId} preselectedDocumentVersionId={location.state?.preselectedDocumentVersionId} onStart={startSession} onExit={returnToSource} onBack={() => setSetupMode("")} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} busy={starting} error={state.error} />;
-  if (state.payload.session?.lock_in_live) return <LockInLive payload={state.payload} busy={busy} error={state.error} onAction={action} onHome={() => navigate("/lock-in")} onPresence={livePresence} onLeave={liveLeave} onTeamAction={liveTeamAction} onRefresh={refreshLive} />;
+  if (state.payload.session?.lock_in_live) return <LockInLive payload={state.payload} busy={busy} error={state.error} onAction={action} onHome={() => navigate("/lock-in")} onPresence={livePresence} onGoal={liveGoal} onExit={returnToSource} onLeave={liveLeave} onTeamAction={liveTeamAction} onRefresh={refreshLive} />;
   if (!isUnfinished(state.payload)) return <Summary payload={state.payload} onReturn={returnToSource} />;
 
   const { session } = state.payload;

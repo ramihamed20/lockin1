@@ -227,6 +227,17 @@ class LockInPresenceSerializer(StrictSerializer):
     presence = serializers.ChoiceField(choices=FocusSessionParticipant.Presence.choices)
 
 
+class LockInGoalSerializer(StrictSerializer):
+    goal_pages = serializers.IntegerField(min_value=1, max_value=10_000, allow_null=True)
+    completed_pages = serializers.IntegerField(min_value=0, max_value=10_000)
+    expected_revision = serializers.IntegerField(min_value=1)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["completed_pages"] > (attrs["goal_pages"] or 0):
+            raise serializers.ValidationError({"completed_pages": "Progress exceeds the goal."})
+        return attrs
+
+
 class LockInTeamMessageCreateSerializer(StrictSerializer):
     body = serializers.CharField(max_length=1000, trim_whitespace=True)
 

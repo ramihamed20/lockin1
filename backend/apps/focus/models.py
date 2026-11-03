@@ -239,12 +239,27 @@ class FocusSessionParticipant(models.Model):
     credited_at = models.DateTimeField(null=True, blank=True)
     private_note = models.TextField(blank=True)
     note_revision = models.PositiveIntegerField(default=1)
+    goal_pages = models.PositiveIntegerField(null=True, blank=True)
+    completed_pages = models.PositiveIntegerField(default=0)
+    goal_revision = models.PositiveIntegerField(default=1)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=("session", "user"), name="focus_session_participant_unique"
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(goal_pages__isnull=True, completed_pages=0)
+                    | Q(
+                        goal_pages__isnull=False,
+                        goal_pages__gte=1,
+                        goal_pages__lte=10_000,
+                        completed_pages__lte=F("goal_pages"),
+                    )
+                ),
+                name="focus_participant_goal_valid",
+            ),
         ]
         indexes = [models.Index(fields=("user", "left_at"), name="focus_participant_user_idx")]
 

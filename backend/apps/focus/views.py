@@ -121,6 +121,7 @@ from .serializers import (
     FocusSessionStartSerializer,
     FocusSessionTaskSerializer,
     FocusWorkspaceSerializer,
+    LockInGoalSerializer,
     LockInNoteUpdateSerializer,
     LockInPresenceSerializer,
     LockInStartSerializer,
@@ -167,6 +168,7 @@ from .services import (
     start_workspace_session,
     toggle_focus_session_task,
 )
+from .team_goals import TeamGoalConflict, save_team_goal
 from .validation import FocusValidationError
 from .workspace_services import FocusWorkspaceConflictError, update_workspace_state
 
@@ -615,6 +617,11 @@ def _live_lock_in_payload(*, user: User, session: FocusSession) -> dict[str, obj
                 "name": member.anonymous_alias if member.anonymous else member.user.full_name,
                 "anonymous": member.anonymous,
                 "role": member.role,
+                "goal": {
+                    "pages": participants[member.user_id].goal_pages,
+                    "completed": participants[member.user_id].completed_pages,
+                    "revision": participants[member.user_id].goal_revision,
+                },
                 "presence": (
                     "away"
                     if participants[member.user_id].last_seen_at < now - timedelta(seconds=75)
@@ -1312,6 +1319,35 @@ class LockInActionView(APIView):
             raise _rule_error(error) from error
         return Response(
             _session_payload(user=user, session=_lock_in_session(user=user, session_id=session.id))
+        )
+
+
+class LockInGoalView(APIView):
+    @extend_schema(
+        operation_id="lock_in_team_goal_update",
+        request=LockInGoalSerializer,
+        responses={200: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT},
+    )
+    def put(self, request: Request, session_id: UUID) -> Response:
+        user = _authorize(request)
+        session = _lock_in_session(user=user, session_id=session_id)
+        serializer = LockInGoalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            save_team_goal(
+                user=user,
+                session_id=session.id,
+                goal_pages=data["goal_pages"],
+                completed_pages=data["completed_pages"],
+                expected_revision=data["expected_revision"],
+            )
+        except TeamGoalConflict as error:
+            raise FocusConflict(str(error)) from error
+        except FocusSessionStateError as error:
+            raise _rule_error(error) from error
+        return Response(
+            _session_payload(user=user, session=_lock_in_session(user=user, session_id=session_id))
         )
 
 
