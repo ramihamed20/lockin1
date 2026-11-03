@@ -73,7 +73,7 @@ async function connect(page, { team = null, active = false, language = "en", oth
     }
     if (pathname === `/api/v1/focus/lock-in/${ID}/presence` && method === "POST") {
       const presence = request.postDataJSON().presence;
-      live = { ...live, self_presence: presence, participants: live.participants.map((item, index) =>
+      live = { ...live, self_presence: presence, self_running: presence === "focused", participants: live.participants.map((item, index) =>
         index === (team?.role === "member" ? 1 : 0) ? { ...item, presence } : item), timing: { ...live.timing, server_now: new Date().toISOString() } };
       return json(live);
     }
@@ -294,7 +294,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 
     expect(editor.y + editor.height).toBeLessThanOrEqual(viewport.height);
     await screenshot(page, `lockin-room-ar-day-${viewport.width}.png`);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "day");
-    await expect(page.locator(".lm-shell")).toHaveCSS("background-color", "rgb(242, 242, 247)");
+    // Normalize equivalent rgb() and color(srgb) serializations after color-mix.
+    const background = await page.locator(".lm-shell").evaluate(node => {
+      const context = document.createElement("canvas").getContext("2d");
+      context.fillStyle = getComputedStyle(node).backgroundColor;
+      context.fillRect(0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data).slice(0, 3);
+    });
+    expect(background).toEqual([242, 242, 247]);
   });
 }
 
@@ -314,10 +321,13 @@ test("failed chat send keeps draft and error through a refresh, then retries", a
   const input = page.getByRole("textbox", { name: "Share a question or an explanation" });
   await input.fill("Keep this question");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Try sending again.");
+  const alert = page.getByRole("alert");
+  await expect(alert).toBeVisible();
+  const message = await alert.textContent();
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect(input).toHaveValue("Keep this question");
-  await expect(page.getByRole("alert")).toContainText("Try sending again.");
+  await expect(alert).toHaveText(message);
+  expect(sends).toBe(1);
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".lm-messages")).toContainText("Keep this question");
   await expect(input).toHaveValue("");
@@ -388,5 +398,54 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 
     expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height);
     await composer.fill("Still reachable");
     await expect(composer).toHaveValue("Still reachable");
+  });
+}
+
+
+test("team activity counts follow a personal break while the room clock keeps running", async ({ page }) => {
+  await page.clock.install();
+  const getLive = await connect(page, { team: makeTeam(), active: true });
+  getLive().self_active_seconds = 90;
+  getLive().self_running = true;
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto(`/#/lock-in/${ID}`);
+  const counts = page.locator('.lm-team-presence dd');
+  await expect(counts).toHaveText(['1', '1', '0']);
+  await page.getByRole('button', { name: 'Break', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Back to focus', exact: true })).toBeVisible();
+  await expect(counts).toHaveText(['0', '2', '0']);
+  const personal = await page.locator('.lm-timeline > div > span').first().textContent();
+  const roomBefore = await page.locator('.lm-clock-face h1').textContent();
+  await page.clock.runFor(2200);
+  await expect(page.locator('.lm-timeline > div > span').first()).toHaveText(personal);
+  await expect(page.locator('.lm-clock-face h1')).not.toHaveText(roomBefore);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const language of ['en', 'ar']) {
+  test(`team study layout keeps controls and the sheet readable on a phone in ${language}`, async ({ page }) => {
+    const getLive = await connect(page, { team: makeTeam('member'), active: true, language });
+    getLive().session.experience_version = 2;
+    getLive().self_running = false;
+    getLive().study_target = { title: language === 'ar' ? 'مقدمة التشريح' : 'Anatomy introduction', reader_path: '/materials/catalog/anatomy/sheets/intro/workspace', page_start: 1, page_end: 12 };
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.setViewportSize({ width: 320, height: 844 });
+    await page.goto(`/#/lock-in/${ID}`);
+    await expect(page.locator('.lm-team-presence dd')).toHaveText(['1', '1', '0']);
+    const open = page.getByRole('link', { name: language === 'ar' ? 'افتح الشيت' : 'Open sheet', exact: true });
+    await expect(open).toBeVisible();
+    const labelSize = await open.evaluate(node => parseFloat(getComputedStyle(node).fontSize));
+    expect(labelSize).toBeGreaterThan(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const timer = await page.locator('.lm-clock-face').boundingBox();
+    const controls = await page.locator('.lm-live-controls').boundingBox();
+    expect(controls.y).toBeGreaterThanOrEqual(timer.y + timer.height);
+    for (const button of await page.locator('.lm-live-controls button').all()) {
+      const box = await button.boundingBox();
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(320);
+    }
+    await screenshot(page, `lockin-team-study-${language}-320.png`);
   });
 }

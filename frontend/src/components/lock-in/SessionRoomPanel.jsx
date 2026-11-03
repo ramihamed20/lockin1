@@ -6,15 +6,15 @@ import { TeamCode, lockInMemberName } from "../../pages/LockInLobby.jsx";
 import { TeamDiscussion } from "./TeamDiscussion.jsx";
 
 /** Same team and message contracts in the room and beside a Focus sheet. */
-export function SessionRoomPanel({ payload, onClose = undefined, members = null }) {
+export function SessionRoomPanel({ payload, onClose = undefined, members = null, variant = "default" }) {
   const { t } = useI18n();
   const { team, participants = [] } = payload;
   const [section, setSection] = useState("chat");
   const id = useId();
   if (!team) return null;
-  return <aside className="lm-room-panel" aria-label={t("lockIn.team")}>
+  return <aside className={`lm-room-panel${variant === "session" ? " is-session-room" : ""}`} aria-label={t("lockIn.team")}>
     <header className="lm-room-panel-heading">
-      <span className="lm-room-symbol" aria-hidden="true"><MessageCircle size={20} /></span><div className="lm-room-heading-copy"><strong>{t("lockIn.team")}</strong><span dir="auto">{team.name}</span></div>
+      <span className="lm-room-symbol" aria-hidden="true">{variant === "session" && team.image_url ? <img src={team.image_url} alt="" /> : <MessageCircle size={20} />}</span><div className="lm-room-heading-copy"><strong dir="auto">{variant === "session" ? team.name : t("lockIn.team")}</strong><span dir="auto">{variant === "session" ? t("lockIn.membersOf", { count: participants.length, max: team.max_members }) : team.name}</span></div>
       <span className="lm-avatar-stack" aria-hidden="true">{participants.slice(0, 3).map((member) => <span key={member.member_id}>{lockInMemberName(member, t).slice(0, 1)}</span>)}</span>
       {onClose && <button type="button" className="lm-icon-button" onClick={onClose} aria-label={t("common.close")}><X size={18} /></button>}
     </header>

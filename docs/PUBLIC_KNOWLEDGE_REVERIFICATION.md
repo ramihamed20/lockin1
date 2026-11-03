@@ -253,3 +253,21 @@ Validation and runtime limits for this change are recorded in ERROR_HANDLING_FIX
 Rechecked `custom-active-study` and `first-year-subjects` against their existing evidence. The only `i18n.js` changes add the study companion's independent Arabic/English keys; the existing claims and labels are unchanged. Updated that file's evidence digest.
 
 Reviewed the reader diff: it adds a lazy decorative overlay and excludes its controls from reader keyboard shortcuts. Existing PDF navigation, annotation tools, export, page ranges and Active Study transitions are unchanged. Their evidence digest was renewed after this review and the scoped regression checks.
+
+## Team lobby and study screen translations — 3 November 2026
+
+Compared i18n.js to the recorded evidence baseline at 4bb2330. The original file's
+SHA-256 matches the previously reviewed digest. A line-level comparison verified
+that every difference is an insertion of a `lockIn.*` label: friend invitation
+states, filtering, the three-open-team notice, request headings, and team activity.
+No existing message, interpolation, translation function or public Help answer changed.
+Published product, materials, notes, assessment, Review, account/privacy and support
+claims therefore keep their reviewed meaning. Group study's public feature record
+is still non-documentable; this review does not declare a public launch.
+
+Only the i18n.js evidence digest was refreshed after this scoped comparison.
+English/Arabic catalogue parity, public search/evidence and generated-page checks
+are rerun along with the live-session tests. The evidence verifier stays enabled.
+The current functional checks cover invitation consent and capacity, private notes,
+public presence projection, room versus personal time, responsive layouts, and RTL.
+This is repository verification, not real-device Safari or production certification.
