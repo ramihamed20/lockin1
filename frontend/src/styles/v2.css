@@ -2485,7 +2485,7 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
   .catalog-sheet-directory .catalog-sheet-grid { grid-template-columns: minmax(0, 1fr); }
 }
 .skeleton-page--sheet-library { display: grid; gap: 24px; width: 100%; }
-.skeleton-sheet-branch { display: block; width: min(100%, 760px); height: 70px; margin-inline-start: auto; border-radius: 18px; }
+.skeleton-sheet-branch { display: block; width: 100%; height: 70px; margin-inline-start: auto; border-radius: 18px; }
 .skeleton-sheet-library-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .loading-panel .skeleton-sheet-library-card { display: flex; flex-direction: column; min-height: 338px; padding: 0; overflow: hidden; border-radius: 22px; }
 .skeleton-sheet-library-cover { display: block; width: 100%; height: 128px; border-radius: 0; }
