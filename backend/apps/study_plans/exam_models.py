@@ -110,6 +110,10 @@ class ExamSchedule(models.Model):
     )
     exam_type = models.CharField(max_length=12, choices=ExamType.choices, default=ExamType.THEORY)
     scheduled_on = models.DateField()
+    # Local wall-clock times; legacy schedules may omit both.
+    starts_at = models.TimeField(null=True, blank=True)
+    ends_at = models.TimeField(null=True, blank=True)
+    timezone = models.CharField(max_length=80, default="Africa/Tripoli")
     status = models.CharField(
         max_length=12,
         choices=ExamPeriod.Status.choices,
@@ -120,10 +124,15 @@ class ExamSchedule(models.Model):
     class Meta:
         ordering = ("scheduled_on", "id")
         constraints = [
+            models.CheckConstraint(
+                condition=Q(starts_at__isnull=True, ends_at__isnull=True)
+                | Q(starts_at__isnull=False, ends_at__isnull=False, ends_at__gt=F("starts_at")),
+                name="study_exam_time_order",
+            ),
             models.UniqueConstraint(
                 fields=("period", "subject", "exam_type"),
                 name="study_exam_subject_type_unique",
-            )
+            ),
         ]
 
     def __str__(self) -> str:
@@ -131,6 +140,12 @@ class ExamSchedule(models.Model):
 
     def clean(self) -> None:
         super().clean()
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            ZoneInfo(self.timezone)
+        except (ZoneInfoNotFoundError, ValueError) as error:
+            raise ValidationError({"timezone": "Choose a valid time zone."}) from error
         if self.period_id and self.subject_id:
             validate_exam_subject(self.period, self.subject)
         if (

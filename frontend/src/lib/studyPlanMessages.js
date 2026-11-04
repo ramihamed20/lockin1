@@ -1,5 +1,7 @@
 export const studyPlanMessages = {
   en: {
+    "plan.examTimetable": "Exam timetable",
+    "plan.examLibyaTime": "Libya time",
     "plan.sections.options": "Options",
     "plan.sections.navigation": "Plan sections",
     "plan.flow.subjects": "My subjects",
@@ -174,6 +176,8 @@ export const studyPlanMessages = {
     "plan.weekProgress": "This week: {done} of {total} min done", "plan.dayAllDone": "all sessions done"
   },
   ar: {
+    "plan.examTimetable": "جدول الامتحانات",
+    "plan.examLibyaTime": "بتوقيت ليبيا",
     "plan.sections.options": "خيارات",
     "plan.sections.navigation": "أقسام خطتي",
     "plan.flow.subjects": "موادي",

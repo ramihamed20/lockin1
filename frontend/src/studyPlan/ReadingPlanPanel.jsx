@@ -87,6 +87,13 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
       <label className="plan-connected-review"><input type="checkbox" checked={replan} disabled={blocked} onChange={event => setReplan(event.target.checked)} />{t("smart.replan")}</label>
       </div></details>
       {selected && <p className="plan-exam-status">{dateLabel(selected.starts_on)} · {t(selected.status === "confirmed" ? "plan.examConfirmed" : "plan.examTentative")}</p>}
+      {!!selected?.schedules?.length && <details className="plan-exam-options">
+        <summary>{t("plan.examTimetable")}</summary>
+        <ul className="plan-exam-task-list">{selected.schedules.map(exam => <li key={exam.id}>
+          <strong dir="auto">{exam.subject_title}</strong>
+          <span>{dateLabel(exam.scheduled_on)}{exam.starts_at && exam.ends_at && <> · <bdi dir="ltr">{exam.starts_at.slice(0, 5)}–{exam.ends_at.slice(0, 5)}</bdi> · <bdi>{exam.timezone === "Africa/Tripoli" ? t("plan.examLibyaTime") : exam.timezone}</bdi></>}</span>
+        </li>)}</ul>
+      </details>}
       {result && <div className="plan-exam-complete" role="status"><p className="plan-apply-success">{t("connected.applied", { count: result.created_count })}</p><button type="button" className="btn btn-primary" onClick={onViewWeek}>{t("plan.flow.openWeek")}<Icon name="chevron-right" size={17} /></button></div>}
       {progressNotice && <p role="status">{t(progressNotice)}</p>}
       {applyError && <p role="alert">{t(applyError)}</p>}

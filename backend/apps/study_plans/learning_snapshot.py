@@ -42,6 +42,8 @@ def student_exam_periods(*, user: User) -> QuerySet[ExamPeriod]:
             )
         )
         .distinct()
+        .select_related("institution")
+        .prefetch_related("schedules__subject__source_node")
     )
 
 
@@ -55,6 +57,27 @@ def exam_payload(period: ExamPeriod) -> dict[str, Any]:
         "starts_on": period.starts_on.isoformat(),
         "ends_on": period.ends_on.isoformat() if period.ends_on else None,
         "status": period.status,
+        "schedules": [
+            {
+                **schedule_payload(schedule),
+                "subject_id": str(schedule.subject_id),
+                "subject_title": schedule.subject.title,
+            }
+            for schedule in period.schedules.all()
+            if _valid_schedule(schedule, period)
+        ],
+    }
+
+
+def schedule_payload(schedule: ExamSchedule) -> dict[str, Any]:
+    return {
+        "id": str(schedule.id),
+        "exam_type": schedule.exam_type,
+        "scheduled_on": schedule.scheduled_on.isoformat(),
+        "starts_at": schedule.starts_at.isoformat() if schedule.starts_at else None,
+        "ends_at": schedule.ends_at.isoformat() if schedule.ends_at else None,
+        "timezone": schedule.timezone,
+        "status": schedule.status,
     }
 
 
@@ -179,15 +202,7 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
                 "subject_id": str(subject.id),
                 "title": subject.title,
                 "include_future_sheets": scope.include_future_sheets,
-                "schedules": [
-                    {
-                        "id": str(s.id),
-                        "exam_type": s.exam_type,
-                        "scheduled_on": s.scheduled_on.isoformat(),
-                        "status": s.status,
-                    }
-                    for s in subject_exams
-                ],
+                "schedules": [schedule_payload(s) for s in subject_exams],
                 "deadline_source": "subject_schedule" if subject_exams else "period_start",
                 "sheets": entries,
                 "review": planning_review_summary(
@@ -212,14 +227,7 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
                     for scope in scopes
                 ],
                 "schedules": [
-                    {
-                        "id": str(s.id),
-                        "date": str(s.scheduled_on),
-                        "status": s.status,
-                        "type": s.exam_type,
-                        "subject_id": str(s.subject_id),
-                    }
-                    for s in schedules
+                    {**schedule_payload(s), "subject_id": str(s.subject_id)} for s in schedules
                 ],
             },
             sort_keys=True,
