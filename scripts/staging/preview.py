@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import sys
 
 from validate import preview_host, validate
 
@@ -45,22 +46,30 @@ def main():
     # Serialize URL changes without exposing the private environment file.
     with (ROOT / ".runtime/staging/preview.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        run_preview()
+        run_preview(dev="--dev" in sys.argv[1:])
 
 
-def run_preview():
+def run_preview(dev=False):
     environment = {key: os.environ[key] for key in ("PATH", "HOME", "DOCKER_CONFIG") if key in os.environ}
     command = ["docker", "--context", "default", "compose", "-p", "lockin-staging",
                "--env-file", ".env.staging", "-f", "compose.production.yaml",
                "-f", "compose.staging.yaml", "--profile", "staging-quick", "--profile", "staging-tunnel"]
+    dev_marker = ROOT / ".runtime/staging/dev-enabled"
+    if dev or dev_marker.exists():
+        command += ["-f", "compose.staging-dev.yaml"]
 
-    def compose(*args, capture=False):
+    def compose(*args, capture=False, timeout=180):
         return subprocess.run(command + list(args), env=environment, check=True, text=True,
-                              stdout=subprocess.PIPE if capture else None, timeout=180).stdout
+                              stdout=subprocess.PIPE if capture else None, timeout=timeout).stdout
 
     validate(json.loads(compose("config", "--format", "json", capture=True)))
     if not compose("ps", "--status", "running", "-q", "backend", capture=True).strip():
         raise SystemExit("Start staging first with control.sh start.")
+    if dev or dev_marker.exists():
+        print("Starting live frontend; first dependency installation can take several minutes...", flush=True)
+        compose("pull", "frontend-dev")
+        compose("up", "-d", "--no-deps", "--wait", "--wait-timeout", "600", "frontend-dev", timeout=650)
+        dev_marker.touch(mode=0o600)
     print("Preparing temporary HTTPS preview (usually under a minute)...", flush=True)
     compose("pull", "quick-tunnel")
     # A fresh container avoids reading a stale URL from a previous process's logs.
@@ -81,6 +90,8 @@ def run_preview():
     print(f"\nPreview URL: https://{host}", flush=True)
     print("Access credentials: sudo cat ~/lockin-staging/.runtime/staging/access.txt")
     print("Temporary URL; run this command again if the tunnel stops. Production is unchanged.")
+    if dev_marker.exists():
+        print("Live frontend enabled: saving files in ~/lockin-staging/frontend updates this page.")
 
 
 if __name__ == "__main__":

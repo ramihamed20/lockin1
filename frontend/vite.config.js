@@ -254,8 +254,11 @@ export default defineConfig(async ({ mode, command }) => {
     // A phone that backgrounds Vite's development WebSocket can reconnect as
     // though it has missed an HMR update. This project is frequently tested
     // through a tunnel on mobile, where that can look exactly like an app
-    // reload. Keep development refreshes manual; production has no HMR client.
-    hmr: false,
+    // reload. Keep refreshes manual by default; isolated live staging opts in.
+    // Production has no HMR client.
+    hmr: env.LOCKIN_STAGING_HMR === "1"
+      ? { protocol: "wss", clientPort: 443, path: "/__hmr" }
+      : false,
     // Codespaces serves the 5173 port over a private github.dev host.
     // Permit only this Codespace's assigned hostname, not arbitrary hosts.
     allowedHosts: [

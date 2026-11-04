@@ -49,7 +49,16 @@ def validate(plan):
         assert re.fullmatch(r"ghcr\.io/ramihamed20/lockin-(backend|edge):staging-[0-9a-f]{40}", services[name].get("image", "")), "Only immutable staging images are allowed"
     edge_volumes = services["edge"]["volumes"]
     assert any(v["target"] == "/run/staging/htpasswd" for v in edge_volumes), "Missing access gate"
-    assert any(v["target"] == "/etc/nginx/conf.d/default.conf" and v["source"].endswith("/deploy/staging/nginx.conf") for v in edge_volumes), "Missing staging edge config"
+    config = "/deploy/staging/nginx.dev.conf" if "frontend-dev" in services else "/deploy/staging/nginx.conf"
+    assert any(v["target"] == "/etc/nginx/conf.d/default.conf" and v["source"].endswith(config) for v in edge_volumes), "Missing staging edge config"
+    if "frontend-dev" in services:
+        frontend = services["frontend-dev"]
+        assert frontend["image"] == "node:24.16.0-bookworm-slim", "Unexpected development runtime"
+        mounts = frontend.get("volumes", [])
+        assert len(mounts) == 2, "Unexpected development mounts"
+        assert any(v["type"] == "bind" and v["source"].endswith("/frontend") and v["target"] == "/app" and v.get("read_only") for v in mounts), "Frontend source must be read-only"
+        assert any(v["type"] == "volume" and v["target"] == "/app/node_modules" for v in mounts), "Missing isolated dependencies"
+        assert not frontend.get("secrets"), "Development frontend must not mount credentials"
 
 
 if __name__ == "__main__":

@@ -8,6 +8,23 @@ from validate import preview_host, validate
 
 
 class PreviewTests(unittest.TestCase):
+    def test_live_frontend_cannot_mount_credentials_or_extra_source(self):
+        value = plan()
+        value["services"]["edge"]["volumes"][1]["source"] = "/repo/deploy/staging/nginx.dev.conf"
+        frontend = {"image": "node:24.16.0-bookworm-slim", "volumes": [
+            {"type": "bind", "source": "/repo/frontend", "target": "/app", "read_only": True},
+            {"type": "volume", "source": "dev_node_modules", "target": "/app/node_modules"},
+        ]}
+        value["services"]["frontend-dev"] = frontend
+        validate(value)
+        frontend["secrets"] = ["django_secret_key"]
+        with self.assertRaises(AssertionError):
+            validate(value)
+        del frontend["secrets"]
+        frontend["volumes"][0]["source"] = "/repo"
+        with self.assertRaises(AssertionError):
+            validate(value)
+
     def test_accepts_only_exact_preview_domains(self):
         for host in ("staging.lockin.ly", "friendly-preview.trycloudflare.com"):
             self.assertTrue(preview_host(host))

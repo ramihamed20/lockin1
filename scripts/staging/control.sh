@@ -5,11 +5,16 @@ root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 cd "$root"
 [ -f .env.staging ] || { echo "Run sudo python3 scripts/staging/prepare.py first." >&2; exit 2; }
 compose() {
+    if [ -f .runtime/staging/dev-enabled ]; then
+        set -- -f compose.production.yaml -f compose.staging.yaml -f compose.staging-dev.yaml "$@"
+    else
+        set -- -f compose.production.yaml -f compose.staging.yaml "$@"
+    fi
     # A production variable exported in the operator's shell must not win over
     # .env.staging. Keep Docker credentials, clear all Compose/application env.
     env -i PATH="$PATH" HOME="$HOME" DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}" \
       docker --context default compose -p lockin-staging --env-file .env.staging \
-      -f compose.production.yaml -f compose.staging.yaml "$@"
+      "$@"
 }
 # Validate before any operation which can change a container.
 compose config --format json | python3 scripts/staging/validate.py
@@ -40,9 +45,17 @@ case "${1:-status}" in
         compose --profile staging-tunnel up -d --no-deps tunnel
         ;;
     preview) python3 scripts/staging/preview.py ;;
+    dev) python3 scripts/staging/preview.py --dev ;;
+    dev-off)
+        if [ -f .runtime/staging/dev-enabled ]; then
+            compose stop frontend-dev
+            rm .runtime/staging/dev-enabled
+            compose up -d --no-deps --pull never --force-recreate edge
+        fi
+        ;;
     admin) compose exec backend python manage.py createsuperuser ;;
     status) compose --profile staging-tunnel --profile staging-quick ps -a ;;
     stop) compose --profile staging-tunnel --profile staging-quick stop ;;
     logs) compose logs --tail 80 backend edge ;;
-    *) echo "Usage: $0 {start|connect|preview|admin|status|stop|logs}" >&2; exit 2 ;;
+    *) echo "Usage: $0 {start|connect|preview|dev|dev-off|admin|status|stop|logs}" >&2; exit 2 ;;
 esac
