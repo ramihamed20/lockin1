@@ -2503,3 +2503,96 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
 .continue-sheet-content > [dir="auto"] { text-align: match-parent; }
 .dashboard .continue-card:not(.continue-card--sheet) .continue-sheet-content { gap: 20px; }
 }
+
+/* Compact sheet directory: keep the personal-sheets branch full width. */
+.catalog-sheet-directory .sheet-library-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 4px 18px; }
+.sheet-library-filters button { min-height: 44px; padding: 8px 18px; border: 1px solid var(--separator); border-radius: 12px; color: var(--muted); background: var(--surface); font: inherit; cursor: pointer; }
+.sheet-library-filters button[aria-pressed="true"] { color: var(--accent-text); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+.sheet-library-filters button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.catalog-sheet-grid > .sheet-library-card { min-height: 264px; }
+.catalog-sheet-grid .sheet-library-cover { min-height: 60px; padding: 12px 20px; align-items: center; }
+.catalog-sheet-grid .sheet-library-file { width: 34px; height: 36px; border-radius: 9px; }
+.catalog-sheet-grid .sheet-library-file svg { width: 20px; height: 20px; }
+.catalog-sheet-grid .sheet-library-body { padding: 20px; }
+.catalog-sheet-grid .sheet-library-description { margin-block-end: 16px; }
+.sheet-library-reading { display: flex; flex-direction: column; gap: 8px; margin-block: 0 16px; color: var(--muted); font-size: 12px; }
+.sheet-library-meter { display: flex; height: 6px; overflow: hidden; border-radius: 8px; background: color-mix(in srgb, var(--muted) 14%, var(--surface)); }
+.sheet-library-meter > span { height: 100%; background: var(--sheet-resume-action, var(--primary)); border-radius: inherit; }
+.catalog-sheet-grid .sheet-library-open { display: inline-flex; flex: 0 1 auto; width: auto; min-width: 44px; gap: 6px; padding-inline: 10px; font-size: 12px; font-weight: 600; }
+@media (max-width: 639px) {
+  .catalog-sheet-grid > .sheet-library-card { min-height: 242px; }
+  .catalog-sheet-grid .sheet-library-cover { min-height: 56px; padding-inline: 18px; }
+  .catalog-sheet-grid .sheet-library-body { padding: 18px; }
+  .sheet-library-filters button { padding-inline: 12px; font-size: 13px; }
+}
+
+/* Review hub: wider reading area, quiet subject rows and compact actions. */
+.page--reading:has(.review-v2) { max-width: 1000px; }
+.review-v2 { gap: 16px; }
+.review-v2 .review-daily-entry { background: var(--surface); border: 1px solid var(--separator); padding: 24px; gap: 24px; border-radius: 20px; }
+.review-v2 .review-daily-entry .review-bank-entry-actions { flex-basis: 280px; gap: 10px; }
+.review-v2 .review-daily-entry .btn-primary { border-radius: 12px; min-height: 44px; }
+.review-v2 .review-duration-options .btn { border-radius: 10px; }
+.review-v2 .review-daily-customize { min-height: 44px; }
+.review-v2 .review-week-progress { margin-inline: 6px; }
+.review-v2 .review-center-section { padding: 20px 24px; border: 1px solid var(--separator); box-shadow: none; border-radius: 18px; }
+.review-v2 .review-subject-list { gap: 0; }
+.review-v2 .review-subject-row { border: 0; border-radius: 0; background: transparent; min-height: 68px; padding: 12px 2px; }
+.review-v2 .review-subject-row + .review-subject-row { border-block-start: 1px solid var(--separator); }
+.review-v2 .weekly-recall-entry, .review-v2 .biweekly-current { border: 1px solid var(--separator); border-radius: 16px; padding: 18px 24px; background: var(--surface); }
+.review-v2 .weekly-recall-entry .btn { border-radius: 10px; min-height: 44px; }
+.review-v2 .review-feature-icon, .review-v2 .biweekly-current-icon { background: transparent; }
+.review-v2 .biweekly-history { padding-inline: 6px; }
+@media(max-width:600px) { .review-v2 .review-daily-entry { padding: 18px; } .review-v2 .review-daily-entry .review-bank-entry-actions { flex-basis:auto; } }
+
+/* Approved page polish: compact study actions and clearer page hierarchy. */
+.dashboard .continue-card.continue-card--sheet { min-height: 210px; padding: 24px; gap: 24px; grid-template-columns: 130px minmax(0,1fr); border-radius: 20px; }
+.dashboard .continue-card--sheet .continue-sheet-cover { min-height: 170px; padding: 18px 12px; border-radius: 14px; }
+.dashboard .continue-sheet-cover > strong { font-size: 72px; margin-block: auto 8px; }
+.dashboard .continue-card.continue-card--sheet h2 { font-size: 28px; }
+.dashboard .continue-card .continue-sheet-eyebrow { margin-bottom: 8px; font-size: 13px; }
+.dashboard .continue-card .continue-sheet-content .progress-meta { margin-block: 6px 12px; font-size: 14px; }
+.dashboard .continue-sheet-progress { margin-block: 8px 12px; }
+.dashboard .continue-card--sheet .btn { min-height: 44px; min-width: 150px; border-radius: 12px; }
+.dashboard .dashboard-review-card { border-radius: 18px; padding: 22px; }
+.progress-level-hero { min-height: 110px; padding: 20px 24px; border-radius: 18px; }
+.progress-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.progress-stat-grid .progress-stat-card { min-height: 110px; padding: 20px; border-radius: 18px; }
+.progress-stat-grid .progress-stat-card--policy { grid-column: 1/-1; min-height: 56px; padding: 12px 20px; background: transparent; }
+.progress-stat-grid .progress-stat-card--policy strong { font-size: 14px; }
+.progress-stat-grid .progress-stat-card--policy .progress-stat-icon { width: 30px; height: 30px; }
+.progress-stat-grid .progress-stat-card--policy p { margin: 2px 0; }
+.progress-calendar-cell { min-height: 30px; height: 34px; border-radius: 8px; }
+.progress-calendar-panel,.progress-ledger-panel { border-radius: 18px; }
+.questions-category-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.question-directory .catalog-tile__surface { min-height: 136px; padding: 22px; align-items: center; }
+.question-directory .catalog-tile__copy strong { font-size: 19px; }
+.question-directory .catalog-tile__copy small { margin-top: 8px; line-height: 1.6; }
+.question-directory .catalog-tile__icon { width: 44px; height: 44px; border-radius: 12px; }
+.study-plan-v2 .plan-heading h1 { font-size: 30px; }
+.study-plan-v2 .plan-heading { margin-bottom: 8px; }
+.study-plan-v2 .plan-section-nav { padding: 10px; border-radius: 16px; }
+.study-plan-v2 .plan-stage-heading { margin-block: 8px; font-size: 18px; }
+.study-plan-v2 .plan-hero { display: grid; grid-template-columns: minmax(0,1fr) 240px; align-items: center; gap: 24px; padding: 24px; border-radius: 18px; }
+.study-plan-v2 .plan-hero-top { display: none; }
+.study-plan-v2 .plan-hero .plan-eyebrow { margin-top: 0; }
+.study-plan-v2 .plan-hero h2 { font-size: 27px; margin-block: 8px; }
+.study-plan-v2 .plan-hero > .plan-actions { display: flex; flex-direction: column; gap: 8px; }
+.study-plan-v2 .plan-hero .plan-start-link { min-height: 44px; border-radius: 12px; }
+.study-plan-v2 .plan-hero .plan-actions .btn-soft { min-height: 44px; padding: 6px; }
+.study-plan-v2 .plan-today-list { padding: 20px; border-radius: 18px; }
+@media(min-width:1100px) { .settings-v2 #settings-account > .ui-group { display: none; } }
+@media(max-width:639px) { .questions-category-grid { grid-template-columns: 1fr; } .study-plan-v2 .plan-hero { grid-template-columns: 1fr; } .dashboard .continue-card.continue-card--sheet { grid-template-columns: 82px minmax(0,1fr); } }
+
+/* Keep the phone compositions and narrow navigation usable. */
+@media(max-width:639px) {
+  .dashboard .continue-card.continue-card--sheet { min-height: 0; padding: 20px; gap: 8px 16px; }
+  .dashboard .continue-sheet-cover > strong { font-size: 52px; margin-block: auto 2px; }
+  .dashboard .continue-card.continue-card--sheet h2 { font-size: 20px; }
+  .dashboard .continue-card .continue-sheet-content .progress-meta { margin: 0; font-size: 13px; }
+  .dashboard .continue-card .continue-sheet-eyebrow { margin: 0; font-size: 12px; }
+  .progress-stat-grid .progress-stat-card { padding: 14px; }
+  .progress-stat-grid .progress-stat-card--policy { grid-template-columns: auto minmax(0,1fr); min-height: 56px; }
+  .study-plan-v2 .plan-hero { padding: 20px; gap: 16px; }
+  .study-plan-v2 .plan-hero h2 { font-size: 24px; }
+}

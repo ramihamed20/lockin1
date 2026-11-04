@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { useI18n } from "../I18nProvider.jsx";
-import { sheetCoverTone } from "../../lib/sheetPresentation.js";
+import { sheetCoverTone, sheetReadingPosition } from "../../lib/sheetPresentation.js";
 
 /** Shared sheet affordance for Materials and Questions catalogue routes. */
-export function CatalogSheetCard({ material, sheet, to, actionLabel = "", detail = "" }) {
+export function CatalogSheetCard({ material, sheet, to, actionLabel = "", detail = "", readingEntry = null }) {
   const { t } = useI18n();
   const title = sheet.title || `${material.title} Sheet ${sheet.number}`;
-  const action = actionLabel || t("materials.openSheet");
+  const position = sheetReadingPosition(readingEntry);
+  const action = actionLabel || t(position ? "dashboard.resumeSheet" : "materials.openSheet");
   const editions = sheet.editions?.length ? sheet.editions : [sheet];
   const university = editions.find((item) => item.edition === "university") || editions[0];
   const lockin = editions.find((item) => item.edition === "lockin");
@@ -31,9 +32,13 @@ export function CatalogSheetCard({ material, sheet, to, actionLabel = "", detail
       <span className="sheet-library-subject" dir="auto">{material.title}</span>
       <strong className="sheet-library-title" dir="auto">{title}</strong>
       <span className="sheet-library-description" dir="auto">{unavailable ? t("materials.sheetNotFoundText") : (sheet.summary || availability)}</span>
+      {!unavailable && position && <span className="sheet-library-reading">
+        <span>{t("dashboard.readingPage", { page: position.page, total: position.total })}</span>
+        <span className="sheet-library-meter" role="progressbar" aria-label={t("dashboard.readingPosition")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={position.percent}><span style={{ width: `${position.percent}%` }} /></span>
+      </span>}
       <span className="sheet-library-footer">
         <span className="sheet-library-detail"><Icon name="book-open" size={16} aria-hidden="true" /><span dir="auto">{detail || (sheet.summary ? meta : (sheet.number ? t("materials.coverSheet", { number: sheet.number }) : meta))}</span></span>
-        <span className="sheet-library-open" aria-hidden="true"><Icon name={unavailable ? "lock" : "chevron-right"} size={19} /></span>
+        <span className="sheet-library-open" aria-hidden="true">{!unavailable && <span>{action}</span>}<Icon name={unavailable ? "lock" : "chevron-right"} size={17} /></span>
       </span>
     </span>
   </>;

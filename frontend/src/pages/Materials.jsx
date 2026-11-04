@@ -1,5 +1,7 @@
 import { SearchableDirectory } from "../components/learning/SearchableDirectory.jsx";
 import { useEffect, useState } from "react";
+import { useAsyncData } from "../hooks/useAsyncData.js";
+import { progressApi } from "../api/progress.js";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { Icon } from "../lib/icons.jsx";
@@ -37,7 +39,7 @@ export default function Materials({ user = null }) {
             <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
               {visible.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
             </section>
-)}</SearchableDirectory>
+ )}</SearchableDirectory>
           )}
         {canAddSubjects(user) && <AddFirstYearSubject onChange={refresh} />}
       </section>
@@ -153,6 +155,12 @@ export function CatalogMaterialSheets({ user = null }) {
   const { t } = useI18n();
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
+  const recentStudy = useAsyncData(signal => progressApi.recentCatalogStudy({ signal }), [user?.id], { cacheKey: `dashboard-recent:${user?.id || ""}` });
+  const [sheetFilter, setSheetFilter] = useState("all");
+  const history = Array.isArray(recentStudy.data?.results) ? recentStudy.data.results : [];
+  const readingFor = sheet => history.find(entry => entry.material_slug === materialSlug && (entry.sheet_slug === sheet.slug || sheet.editions?.some(edition => edition.slug === entry.sheet_slug)));
+  const filteredSheets = material?.sheets.filter(sheet => sheetFilter === "all" || (sheetFilter === "available" ? sheet.deliverable !== false : Boolean(readingFor(sheet)))) || [];
+
 
   if (loading) return <Page width="sheets" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="sheet-library" /></Page>;
   if (error) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
@@ -167,13 +175,18 @@ export function CatalogMaterialSheets({ user = null }) {
         <PersonalSheetsBranch material={material} user={user} />
         {material.sheets.length
           ? (
-<SearchableDirectory key={material.slug} items={material.sheets}>{visible => (
+<>
+<div className="sheet-library-filters" role="group" aria-label={t("materials.filterSheets")}>
+  {["all", "recent", "available"].map(filter => <button key={filter} type="button" disabled={filter === "recent" && (recentStudy.loading || Boolean(recentStudy.error))} aria-pressed={sheetFilter === filter} onClick={() => setSheetFilter(filter)}>{t(`materials.sheetFilter.${filter}`)}</button>)}
+</div>
+<SearchableDirectory key={material.slug} items={filteredSheets}>{visible => (
             <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
               {visible.map((sheet) => (
-                <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
+                <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} readingEntry={readingFor(sheet) ? { currentPage: readingFor(sheet).current_page, pageCount: readingFor(sheet).page_count } : null} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
               ))}
             </section>
 )}</SearchableDirectory>
+</>
           )
           : <EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} />}
       </section>

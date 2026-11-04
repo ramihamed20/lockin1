@@ -1,0 +1,1 @@
+body::after { content: "نسخة تجريبية"; position: fixed; inset-block-end: 76px; inset-inline-end: 12px; z-index: 9999; pointer-events: none; padding: 5px 10px; border-radius: 8px; background: #6c55e7; color: white; font: 600 12px system-ui; }

@@ -44,3 +44,7 @@ tmp
 !**/.env.example
 !**/.env.production.example
 !**/.env.container-host.example
+
+# Staging signing keys, tunnel tokens and access credentials.
+.runtime
+**/.runtime
