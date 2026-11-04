@@ -25,8 +25,8 @@ case "${1:-status}" in
         built_key=$(docker --context default image inspect --format '{{index .Config.Labels "io.lockin.staging.offline-public-key"}}' "$edge_image")
         [ "$built_key" = "$expected_key" ] || { echo "The staging build uses a different Offline public key. Rebuild it with this host staging key." >&2; exit 2; }
         compose up -d db mailpit
-        compose run --rm --no-deps release
-        compose run --rm --no-deps preflight
+        compose run --rm -T --interactive=false --no-deps release
+        compose run --rm -T --interactive=false --no-deps preflight
         compose up -d --no-deps backend edge
         echo "Staging containers started. Check: sudo sh scripts/staging/control.sh status"
         ;;
@@ -39,9 +39,10 @@ case "${1:-status}" in
         compose --profile staging-tunnel pull tunnel
         compose --profile staging-tunnel up -d --no-deps tunnel
         ;;
+    preview) python3 scripts/staging/preview.py ;;
     admin) compose exec backend python manage.py createsuperuser ;;
-    status) compose --profile staging-tunnel ps -a ;;
-    stop) compose --profile staging-tunnel stop ;;
+    status) compose --profile staging-tunnel --profile staging-quick ps -a ;;
+    stop) compose --profile staging-tunnel --profile staging-quick stop ;;
     logs) compose logs --tail 80 backend edge ;;
-    *) echo "Usage: $0 {start|connect|admin|status|stop|logs}" >&2; exit 2 ;;
+    *) echo "Usage: $0 {start|connect|preview|admin|status|stop|logs}" >&2; exit 2 ;;
 esac

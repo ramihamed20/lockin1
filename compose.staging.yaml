@@ -29,8 +29,19 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: "true"
       MP_SMTP_AUTH_ALLOW_INSECURE: "true"
       MP_WEBROOT: /__mail/
-      MP_ALLOWED_HOSTS: staging.lockin.ly
+      MP_ALLOWED_HOSTS: ${LOCKIN_PUBLIC_HOST:?Set LOCKIN_PUBLIC_HOST}
       MP_MAX_MESSAGES: "200"
+    networks: [application]
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: "2"}
+  quick-tunnel:
+    image: cloudflare/cloudflared:2026.10.0
+    profiles: [staging-quick]
+    command: [tunnel, --no-autoupdate, --url, http://edge:8080]
+    user: "10001:10001"
+    restart: "no"
+    mem_limit: 128m
     networks: [application]
     logging:
       driver: json-file

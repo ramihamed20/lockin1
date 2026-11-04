@@ -13,6 +13,7 @@ def plan():
     env = {
         "POSTGRES_HOST": "db", "POSTGRES_DB": "lockin_staging",
         "DJANGO_ALLOWED_HOSTS": "staging.lockin.ly", "PUBLIC_APP_URL": "https://staging.lockin.ly",
+        "DJANGO_CSRF_TRUSTED_ORIGINS": "https://staging.lockin.ly",
         "EMAIL_HOST": "mailpit", "STORAGE_BACKEND": "filesystem", "PAYMENT_PROVIDER": "none",
     }
     return {

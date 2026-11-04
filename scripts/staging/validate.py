@@ -4,9 +4,17 @@ import re
 import sys
 
 
+def preview_host(host):
+    return host == "staging.lockin.ly" or bool(re.fullmatch(
+        r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.trycloudflare\.com", host
+    ))
+
+
 def validate(plan):
     assert plan.get("name") == "lockin-staging", "Unexpected Compose project"
     services = plan["services"]
+    host = services["backend"]["environment"]["DJANGO_ALLOWED_HOSTS"]
+    assert preview_host(host), "Wrong hostname"
     for name, service in services.items():
         assert not service.get("ports"), f"Host ports are forbidden: {name}"
         assert not service.get("container_name"), "Fixed container names are forbidden"
@@ -20,8 +28,9 @@ def validate(plan):
         env = services[service]["environment"]
         assert env["POSTGRES_HOST"] == "db", "External database forbidden"
         assert env["POSTGRES_DB"] == "lockin_staging", "Wrong database"
-        assert env["DJANGO_ALLOWED_HOSTS"] == "staging.lockin.ly", "Wrong hostname"
-        assert env["PUBLIC_APP_URL"] == "https://staging.lockin.ly", "Wrong app URL"
+        assert env["DJANGO_ALLOWED_HOSTS"] == host, "Wrong hostname"
+        assert env["PUBLIC_APP_URL"] == f"https://{host}", "Wrong app URL"
+        assert env["DJANGO_CSRF_TRUSTED_ORIGINS"] == f"https://{host}", "Wrong CSRF origin"
         assert env["EMAIL_HOST"] == "mailpit", "Real SMTP forbidden"
         assert env["STORAGE_BACKEND"] == "filesystem", "External storage forbidden"
         assert env["PAYMENT_PROVIDER"] == "none", "Real payment provider forbidden"
