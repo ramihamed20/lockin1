@@ -20,7 +20,7 @@ from .adaptive_habits import adaptive_capacity, difficulty_multiplier, habit_sna
 from .availability import preference_priority
 from .evidence import reading_estimate, remaining_minutes
 from .exam_models import ExamPeriod
-from .learning_snapshot import student_learning_snapshot
+from .learning_snapshot import student_learning_snapshot, subject_exam_date
 from .models import StudyEvidence, StudyPlanItem
 from .scheduling import DayCapacity, FixedWork, WorkUnit, build_schedule_preview
 from .services import plan_today, profile_for
@@ -55,9 +55,7 @@ def reading_plan_preview(
         for subject in snapshot["subjects"]
         for exam in subject["schedules"]
     }
-    exam_dates.update(
-        period.starts_on for subject in snapshot["subjects"] if not subject["schedules"]
-    )
+    exam_dates.update(subject_exam_date(subject, period) for subject in snapshot["subjects"])
     end = max(exam_dates) - timedelta(days=1)
     if end < today or (end - today).days >= MAX_HORIZON_DAYS:
         raise ValidationError({"exam": "Choose an exam with 1–366 preparation days remaining."})
@@ -132,10 +130,7 @@ def reading_plan_preview(
             if target["review_item_id"] in planned_reviews or target["key"] in existing_keys:
                 continue
             subject = subjects[target["subject_id"]]
-            deadline = min(
-                (date.fromisoformat(exam["scheduled_on"]) for exam in subject["schedules"]),
-                default=period.starts_on,
-            ) - timedelta(days=1)
+            deadline = subject_exam_date(subject, period) - timedelta(days=1)
             due_on = date.fromisoformat(target["due_on"])
             if due_on > deadline and not report_id:
                 continue
@@ -197,10 +192,7 @@ def reading_plan_preview(
         max(positive_capacity, default=profile.session_minutes),
     )
     for subject in snapshot["subjects"]:
-        deadline = min(
-            (date.fromisoformat(exam["scheduled_on"]) for exam in subject["schedules"]),
-            default=period.starts_on,
-        ) - timedelta(days=1)
+        deadline = subject_exam_date(subject, period) - timedelta(days=1)
         estimate = subject_estimates[subject["subject_id"]]
         rate = estimate["minutes_per_page"]
         for sheet in subject["sheets"]:

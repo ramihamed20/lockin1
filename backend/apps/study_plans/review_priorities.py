@@ -10,8 +10,7 @@ from django.conf import settings
 from apps.accounts.models import User
 from apps.education.models import EducationNode
 
-from .exam_models import ExamSchedule
-from .learning_snapshot import _valid_schedule, student_exam_periods
+from .learning_snapshot import student_exam_periods, student_exam_schedules_for_periods
 from .services import profile_for
 
 
@@ -37,21 +36,18 @@ def review_exam_dates(
     )
     descendant_keys = [(key, path) for node_id, path in node_paths for key in node_keys[node_id]]
     today = now.astimezone(ZoneInfo(profile_for(user).timezone)).date()
-    schedules = (
-        ExamSchedule.objects.filter(
-            period__in=student_exam_periods(user=user),
-            subject__cohort_id=user.cohort_id,
-            scheduled_on__gte=today,
-            scheduled_on__lte=today + timedelta(days=14),
-            status__in=("tentative", "confirmed"),
-        )
-        .select_related("subject__source_node", "period__institution")
-        .order_by("scheduled_on", "id")
+    schedules = sorted(
+        (
+            schedule
+            for schedule in student_exam_schedules_for_periods(
+                user=user, periods=list(student_exam_periods(user=user)[:50])
+            )
+            if today <= schedule.scheduled_on <= today + timedelta(days=14)
+        ),
+        key=lambda schedule: (schedule.scheduled_on, str(schedule.pk)),
     )
     dates: dict[str, date] = {}
     for schedule in schedules:
-        if not _valid_schedule(schedule, schedule.period):
-            continue
         subject = schedule.subject
         for key in (
             f"catalog:{subject.material_slug}",

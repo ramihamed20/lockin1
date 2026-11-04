@@ -43,7 +43,7 @@ class StudentExamListView(StudyPlanV2View):
             {
                 "enabled": True,
                 "schema_version": 1,
-                "results": [exam_payload(period) for period in periods],
+                "results": [exam_payload(period, user=_user(request)) for period in periods],
             }
         )
 

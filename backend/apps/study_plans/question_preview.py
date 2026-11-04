@@ -9,10 +9,11 @@ from typing import Any
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import User
-from apps.content.models import CatalogSubject
+from apps.content.added_subjects import student_subjects
 from apps.questions.models import Question, QuestionAnswer
 
 from .exam_models import ExamPeriod
+from .learning_snapshot import subject_exam_date
 from .models import StudyPlanItem
 from .scheduling import WorkUnit
 
@@ -43,10 +44,11 @@ def add_question_units(
         }
     slugs = {
         str(subject_id): slug
-        for subject_id, slug in CatalogSubject.objects.filter(
+        for subject_id, slug in student_subjects(user)
+        .filter(
             pk__in=[s["subject_id"] for s in snapshot["subjects"]],
-            cohort=user.cohort,
-        ).values_list("id", "material_slug")
+        )
+        .values_list("id", "material_slug")
     }
     published = list(
         Question.objects.filter(
@@ -100,10 +102,7 @@ def add_question_units(
                 groups[sheet_id, source].append(qid)
     for (sheet_id, source), ids in sorted(groups.items()):
         subject, sheet = sheets[sheet_id]
-        deadline = min(
-            (date.fromisoformat(row["scheduled_on"]) for row in subject["schedules"]),
-            default=period.starts_on,
-        ) - timedelta(days=1)
+        deadline = subject_exam_date(subject, period) - timedelta(days=1)
         # All new reading chunks for the same sheet precede its questions.
         prerequisite = tuple(
             unit.key

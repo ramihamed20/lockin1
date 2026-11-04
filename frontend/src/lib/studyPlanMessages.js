@@ -1,5 +1,9 @@
 export const studyPlanMessages = {
   en: {
+    "plan.carryoverHint": "Your added First Year subjects share the same study time as your Second Year subjects.",
+    "plan.carryoverIncluded": "First Year subjects in this plan: {subjects}.",
+    "plan.carryoverManage": "Choose First Year subjects in My materials",
+    "plan.carryoverYear": "First Year",
     "plan.examTimetable": "Exam timetable",
     "plan.examLibyaTime": "Libya time",
     "plan.sections.options": "Options",
@@ -176,6 +180,10 @@ export const studyPlanMessages = {
     "plan.weekProgress": "This week: {done} of {total} min done", "plan.dayAllDone": "all sessions done"
   },
   ar: {
+    "plan.carryoverHint": "مواد الأولى التي أضفتها تتوزّع مع مواد الثانية ضمن نفس وقت الدراسة المتاح.",
+    "plan.carryoverIncluded": "مواد الأولى في هذه الخطة: {subjects}.",
+    "plan.carryoverManage": "اختيار مواد الأولى من موادي",
+    "plan.carryoverYear": "سنة أولى",
     "plan.examTimetable": "جدول الامتحانات",
     "plan.examLibyaTime": "بتوقيت ليبيا",
     "plan.sections.options": "خيارات",

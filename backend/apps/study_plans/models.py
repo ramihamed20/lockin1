@@ -263,7 +263,12 @@ class StudyPlanItem(models.Model):
             if node is None or not version.academic_node.path.startswith(node.path):
                 raise ValidationError({"content_version": "Choose content from this subject."})
         if subject is not None and self.user_id and subject.cohort_id != self.user.cohort_id:
-            raise ValidationError({"catalog_subject": "Choose a subject from this cohort."})
+            from apps.content.added_subjects import added_subjects
+
+            if not added_subjects(self.user).filter(pk=subject.pk).exists():
+                raise ValidationError(
+                    {"catalog_subject": "Choose a subject from this cohort or your added subjects."}
+                )
 
 
 class StudyEvidence(models.Model):

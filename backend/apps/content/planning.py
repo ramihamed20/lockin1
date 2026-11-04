@@ -60,12 +60,20 @@ def published_planning_sheets(
     if getattr(settings, "COHORT_CONTENT_ENFORCEMENT", False) and not is_content_administrator(
         user
     ):
-        # This adapter accepts the student's own exam subjects only. Earlier-year
-        # additions are outside that exam cohort and cannot expand its syllabus.
+        from .added_subjects import added_subjects
+
+        # Match the reader's existing scopes, including only explicitly added
+        # First Year subjects. Planning never grants access of its own.
         allowed = Q(pk__in=[])
         cohort = user.cohort
         if cohort is not None and cohort.is_active:
             for path in cohort.content_nodes.values_list("path", flat=True):
+                allowed |= Q(published_version__academic_node__path__startswith=path)
+            for path in (
+                added_subjects(user)
+                .exclude(source_node=None)
+                .values_list("source_node__path", flat=True)
+            ):
                 allowed |= Q(published_version__academic_node__path__startswith=path)
         queryset = queryset.filter(allowed)
     for sheet in queryset:
