@@ -1,6 +1,7 @@
 """Create a fresh staging identity on the deployment host, never copy production env."""
 import argparse
 import base64
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import re
@@ -73,6 +74,7 @@ def prepare(root, commit):
         "EMAIL_USE_TLS": "false", "EMAIL_USE_SSL": "false",
         "DJANGO_TRUSTED_PROXY_CIDRS": "172.30.88.0/24",
         "ACCOUNT_POLICY_VERSION": "2026.10",
+        "USER_POLICY_EFFECTIVE_AT": datetime.now(timezone.utc).isoformat(),
         "GUNICORN_WORKERS": "1", "GUNICORN_THREADS": "4",
         "STORAGE_BACKEND": "filesystem", "STORAGE_ALLOW_LOCAL_MEDIA": "true",
         "CONTENT_REQUIRE_CLEAN_SCAN": "false",

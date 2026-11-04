@@ -1,5 +1,6 @@
 import base64
 import copy
+from datetime import datetime
 from pathlib import Path
 import tempfile
 import unittest
@@ -62,6 +63,9 @@ class IsolationTests(unittest.TestCase):
             self.assertEqual(len(base64.b64decode(key)), 32)
             self.assertEqual((root / ".runtime/staging").stat().st_mode & 0o777, 0o700)
             self.assertEqual((root / ".env.staging").stat().st_mode & 0o777, 0o600)
+            values = dict(line.split("=", 1) for line in (root / ".env.staging").read_text().splitlines())
+            # The deployment check rejects the current policy without an aware activation time.
+            self.assertIsNotNone(datetime.fromisoformat(values["USER_POLICY_EFFECTIVE_AT"]).tzinfo)
             self.assertNotIn(base64.b64encode(seed).decode(), (root / ".env.staging").read_text())
             self.assertTrue((root / ".runtime/staging/htpasswd").read_text().startswith("preview:$6$"))
             with self.assertRaises(ValueError):
