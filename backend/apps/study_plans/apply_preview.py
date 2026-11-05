@@ -137,6 +137,7 @@ def apply_preview(
         "item_ids": [str(item.pk) for item in items],
         "unscheduled_count": len(preview["unscheduled"]),
         "syllabus_fingerprint": preview["syllabus_fingerprint"],
+        "profile_revision": preview["profile_revision"],
         "question_fingerprint": preview["question_inventory"].get("fingerprint"),
         "includes_questions": include_questions,
         "issues_count": len(preview["issues"]),

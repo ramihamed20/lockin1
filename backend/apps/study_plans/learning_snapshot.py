@@ -280,6 +280,7 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
             {
                 "subject_id": str(subject.id),
                 "title": subject.title,
+                "material_slug": subject.material_slug,
                 "is_carryover": scope.period_id != period.pk,
                 "exam_period_id": str(scope.period_id),
                 "exam_period_starts_on": scope.period.starts_on.isoformat(),

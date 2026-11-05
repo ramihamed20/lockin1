@@ -274,3 +274,34 @@ def test_carried_subjects_reach_reminders_and_exam_review_priority(mixed):
     assert f"catalog:{mixed['unselected'].material_slug}" not in priorities
     AddedCatalogSubject.objects.filter(user=mixed["user"]).delete()
     assert key not in review_exam_dates(user=mixed["user"], now=now)
+
+
+def test_saved_readiness_prioritizes_carried_subject_practice(mixed):
+    choose(mixed)
+    make_question(mixed)
+    user = mixed["user"]
+    slug = mixed["carried"].material_slug
+    profile_url = "/api/v1/study-plan/profile"
+    client = authenticated_client(user)
+    profile = StudyPlanProfile.objects.get(user=user)
+    response = client.patch(
+        profile_url,
+        {
+            "expected_revision": profile.revision,
+            "mode": profile.mode,
+            "daily_minutes": profile.daily_minutes,
+            "session_minutes": profile.session_minutes,
+            "weekdays": profile.weekdays,
+            "subjects": profile.subjects,
+            "timezone": profile.timezone,
+            "subject_readiness": {slug: "needs_practice"},
+        },
+        format="json",
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["subject_readiness"] == {slug: "needs_practice"}
+    result = preview(mixed, include_questions=True).json()
+    question = next(task for task in result["assignments"] if task["activity"] == "questions")
+    assert question["priority_reasons"][0] == "subject_readiness"
+    assert question["subject_id"] == str(mixed["carried"].pk)
+    assert question["scheduled_date"] < "2027-01-02"

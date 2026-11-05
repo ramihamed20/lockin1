@@ -29,6 +29,7 @@ class StudyPlanProfile(models.Model):
     session_minutes = models.PositiveSmallIntegerField(default=25)
     weekdays = models.JSONField(default=default_weekdays)
     subjects = models.JSONField(default=list)
+    subject_readiness = models.JSONField(default=dict, blank=True)
     timezone = models.CharField(max_length=80, default="Africa/Tripoli")
     review_minutes = models.PositiveSmallIntegerField(default=2)
     weekly_minutes = models.JSONField(default=dict, blank=True)

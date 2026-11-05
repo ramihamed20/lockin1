@@ -39,7 +39,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
       if (active) setChanges(data);
     }).catch(() => { if (active) setChanges(null); });
     return () => { active = false; };
-  }, [examId, result]);
+  }, [examId, result, profile.revision]);
   const selected = exams.find(exam => exam.id === examId);
   const preview = state.identity === identity && !disabled ? state.preview : null;
   const blocked = disabled || applying;
@@ -75,7 +75,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
     </div>}
     {!exams.length ? <p role="status">{t("plan.examNone")}</p> : profile.mode !== "normal" ? <div className="plan-actions"><p>{t("plan.examSetup")}</p><button className="btn btn-soft" type="button" onClick={onSetup} disabled={blocked}>{t("plan.settings")}</button></div> : <>
       {changes?.needs_review && <div className="plan-exam-warning" role="status">
-        <p>{t("smart.planChanged")}</p>
+        <p>{t(changes.reasons?.includes("settings_changed") ? "smart.settingsChanged" : "smart.planChanged")}</p>
         <button className="btn btn-soft" type="button" onClick={() => setReplan(true)} disabled={blocked}>{t("smart.replan")}</button>
       </div>}
       {reportId && <p>{t("connected.reportScope")} <Link to="/study-plan">{t("connected.allReviews")}</Link></p>}

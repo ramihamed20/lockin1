@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from dataclasses import replace
 from datetime import date, timedelta
 from math import ceil
 from typing import Any
@@ -24,6 +25,49 @@ from .learning_snapshot import student_learning_snapshot, subject_exam_date
 from .models import StudyEvidence, StudyPlanItem
 from .scheduling import DayCapacity, FixedWork, WorkUnit, build_schedule_preview
 from .services import plan_today, profile_for
+
+
+def prioritize_study_work(
+    units: tuple[WorkUnit, ...],
+    subjects: dict[str, dict[str, Any]],
+    readiness: dict[str, str],
+    targets: dict[str, dict[str, Any]],
+    edition: str,
+) -> tuple[WorkUnit, ...]:
+    signals = {}
+    for subject_id, subject in subjects.items():
+        evidence = [
+            row
+            for sheet in subject["sheets"]
+            for row in sheet["active_study"]
+            if row["edition"] == edition
+        ]
+        total = sum(row["total"] or 0 for row in evidence)
+        correct = sum(row["correct"] or 0 for row in evidence)
+        signals[subject_id] = (
+            readiness.get(subject["material_slug"]),
+            total >= 10 and correct * 100 < total * 60,
+        )
+
+    ordered = []
+    for unit in units:
+        level, needs_practice = signals.get(unit.subject, (None, False))
+        reason = None
+        if unit.category in ("questions", "active_study") and needs_practice:
+            reason = "practice_results"
+        elif (
+            (level == "not_started" and unit.category == "reading")
+            or (level == "needs_practice" and unit.category in ("questions", "active_study"))
+            or (level == "ready_review" and unit.category == "review")
+        ):
+            reason = "subject_readiness"
+        if reason:
+            target = targets[unit.key]
+            target["priority_reasons"] = [reason, *target.get("priority_reasons", [])]
+            unit = replace(unit, adaptive_priority=1)
+        ordered.append(unit)
+    return tuple(ordered)
+
 
 MINUTES_PER_PAGE = 5
 MAX_UNITS = 10_000
@@ -358,9 +402,14 @@ def reading_plan_preview(
                 blocked.add(unit.key)
                 changed = True
     pending = tuple(unit for unit in units if unit.key not in blocked)
-    result = build_schedule_preview(
-        (*pending, *review_units, *active_units), capacities, fixed, balanced=True
+    prioritized = prioritize_study_work(
+        (*pending, *review_units, *active_units),
+        subjects,
+        profile.subject_readiness,
+        targets,
+        edition,
     )
+    result = build_schedule_preview(prioritized, capacities, fixed, balanced=True)
     assignments = [
         {
             **targets[item.key],
