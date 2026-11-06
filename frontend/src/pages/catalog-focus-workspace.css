@@ -66,7 +66,7 @@
 .workspace-v2-icon-button:disabled { color: var(--workspace-chrome-muted); opacity: .42; cursor: not-allowed; }
 
 .workspace-v2-body { display: grid; grid-template-columns: minmax(0, 1fr); height: 100%; }
-.workspace-v2-body.has-side { grid-template-columns: minmax(0, 1fr) 330px; gap: 10px; }
+.workspace-v2-body.has-side { grid-template-columns: minmax(0, 1fr) 264px; gap: 10px; }
 .workspace-v2-reader { position: relative; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; border-block-end: 1px solid var(--workspace-border); background: #090f1e; }
 .workspace-v2:fullscreen,
 .workspace-v2.is-document-fullscreen {
@@ -285,7 +285,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-document li::marker { color: #7650ed; }
 
 
-.workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(330px, calc(100vw - 20px)); min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,.42); transform: translateX(100%); clip-path: inset(-24px 100% -24px -24px); visibility: hidden; transition: transform 220ms cubic-bezier(.4,0,1,1), clip-path 220ms cubic-bezier(.4,0,1,1), visibility 0s linear 220ms; pointer-events: none; }
+.workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(280px, calc(100vw - 20px)); min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,.42); transform: translateX(100%); clip-path: inset(-24px 100% -24px -24px); visibility: hidden; transition: transform 220ms cubic-bezier(.4,0,1,1), clip-path 220ms cubic-bezier(.4,0,1,1), visibility 0s linear 220ms; pointer-events: none; }
 /* The drawer slides out from its own edge, and clip-path keeps everything that
    paints inside the box it opens into. In an iPad split view the window edge is
    not the layout edge, and a drawer travelling in from beyond it crossed the
@@ -298,7 +298,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2:fullscreen .workspace-v2-side,
 .workspace-v2:fullscreen .workspace-v2-body.has-side .workspace-v2-side,
 .workspace-v2.is-document-fullscreen .workspace-v2-side,
-.workspace-v2.is-document-fullscreen .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(330px, calc(100vw - 20px)); height: auto; box-shadow: 0 0 12px rgba(0,0,0,.42); }
+.workspace-v2.is-document-fullscreen .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(280px, calc(100vw - 20px)); height: auto; box-shadow: 0 0 12px rgba(0,0,0,.42); }
 .workspace-v2:fullscreen .workspace-v2-side-backdrop,
 .workspace-v2.is-document-fullscreen .workspace-v2-side-backdrop { display: block; }
 .workspace-v2-side-close { position: absolute; z-index: 2; inset-block-start: 6px; inset-inline-end: 6px; display: grid; width: 44px; height: 44px; place-items: center; border: 0; color: #dce2f3; background: transparent; cursor: pointer; }
@@ -323,12 +323,12 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-card-copy { display: -webkit-box; overflow: hidden; margin-block: 6px; color: #d8deee; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: .76rem; line-height: 1.45; white-space: pre-wrap; }
 .workspace-v2-card-tags { display: flex; gap: 6px; }
 .workspace-v2-card-tags > span { padding: 3px 6px; border-radius: 5px; color: #baa8f7; background: #1a2341; }
-.workspace-v2-note-editor { display: grid; gap: 7px; color: var(--workspace-chrome-secondary); font-size: .74rem; }
+.workspace-v2-note-editor { display: grid; gap: 7px; padding: 8px; border: 1px solid var(--workspace-border); border-radius: 12px; color: var(--workspace-chrome-secondary); font-size: .74rem; }
 /* Four lines of the field's own text, not a fixed block: the note list above
    it is the part of the panel worth the room, and the field grows by drag on
    a pointer and by content everywhere else. */
-.workspace-v2-note-editor textarea { min-height: calc((4 * 1.5em) + 22px); resize: vertical; padding: 10px; border: 1px solid var(--workspace-control-border); border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-text); background: var(--workspace-control-bg); font-size: var(--text-sm); line-height: 1.5; }
-.workspace-v2-note-editor button { min-height: 44px; border: 0; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-weight: 750; }
+.workspace-v2-note-editor textarea { min-height: calc((2 * 1.5em) + 22px); resize: vertical; padding: 10px; border: 1px solid var(--workspace-control-border); border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-text); background: var(--workspace-control-bg); font-size: var(--text-sm); line-height: 1.5; }
+.workspace-v2-note-editor button { justify-self: end; min-height: 44px; padding-inline: 12px; border: 0; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-weight: 750; }
 .workspace-v2-note-editor button:disabled { opacity: .45; cursor: not-allowed; }
 .workspace-v2-highlight-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; overflow: hidden; padding-inline-start: 17px; }
 .workspace-v2-highlight-card strong { color: #e9edfa; font-size: .78rem; }
@@ -421,7 +421,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-tool-options .workspace-v2-custom-color { min-height: 44px; height: 44px; }
   .workspace-v2-body, .workspace-v2-body.has-side { grid-template-columns: 1fr; gap: 0; height: 100%; }
   .workspace-v2-side,
-  .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 8px); inset-block-end: auto; inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(340px, calc(100vw - 16px)); height: auto; max-height: min(620px, calc(100% - 74px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); box-shadow: 0 8px 24px rgba(0,0,0,.38); }
+  .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 8px); inset-block-end: auto; inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(280px, calc(100vw - 16px)); height: auto; max-height: min(440px, calc(100% - 74px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); box-shadow: 0 8px 24px rgba(0,0,0,.38); }
   .workspace-v2-side-backdrop { display: none !important; }
   .workspace-v2-checkpoint-dock { right: 0; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; width: 48px; padding: 0; }
   .workspace-v2-checkpoint-button { width: 48px; min-width: 48px; min-height: 48px; padding: 0; border-radius: 12px 0 0 12px; font-size: 0; }
@@ -463,13 +463,13 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-tool-options-title { display: none; }
   .workspace-v2-document { min-height: 680px; padding: 28px 22px; }
   .workspace-v2-side,
-  .workspace-v2-body.has-side .workspace-v2-side { top: auto; right: 0; bottom: 0; left: 0; inset-inline-start: var(--workspace-visible-start-gap, 0px); inset-inline-end: var(--workspace-visible-end-gap, 0px); width: auto; height: min(64dvh, 520px); padding-bottom: env(safe-area-inset-bottom); border-radius: 16px 16px 0 0; }
+  .workspace-v2-body.has-side .workspace-v2-side { top: auto; right: 0; bottom: 0; left: 0; inset-inline-start: var(--workspace-visible-start-gap, 0px); inset-inline-end: var(--workspace-visible-end-gap, 0px); width: auto; height: min(46dvh, 340px); padding-bottom: env(safe-area-inset-bottom); border-radius: 16px 16px 0 0; }
   .workspace-v2-side-backdrop { display: block !important; }
   .workspace-v2-side, [dir="rtl"] .workspace-v2-side { transform: translateY(100%); clip-path: inset(-24px -24px 100% -24px); }
   .workspace-v2-side.is-open, [dir="rtl"] .workspace-v2-side.is-open { transform: none; clip-path: inset(-24px); }
   .workspace-v2-side::before { width: 42px; height: 4px; flex: 0 0 auto; margin: 8px auto 0; border-radius: 99px; content: ""; background: #69738e; }
   .workspace-v2-side-content { padding: 6px 8px 8px; }
-  .workspace-v2-note-editor textarea { min-height: calc((4 * 1.5em) + 22px); max-height: 34dvh; resize: none; }
+  .workspace-v2-note-editor textarea { min-height: calc((2 * 1.5em) + 22px); max-height: 34dvh; resize: none; }
   .workspace-v2-settings-popover { inset-inline: 4px; width: auto; max-height: calc(100% - 68px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
   .workspace-v2-checkpoint-dock { right: 0; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; width: 48px; padding: 0; }
   .workspace-v2-checkpoint-button { width: 48px; min-width: 48px; min-height: 48px; padding: 0; border-radius: 12px 0 0 12px; font-size: 0; }
@@ -561,7 +561,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 /* Three lines while the keyboard is up: enough to see what is being written,
    short enough that the save action stays above the keyboard. */
 .workspace-v2[data-keyboard="open"] .workspace-v2-note-editor textarea {
-  min-height: calc((3 * 1.5em) + 22px);
+  min-height: calc((2 * 1.5em) + 22px);
   max-height: 30dvh;
 }
 
