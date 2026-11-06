@@ -1,3 +1,4 @@
+import { SubjectBanner } from "../components/learning/SubjectBanner.jsx";
 import { Link } from "react-router-dom";
 import RescueEntry from "../rescue/RescueEntry.jsx";
 import { RESCUE_ENABLED } from "../rescue/model.js";
@@ -134,7 +135,7 @@ function ContinueCard({ sheetEntry, user, character = "none", theme }) {
     <section className={`continue-section${sheet ? " has-sheet" : ""}`} aria-label={t("dashboard.pickUp")}>
       {sheet && <header className="continue-section-heading"><Link to="/materials">{t("dashboard.allSheets")}<Icon className="dashboard-forward" name="chevron-right" size={18} aria-hidden="true" /></Link></header>}
       <article className={`panel continue-card${sheet ? " continue-card--sheet" : ""}`}>
-      {sheet && <div className="continue-sheet-cover" data-tone={sheetCoverTone(material)} aria-hidden="true"><span dir="auto">{material?.title}</span>{sheet.number ? <strong dir="ltr">{String(sheet.number).padStart(2, "0")}</strong> : <Icon name="file" size={72} />}</div>}
+      {sheet && <div className="continue-sheet-cover" data-tone={sheetCoverTone(material)} aria-hidden="true"><SubjectBanner material={material} variant="cover" /><span dir="auto">{material?.title}</span>{sheet.number ? <strong dir="ltr">{String(sheet.number).padStart(2, "0")}</strong> : null}</div>}
       <div className="continue-sheet-content">
       {sheet && <p className="continue-sheet-eyebrow">{t("dashboard.lastOpened")}</p>}
       <h2 dir="auto">{sheet?.title || t("dashboard.startStudying")}</h2>
