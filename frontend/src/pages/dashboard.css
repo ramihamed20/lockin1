@@ -223,7 +223,10 @@
 /* Wide: mistakes take the larger, leading column (they hold the longest text
    and the most urgent action); recent sheets follow beside them. */
 @media (min-width: 900px) {
-  .dashboard-secondary { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+  .dashboard-secondary {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
   .dashboard-secondary.is-single { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 639px) {
