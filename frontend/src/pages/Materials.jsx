@@ -167,10 +167,8 @@ export function CatalogMaterialSheets({ user = null }) {
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
   const recentStudy = useAsyncData(signal => progressApi.recentCatalogStudy({ signal }), [user?.id], { cacheKey: `dashboard-recent:${user?.id || ""}` });
-  const [sheetFilter, setSheetFilter] = useState("all");
   const history = Array.isArray(recentStudy.data?.results) ? recentStudy.data.results : [];
   const readingFor = sheet => history.find(entry => entry.material_slug === materialSlug && (entry.sheet_slug === sheet.slug || sheet.editions?.some(edition => edition.slug === entry.sheet_slug)));
-  const filteredSheets = material?.sheets.filter(sheet => sheetFilter === "all" || (sheetFilter === "available" ? sheet.deliverable !== false : Boolean(readingFor(sheet)))) || [];
 
 
   if (loading) return <Page width="sheets" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="sheet-library" /></Page>;
@@ -186,18 +184,12 @@ export function CatalogMaterialSheets({ user = null }) {
         <PersonalSheetsBranch material={material} user={user} />
         {material.sheets.length
           ? (
-<>
-<div className="sheet-library-filters" role="group" aria-label={t("materials.filterSheets")}>
-  {["all", "recent", "available"].map(filter => <button key={filter} type="button" disabled={filter === "recent" && (recentStudy.loading || Boolean(recentStudy.error))} aria-pressed={sheetFilter === filter} onClick={() => setSheetFilter(filter)}>{t(`materials.sheetFilter.${filter}`)}</button>)}
-</div>
-{filteredSheets.length ? (
-  <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
-    {filteredSheets.map((sheet) => (
-      <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} readingEntry={readingFor(sheet) ? { currentPage: readingFor(sheet).current_page, pageCount: readingFor(sheet).page_count } : null} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
-    ))}
-  </section>
-) : <p role="status">{t("common.noResults")}</p>}
-</>
+            <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
+              {material.sheets.map((sheet) => {
+                const entry = readingFor(sheet);
+                return <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} readingEntry={entry ? { currentPage: entry.current_page, pageCount: entry.page_count } : null} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />;
+              })}
+            </section>
           )
           : <EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} />}
       </section>
