@@ -84,7 +84,7 @@ export function SubjectBanner({ material, variant = "banner" }) {
   );
 
   return (
-    <svg className="subject-banner-art" viewBox={variant === "cover" ? "112 0 136 104" : "0 0 360 104"} aria-hidden="true" focusable="false">
+    <svg className="subject-banner-art" viewBox={variant === "cover" ? "83 4 194 96" : "0 0 360 104"} aria-hidden="true" focusable="false">
       <g fill="none" stroke="currentColor" opacity=".2">
         <circle cx="37" cy="88" r="56" />
         <circle cx="37" cy="88" r="72" />
@@ -92,12 +92,12 @@ export function SubjectBanner({ material, variant = "banner" }) {
         <circle cx="324" cy="18" r="69" />
         <path d="M17 28h58m-45 9h28m250 35h34m-24 9h14M100 18h8m-4-4v8m148 64h10m-5-5v10" />
       </g>
-      <ellipse cx="180" cy="52" rx="98" ry="41" fill="currentColor" opacity=".055" />
+      <ellipse cx="180" cy="52" rx="102" ry="43" fill="currentColor" opacity=".08" />
       <g fill="currentColor" opacity=".24">
         <circle cx="57" cy="72" r="3" /><circle cx="87" cy="27" r="2.5" />
         <circle cx="291" cy="64" r="3" /><circle cx="302" cy="79" r="2" />
       </g>
-      <g transform="translate(180 52)" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <g transform="translate(180 52)" fill="none" stroke="currentColor" strokeWidth={variant === "cover" ? 3.4 : 2.7} strokeLinecap="round" strokeLinejoin="round">
         {illustration}
       </g>
     </svg>
