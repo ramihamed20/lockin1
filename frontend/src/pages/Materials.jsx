@@ -9,7 +9,7 @@ import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { preloadCatalogDocument } from "../hooks/useCatalogDocument.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
-import { CatalogTile } from "../components/learning/CatalogTile.jsx";
+import { sheetCoverTone } from "../lib/sheetPresentation.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import OfflineSheetAction from "../offline/OfflineSheetAction.jsx";
 import { PersonalSheetsBranch } from "../components/learning/PersonalSheets.jsx";
@@ -24,17 +24,17 @@ export default function Materials({ user = null }) {
   // A directory that has not arrived is not a directory that is empty. Telling a
   // student "you have no subjects" while the request is still in flight -- or
   // because it failed -- is how a transient error reads as lost content.
-  if (loading) return <Page width="reading" title="Materials"><LoadingPanel variant="material-list" /></Page>;
+  if (loading) return <Page width="sheets" title="Materials"><LoadingPanel variant="sheet-library" /></Page>;
   if (error) return <Page width="reading" title="Materials"><ErrorPanel message={error} onRetry={reload} /></Page>;
 
   return (
-    <Page width="reading" title="Materials" headingHandled>
-      <section className="catalog-directory" aria-labelledby="cohort-materials-heading">
+    <Page width="sheets" title="Materials" headingHandled>
+      <section className="catalog-directory catalog-sheet-directory" aria-labelledby="cohort-materials-heading">
         <CatalogDirectoryHeader id="cohort-materials-heading" title={t("route.materials")} />
         {materials.length === 0
           ? <EmptyState icon="study" title={t("materials.noCohortMaterialsTitle")} text={t("materials.noCohortMaterialsText")} />
           : (
-            <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
+            <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.catalogLabel")}>
               {materials.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
             </section>
           )}
@@ -48,7 +48,20 @@ function CatalogMaterialCard({ material }) {
   const { t } = useI18n();
   const count = t("materials.sheetCount", { count: material.sheets.length });
   const meta = material.added ? `${t("materials.addedFromFirstYear")} · ${count}` : count;
-  return <CatalogTile title={material.title} meta={meta} icon="book-open" to={`/materials/catalog/${material.slug}`} />;
+  return (
+    <Link className="sheet-card catalog-sheet-card sheet-library-card" to={`/materials/catalog/${material.slug}`}>
+      <span className="sheet-library-cover" data-tone={sheetCoverTone(material)} aria-hidden="true">
+        <span className="sheet-library-file"><Icon name="book-open" size={25} /></span>
+      </span>
+      <span className="sheet-library-body">
+        <strong className="sheet-library-title" dir="auto">{material.title}</strong>
+        <span className="sheet-library-footer">
+          <span className="sheet-library-detail"><Icon name="layers" size={16} aria-hidden="true" /><span dir="auto">{meta}</span></span>
+          <span className="sheet-library-open" aria-hidden="true"><span>{t("materials.openMaterial")}</span><Icon name="chevron-right" size={17} /></span>
+        </span>
+      </span>
+    </Link>
+  );
 }
 
 /** The "+" under a Second Year student's subjects: add up to two First Year subjects. */
