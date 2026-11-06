@@ -142,9 +142,8 @@ function ExamSubjectSheets({ user = null }) {
     <Page width="reading" title={material.title} headingHandled>
       <section className="question-directory" aria-labelledby="question-subject-heading">
         <QuestionDirectoryHeader id="question-subject-heading" title={material.title} backTo={`/questions/categories/${category.id}`} backLabel={t(category.titleKey)} breadcrumbs={<QuestionBreadcrumbs category={category} material={material} />} />
-<SearchableDirectory key={material.slug} items={material.sheets}>{visible => (
         <section className="material-grid catalog-material-grid" aria-label={t("questions.sheetsLabel")}>
-          {visible.map((sheet) => (
+          {material.sheets.map((sheet) => (
             <CatalogTile
               key={sheet.id}
               title={sheet.title}
@@ -155,7 +154,6 @@ function ExamSubjectSheets({ user = null }) {
             />
           ))}
         </section>
-)}</SearchableDirectory>
       </section>
     </Page>
   );

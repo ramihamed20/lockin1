@@ -1,4 +1,3 @@
-import { SearchableDirectory } from "../components/learning/SearchableDirectory.jsx";
 import { useEffect, useState } from "react";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { progressApi } from "../api/progress.js";
@@ -35,11 +34,9 @@ export default function Materials({ user = null }) {
         {materials.length === 0
           ? <EmptyState icon="study" title={t("materials.noCohortMaterialsTitle")} text={t("materials.noCohortMaterialsText")} />
           : (
-<SearchableDirectory items={materials}>{visible => (
             <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
-              {visible.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
+              {materials.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
             </section>
- )}</SearchableDirectory>
           )}
         {canAddSubjects(user) && <AddFirstYearSubject onChange={refresh} />}
       </section>
