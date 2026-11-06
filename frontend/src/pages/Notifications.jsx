@@ -7,9 +7,10 @@ import { notificationPresentation } from "../lib/notificationPresentation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page, Tab, TabList } from "../components/ui/index.jsx";
-import { formatDateTime } from "../lib/i18n.js";
+import { formatDateTime, formatNumber } from "../lib/i18n.js";
 import { useMediaQuery } from "../hooks/useMediaQuery.js";
 import { useI18n } from "../components/I18nProvider.jsx";
+import "./notifications-inbox.css";
 
 function dateLabel(value, t) {
   const formatted = formatDateTime(value);
@@ -112,21 +113,25 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
 
   return (
     <Page width="reading" title="Notifications">
-      <p><Link className="btn btn-soft compact" to="/settings?section=notifications">{t("notifications.manage")}</Link></p>
-      {/* The page title already says what this is: the list starts with its
-          filter and the one bulk action, then the notifications themselves as
-          one grouped list. */}
       {summary.error && <ErrorPanel message={summary.errorDetails || summary.error} onRetry={summary.reload} />}
-      <section className="notifications-inbox-card notifications-v2">
+      <section className="notifications-inbox-card notifications-v2 notifications-inbox-refined">
         <div className="notifications-v2-bar">
-          {/* A filter is one-of-N, not two independent toggles: `aria-pressed`
-              made both buttons announce as pressed toggles and let both carry a
-              selected look at once. */}
           <TabList className="notification-filter-actions ui-segmented" label={t("notifications.filterLabel")} variant="thumb" value={unreadOnly ? "unread" : "all"} onChange={(next) => setUnreadOnly(next === "unread")}>
             <Tab value="all">{t("notifications.all")}</Tab>
-            <Tab value="unread">{summary.data?.unread_count ? t("notifications.unreadCount", { count: summary.data?.unread_count }) : t("notifications.unread")}</Tab>
+            <Tab value="unread">{summary.data?.unread_count ? t("notifications.unreadCount", { count: formatNumber(summary.data.unread_count) }) : t("notifications.unread")}</Tab>
           </TabList>
-          {summary.data?.unread_count > 0 && <button className="notifications-v2-mark" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}</button>}
+          <div className="notifications-toolbar-actions">
+            {summary.data?.unread_count > 0 && (
+              <button className="notifications-v2-mark" type="button" onClick={() => { void markAllRead(); }} disabled={Boolean(busyId)}>
+                <Icon name="check" size={16} />
+                {busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}
+              </button>
+            )}
+            <Link className="btn btn-soft compact" to="/settings?section=notifications" aria-label={t("notifications.manage")}>
+              <Icon name="settings" size={16} />
+              {t("common.settings")}
+            </Link>
+          </div>
         </div>
         {actionError && <ErrorPanel message={actionError} onRetry={feed.reload} />}
         {!notifications.length ? <EmptyState title={t(unreadOnly ? "notifications.noUnreadTitle" : "notifications.emptyTitle")} text={t(unreadOnly ? "notifications.noUnreadText" : "notifications.emptyText")} /> : (
@@ -137,13 +142,14 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
               const isBusy = busyId === notification.id;
               const canMarkRead = !isRead || notification.has_target;
               return <article className={`notification-feed-item notification-tone-${presentation.tone} ${isRead ? "is-read" : "is-unread"}`} key={notification.id}>
-                <span className="notification-category-icon" aria-label={t("notifications.categoryLabel", { name: t(presentation.labelKey) })}><Icon name={presentation.icon} size={19} /></span>
+                <span className="notification-category-icon" aria-hidden="true"><Icon name={presentation.icon} size={19} /></span>
                 <div className="notification-feed-content">
-                  <div className="notification-feed-meta"><span>{t(presentation.labelKey)}</span>{!isRead && <b>{t("notifications.new")}</b>}<time dateTime={notification.created_at} dir="auto">{dateLabel(notification.created_at, t)}</time></div>
+                  <div className="notification-feed-meta"><span>{t(presentation.labelKey)}</span>{!isRead && <b>{t("notifications.new")}</b>}</div>
                   <h2 dir="auto">{notification.title}</h2>
-                  <p dir="auto">{notification.body}</p>
+                  {notification.body && <p dir="auto">{notification.body}</p>}
+                  <time dateTime={notification.created_at}>{dateLabel(notification.created_at, t)}</time>
                 </div>
-                <button className="btn btn-soft compact" type="button" disabled={isBusy || !canMarkRead} onClick={() => { void openNotification(notification); }}>{isBusy ? t("common.opening") : notification.has_target ? t("common.open") : isRead ? t("notifications.read") : t("notifications.markRead")}</button>
+                <button className="btn btn-soft compact" type="button" disabled={Boolean(busyId) || !canMarkRead} onClick={() => { void openNotification(notification); }}>{isBusy ? t("common.opening") : notification.has_target ? t("common.open") : isRead ? t("notifications.read") : t("notifications.markRead")}</button>
               </article>;
             })}
           </div>

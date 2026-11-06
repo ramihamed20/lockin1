@@ -1,0 +1,67 @@
+.notifications-inbox-refined .notifications-v2-bar {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.notifications-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.notifications-toolbar-actions .notifications-v2-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: var(--text-sm);
+}
+
+.notifications-inbox-refined .notification-feed-item {
+  padding: clamp(12px, 2vw, 18px);
+  gap: 8px 12px;
+}
+
+.notifications-inbox-refined .notification-feed-item.is-unread {
+  background: color-mix(in srgb, var(--notification-tone) 7%, var(--surface));
+  box-shadow: inset 3px 0 var(--notification-tone);
+}
+
+[dir="rtl"] .notifications-inbox-refined .notification-feed-item.is-unread {
+  box-shadow: inset -3px 0 var(--notification-tone);
+}
+
+.notifications-inbox-refined .notification-feed-item + .notification-feed-item::before {
+  inset-inline: 0;
+}
+
+.notifications-inbox-refined .notification-feed-meta b {
+  width: auto;
+  height: auto;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  font-size: var(--text-xs);
+}
+
+.notifications-inbox-refined .notification-feed-content :is(h2, p) {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: match-parent;
+}
+
+.notifications-inbox-refined .notification-feed-content time {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.notifications-inbox-refined .notification-feed-item > .btn {
+  border-radius: var(--radius-md);
+}
