@@ -1,24 +1,33 @@
 .catalog-sheet-grid .sheet-library-card .subject-banner {
-  display: block;
-  min-height: 112px;
+  display: grid;
+  place-items: center;
+  min-height: 108px;
+  background:
+    radial-gradient(ellipse at 50% 28%, color-mix(in srgb, var(--sheet-ink) 11%, transparent), transparent 74%),
+    linear-gradient(112deg, color-mix(in srgb, var(--sheet-cover) 82%, var(--sheet-cover-sheen)), var(--sheet-cover));
   overflow: hidden;
   padding: 0;
-  background: #251638;
 }
 
 .subject-banner-art {
   display: block;
   width: 100%;
-  height: 112px;
-  object-fit: cover;
-  object-position: center;
+  height: 108px;
 }
+
 
 .continue-sheet-cover .subject-banner-art {
   position: absolute;
-  inset: 0;
-  height: 100%;
-  opacity: .88;
-  mask-image: linear-gradient(transparent, #000 25%, #000 67%, transparent);
+  inset-inline: 0;
+  top: 15%;
+  width: 100%;
+  height: 56%;
+  opacity: .65;
   z-index: -1;
+}
+
+.continue-sheet-cover:not(:has(> strong)) .subject-banner-art {
+  top: 24%;
+  height: 65%;
+  opacity: .8;
 }
