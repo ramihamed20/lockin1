@@ -14,6 +14,7 @@ class PreviewTests(unittest.TestCase):
         frontend = {"image": "node:24.16.0-bookworm-slim", "volumes": [
             {"type": "bind", "source": "/repo/frontend", "target": "/app", "read_only": True},
             {"type": "volume", "source": "dev_node_modules", "target": "/app/node_modules"},
+            {"type": "volume", "source": "dev_node_modules", "target": "/deps/node_modules"},
         ]}
         value["services"]["frontend-dev"] = frontend
         validate(value)

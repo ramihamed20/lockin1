@@ -6,7 +6,11 @@ services:
     command:
       - sh
       - -ec
-      - npm install --global pnpm@11.19.0 --loglevel=error && pnpm install --frozen-lockfile --reporter=append-only && exec pnpm dev
+      - |
+        npm install --global pnpm@11.19.0 --loglevel=error
+        cp /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /deps/
+        pnpm --dir /deps install --frozen-lockfile --reporter=append-only
+        exec node /app/node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5050
     mem_limit: 768m
     environment:
       LOCKIN_STAGING_HMR: "1"
@@ -19,6 +23,7 @@ services:
     volumes:
       - ./frontend:/app:ro
       - dev_node_modules:/app/node_modules
+      - dev_node_modules:/deps/node_modules
     networks: [application]
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:5050').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]

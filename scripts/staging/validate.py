@@ -55,9 +55,13 @@ def validate(plan):
         frontend = services["frontend-dev"]
         assert frontend["image"] == "node:24.16.0-bookworm-slim", "Unexpected development runtime"
         mounts = frontend.get("volumes", [])
-        assert len(mounts) == 2, "Unexpected development mounts"
+        assert len(mounts) == 3, "Unexpected development mounts"
         assert any(v["type"] == "bind" and v["source"].endswith("/frontend") and v["target"] == "/app" and v.get("read_only") for v in mounts), "Frontend source must be read-only"
-        assert any(v["type"] == "volume" and v["target"] == "/app/node_modules" for v in mounts), "Missing isolated dependencies"
+        dependency_mounts = {v["target"]: v["source"] for v in mounts if v["type"] == "volume"}
+        assert dependency_mounts == {
+            "/app/node_modules": "dev_node_modules",
+            "/deps/node_modules": "dev_node_modules",
+        }, "Missing isolated dependencies"
         assert not frontend.get("secrets"), "Development frontend must not mount credentials"
 
 
