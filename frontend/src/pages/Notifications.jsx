@@ -7,15 +7,10 @@ import { notificationPresentation } from "../lib/notificationPresentation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page, Tab, TabList } from "../components/ui/index.jsx";
-import { formatDateTime, formatNumber } from "../lib/i18n.js";
+import { formatDate, formatDateTime, formatNumber } from "../lib/i18n.js";
 import { useMediaQuery } from "../hooks/useMediaQuery.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import "./notifications-inbox.css";
-
-function dateLabel(value, t) {
-  const formatted = formatDateTime(value);
-  return formatted === "—" ? t("notifications.dateFallback") : formatted;
-}
 
 export default function Notifications({ user = null, onNotificationsChanged }) {
   const { t } = useI18n();
@@ -49,6 +44,13 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
   }
 
   const visibleNotifications = compactFeed ? notifications.slice(0, visibleCount) : notifications;
+  const notificationsByDay = new Map();
+  for (const notification of visibleNotifications) {
+    const date = formatDate(notification.created_at, { dateStyle: "full" });
+    const label = date === "—" ? t("notifications.dateFallback") : date;
+    if (!notificationsByDay.has(label)) notificationsByDay.set(label, []);
+    notificationsByDay.get(label).push(notification);
+  }
 
   async function loadMore() {
     if (!nextCursor || loadingMore) return;
@@ -127,31 +129,51 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
                 {busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}
               </button>
             )}
-            <Link className="btn btn-soft compact" to="/settings?section=notifications" aria-label={t("notifications.manage")}>
+            <Link className="notifications-settings-link" to="/settings?section=notifications" aria-label={t("notifications.manage")}>
               <Icon name="settings" size={16} />
-              {t("common.settings")}
             </Link>
           </div>
         </div>
         {actionError && <ErrorPanel message={actionError} onRetry={feed.reload} />}
         {!notifications.length ? <EmptyState title={t(unreadOnly ? "notifications.noUnreadTitle" : "notifications.emptyTitle")} text={t(unreadOnly ? "notifications.noUnreadText" : "notifications.emptyText")} /> : (
           <div className="notification-feed">
-            {visibleNotifications.map((notification) => {
-              const presentation = notificationPresentation(notification.category);
-              const isRead = Boolean(notification.read_at);
-              const isBusy = busyId === notification.id;
-              const canMarkRead = !isRead || notification.has_target;
-              return <article className={`notification-feed-item notification-tone-${presentation.tone} ${isRead ? "is-read" : "is-unread"}`} key={notification.id}>
-                <span className="notification-category-icon" aria-hidden="true"><Icon name={presentation.icon} size={19} /></span>
-                <div className="notification-feed-content">
-                  <div className="notification-feed-meta"><span>{t(presentation.labelKey)}</span>{!isRead && <b>{t("notifications.new")}</b>}</div>
-                  <h2 dir="auto">{notification.title}</h2>
-                  {notification.body && <p dir="auto">{notification.body}</p>}
-                  <time dateTime={notification.created_at}>{dateLabel(notification.created_at, t)}</time>
-                </div>
-                <button className="btn btn-soft compact" type="button" disabled={Boolean(busyId) || !canMarkRead} onClick={() => { void openNotification(notification); }}>{isBusy ? t("common.opening") : notification.has_target ? t("common.open") : isRead ? t("notifications.read") : t("notifications.markRead")}</button>
-              </article>;
-            })}
+            {[...notificationsByDay].map(([day, items]) => (
+              <section className="notification-day" key={day}>
+                <h2>{day}</h2>
+                <ul>
+                  {items.map((notification) => {
+                    const presentation = notificationPresentation(notification.category);
+                    const isRead = Boolean(notification.read_at);
+                    const canActivate = !isRead || notification.has_target;
+                    const Row = canActivate ? "button" : "div";
+                    return (
+                      <li key={notification.id}>
+                        <Row
+                          className={`notification-row notification-tone-${presentation.tone}`}
+                          {...(canActivate ? {
+                            type: "button",
+                            disabled: Boolean(busyId),
+                            "aria-busy": busyId === notification.id,
+                            onClick: () => { void openNotification(notification); }
+                          } : {})}
+                        >
+                          <span className="notification-category-icon" aria-hidden="true"><Icon name={presentation.icon} size={16} /></span>
+                          <span className="notification-row-copy">
+                            <span className="visually-hidden">
+                              {t(presentation.labelKey)}{!isRead && ` · ${t("notifications.new")}`}
+                            </span>
+                            <strong dir="auto">{notification.title}</strong>
+                            {notification.body && <span className="notification-row-body" dir="auto">{notification.body}</span>}
+                            <time dateTime={notification.created_at}>{formatDateTime(notification.created_at, { dateStyle: undefined, timeStyle: "short" })}</time>
+                          </span>
+                          {!isRead && <span className="notification-unread-dot" aria-hidden="true" />}
+                        </Row>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
           </div>
         )}
         {compactFeed && visibleCount < notifications.length && <button className="btn btn-soft compact notification-load-more" type="button" onClick={() => setVisibleCount((current) => current + 5)}>{t("notifications.showMore")}</button>}
