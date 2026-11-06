@@ -8,6 +8,7 @@ import { formatDate, formatDateTime, formatNumber } from "../lib/i18n.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 
 import { activityCalendar } from "../lib/progressCalendar.js";
+import "./progress-overview.css";
 
 function dateLabel(value, t) {
   if (!value) return t("progress.awardNone");
@@ -52,7 +53,9 @@ function ProgressCalendarGrid({ activity, selectedDay, onSelect }) {
       onKeyDown={handleKeyDown}
       onClick={handleClick}
     >
-      <div className="progress-calendar-weekdays" aria-hidden="true"><i />{activity.weekdays.map((day) => <span key={day}>{day}</span>)}</div>
+      <div className="progress-calendar-weekdays" aria-hidden="true"><i />{activity.cells[0].days.map(({ key, day }) => (
+        <span key={key} title={day}>{formatDate(key, { weekday: "narrow", timeZone: "UTC" })}</span>
+      ))}</div>
       {activity.cells.map((week) => <div className="progress-calendar-week" role="row" key={week.label}><small>{week.label}</small>{week.days.map((cell) => {
         const cellIndex = index++;
         const stateLabel = t(cell.state === "active" || cell.state === "qualified" ? "progress.stateActivity" : cell.state === "future" ? "progress.stateFuture" : "progress.stateNone");
@@ -91,10 +94,7 @@ export default function Progress({ user = null }) {
 
   return (
     <Page title={t("progress.title")} showHeading={false} headingHandled>
-      <header className="progress-page-heading">
-        <h1 className="visually-hidden">{t("progress.title")}</h1>
-        <label className="progress-range-control"><Icon name="calendar" size={16} /><select value={range} onChange={(event) => { setRange(event.target.value); setPage(1); }} aria-label={t("progress.period")}><option value="week">{t("progress.weekThis")}</option><option value="month">{t("progress.rangeMonth")}</option><option value="all">{t("progress.rangeAll")}</option></select></label>
-      </header>
+      <h1 className="visually-hidden">{t("progress.title")}</h1>
 
       <TabList className="progress-mobile-nav" label={t("progress.sections")} value={progressSection} onChange={setProgressSection}>
         {[["summary", "progress.summary"], ["history", "progress.history"], ["calendar", "progress.calendar"]].map(([id, labelKey]) => (
@@ -117,11 +117,14 @@ export default function Progress({ user = null }) {
 
       <section className="progress-detail-grid">
         <article className={`progress-ledger-panel progress-mobile-section ${progressSection === "history" ? "is-active" : ""}`}>
-          <header><h2>{t("progress.awardHistory")}</h2></header>
+          <header>
+            <h2>{t("progress.awardHistory")}</h2>
+            <label className="progress-range-control"><Icon name="calendar" size={16} /><select value={range} onChange={(event) => { setRange(event.target.value); setPage(1); }} aria-label={t("progress.period")}><option value="week">{t("progress.weekThis")}</option><option value="month">{t("progress.rangeMonth")}</option><option value="all">{t("progress.rangeAll")}</option></select></label>
+          </header>
           {ledgerState.loading && <LoadingPanel variant="list" />}
           {ledgerState.error && <ErrorPanel message={ledgerState.errorDetails || ledgerState.error} onRetry={ledgerState.reload} />}
           {ledger && <div className="progress-ledger-list">
-            {ledgerPreview.length ? ledgerPreview.map((entry) => <article className="progress-ledger-row" key={entry.id}><span className={"progress-ledger-icon progress-ledger-icon--" + (entry.category || "default")}><Icon name={ledgerIcon(entry.category)} size={17} /></span><div><strong dir="auto">{entry.reason || t("progress.xpAward")}</strong><small dir="auto">{dateLabel(entry.occurred_at, t)}</small></div><b dir="auto">{Number(entry.points || 0) >= 0 ? "+" : ""}{entry.points ?? 0} {t("progress.xp")}</b></article>) : <p className="progress-empty-ledger">{t("progress.noAwards")}</p>}
+            {ledgerPreview.length ? ledgerPreview.map((entry) => <article className="progress-ledger-row" key={entry.id}><span className={"progress-ledger-icon progress-ledger-icon--" + (entry.category || "default")}><Icon name={ledgerIcon(entry.category)} size={17} /></span><div><strong dir="auto">{/^(Easy|Medium|Hard) question answered$/.test(entry.reason) ? t("review.correctAnswer") : entry.reason || t("progress.xpAward")}</strong><small dir="auto">{dateLabel(entry.occurred_at, t)}</small></div><b><bdi dir="ltr">{Number(entry.points || 0) >= 0 ? "+" : ""}{formatNumber(entry.points ?? 0)}</bdi> {t("progress.xp")}</b></article>) : <p className="progress-empty-ledger">{t("progress.noAwards")}</p>}
           </div>}
           <PaginationControls page={page} pageData={ledger} onPageChange={setPage} label={t("progress.ledgerPages")} />
         </article>
