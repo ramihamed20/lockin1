@@ -132,7 +132,7 @@ function ContinueCard({ sheetEntry, user, character = "none", theme }) {
   const position = sheetReadingPosition(sheetEntry);
   return (
     <section className={`continue-section${sheet ? " has-sheet" : ""}`} aria-label={t("dashboard.pickUp")}>
-      {sheet && <header className="continue-section-heading"><h2>{t("dashboard.pickUp")}</h2><Link to="/materials">{t("dashboard.allSheets")}<Icon className="dashboard-forward" name="chevron-right" size={18} aria-hidden="true" /></Link></header>}
+      {sheet && <header className="continue-section-heading"><Link to="/materials">{t("dashboard.allSheets")}<Icon className="dashboard-forward" name="chevron-right" size={18} aria-hidden="true" /></Link></header>}
       <article className={`panel continue-card${sheet ? " continue-card--sheet" : ""}`}>
       {sheet && <div className="continue-sheet-cover" data-tone={sheetCoverTone(material)} aria-hidden="true"><span dir="auto">{material?.title}</span>{sheet.number ? <strong dir="ltr">{String(sheet.number).padStart(2, "0")}</strong> : <Icon name="file" size={72} />}</div>}
       <div className="continue-sheet-content">
