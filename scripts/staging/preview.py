@@ -67,6 +67,8 @@ def run_preview(dev=False):
         raise SystemExit("Start staging first with control.sh start.")
     if dev or dev_marker.exists():
         print("Starting live frontend; first dependency installation can take several minutes...", flush=True)
+        # Docker cannot create a nested volume mountpoint in the read-only source bind.
+        (ROOT / "frontend/node_modules").mkdir(exist_ok=True)
         compose("pull", "frontend-dev")
         compose("up", "-d", "--no-deps", "--wait", "--wait-timeout", "600", "frontend-dev", timeout=650)
         dev_marker.touch(mode=0o600)
