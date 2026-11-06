@@ -9,6 +9,7 @@ import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { preloadCatalogDocument } from "../hooks/useCatalogDocument.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
+import { SubjectBanner } from "../components/learning/SubjectBanner.jsx";
 import { sheetCoverTone } from "../lib/sheetPresentation.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import OfflineSheetAction from "../offline/OfflineSheetAction.jsx";
@@ -50,8 +51,8 @@ function CatalogMaterialCard({ material }) {
   const meta = material.added ? `${t("materials.addedFromFirstYear")} · ${count}` : count;
   return (
     <Link className="sheet-card catalog-sheet-card sheet-library-card" to={`/materials/catalog/${material.slug}`}>
-      <span className="sheet-library-cover" data-tone={sheetCoverTone(material)} aria-hidden="true">
-        <span className="sheet-library-file"><Icon name="book-open" size={25} /></span>
+      <span className="sheet-library-cover subject-banner" data-tone={sheetCoverTone(material)} aria-hidden="true">
+        <SubjectBanner material={material} />
       </span>
       <span className="sheet-library-body">
         <strong className="sheet-library-title" dir="auto">{material.title}</strong>

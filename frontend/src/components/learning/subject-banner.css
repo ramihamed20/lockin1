@@ -1,0 +1,13 @@
+.catalog-sheet-grid .sheet-library-card .subject-banner {
+  display: grid;
+  place-items: center;
+  min-height: 100px;
+  overflow: hidden;
+  padding: 0;
+}
+
+.subject-banner-art {
+  display: block;
+  width: 100%;
+  height: 100px;
+}
