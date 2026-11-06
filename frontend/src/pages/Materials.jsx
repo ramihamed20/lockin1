@@ -179,13 +179,13 @@ export function CatalogMaterialSheets({ user = null }) {
 <div className="sheet-library-filters" role="group" aria-label={t("materials.filterSheets")}>
   {["all", "recent", "available"].map(filter => <button key={filter} type="button" disabled={filter === "recent" && (recentStudy.loading || Boolean(recentStudy.error))} aria-pressed={sheetFilter === filter} onClick={() => setSheetFilter(filter)}>{t(`materials.sheetFilter.${filter}`)}</button>)}
 </div>
-<SearchableDirectory key={material.slug} items={filteredSheets}>{visible => (
-            <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
-              {visible.map((sheet) => (
-                <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} readingEntry={readingFor(sheet) ? { currentPage: readingFor(sheet).current_page, pageCount: readingFor(sheet).page_count } : null} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
-              ))}
-            </section>
-)}</SearchableDirectory>
+{filteredSheets.length ? (
+  <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
+    {filteredSheets.map((sheet) => (
+      <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} readingEntry={readingFor(sheet) ? { currentPage: readingFor(sheet).current_page, pageCount: readingFor(sheet).page_count } : null} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
+    ))}
+  </section>
+) : <p role="status">{t("common.noResults")}</p>}
 </>
           )
           : <EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} />}

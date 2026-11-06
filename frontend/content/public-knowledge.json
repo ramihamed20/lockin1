@@ -1839,7 +1839,7 @@
     "frontend/src/lib/materialCatalog.js": "3bf3c59c161ca2952e33bf6086429d5b11c68f6ca13797f047b1914b9ecfe1a4",
     "frontend/tests/materials-catalog.test.js": "65aa509996cee4be92a01a67d1565ebaeb73eb13cf0ba891aed0340e3e6ed811",
     "frontend/src/lib/i18n.js": "05c6c08fbb924c54320c1d85c94a6dc297ca7c28787d8d3c7a8770eb5a5926af",
-    "frontend/src/pages/Materials.jsx": "6e532ae53dad65553a73744d03d4c776d692761dc77cab8959792036d2bf2047",
+    "frontend/src/pages/Materials.jsx": "41387181d3a48ce5c52b33cfb55fb6fc26c00e7903056be810852e003ee1ca68",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "073cb44bcbbf60d613b67a83d7c414d02ac1471bf827e669bba84c2d3ecef7ed",
     "backend/apps/content/tests/test_catalog_workspace.py": "690f59f8d3285dd07edb8b4420fc9d93a7ab3c196350dcbae7a4c3dcb812e6c8",
     "frontend/src/pages/CatalogFocusWorkspace.jsx": "67b1853fc333344f2f4168d1cbe4e7e141fb9c5363d2a301c28b8051cbb83dd7",
