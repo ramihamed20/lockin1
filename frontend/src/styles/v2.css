@@ -2468,8 +2468,26 @@ html.ix-hover .question-player-card .choices button:not(:disabled):hover { borde
   .continue-section-heading h2 { font-size: 19px; }
   .continue-section-heading > a { gap: 3px; font-size: 13px; }
   .dashboard .continue-card.continue-card--sheet { grid-template-columns: 82px minmax(0, 1fr); gap: 8px 16px; min-height: 0; padding: 20px; border-radius: 22px; }
-  .dashboard .continue-card.continue-card--sheet > .continue-sheet-cover { grid-column: 1; grid-row: 1 / span 3; min-height: 124px; padding: 14px 8px; border-radius: 14px; }
-  .continue-sheet-cover > span { font-size: 8px; letter-spacing: .08em; }
+  .dashboard .continue-card.continue-card--sheet > .continue-sheet-cover {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    align-self: start;
+    box-sizing: border-box;
+    height: 112px;
+    min-height: 0;
+    gap: 6px;
+    padding: 10px 8px;
+    border-radius: 14px;
+  }
+  .continue-sheet-cover > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    font-size: 8px;
+    letter-spacing: .08em;
+  }
+  .continue-sheet-cover > svg { width: 36px; height: 36px; margin-block: auto; }
   .continue-sheet-cover > strong { margin: auto 0 2px; font-size: 52px; }
   .dashboard .continue-card.continue-card--sheet > .continue-sheet-content { display: contents; }
   .dashboard .continue-card--sheet .continue-sheet-content > :is(h2, p) { grid-column: 2; align-self: center; margin: 0; }
