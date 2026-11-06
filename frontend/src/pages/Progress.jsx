@@ -16,15 +16,14 @@ function dateLabel(value, t) {
   return formatted === "—" ? t("progress.awardRecorded") : formatted;
 }
 
-function ProgressCalendarGrid({ activity, selectedDay, onSelect }) {
+function ProgressCalendarGrid({ activity, today, selectedDay, onSelect }) {
   const { t } = useI18n();
   const days = activity.cells.flatMap((week) => week.days);
-  const [activeIndex, setActiveIndex] = useState(() => Math.max(0, days.findIndex((day) => day.key === selectedDay?.key)));
+  const activeIndex = Math.max(0, days.findIndex((day) => day.key === selectedDay?.key));
 
   function select(index) {
     const bounded = Math.min(Math.max(0, index), days.length - 1);
-    setActiveIndex(bounded);
-    onSelect(days[bounded]);
+    onSelect(days[bounded].key);
   }
 
   function handleKeyDown(event) {
@@ -56,10 +55,24 @@ function ProgressCalendarGrid({ activity, selectedDay, onSelect }) {
       <div className="progress-calendar-weekdays" aria-hidden="true"><i />{activity.cells[0].days.map(({ key, day }) => (
         <span key={key} title={day}>{formatDate(key, { weekday: "narrow", timeZone: "UTC" })}</span>
       ))}</div>
-      {activity.cells.map((week) => <div className="progress-calendar-week" role="row" key={week.label}><small>{week.label}</small>{week.days.map((cell) => {
+      {activity.cells.map((week) => <div className="progress-calendar-week" role="row" key={week.label}><small role="rowheader">{week.label}</small>{week.days.map((cell) => {
         const cellIndex = index++;
         const stateLabel = t(cell.state === "active" || cell.state === "qualified" ? "progress.stateActivity" : cell.state === "future" ? "progress.stateFuture" : "progress.stateNone");
-        return <span id={`progress-day-${cell.key}`} role="gridcell" data-calendar-index={cellIndex} className={`progress-calendar-cell progress-calendar-cell--${cell.state}`} key={cell.key} aria-label={t("progress.cellLabel", { day: cell.day, date: cell.key, state: stateLabel })} aria-selected={activeIndex === cellIndex}><i /></span>;
+        return (
+          <span
+            id={`progress-day-${cell.key}`}
+            role="gridcell"
+            data-calendar-index={cellIndex}
+            className={`progress-calendar-cell progress-calendar-cell--${cell.state}`}
+            key={cell.key}
+            aria-label={t("progress.cellLabel", { day: cell.day, date: cell.key, state: stateLabel })}
+            aria-current={cell.key === today ? "date" : undefined}
+            aria-selected={activeIndex === cellIndex}
+          >
+            <span aria-hidden="true">{formatDate(cell.key, { day: "numeric", timeZone: "UTC" })}</span>
+            <i aria-hidden="true" />
+          </span>
+        );
       })}</div>)}
     </div>
   );
@@ -76,7 +89,7 @@ export default function Progress({ user = null }) {
   const { t } = useI18n();
   const [page, setPage] = useState(1);
   const [range, setRange] = useState("week");
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [progressSection, setProgressSection] = useState("summary");
   const xpState = useAsyncData(() => motivationApi.xpSummary(), [user?.id], { cacheKey: `progress-xp:${user?.id}` });
   const streakState = useAsyncData(() => motivationApi.streakSummary(), [user?.id], { cacheKey: `progress-streak:${user?.id}` });
@@ -89,6 +102,10 @@ export default function Progress({ user = null }) {
   const currentDays = streak?.current_days ?? 0;
   const longestDays = streak?.longest_days ?? 0;
   const activity = activityCalendar(streak?.calendar, streak?.last_qualified_on, t, formatDate);
+  const today = streak?.calendar?.today;
+  const calendarDays = activity?.cells.flatMap((week) => week.days) ?? [];
+  const selectedDay = calendarDays.find((day) => day.key === selectedDate)
+    ?? calendarDays.find((day) => day.key === today);
   const ledgerPreview = ledger?.results || [];
   const consistencyRate = activity?.consistencyRate ?? 0;
 
@@ -130,13 +147,23 @@ export default function Progress({ user = null }) {
         </article>
 
         <article className={`progress-calendar-panel progress-mobile-section ${progressSection === "calendar" ? "is-active" : ""}`}>
-          <header><h2>{t("progress.meaningfulDays")}</h2></header>
+          <header>
+            <h2>{t("progress.meaningfulDays")}</h2>
+            {activity && <span className="progress-calendar-period" dir="auto">
+              {formatDate(streak.calendar.start, { month: "short", day: "numeric", timeZone: "UTC" })}
+              {" – "}
+              {formatDate(today, { month: "short", day: "numeric", timeZone: "UTC" })}
+            </span>}
+          </header>
           {streakState.loading && <LoadingPanel variant="list" />}
           {streakState.error && <ErrorPanel message={streakState.errorDetails || streakState.error} onRetry={streakState.reload} />}
           {streak && !activity && <p role="status">{t("progress.calendarUnavailable")}</p>}
           {activity && <>
-          <ProgressCalendarGrid activity={activity} selectedDay={selectedDay} onSelect={setSelectedDay} />
-          {selectedDay && <p className="activity-cell-detail" role="status"><strong dir="auto">{selectedDay.day}, {selectedDay.key}</strong><span>{t(selectedDay.state === "active" || selectedDay.state === "qualified" ? "progress.dayActivity" : selectedDay.state === "future" ? "progress.dayFuture" : "progress.dayNone")}</span></p>}
+          <ProgressCalendarGrid activity={activity} today={today} selectedDay={selectedDay} onSelect={setSelectedDate} />
+          {selectedDay && <p className="activity-cell-detail" role="status"><strong dir="auto">
+            {selectedDay.key === today && `${t("studyPlan.today")} · `}
+            {formatDate(selectedDay.key, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}
+          </strong><span>{t(selectedDay.state === "active" || selectedDay.state === "qualified" ? "progress.dayActivity" : selectedDay.state === "future" ? "progress.dayFuture" : "progress.dayNone")}</span></p>}
           <div className="progress-calendar-legend"><span><i className="active" /> {t("progress.legendActivity")}</span><span><i className="qualified" /> {t("progress.legendQualified")}</span><span><i className="empty" /> {t("progress.legendNone")}</span></div>
           <div className="progress-calendar-metrics"><div><strong>{activity.activeDays}</strong><span>{t("progress.activeDays")}</span></div><div><strong>{streak?.policy?.grace_days ?? 0}</strong><span>{t("progress.graceAllowance")}</span></div><div><strong>{consistencyRate}%</strong><span>{t("progress.consistencyRate")}</span></div></div>
           </>}

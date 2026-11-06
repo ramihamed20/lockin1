@@ -1858,7 +1858,7 @@
     "backend/apps/review/policy.py": "79fabfff2ed8615daf4d841962515a6e6b54e93297c1b39a27906b9b3930fbfe",
     "backend/apps/review/views.py": "e671631f446ebc77c039e77ba177c7e237bb2e8b92bb32fb319f9a5618ff1f19",
     "backend/apps/review/tests/test_review.py": "1c80e2817783ede2a7d3270b120f88e89c97cf8e19a40112e6e27faac0bd95cc",
-    "frontend/src/pages/Progress.jsx": "df87852326b61ef469bda344d93ed57649235785ca1d2ba5b43e619e02b89a3d",
+    "frontend/src/pages/Progress.jsx": "b1bb84caed080223808a302b6035dba785297255bbe5ec088d758af8ee1b9ecc",
     "frontend/src/api/motivation.js": "8abe068f054cdb162a290d3a8877c7f028362bd0602f8da1b4d03201570ccaa8",
     "frontend/src/pages/Biweekly.jsx": "1d563f3401b3a96d6474ffbfe31b6cff09543d2e63c39a5d2b45d290a764d5ab",
     "backend/apps/biweekly/services.py": "2444650f428896e2cacd0a6f94d95a8656676bcd997d07595acd0d38fa693c32",

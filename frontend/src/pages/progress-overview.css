@@ -79,13 +79,69 @@
   gap: clamp(3px, 0.6vw, 6px);
 }
 
-.progress-calendar-table .progress-calendar-cell {
-  min-height: 24px;
-  height: auto;
-}
-
 @media (max-width: 740px) {
   .progress-detail-grid:has(.progress-ledger-panel) {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.progress-calendar-panel > header {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.progress-calendar-panel .progress-calendar-period {
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  font-size: var(--text-xs);
+}
+
+.progress-calendar-table .progress-calendar-cell {
+  grid-template-rows: 1fr 5px;
+  gap: 1px;
+  min-height: 32px;
+  height: auto;
+  max-height: 48px;
+  padding-block: 3px;
+  border: 1px solid transparent;
+  color: var(--text);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-calendar-table .progress-calendar-cell--future {
+  border-color: var(--border);
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+  opacity: 1;
+}
+
+.progress-calendar-table .progress-calendar-cell[aria-current="date"] {
+  border-color: var(--accent);
+}
+
+.progress-calendar-table .progress-calendar-cell[aria-selected="true"] {
+  outline: 1px solid var(--text);
+  outline-offset: -3px;
+}
+
+.progress-calendar-table .progress-calendar-cell i {
+  grid-row: 2;
+  width: 5px;
+}
+
+.progress-calendar-cell--active i {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.progress-calendar-panel .activity-cell-detail {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  background: var(--surface-2);
+  font-size: var(--text-xs);
 }
