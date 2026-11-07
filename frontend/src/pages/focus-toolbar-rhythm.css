@@ -346,6 +346,16 @@
     justify-self: center;
     margin: 0;
   }
+  /* Pin the core controls to the first row. Without this, an explicit
+     favorites row could make CSS auto-placement push Undo/Redo and More down
+     to an unintended third row. */
+  .workspace-v2 .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
+    grid-row: 1;
+  }
+  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
+    .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
+    grid-row: 2;
+  }
   /* Multiple document tabs already consume the first row. */
   .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
     .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
