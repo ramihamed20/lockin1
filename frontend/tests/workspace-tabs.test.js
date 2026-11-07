@@ -166,6 +166,20 @@ test("split view provides independently mounted visible PDF panes with a draggab
   assert.match(drag, /window\.addEventListener\("pointermove", pointer/);
 });
 
+test("split divider hides percentage controls and snaps to the nearest five percent", async () => {
+  const [host, css] = await Promise.all([
+    readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
+  ]);
+  assert.match(host, /const snapSplitPercent = \(number\) => Math\.max\(20, Math\.min\(80, Math\.round\(number \/ 5\) \* 5\)\)/);
+  assert.match(host, /set\(snapSplitPercent\(\(current - start\) \* 100 \/ \(end - start\)\)\)/);
+  assert.match(host, /set\(\(value\) => snapSplitPercent\(value \+ delta\)\)/);
+  assert.match(host, /aria-valuenow=\{Math\.round\(percent\)\}/);
+  assert.doesNotMatch(host, /ratioMenu|SIZE_PRESETS|workspace-split-ratio-toggle|workspace-split-ratio-presets/);
+  assert.doesNotMatch(css, /workspace-split-ratio-toggle|workspace-split-ratio-presets/);
+  assert.match(host, /workspace-split-grip/);
+});
+
 test("split controls work for the active tab, touch fallback and floating toolbars", async () => {
   const [bar, drag, css] = await Promise.all([
     readFile(new URL("../src/workspace/catalog/WorkspaceTabBar.jsx", import.meta.url), "utf8"),
