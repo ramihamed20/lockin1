@@ -841,6 +841,11 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-
   --tool-on-accent: var(--on-accent);
   --fx-glass: var(--tool-surface);
   --fx-solid: var(--surface);
+  --fx-accent: var(--tool-accent);
+  --fx-switch-on: var(--tool-accent);
+  --fx-danger: var(--danger);
+  --workspace-gold: var(--tool-accent);
+  --workspace-gold-bright: var(--tool-accent-text);
   --fx-text: var(--tool-text);
   --fx-text-2: var(--tool-muted);
   --fx-text-3: var(--tool-soft);
@@ -907,7 +912,8 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-
   --ink-track-direction: to right;
   accent-color: var(--tool-accent);
 }
-[dir="rtl"] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input {
+:root[data-theme][dir="rtl"] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input,
+:root[data-theme] [dir="rtl"] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input {
   --ink-track-direction: to left;
 }
 :root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-webkit-slider-runnable-track {
