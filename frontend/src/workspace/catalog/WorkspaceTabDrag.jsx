@@ -14,9 +14,13 @@ function dropGeometry(x, y) {
   const sharedToolbar = document.querySelector(".workspace-split-shared-chrome .workspace-v2-toolbar");
   for (const pane of panes) {
     const stage = pane.querySelector(".workspace-v2-document-stage");
-    const paneRect = pane.getBoundingClientRect();
+    // In single-reader mode .workspace-pane uses display: contents and has
+    // no geometry. Its visible PDF stage is the actual drop target.
+    if (pane.classList.contains("is-kept") || getComputedStyle(pane).visibility === "hidden") continue;
     const stageRect = stage?.getBoundingClientRect();
-    if (!paneRect.width || !paneRect.height || !stageRect?.width || !stageRect.height) continue;
+    if (!stageRect?.width || !stageRect.height) continue;
+    const wrapperRect = pane.getBoundingClientRect();
+    const paneRect = wrapperRect.width > 0 && wrapperRect.height > 0 ? wrapperRect : stageRect;
     // The stage itself is the drop zone. A floating/dockable toolbar may sit
     // at the bottom of the screen: its bottom edge must NOT erase the PDF zone.
     const left = Math.max(stageRect.left, paneRect.left, 0);
