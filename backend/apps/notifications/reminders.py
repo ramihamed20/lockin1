@@ -159,14 +159,14 @@ def _briefing(reminder: StudyReminder, now: datetime) -> dict[str, str] | None:
     count = due_review_count(user=user, now=now) if reminder.review_enabled else 0
     # One useful daily briefing: a due review must not hide today's plan.
     # Both projections are account-scoped; no question text enters a push body.
+    already_studied = reminder.skip_if_studied and local.date().isoformat() in recent_study_days(
+        user=user, now=now, zone_name=reminder.timezone
+    )
     plan = None
-    if reminder.study_enabled:
-        if not reminder.skip_if_studied or local.date().isoformat() not in recent_study_days(
-            user=user, now=now, zone_name=reminder.timezone
-        ):
-            from apps.study_plans.reminders import daily_plan_briefing
+    if reminder.study_enabled and not already_studied:
+        from apps.study_plans.reminders import daily_plan_briefing
 
-            plan = daily_plan_briefing(user=user, today=local.date())
+        plan = daily_plan_briefing(user=user, today=local.date())
     if count and plan:
         return {
             "template_key": "study.reminder",
@@ -192,7 +192,7 @@ def _briefing(reminder: StudyReminder, now: datetime) -> dict[str, str] | None:
             else f"{count} questions are ready in your Review Bank. Try a few today.",
             "target_route": "/review",
         }
-    if not reminder.study_enabled or (reminder.skip_if_studied and plan is None):
+    if not reminder.study_enabled or already_studied:
         return None
     if plan:
         return {
