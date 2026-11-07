@@ -179,3 +179,40 @@ for (const [locale, width, height] of [['ar',320,568], ['en',390,844], ['ar',844
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
  });
 }
+
+test("dragging the phone companion moves without opening help and survives reload and viewport resize", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/v1/catalog/documents/**", (route) => route.fulfill({ json: { version_id: "test-version", results: [] } }));
+  await page.goto("/e2e/fixtures/companion-ready/");
+  const pet = page.locator(".study-companion-pet");
+  await expect(pet).toBeVisible();
+  const initial = await pet.boundingBox();
+  await page.mouse.move(initial.x + initial.width / 2, initial.y + initial.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(initial.x + initial.width / 2 - 110, initial.y + initial.height / 2 - 85, { steps: 8 });
+  await page.mouse.up();
+  const moved = await pet.boundingBox();
+  expect(Math.hypot(moved.x - initial.x, moved.y - initial.y)).toBeGreaterThan(40);
+  await expect(page.locator(".study-companion-panel")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => {
+    const prefs = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:test-student") || "null");
+    return Number.isFinite(prefs?.position?.x) && Number.isFinite(prefs?.position?.y);
+  })).toBe(true);
+
+  await page.reload();
+  await expect(pet).toBeVisible();
+  const restored = await pet.boundingBox();
+  expect(Math.abs(restored.x - moved.x)).toBeLessThan(3);
+  expect(Math.abs(restored.y - moved.y)).toBeLessThan(3);
+  await pet.click();
+  await expect(page.locator(".study-companion-panel")).toBeVisible();
+  await page.locator(".study-companion-panel header button").click();
+
+  await page.setViewportSize({ width: 320, height: 568 });
+  const narrow = await pet.boundingBox();
+  expect(narrow.x).toBeGreaterThanOrEqual(0);
+  expect(narrow.y).toBeGreaterThanOrEqual(0);
+  expect(narrow.x + narrow.width).toBeLessThanOrEqual(320);
+  expect(narrow.y + narrow.height).toBeLessThanOrEqual(568);
+});
