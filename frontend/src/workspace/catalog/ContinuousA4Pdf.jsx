@@ -1083,15 +1083,21 @@ export function ContinuousA4Pdf({
   const maximumPageHeight = pages.reduce((height, entry) => Math.max(height,
     A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)), 0);
   const horizontalDocumentHeight = maximumPageHeight * zoom;
+  // The whiteboard's Add page button is rendered *after* the pages. Its footer
+  // is not part of baseDocumentHeight, so the calculated scroll surface needs
+  // extra space at the end for touch users to bring the control into view.
+  // Keep ordinary PDFs unchanged; the whiteboard alone supplies documentFooter.
+  const footerScrollRoom = documentFooter ? Math.max(64, Math.min(stageViewport.height * 0.3, 280)) : 0;
+  const horizontalContentWidth = pages.length * slotWidth + (documentFooter ? slotWidth : 0);
   const surfaceStyle = /** @type {import("react").CSSProperties} */ ({
     "--workspace-a4-zoom": zoom,
-    width: isHorizontal ? `${Math.max(stageViewport.width, pages.length * slotWidth)}px` : `${Math.max(scaledDocumentWidth, stageViewport.width)}px`,
-    height: isHorizontal ? `${Math.max(stageViewport.height, horizontalDocumentHeight + stageViewport.height / 2)}px` : `${baseDocumentHeight * zoom + stageViewport.height}px`
+    width: isHorizontal ? `${Math.max(stageViewport.width, horizontalContentWidth + (documentFooter ? stageViewport.width * 0.35 : 0))}px` : `${Math.max(scaledDocumentWidth, stageViewport.width)}px`,
+    height: isHorizontal ? `${Math.max(stageViewport.height, horizontalDocumentHeight + stageViewport.height / 2)}px` : `${baseDocumentHeight * zoom + stageViewport.height + footerScrollRoom}px`
   });
   const liveLayerStyle = /** @type {import("react").CSSProperties} */ ({
     left: isHorizontal ? "0px" : `${Math.max(0, (stageViewport.width - scaledDocumentWidth) / 2)}px`,
     top: isHorizontal ? "0px" : `${stageViewport.height / 2}px`,
-    width: isHorizontal ? `${pages.length * slotWidth}px` : `${scaledDocumentWidth}px`,
+    width: isHorizontal ? `${horizontalContentWidth}px` : `${scaledDocumentWidth}px`,
     height: isHorizontal ? `${horizontalDocumentHeight}px` : `${baseDocumentHeight * zoom}px`
   });
   const documentStyle = /** @type {import("react").CSSProperties} */ ({
