@@ -71,10 +71,8 @@
   .workspace-favorite-pens.is-toolbar .workspace-favorite-pen { width: 34px; height: 40px; border-radius: 10px; }
   .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i { width: 20px; height: 20px; }
 }
-/* The phone toolbar is full: favorites live in the pen panel there. */
-@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
-  .workspace-favorite-pens.is-toolbar { display: none; }
-}
+/* On compact devices the toolbar provides a full-width favorites row;
+   unlike before, it must not disappear or be horizontally clipped. */
 
 
 /* All five presets are visible simultaneously. Tablet layouts give them a
