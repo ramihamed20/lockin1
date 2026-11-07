@@ -6277,14 +6277,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 })}
                 <WorkspaceIconButton label={t("focus.add")} className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
               </div>
-              <div className="workspace-v3-quick-colors" role="group" aria-label={t("focus.quickAnnotationColors")}>
-                {quickColors.map((color) => <button key={color} type="button" className={`workspace-v3-quick-color${activeColor === color ? " is-active" : ""}`} aria-label={t("focus.useColor", { color })} aria-pressed={activeColor === color} title={color} disabled={!showColorPalette} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)}><span /></button>)}
-              </div>
-              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
+              {/* The edit controls stay with writing tools. Quick colours and
+                  saved pens follow as secondary choices, without divider bars. */}
               <div className="workspace-v2-history" aria-label={t("focus.editHistory")}>
                 <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
+              <div className="workspace-v3-quick-colors" role="group" aria-label={t("focus.quickAnnotationColors")}>
+                {quickColors.map((color) => <button key={color} type="button" className={`workspace-v3-quick-color${activeColor === color ? " is-active" : ""}`} aria-label={t("focus.useColor", { color })} aria-pressed={activeColor === color} title={color} disabled={!showColorPalette} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)}><span /></button>)}
+              </div>
+              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
             </DockableToolRail>
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
                 because the rail scrolls them out of reach exactly when writing
