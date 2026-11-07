@@ -94,3 +94,53 @@ test('study companion stays compact on phone, larger on iPad, and its panels fit
  await checkInsideViewport(panel);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
 });
+
+for (const [locale, width, height] of [
+ ['ar', 320, 568],
+ ['en', 390, 844],
+ ['ar', 844, 390],
+]) test(`companion settings, saved ideas and explanation are responsive at ${width}x${height} (${locale})`, async ({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.setViewportSize({width,height});
+ await page.addInitScript(lang=>localStorage.setItem('lock-in.locale',lang),locale);
+ await page.route('**/api/v1/catalog/documents/**',r=>r.fulfill({json:{version_id:'test-version',results:[]}}));
+ await page.goto('/e2e/fixtures/companion-ready/');
+ const fits=async(locator)=>{
+  const bounds=await locator.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds.x).toBeGreaterThanOrEqual(-1);
+  expect(bounds.y).toBeGreaterThanOrEqual(-1);
+  expect(bounds.x+bounds.width).toBeLessThanOrEqual(width+1);
+  expect(bounds.y+bounds.height).toBeLessThanOrEqual(height+1);
+  return bounds;
+ };
+ await page.locator('.study-companion-preferences').click();
+ const settings=page.locator('.study-companion-settings');
+ await expect(settings).toBeVisible();
+ const settingsBounds=await fits(settings);
+ expect(settingsBounds.width).toBeLessThanOrEqual(width<=600?301:293);
+ const characterImage=settings.locator('.study-companion-characters img').first();
+ const imageBounds=await fits(characterImage);
+ expect(imageBounds.width).toBeLessThanOrEqual(65);
+ const close=settings.locator('header button');
+ const closeBounds=await fits(close);
+ expect(closeBounds.width).toBeGreaterThanOrEqual(43);
+ expect(closeBounds.height).toBeGreaterThanOrEqual(43);
+ const motion=settings.locator('> button[aria-pressed]');
+ await expect(motion).toHaveAttribute('aria-pressed','true');
+ await motion.click();
+ await expect(motion).toHaveAttribute('aria-pressed','false');
+ await settings.locator('> button').nth(1).click();
+ const saved=page.locator('.study-companion-saved');
+ await expect(saved).toBeVisible();
+ await fits(saved);
+ await saved.locator('header button').click();
+ await page.locator('.study-companion-pet').click();
+ const explanation=page.locator('.study-companion-panel');
+ await expect(explanation).toBeVisible();
+ await fits(explanation);
+ await page.locator('.study-companion-explain').click();
+ await expect(page.locator('.study-companion-text')).toBeVisible();
+ await fits(explanation);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+});
