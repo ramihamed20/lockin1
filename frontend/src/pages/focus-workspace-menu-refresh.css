@@ -596,3 +596,228 @@ html.ix-hover .workspace-v2 .workspace-v2-side .workspace-v2-note-delete:hover {
     resize: none;
   }
 }
+
+
+/* V12: All four Lockin themes share the same semantic palette as the toolbar.
+   Night uses gold, Day violet, Dawn teal, Sunset berry. The global theme tokens
+   are the source of truth; changing data-theme re-colors every open surface. */
+.workspace-v2 {
+  --focus-chrome-surface: var(--material-thick, var(--surface));
+  --focus-chrome-text: var(--text);
+  --focus-chrome-muted: var(--muted);
+  --focus-chrome-border: var(--border);
+  --focus-chrome-subtle: var(--separator);
+  --focus-chrome-hover: var(--surface-3);
+  --focus-chrome-field: var(--surface-2);
+  --focus-chrome-accent: var(--accent);
+  --focus-chrome-active-text: var(--accent-text);
+  --focus-chrome-active: var(--accent-soft);
+  --focus-chrome-on-accent: var(--on-accent);
+  --focus-chrome-shadow: var(--shadow-float);
+  /* The phone chrome and the floating panel now use the same theme tokens. */
+  --phone-surface: var(--focus-chrome-surface);
+  --phone-fill: var(--focus-chrome-field);
+  --phone-ink: var(--focus-chrome-text);
+  --phone-muted: var(--focus-chrome-muted);
+  --phone-edge: var(--focus-chrome-border);
+  --phone-shadow: var(--focus-chrome-shadow);
+  --fx-glass: var(--focus-chrome-surface);
+  --fx-panel: var(--focus-chrome-surface);
+  --fx-text: var(--focus-chrome-text);
+  --fx-text-2: var(--focus-chrome-muted);
+  --fx-text-3: var(--soft);
+  --fx-edge: var(--focus-chrome-border);
+  --fx-hair: var(--focus-chrome-subtle);
+  --fx-fill: var(--focus-chrome-field);
+  --fx-fill-strong: var(--focus-chrome-hover);
+}
+
+/* Theme variables override the legacy fixed night/blue + light/blue blocks. */
+:root[data-theme] .workspace-v2 :is(.workspace-v2-action-popover, .workspace-v8-settings) {
+  --fm-surface: var(--focus-chrome-surface);
+  --fm-text: var(--focus-chrome-text);
+  --fm-muted: var(--focus-chrome-muted);
+  --fm-border: var(--focus-chrome-border);
+  --fm-hover: var(--focus-chrome-hover);
+  --fm-group: var(--focus-chrome-field);
+  --fm-accent: var(--focus-chrome-active-text);
+  --fm-accent-soft: var(--focus-chrome-active);
+  --fx-text: var(--fm-text);
+  --fx-text-2: var(--fm-muted);
+  --fx-text-3: var(--soft);
+  --fx-edge: var(--fm-border);
+  --fx-hair: var(--focus-chrome-subtle);
+  --fx-fill: var(--fm-group);
+  --fx-card: var(--fm-group);
+  --fx-card-edge: var(--fm-border);
+  --workspace-gold: var(--focus-chrome-accent);
+  --workspace-gold-bright: var(--focus-chrome-active-text);
+  --workspace-on-accent: var(--focus-chrome-on-accent);
+  color: var(--fm-text);
+  background: var(--fm-surface);
+  border-color: var(--fm-border);
+  box-shadow: var(--focus-chrome-shadow);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side {
+  --wn-surface: var(--surface);
+  --wn-field: var(--surface-2);
+  --wn-card: var(--surface-2);
+  --wn-text: var(--text);
+  --wn-muted: var(--muted);
+  --wn-border: var(--border);
+  --wn-hover: var(--surface-3);
+  --wn-accent: var(--accent-text);
+  --wn-accent-soft: var(--accent-soft);
+  color: var(--wn-text);
+  background: var(--wn-surface);
+  border-color: var(--wn-border);
+  box-shadow: var(--focus-chrome-shadow);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side :is(.workspace-v2-note-editor button, .workspace-v2-tabs > button.is-active) {
+  font-weight: 650;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-note-editor button {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+html.ix-hover :root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-note-editor button:not(:disabled):hover {
+  background: var(--accent-hover);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-note-editor textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-note-editor textarea::placeholder {
+  color: var(--muted);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-tabs > button.is-active::after {
+  background: var(--accent);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-tabs > button.is-active {
+  color: var(--accent-text);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-tabs > button.is-active > span {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-card-tags > span {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side :is(.workspace-v2-note-card, .workspace-v2-highlight-card) {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-side :is(.workspace-v2-side-close, .workspace-v2-tabs > button, .workspace-v2-note-delete) {
+  color: var(--muted);
+}
+
+/* Native toolbar receives the very same material and semantic contrast. The
+   pen/highlighter swatches stay color-specific because they represent ink. */
+:root[data-theme] .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar {
+  --workspace-panel: var(--focus-chrome-surface);
+  --fx-text: var(--focus-chrome-text);
+  --fx-text-2: var(--focus-chrome-muted);
+  --fx-text-3: var(--soft);
+  --fx-edge: var(--focus-chrome-border);
+  --fx-hair: var(--focus-chrome-subtle);
+  --fx-fill: var(--focus-chrome-field);
+  --workspace-chrome-text: var(--focus-chrome-text);
+  --workspace-chrome-secondary: var(--focus-chrome-muted);
+  --workspace-control-hover: var(--focus-chrome-hover);
+  --workspace-border: var(--focus-chrome-border);
+  border-color: var(--focus-chrome-border);
+  color: var(--focus-chrome-text);
+  background: var(--focus-chrome-surface);
+  box-shadow: var(--shadow-sm);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button) {
+  color: var(--focus-chrome-text);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button):disabled {
+  color: var(--soft);
+  opacity: .55;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v3-utility-button, .workspace-v2-study-mode-button):is(.is-active, [aria-expanded="true"]) {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+html.ix-hover :root[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button):hover:not(:disabled):not(.is-active) {
+  color: var(--text);
+  background: var(--surface-3);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active {
+  color: var(--accent-text);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-indicator {
+  border-color: var(--accent-border);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v2-control-group.is-exit .workspace-v2-icon-button {
+  background: var(--surface-2);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v2-toolbar-actions,
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v2-history {
+  border-color: var(--separator);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v2-toolbar-actions::before,
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors::before,
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v2-history::before,
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v2-control-group.is-exit::after {
+  background: var(--separator);
+}
+/* The page controls, ink/tool options and search are floating toolbar children
+   and must not switch back to hardcoded black/blue on iPad or phones. */
+:root[data-theme] .workspace-v2 :is(.workspace-v2-tool-options, .workspace-v2-page-number, .workspace-v2-page-navigator, .workspace-v2-zoom-bar, .workspace-v2-toast, .workspace-page-thumbs, .workspace-zoom-window) {
+  --fx-text: var(--text);
+  --fx-text-2: var(--muted);
+  --fx-text-3: var(--soft);
+  --fx-edge: var(--border);
+  --fx-hair: var(--separator);
+  --fx-fill: var(--surface-2);
+  --fx-fill-strong: var(--surface-3);
+  --workspace-panel: var(--focus-chrome-surface);
+  --workspace-chrome-text: var(--text);
+  --workspace-chrome-secondary: var(--muted);
+  --workspace-control-bg: var(--surface-2);
+  --workspace-control-border: var(--border);
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--focus-chrome-surface);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-page-navigator :is(button, input),
+:root[data-theme] .workspace-v2 .workspace-v2-zoom-bar button {
+  color: var(--text);
+  background: var(--surface-2);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-page-number span,
+:root[data-theme] .workspace-v2 .workspace-v2-page-total {
+  color: var(--muted);
+}
+/* Settings, menus, export buttons and keyboard focus all use site accent. */
+:root[data-theme] .workspace-v2 .workspace-v2-action-popover :is(.workspace-v3-menu-primary, .workspace-v6-export-range button),
+:root[data-theme] .workspace-v2 .workspace-v8-settings .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track {
+  color: var(--on-accent);
+  border-color: var(--accent);
+  background: var(--accent);
+}
+:root[data-theme] .workspace-v2 .workspace-v8-settings-tabs button[aria-selected="true"] {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+:root[data-theme] .workspace-v2 .workspace-v8-settings .workspace-v8-segmented button[aria-checked="true"] {
+  color: var(--accent-text);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+:root[data-theme] .workspace-v2 :is(.workspace-v2-action-popover, .workspace-v8-settings) :is(button, input, select, textarea):focus-visible,
+:root[data-theme] .workspace-v2 .workspace-v2-side :is(button, textarea):focus-visible,
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar button:focus-visible {
+  outline-color: var(--accent);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button:is([aria-pressed="true"], [aria-selected="true"]) {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button:is([aria-pressed="true"], [aria-selected="true"]) > svg {
+  color: var(--accent-text);
+}
