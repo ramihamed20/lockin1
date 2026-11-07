@@ -44,6 +44,12 @@
   color: var(--fm-text);
   box-shadow: 0 20px 48px -24px rgb(27 54 96 / .26), 0 2px 10px rgb(27 54 96 / .09);
 }
+/* Phone skins use specific surface rules; respect the selected theme. */
+:root[data-theme] .workspace-v2 :is(.workspace-v2-action-popover, .workspace-v8-settings) {
+  color: var(--fm-text);
+  background: var(--fm-surface);
+  border-color: var(--fm-border);
+}
 /* Respect compact viewports. The list scrolls, rather than pushing the PDF out. */
 .workspace-v2 .workspace-v2-action-popover:not(.is-search) {
   display: flex;
@@ -248,7 +254,7 @@ html.ix-hover .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-to
   .workspace-v2 .workspace-v8-settings-tabs button { min-height: 42px; }
 }
 @media (max-width: 699px), (max-height: 599px) and (max-width: 900px) {
-  .workspace-v2 .workspace-v2-action-popover:not(.is-search) {
+  .workspace-v2 .workspace-v2-action-popover.is-more:not(.is-search) {
     top: calc(var(--workspace-toolbar-height, 54px) + 8px);
     inset-inline-end: max(10px, env(safe-area-inset-right));
     width: min(316px, calc(100% - 20px));
