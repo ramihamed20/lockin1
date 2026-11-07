@@ -102,3 +102,17 @@ test("a phone writes with the finger until the student chooses; a tablet keeps f
   assert.equal(defaultDrawingInput({ stored: DRAWING_INPUT.STYLUS_AND_FINGER, coarsePointer: true, shortestScreenSide: 834 }), DRAWING_INPUT.STYLUS_AND_FINGER);
   assert.equal(defaultDrawingInput({ stored: "junk", coarsePointer: true, shortestScreenSide: 834 }), DRAWING_INPUT.STYLUS_ONLY);
 });
+
+test("Elite 1 touch-reported tablet pen can draw unless the student chose pen-only", async () => {
+  const { DRAWING_INPUT, defaultDrawingInput, usesTouchStylusTablet, pointerCanDraw } = await import("../src/workspace/input/gestureStateMachine.js");
+  const androidAgent = "Mozilla/5.0 (Linux; Android 14; Elite_1 Build/UP1A) AppleWebKit/537.36";
+  const reducedAgent = "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36";
+  assert.equal(usesTouchStylusTablet({ userAgent: androidAgent }), true);
+  assert.equal(usesTouchStylusTablet({ userAgent: reducedAgent, deviceModel: "OSCAL Elite 1" }), true);
+  assert.equal(usesTouchStylusTablet({ userAgent: reducedAgent, deviceModel: "Galaxy Tab S9" }), false);
+  assert.equal(defaultDrawingInput({ userAgent: androidAgent, shortestScreenSide: 800 }), DRAWING_INPUT.STYLUS_AND_FINGER);
+  assert.equal(defaultDrawingInput({ userAgent: reducedAgent, deviceModel: "Elite 1", shortestScreenSide: 800 }), DRAWING_INPUT.STYLUS_AND_FINGER);
+  assert.equal(defaultDrawingInput({ stored: DRAWING_INPUT.STYLUS_ONLY, userAgent: androidAgent }), DRAWING_INPUT.STYLUS_ONLY);
+  assert.equal(pointerCanDraw("touch", defaultDrawingInput({ userAgent: androidAgent })), true);
+  assert.equal(pointerCanDraw("pen", DRAWING_INPUT.STYLUS_ONLY), true);
+});
