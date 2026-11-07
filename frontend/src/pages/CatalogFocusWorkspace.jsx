@@ -6356,16 +6356,21 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
+              {/* Keep the original compact single-row toolbar until the first
+                  pen is starred. Extra rows must never appear for students
+                  who have no saved presets. */}
+              {favoritePens.length === 0 && <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
+                allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
+                onSave={commitCustomColor} portalRef={rootRef} t={t} />}
             </DockableToolRail>
-            {/* Give colors and saved pen profiles their own flexible space.
-                Quick color circles used to be clipped to two swatches inside
-                the drawing rail; starred pens were easy to mistake for them. */}
-            <div className="workspace-toolbar-accessories">
+            {/* Once a pen is starred, show colors and up to FIVE pen profiles
+                together in a dedicated row, never a two-swatch scroll window. */}
+            {workspaceReady && favoritePens.length > 0 && <div className="workspace-toolbar-accessories">
               <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
                 allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
                 onSave={commitCustomColor} portalRef={rootRef} t={t} />
-              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
-            </div>
+              {favoritePensStrip("is-toolbar")}
+            </div>}
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
                 because the rail scrolls them out of reach exactly when writing
                 needs them. */}
