@@ -121,14 +121,16 @@ test("a favorite pen is saved from the pen panel, taken up from the toolbar in o
   await expect(page.locator(".workspace-favorite-pens.is-toolbar")).toHaveCount(0);
 });
 
-test("a phone shows its favorite pens directly beneath the toolbar as well as in the pen panel", async ({ page }) => {
+test("a phone keeps starred pens inside the scrollable tool row and in the pen panel", async ({ page }) => {
   await mockWorkspace(page);
   await openWorkspace(page, { width: 390, height: 844 });
   await openPenPanel(page);
   const strip = page.locator("#workspace-pen-options .workspace-favorite-pens");
   await strip.getByRole("button", { name: "Save this pen as a favorite" }).click();
   await expect(strip.getByRole("button", { name: /· 4 pt/ })).toBeVisible();
-  await expect(page.locator(".workspace-toolbar-accessories .workspace-favorite-pens.is-toolbar")).toBeVisible();
+  const toolbar = page.locator(".workspace-v2-toolbar");
+  await expect(toolbar.locator(".workspace-toolbar-accessories")).toHaveCount(0);
+  await expect(toolbar.locator(".workspace-tool-dock .workspace-favorite-pens.is-toolbar")).toBeVisible();
   for (const button of await strip.getByRole("button").all()) {
     const box = await button.boundingBox();
     expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
