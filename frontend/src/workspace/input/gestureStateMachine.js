@@ -137,8 +137,8 @@ export function pointerSnapshot(event) {
  */
 /**
  * Some bundled capacitive tablet pens are indistinguishable from a fingertip
- * to a browser. The OSCAL Elite 1 includes such a stylus: if Android reports
- * its model, use the touch-compatible drawing mode until the user overrides it.
+ * to a browser. On OSCAL Elite 1 the stylus can arrive as touch; when
+ * Android reports this model, prefer touch-compatible ink until overridden.
  * This is deliberately device-specific to preserve palm-safe finger scrolling
  * on tablets whose active pens report pointerType="pen".
  */
