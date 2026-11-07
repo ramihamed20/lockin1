@@ -414,3 +414,23 @@
      avatar itself small, without an offscreen speech bubble at screen edges. */
   .study-companion.is-toolbar-companion .study-companion-bubble { display: none; }
 }
+
+
+/* Clear source/context on each reviewed learning card, separate from generic tips. */
+.study-companion-kind {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin: 0 0 12px; color: var(--muted);
+  font-size: 11px; line-height: 1.45;
+}
+.study-companion-kind > span {
+  display: inline-flex; align-items: center; min-block-size: 24px;
+  padding: 3px 9px; border-radius: 9px;
+  background: var(--surface-2); border: 1px solid var(--separator);
+}
+.study-companion-kind > span:first-child {
+  color: var(--accent-text); background: var(--accent-soft);
+}
+@media (max-width:600px) {
+  .study-companion-kind { margin-block-end: 9px; font-size: 11px; gap: 5px; }
+  .study-companion-kind > span { min-block-size: 22px; padding: 2px 7px; }
+}
