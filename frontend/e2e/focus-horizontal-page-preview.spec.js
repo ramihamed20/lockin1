@@ -1,4 +1,3 @@
-import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { fulfillAccessContract, studentSession } from "./fixtures/productionApi.js";
 import { withoutServiceWorker } from "./helpers/serviceWorker.js";
@@ -24,31 +23,48 @@ async function openFixture(page, width, height) {
   await expect.poll(async () => page.locator('[data-pdf-page="1"] .workspace-v2-a4-canvas.is-visible').evaluate((canvas) => canvas.width > 0)).toBe(true);
 }
 
+// Keep this regression when sideways page turning is brought back later.
 for (const viewport of [
   { width: 834, height: 1194, name: "ipad" },
   { width: 390, height: 844, name: "phone" }
 ]) {
-  test(`horizontal PDF real UI preview on ${viewport.name}`, async ({ page }) => {
+  test(`PDF reading stays vertical on ${viewport.name} even with an old horizontal preference`, async ({ page }) => {
     test.setTimeout(120000);
-    await mkdir("output/playwright", { recursive: true });
+    await page.addInitScript(() => {
+      localStorage.setItem("lock-in.catalog-workspace.settings.v1", JSON.stringify({ pageDirection: "horizontal" }));
+    });
     await openFixture(page, viewport.width, viewport.height);
     const stage = page.locator(".workspace-v2-document-stage");
     await expect(stage).toHaveAttribute("data-page-direction", "vertical");
+    await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
+    await expect.poll(async () => page.locator(".workspace-v2-a4-page").evaluateAll((elements) => {
+      const first = elements[0]?.getBoundingClientRect();
+      const second = elements[1]?.getBoundingClientRect();
+      return Boolean(first && second && second.top > first.bottom);
+    })).toBe(true);
+
     await page.getByRole("button", { name: "More workspace actions" }).click();
     await page.getByRole("button", { name: "Workspace settings", exact: true }).click();
     const settings = page.getByRole("dialog", { name: "Workspace settings" });
     await settings.getByRole("tab", { name: "View" }).click();
-    const horizontal = settings.getByRole("radio", { name: "Swipe pages" });
-    await horizontal.click();
-    await expect(horizontal).toHaveAttribute("aria-checked", "true");
-    await expect(stage).toHaveAttribute("data-page-direction", "horizontal");
-    await expect.poll(async () => page.locator(".workspace-v2-a4-page").evaluateAll((elements) => {
-      const first = elements[0]?.getBoundingClientRect();
-      const second = elements[1]?.getBoundingClientRect();
-      return Boolean(first && second && second.left > first.right && Math.abs(second.top - first.top) < 2);
-    })).toBe(true);
-    await page.screenshot({ path: `output/playwright/focus-horizontal-${viewport.name}-settings.png`, fullPage: false });
-    await settings.getByRole("button", { name: "Close workspace settings" }).click();
-    await page.screenshot({ path: `output/playwright/focus-horizontal-${viewport.name}-reader.png`, fullPage: false });
+    await expect(settings.getByRole("radio", { name: "Swipe pages" })).toHaveCount(0);
+    await expect(stage).toHaveAttribute("data-page-direction", "vertical");
+
+    const bounds = await settings.boundingBox();
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height + 1);
+    if (viewport.name === "phone") {
+      expect(bounds.width).toBeLessThanOrEqual(300);
+      expect(bounds.height).toBeLessThanOrEqual(viewport.height * .53);
+      const close = await settings.getByRole("button", { name: "Close workspace settings" }).boundingBox();
+      expect(close.width).toBeGreaterThanOrEqual(40);
+      expect(close.height).toBeGreaterThanOrEqual(40);
+    }
+
+    await expect.poll(() => page.evaluate(() => {
+      const raw = localStorage.getItem("lock-in.catalog-workspace.settings.v1");
+      return raw && JSON.parse(raw).pageDirection;
+    })).toBe("vertical");
   });
 }
