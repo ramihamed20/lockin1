@@ -6356,14 +6356,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
+            </DockableToolRail>
+            {/* Give colors and saved pen profiles their own flexible space.
+                Quick color circles used to be clipped to two swatches inside
+                the drawing rail; starred pens were easy to mistake for them. */}
+            <div className="workspace-toolbar-accessories">
               <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
                 allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
                 onSave={commitCustomColor} portalRef={rootRef} t={t} />
-            </DockableToolRail>
-            {/* Always show all five saved pens. The tablet gets a short second
-                row rather than squeezing favorite slots into the scrolling
-                drawing rail, where only the first two used to be visible. */}
-            {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
+              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
+            </div>
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
                 because the rail scrolls them out of reach exactly when writing
                 needs them. */}
