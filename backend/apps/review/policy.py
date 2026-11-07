@@ -39,7 +39,8 @@ def review_priority(item: ReviewItem, *, now: datetime) -> float:
     anchor = item.last_reviewed_at or item.last_mistake_at
     weeks_unseen = max(0.0, (now - anchor).total_seconds() / (7 * 24 * 60 * 60))
     return (
-        item.mistake_count * PRIORITY_WEIGHTS["mistake"]
+        (5.0 if getattr(item, "latest_confidence", "") == "unsure" else 0.0)
+        + item.mistake_count * PRIORITY_WEIGHTS["mistake"]
         + item.review_incorrect_count * PRIORITY_WEIGHTS["review_failure"]
         + item.relearning_count * PRIORITY_WEIGHTS["relearning"]
         + (4 - item.mastery_level) * PRIORITY_WEIGHTS["low_mastery"]

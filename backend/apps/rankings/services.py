@@ -33,6 +33,7 @@ def record_ranking_fact(
         source_transaction_id=source_transaction_id,
         defaults={
             "user_id": user_id,
+            "cohort_id": User.objects.values_list("cohort_id", flat=True).get(id=user_id),
             "source_key": source_key,
             "points": points,
             "category": category,

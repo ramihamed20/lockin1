@@ -14,8 +14,9 @@ async function useLocale(page, locale) {
 }
 
 /** The checkout is guided: a plan, its price and details, then payment. */
-// The checkout is one screen now: choosing a plan already shows the card field.
 async function continueToPayment(page) {
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Continue to payment", exact: true }).click();
   await page.getByRole("textbox", { name: /^Recharge card code/ }).scrollIntoViewIfNeeded();
 }
 
@@ -132,9 +133,9 @@ test("trial welcome and provisional Libyana payment work on production viewports
   await page.screenshot({ path: `${SCREENSHOT_DIR}/welcome-ipad-landscape.png`, fullPage: true });
 
   await page.getByRole("button", { name: "Subscribe now" }).click();
-  await continueToPayment(page);
   // The half-year placeholder was replaced by the dentistry term plans.
   await expect(page.getByRole("radio", { name: /Pre-midterm/ })).toBeVisible();
+  await continueToPayment(page);
   const code = page.getByRole("textbox", { name: /^Recharge card code/ });
   await expect(code).toHaveAttribute("dir", "ltr");
   await code.fill("4567890123456");

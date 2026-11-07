@@ -13,13 +13,16 @@ export default function ExplainEditor({ questions, attempts, drafts, onDraft, on
     && (wanted.length || (question.page_start <= page && question.page_end >= page)));
   const question = filtered.find((item) => item.id === selected) || filtered[0];
   const draftKey = question ? `${question.id}:${question.revision}` : "";
+  const reflection = uiState.reflections?.[draftKey] || {};
+  const { confidence = "", errorReason = "", ownWords = "" } = reflection;
+  const reflect = patch => onState({ reflections: { ...(uiState.reflections || {}), [draftKey]: { ...reflection, ...patch } } });
   const draft = draftKey ? drafts[draftKey] || "" : "";
   const earlierDrafts = question ? Object.entries(drafts).filter(([key, text]) => typeof text === "string" && text && key !== draftKey && (key === question.id || key.startsWith(`${question.id}:`))) : [];
   const history = question ? attempts.filter((attempt) => attempt.question_id === question.id) : [];
   const latest = latestExplainAttempt(history);
   async function submit() {
     setBusy(true); setError(false);
-    try { await onSubmit(question, draft); }
+    try { await onSubmit(question, draft, "", { confidence }); }
     catch { setError(true); }
     finally { setBusy(false); }
   }
@@ -33,6 +36,7 @@ export default function ExplainEditor({ questions, attempts, drafts, onDraft, on
       {earlierDrafts.length > 0 && <details><summary>{t("knowledge.earlierDrafts")}</summary>{earlierDrafts.map(([key, text]) => <p dir="auto" key={key}>{text}</p>)}</details>}
       <label className="knowledge-field">{t("knowledge.yourExplanation")}<textarea aria-label={t("knowledge.yourExplanation")} dir="auto" maxLength={10000} rows={8} value={draft} onChange={(event) => onDraft(draftKey, event.target.value)} /></label>
       <DictationControl t={t} locale={locale} onText={(text) => onDraft(draftKey, [draft, text].filter(Boolean).join("\n"))} />
+      <label>{t("connected.confidence")}<select value={confidence} onChange={event => reflect({ confidence: event.target.value })}>{["", "low", "medium", "high"].map(value => <option key={value} value={value}>{t(`connected.confidence_${value || "skip"}`)}</option>)}</select></label>
       <button type="button" disabled={!draft.trim() || busy} onClick={() => { void submit(); }}>{t("knowledge.submitExplanation")}</button>
       {error && <p role="alert">{t("knowledge.storage_error")}</p>}
       {latest?.evaluation_status === "pending" && <p role="status">{t("knowledge.pendingEvaluation")}</p>}
@@ -45,8 +49,11 @@ export default function ExplainEditor({ questions, attempts, drafts, onDraft, on
         {latest.feedback.alternatives?.map((text, index) => <p dir="auto" key={index}>{text}</p>)}
         {latest.feedback.follow_ups?.length > 0 && <><h4>{t("knowledge.followUps")}</h4>{latest.feedback.follow_ups.map((text, index) => <p dir="auto" key={index}>{text}</p>)}</>}
         <button type="button" onClick={() => onSummary({ text: latest.feedback.essential_points.join("\n"), conceptIds: latest.feedback.concept_ids || question.concept_ids || [question.concept_id], source: latest.feedback.source || { page_start: question.page_start, page_end: question.page_end } })}>{t("knowledge.addSummary")}</button>
+        <label>{t("connected.errorReason")}<select value={errorReason} onChange={event => reflect({ errorReason: event.target.value })}>{["", "forgot", "confused", "misunderstood"].map(value => <option key={value} value={value}>{t(`connected.error_${value || "skip"}`)}</option>)}</select></label>
+        <label className="knowledge-field">{t("connected.ownWords")}<textarea dir="auto" rows={4} maxLength={10000} value={ownWords} onChange={event => reflect({ ownWords: event.target.value })} /></label>
+        <button type="button" disabled={!ownWords.trim() || latest.question_revision !== question.revision} onClick={() => onSummary({ text: ownWords, ownWords: true, conceptIds: question.concept_ids || [question.concept_id], source: latest.feedback.source })}>{t("connected.saveOwnWords")}</button>
         <p>{t("knowledge.selfRating")}</p>
-        <div className="knowledge-toolbar">{["needs_review", "partial", "understood"].map((rating) => <button type="button" key={rating} disabled={busy || latest.question_revision !== question.revision} onClick={async () => { setBusy(true); try { await onSubmit(question, latest.answer, rating); } finally { setBusy(false); } }}>{t(`knowledge.rating_${rating}`)}</button>)}</div>
+        <div className="knowledge-toolbar">{["needs_review", "partial", "understood"].map((rating) => <button type="button" key={rating} disabled={busy || latest.question_revision !== question.revision} onClick={async () => { setBusy(true); try { await onSubmit(question, latest.answer, rating, { confidence: latest.confidence || "", error_reason: errorReason }); } catch { setError(true); } finally { setBusy(false); } }}>{t(`knowledge.rating_${rating}`)}</button>)}</div>
       </section>}
     </>}
   </>;

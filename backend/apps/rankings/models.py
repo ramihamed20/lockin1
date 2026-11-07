@@ -43,6 +43,13 @@ class RankingFact(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="ranking_facts"
     )
+    cohort = models.ForeignKey(
+        "education.StudentCohort",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="ranking_facts",
+    )
     source_transaction_id = models.UUIDField(unique=True)
     source_key = models.CharField(max_length=180)
     points = models.SmallIntegerField()
@@ -53,6 +60,9 @@ class RankingFact(models.Model):
 
     class Meta:
         indexes = [
+            models.Index(
+                fields=("cohort", "is_valid", "occurred_at"), name="rank_fact_cohort_time_idx"
+            ),
             models.Index(
                 fields=("is_valid", "occurred_at", "user"), name="rank_fact_time_user_idx"
             ),

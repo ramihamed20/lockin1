@@ -9,23 +9,29 @@ import {
 } from "../src/lib/featureAvailability.js";
 
 test("the feature registry is the authoritative source for every scheduled feature", () => {
-  assert.deepEqual(comingSoonFeatures().map((feature) => feature.id), ["lock-in", "study-plan", "rank", "community"]);
-  assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan")), true);
-  assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan/session-1")), true);
-  assert.equal(isFeatureComingSoon(getFeatureForPath("/ranked")), true);
+  assert.deepEqual(comingSoonFeatures().map((feature) => feature.id), ["community"]);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan")), false);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/study-plan/session-1")), false);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/ranked")), false);
   assert.equal(isFeatureComingSoon(getFeatureForPath("/community/discussions/thread-1")), true);
-  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in")), true);
-  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in/session-1")), true);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in")), false);
+  assert.equal(isFeatureComingSoon(getFeatureForPath("/lock-in/session-1")), false);
   assert.equal(getFeatureForPath("/materials"), null);
   assert.equal(FEATURE_AVAILABILITY.COMING_SOON, "coming-soon");
 });
 
-test("all scheduled routes terminate at the shared coming-soon surface", async () => {
+test("Study Plan opens its functional entry route while scheduled features remain guarded", async () => {
   const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");
   const layout = await readFile(new URL("../src/components/layout/index.jsx", import.meta.url), "utf8");
 
-  assert.match(app, /path="\/study-plan\/\*" element=\{<FeatureComingSoon featureId="study-plan" \/>\}/);
-  assert.match(app, /path="\/ranked\/\*" element=\{<FeatureComingSoon featureId="rank" \/>\}/);
+  assert.match(app, /path="\/study-plan\/\*" element=\{<StudyPlanEntry/);
+  const entry = await readFile(new URL("../src/studyPlan/StudyPlanEntry.jsx", import.meta.url), "utf8");
+  assert.doesNotMatch(entry, /FeatureComingSoon/);
+  assert.match(entry, /<StudyPlan/);
+  assert.match(entry, /examNotice/);
+  assert.match(entry, /studyPlanApi.getExams/);
+  assert.doesNotMatch(app, /isFeatureComingSoon\("study-plan"\)/);
+  assert.match(app, /path="\/ranked\/\*" element=\{<Ranked \/>\}/);
   assert.match(app, /path="\/community\/\*" element=\{<FeatureComingSoon featureId="community" \/>\}/);
   assert.match(app, /path="\/lock-in\/\*" element=\{<FeatureComingSoon featureId="lock-in" \/>\}/);
   assert.match(layout, /getFeatureForNavigationPath/);

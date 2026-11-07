@@ -15,7 +15,7 @@ export default function Achievements() {
   const { t } = useI18n();
   const achievements = useAsyncData(() => motivationApi.achievements(), [], { cacheKey: "achievements" });
   if (achievements.loading) return <Page width="reading" title="Achievements" showHeading><LoadingPanel variant="list" /></Page>;
-  if (achievements.error) return <Page width="reading" title="Achievements" showHeading><ErrorPanel message={achievements.error} onRetry={achievements.reload} /></Page>;
+  if (achievements.error) return <Page width="reading" title="Achievements" showHeading><ErrorPanel message={achievements.errorDetails || achievements.error} onRetry={achievements.reload} /></Page>;
 
   const unlocked = achievements.data.filter((achievement) => Boolean(achievement.earned_at));
 

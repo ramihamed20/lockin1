@@ -122,6 +122,14 @@ class LockInInitialTaskSerializer(StrictSerializer):
 
 
 class LockInStartSerializer(StrictSerializer):
+    experience_version = serializers.ChoiceField(choices=[1, 2], required=False, default=1)
+    edition = serializers.ChoiceField(
+        choices=["university", "lockin"], required=False, default="university"
+    )
+    page_start = serializers.IntegerField(min_value=1, max_value=10000, required=False, default=1)
+    page_end = serializers.IntegerField(
+        min_value=1, max_value=10000, required=False, allow_null=True, default=None
+    )
     document_version_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     client_instance_id = serializers.UUIDField()
     session_type = serializers.ChoiceField(choices=FocusSession.SessionType.choices)
@@ -217,6 +225,17 @@ class LockInTeamMemberActionSerializer(StrictSerializer):
 
 class LockInPresenceSerializer(StrictSerializer):
     presence = serializers.ChoiceField(choices=FocusSessionParticipant.Presence.choices)
+
+
+class LockInGoalSerializer(StrictSerializer):
+    goal_pages = serializers.IntegerField(min_value=1, max_value=10_000, allow_null=True)
+    completed_pages = serializers.IntegerField(min_value=0, max_value=10_000)
+    expected_revision = serializers.IntegerField(min_value=1)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["completed_pages"] > (attrs["goal_pages"] or 0):
+            raise serializers.ValidationError({"completed_pages": "Progress exceeds the goal."})
+        return attrs
 
 
 class LockInTeamMessageCreateSerializer(StrictSerializer):
@@ -328,12 +347,18 @@ class LockInTeamMessageSerializer(serializers.ModelSerializer[FocusTeamMessage])
 
 
 class LockInTeamSerializer(serializers.ModelSerializer[FocusTeam]):
+    image_url = serializers.SerializerMethodField()
+
+    def get_image_url(self, team: FocusTeam) -> str | None:
+        return f"/api/v1/files/{team.image_id}/view" if team.image_id else None
+
     class Meta:
         model = FocusTeam
         fields = (
             "id",
             "name",
             "invite_code",
+            "image_url",
             "max_members",
             "joining_locked",
             "closed_at",

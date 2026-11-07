@@ -18,7 +18,7 @@ export const MIN_VIDEO_WIDTH = 220;
  * 16:9 shape, so any edge sets the width (a top or bottom edge through the
  * height it implies); a corner follows whichever direction moved further. The
  * opposite edge stays where it was, and the panel never leaves the screen.
- * @param {{ edge: string, dx: number, dy: number, start: { x: number, y: number, width: number, height: number }, viewport: { width: number, height: number }, margin?: number, minWidth?: number }} input
+ * @param {{ edge: string, dx: number, dy: number, start: { x: number, y: number, width: number, height: number }, viewport: { width: number, height: number, left?: number, top?: number }, margin?: number, minWidth?: number }} input
  */
 export function resizePanel({ edge, dx, dy, start, viewport, margin = 8, minWidth = MIN_VIDEO_WIDTH }) {
   const fromX = edge.includes("e") ? dx : edge.includes("w") ? -dx : null;
@@ -27,8 +27,10 @@ export function resizePanel({ edge, dx, dy, start, viewport, margin = 8, minWidt
   const extra = start.height - start.width / VIDEO_RATIO;
   // Room to grow towards the moving edges only: the opposite edges stay put.
   // (A bottom edge alone grows the width to the right, its left side pinned.)
-  const roomX = edge.includes("w") ? start.x + start.width - margin : viewport.width - margin - start.x;
-  const roomY = edge.includes("n") ? start.y + start.height - margin : viewport.height - margin - start.y;
+  const left = viewport.left || 0;
+  const top = viewport.top || 0;
+  const roomX = edge.includes("w") ? start.x + start.width - left - margin : left + viewport.width - margin - start.x;
+  const roomY = edge.includes("n") ? start.y + start.height - top - margin : top + viewport.height - margin - start.y;
   const maxWidth = Math.max(minWidth, Math.min(roomX, (roomY - extra) * VIDEO_RATIO));
   const width = Math.round(Math.min(maxWidth, Math.max(minWidth, start.width + change)));
   const height = width / VIDEO_RATIO + extra;
@@ -41,10 +43,12 @@ export function resizePanel({ edge, dx, dy, start, viewport, margin = 8, minWidt
 
 /** Keeps a floating panel of `width` x `height` inside a viewport, with a margin. */
 export function clampPanelPosition({ x, y }, { width, height }, viewport, margin = 8) {
-  const maxX = Math.max(margin, viewport.width - width - margin);
-  const maxY = Math.max(margin, viewport.height - height - margin);
+  const minX = (viewport.left || 0) + margin;
+  const minY = (viewport.top || 0) + margin;
+  const maxX = Math.max(minX, (viewport.left || 0) + viewport.width - width - margin);
+  const maxY = Math.max(minY, (viewport.top || 0) + viewport.height - height - margin);
   return {
-    x: Math.round(Math.min(maxX, Math.max(margin, x))),
-    y: Math.round(Math.min(maxY, Math.max(margin, y)))
+    x: Math.round(Math.min(maxX, Math.max(minX, x))),
+    y: Math.round(Math.min(maxY, Math.max(minY, y)))
   };
 }

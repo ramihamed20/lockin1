@@ -4,10 +4,10 @@ import { Page } from "../ui/index.jsx";
 import { useI18n } from "../I18nProvider.jsx";
 
 export function QuestionDirectoryHeader({ id, title, subtitle = "", backTo = "", backLabel = "", breadcrumbs = null }) {
-  return <header className="catalog-directory-header">
+  return <header className={!backTo && !breadcrumbs ? "visually-hidden" : "catalog-directory-header"}>
     {backTo && <Link className="catalog-back-link" to={backTo}><Icon name="arrow-left" size={18} aria-hidden="true" /><span dir="auto">{backLabel}</span></Link>}
     {breadcrumbs}
-    <div className="catalog-directory-title"><h1 id={id} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
+    <div className="catalog-directory-title"><h1 id={id} className={!backTo && !breadcrumbs ? "visually-hidden" : undefined} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
   </header>;
 }
 

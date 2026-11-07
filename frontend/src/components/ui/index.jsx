@@ -1,9 +1,9 @@
+import { userErrorMessage, userFieldErrors } from "../../lib/userErrors.js";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { LockinIcon } from "../../lib/lockinIcons.jsx";
 import { usePageTitle } from "../../hooks/usePageTitle.js";
-import { normalizeUserError } from "../../lib/errors.js";
 import { routeMetadata } from "../../lib/routeMetadata.js";
 import { translate } from "../../lib/i18n.js";
 import { useI18n } from "../I18nProvider.jsx";
@@ -123,6 +123,10 @@ function DashboardSkeleton() {
   </div>;
 }
 
+function SheetLibrarySkeleton() {
+  return <div className="skeleton-page skeleton-page--sheet-library"><SkeletonHeader /><Skeleton className="skeleton-sheet-branch" /><section className="skeleton-sheet-library-grid">{Array.from({ length: 4 }, (_, index) => <SkeletonCard className="skeleton-sheet-library-card" key={index}><Skeleton className="skeleton-sheet-library-cover" /><div className="skeleton-sheet-library-copy"><SkeletonText lines={3} /><div className="skeleton-sheet-library-footer"><Skeleton className="skeleton-sheet-library-meta" /><SkeletonAvatar /></div></div></SkeletonCard>)}</section></div>;
+}
+
 function MaterialsListSkeleton({ sheets = false }) {
   return <div className={`skeleton-page skeleton-page--materials${sheets ? " is-sheets" : ""}`}><SkeletonHeader /><section className="skeleton-material-grid">{Array.from({ length: sheets ? 6 : 5 }, (_, index) => <SkeletonCard className="skeleton-material-row" key={index}><SkeletonAvatar /><div><SkeletonText lines={2} /></div><Skeleton className="skeleton-row-end" /></SkeletonCard>)}</section></div>;
 }
@@ -178,6 +182,7 @@ function StandardSkeleton({ variant }) {
   if (variant === "result") return <QuizSkeleton result />;
   if (variant === "document") return <DocumentSkeleton />;
   if (variant === "material-list") return <MaterialsListSkeleton />;
+  if (variant === "sheet-library") return <SheetLibrarySkeleton />;
   if (variant === "card-list") return <MaterialsListSkeleton sheets />;
   if (variant === "sheet") return <SheetSkeleton />;
   return <div className="skeleton-page skeleton-page--grid"><SkeletonHeader /><CardGridSkeleton count={6} card={variant === "list" ? "row" : "standard"} /></div>;
@@ -194,6 +199,7 @@ function loadingVariant(pathname) {
   if (/\/results?\//.test(pathname)) return "result";
   if (/\/attempts?\//.test(pathname)) return "quiz";
   if (/^\/(materials|questions)$/.test(pathname)) return "material-list";
+  if (/^\/materials\/catalog\/[^/]+$/.test(pathname)) return "sheet-library";
   if (/^\/(notifications|review|bookmarks|community|achievements|subscription|my-group|analysis)/.test(pathname)) return "list";
   return "grid";
 }
@@ -253,25 +259,43 @@ const ROUTE_LOADING_FRAMES = {
 export function ErrorPanel({ message, onRetry = null }) {
   const hasPageIdentity = useContext(PageIdentityContext);
   const location = useLocation();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const metadata = routeMetadata(location.pathname, t);
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
+  const [now, setNow] = useState(Date.now);
+  const retryAt = Number(message?.retryAt) || 0;
+  const waiting = Math.max(0, Math.ceil((retryAt - now) / 1000));
+  useEffect(() => {
+    if (!retryAt || retryAt <= Date.now()) return;
+    const timer = window.setInterval(() => {
+      const next = Date.now();
+      setNow(next);
+      if (next >= retryAt) window.clearInterval(timer);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [retryAt]);
   useEffect(() => {
     const update = () => setOffline(navigator.onLine === false);
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
-  // Offline, "Network error" is true but useless: say what still works.
-  const safeMessage = offline ? t("offline.pageNeedsConnection") : normalizeUserError(message, t("error.default"));
+  // An offline hint must never hide a permission/validation answer.
+  const needsConnection = offline && typeof message !== "string" && ["offline", "network_error", "timeout"].includes(message?.code);
+  const safeMessage = needsConnection ? t("offline.pageNeedsConnection") : userErrorMessage(message, { locale, fallback: t("error.default") });
+  const fields = userFieldErrors(message, locale);
+  const reference = typeof message?.request_id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(message.request_id) ? message.request_id : "";
   const materialsHere = location.pathname === "/materials" || location.pathname.startsWith("/materials/");
   return (
     <section className="panel error-panel" role="alert">
       {!hasPageIdentity && <h1 className="visually-hidden">{metadata.h1}</h1>}
       <span className="error-panel-icon" aria-hidden="true"><Icon name="alert-triangle" size={20} /></span>
       <p dir="auto">{safeMessage}</p>
-      {offline && !materialsHere && <Link className="btn btn-soft" to="/materials">{t("nav.materials")}</Link>}
-      {onRetry && !offline && <button className="btn btn-soft" type="button" onClick={onRetry}>{t("common.tryAgain")}</button>}
+      {fields.length > 1 && <ul>{fields.map((item, index) => <li key={`${item.field}-${index}`} dir="auto">{item.label && <strong>{item.label}: </strong>}{item.message}</li>)}</ul>}
+      {reference && <p><small>{t("errors.reference")}: <bdi dir="ltr">{reference}</bdi></small></p>}
+      {waiting > 0 && <p aria-live="off">{t("errors.wait", { seconds: waiting })}</p>}
+      {needsConnection && !materialsHere && <Link className="btn btn-soft" to="/materials">{t("nav.materials")}</Link>}
+      {onRetry && !needsConnection && <button className="btn btn-soft" type="button" disabled={waiting > 0} onClick={onRetry}>{t("common.tryAgain")}</button>}
     </section>
   );
 }

@@ -34,7 +34,7 @@ export default function AssessmentResult() {
   const returnTo = returnPath(location.state);
 
   if (result.loading) return <LoadingPanel />;
-  if (result.error) return <ErrorPanel message={result.error} onRetry={result.reload} />;
+  if (result.error) return <ErrorPanel message={result.errorDetails || result.error} onRetry={result.reload} />;
 
   const data = result.data;
   if (!data.released) {

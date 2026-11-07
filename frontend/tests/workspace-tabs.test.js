@@ -63,6 +63,7 @@ test("a full strip drops its oldest inactive tab", () => {
   for (let index = 0; index < MAX_WORKSPACE_TABS + 2; index += 1) {
     state = openWorkspaceTab(state, sheetTab({ materialSlug: "m", sheetSlug: `sheet-${index}` }));
   }
+  assert.equal(MAX_WORKSPACE_TABS, 4);
   assert.equal(state.tabs.length, MAX_WORKSPACE_TABS);
   assert.equal(state.activeId, sheetTab({ materialSlug: "m", sheetSlug: `sheet-${MAX_WORKSPACE_TABS + 1}` }).id);
 });
@@ -114,11 +115,49 @@ test("a tab kept open behind the visible one stays mounted but inert", async () 
     readFile(new URL("../src/hooks/useReadingSession.js", import.meta.url), "utf8")
   ]);
   // Each kept reader renders against the address it was opened at.
-  assert.match(hostSource, /<Routes location=\{active \? location : pane\.location\}>/);
-  assert.match(hostSource, /inert=\{active \? undefined : ""\}/);
+  assert.match(hostSource, /<Routes location=\{primary \? location : pane\.location\}>/);
+  assert.match(hostSource, /inert=\{visible \? undefined : ""\}/);
   // Only the reader on screen takes shortcuts, claims the tab, names the page and counts reading.
   assert.match(workspace, /if \(!paneActive \|\| !workspaceReady\) return undefined;\r?\n    window\.addEventListener\("keydown"/);
   assert.match(workspace, /if \(!showWorkspaceTabs \|\| !paneActive\) return;/);
   assert.match(title, /if \(!active\) return;/);
   assert.match(reading, /const enabled = requested && paneActive;/);
+});
+
+test("split view provides independently mounted visible PDF panes with a draggable divider", async () => {
+  const [host, bar, styles] = await Promise.all([
+    readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/WorkspaceTabBar.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
+  ]);
+  assert.match(host, /className="workspace-split-divider"/);
+  assert.match(host, /setPointerCapture\(event\.pointerId\)/);
+  assert.match(host, /WorkspacePaneActiveContext\.Provider value=\{focused\}/);
+  assert.match(host, /aria-hidden=\{visible \? undefined : "true"\}/);
+  assert.match(host, /inert=\{visible \? undefined : ""\}/);
+  assert.match(bar, /startDrag\(event, tab, label\)/);
+  assert.match(bar, /<WorkspaceTabDragPreview preview=\{preview\} \/>/);
+  assert.match(host, /data-pane-count=\{isMulti \? liveSlots\.length : 1\}/);
+  assert.match(host, /MAX_VISIBLE_WORKSPACE_SHEETS = 4/);
+  assert.match(host, /workspace-split-shared-chrome/);
+  assert.match(styles, /@media \(max-width: 640px\)/);
+  assert.match(styles, /workspace-tab-drop-highlight/);
+  const drag = await readFile(new URL("../src/workspace/catalog/WorkspaceTabDrag.jsx", import.meta.url), "utf8");
+  assert.match(drag, /splitDropZone\(nextEvent\.clientX, nextEvent\.clientY\)/);
+  assert.match(drag, /window\.addEventListener\("pointermove", pointer/);
+});
+
+test("a visible second PDF keeps rendering, while hidden tab buffers stay suspended", async () => {
+  const [reader, ink, host, css] = await Promise.all([
+    readFile(new URL("../src/workspace/catalog/ContinuousA4Pdf.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/ink/LiveAnnotationCanvas.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
+  ]);
+  assert.match(host, /WorkspacePaneVisibleContext\.Provider value=\{visible\}/);
+  assert.match(reader, /useWorkspacePaneVisible/);
+  assert.match(ink, /useWorkspacePaneVisible/);
+  assert.doesNotMatch(css, /\.workspace-split-layout\.is-split @media/);
+  assert.match(css, /\.workspace-split-layout\.is-split > \.workspace-pane\[data-split-slot="2"\]/);
+  assert.match(css, /\.workspace-split-layout\.is-split > \.workspace-pane\[data-split-slot="3"\]/);
 });

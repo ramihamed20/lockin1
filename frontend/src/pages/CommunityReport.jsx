@@ -13,7 +13,7 @@ export default function CommunityReport() {
   const report = useAsyncData(() => moderationApi.getReport(reportId), [reportId]);
 
   if (report.loading) return <LoadingPanel />;
-  if (report.error) return <ErrorPanel message={report.error} onRetry={report.reload} />;
+  if (report.error) return <ErrorPanel message={report.errorDetails || report.error} onRetry={report.reload} />;
 
   const value = report.data;
   return (

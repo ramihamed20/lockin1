@@ -227,7 +227,7 @@ for (const { viewport, name } of [
  * fields live behind the Account tab.
  */
 async function focusAccountPassword(page) {
-  const tab = page.getByRole("button", { name: "Account", exact: true });
+  const tab = page.getByRole("button", { name: "Sign-in & security", exact: true });
   // The shell can become geometrically stable while the lazy Settings route is
   // still resolving under CI load.  Wait for the real navigation affordance
   // instead of sampling it once and then looking for a field in the hidden

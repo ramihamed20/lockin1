@@ -70,7 +70,7 @@ export default function ScopeAnalytics() {
         {options.years.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
       </select></label>
     </div>
-    {!body && data.loading ? <LoadingPanel /> : data.error ? <ErrorPanel message={data.error} onRetry={() => setScope(EMPTY_SCOPE)} /> : body && <ScopeBody body={body} onDrill={choose} />}
+    {!body && data.loading ? <LoadingPanel /> : data.error ? <ErrorPanel message={data.errorDetails || data.error} onRetry={() => setScope(EMPTY_SCOPE)} /> : body && <ScopeBody body={body} onDrill={choose} />}
   </section>;
 }
 

@@ -238,6 +238,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-a4-live-layer { position: absolute; overflow-anchor: none; transform-origin: 0 0; }
 .workspace-v2-a4-live-layer.is-live-pinching { will-change: transform; }
 .workspace-v2-a4-document { position: absolute; top: 0; left: 0; display: grid; justify-items: center; width: max-content; gap: var(--workspace-a4-page-gap); padding: 0; overflow-anchor: none; transform-origin: 0 0; }
+.workspace-v2-a4-document.is-horizontal { display: flex; align-items: flex-start; direction: ltr; }
 .workspace-v2-a4-page { position: relative; flex: 0 0 auto; overflow: hidden; overflow-anchor: none; color: #11162a; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.24); contain: layout paint style; content-visibility: auto; }
 .workspace-v2-a4-page.is-virtual.is-background-lined { background-image: repeating-linear-gradient(to bottom, transparent 0 39px, #dbe5ef 39px 40px); }
 .workspace-v2-a4-page.is-virtual.is-background-grid { background-image: linear-gradient(to right, #e5ebf1 1px, transparent 1px), linear-gradient(to bottom, #e5ebf1 1px, transparent 1px); background-size: 40px 40px; }
@@ -252,6 +253,8 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-a4-detail-canvas { position: absolute; z-index: 2; display: block; visibility: hidden; pointer-events: none; background: #fff; backface-visibility: hidden; }
 .workspace-v2-a4-detail-canvas.is-visible { visibility: visible; }
 .workspace-v2-a4-status { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #3b4154; background: rgba(255,255,255,.86); font-weight: 700; }
+/* Page recovery controls must receive taps above the ink input layers. */
+.workspace-v2-a4-page > .workspace-v2-a4-status { z-index: 6; }
 .workspace-v2-a4-status p { margin: 0; }
 .workspace-v2-a4-status button { min-width: 112px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 9px; color: #fff; background: #7650ed; cursor: pointer; }
 .workspace-v2-document > :not(.workspace-v2-annotation-layer) { position: relative; z-index: 1; }

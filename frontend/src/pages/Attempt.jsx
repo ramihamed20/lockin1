@@ -184,7 +184,7 @@ export default function Attempt() {
   }
 
   if (detail.loading) return <LoadingPanel variant="quiz" />;
-  if (detail.error) return <ErrorPanel message={detail.error} onRetry={detail.reload} />;
+  if (detail.error) return <ErrorPanel message={detail.errorDetails || detail.error} onRetry={detail.reload} />;
   if (!attempt) return <LoadingPanel variant="quiz" />;
 
   const questions = Array.isArray(attempt.questions) ? attempt.questions : [];

@@ -40,7 +40,7 @@ export default function LearningObjectStudy() {
     return <Page title="Opening study workspace" showHeading><LoadingPanel /></Page>;
   }
   if (detail.error) {
-    return <Page title="Study workspace unavailable" showHeading><ErrorPanel message={detail.error} onRetry={detail.reload} /></Page>;
+    return <Page title="Study workspace unavailable" showHeading><ErrorPanel message={detail.errorDetails || detail.error} onRetry={detail.reload} /></Page>;
   }
 
   const { learningObject, progress, progressError, version } = detail.data;

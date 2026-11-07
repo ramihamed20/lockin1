@@ -22,6 +22,7 @@ from .policy import (
     next_review_at,
     select_diverse_weekly_items,
 )
+from .selectors import with_answer_confidence
 
 
 class ReviewRuleError(ValueError):
@@ -192,8 +193,18 @@ def answer_review_item(
     idempotency_key: UUID,
     context: str,
     weekly_question_id: UUID | None = None,
+    confidence: str = "",
+    active_seconds: int | None = None,
     now: datetime | None = None,
 ) -> ReviewAnswerResult:
+    if confidence not in ("", "unsure", "confident"):
+        raise ReviewRuleError("Choose a valid confidence level.")
+    if active_seconds is not None and (
+        isinstance(active_seconds, bool)
+        or not isinstance(active_seconds, int)
+        or not 1 <= active_seconds <= 900
+    ):
+        raise ReviewRuleError("Active answer time must be between 1 and 900 seconds.")
     answered_at = now or timezone.now()
     User.objects.select_for_update().only("id").get(id=user.id)
     existing = (
@@ -250,6 +261,8 @@ def answer_review_item(
         context=context,
         selected_option_ids=list(selected_option_ids),
         was_correct=was_correct,
+        confidence=confidence,
+        active_seconds=active_seconds,
         answered_at=answered_at,
     )
 
@@ -347,9 +360,12 @@ def answer_review_item(
 
 def _weekly_candidates(*, user: User, now: datetime) -> list[ReviewItem]:
     base = list(
-        ReviewItem.objects.filter(
+        with_answer_confidence(
+            ReviewItem.objects.filter(
+                user=user,
+                state__in=(ReviewItem.State.HIDDEN, ReviewItem.State.MASTERED),
+            ),
             user=user,
-            state__in=(ReviewItem.State.HIDDEN, ReviewItem.State.MASTERED),
         ).order_by("next_review_at", "canonical_key")
     )
     usable = [item for item in base if item.options_snapshot and item.correct_option_ids_snapshot]

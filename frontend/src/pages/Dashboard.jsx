@@ -8,12 +8,15 @@ import { motivationApi } from "../api/motivation.js";
 import { reviewApi } from "../api/review.js";
 import { Icon } from "../lib/icons.jsx";
 import { getRecentOpenedCatalogSheets } from "../lib/materialCatalog.js";
+import { recentStudyEntries } from "../lib/recentStudy.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
 import { Page } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { formatNumber } from "../lib/i18n.js";
 import { MyGroupCard } from "../components/myGroup/MyGroupCard.jsx";
+import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
+import { sheetCoverTone, sheetReadingPosition } from "../lib/sheetPresentation.js";
 
 /**
  * Next action first: Continue (or a first step), then a quiet summary, then
@@ -23,6 +26,7 @@ import { MyGroupCard } from "../components/myGroup/MyGroupCard.jsx";
 export default function Dashboard({ user, themeSettings, activeTheme }) {
   const { t } = useI18n();
   const learning = useAsyncData(signal => progressApi.learningDashboard({ signal }), [user?.id], { cacheKey: `dashboard-learning:${user?.id || ""}` });
+  const recentStudy = useAsyncData(signal => progressApi.recentCatalogStudy({ signal }), [user?.id], { cacheKey: `dashboard-recent:${user?.id || ""}` });
   const bank = useAsyncData(signal => reviewApi.getBank("", { signal }), [user?.id], { cacheKey: `dashboard-bank:${user?.id || ""}` });
   const xp = useAsyncData(signal => motivationApi.xpSummary({ signal }), [user?.id], { cacheKey: `dashboard-xp:${user?.id || ""}` });
   const streak = useAsyncData(() => motivationApi.streakSummary({ scope: user }), [user?.id], { cacheKey: `dashboard-streak:${user?.id || ""}` });
@@ -30,8 +34,8 @@ export default function Dashboard({ user, themeSettings, activeTheme }) {
   const summaries = [learning, bank, xp, streak];
   const summaryLoading = summaries.some(section => section.loading);
   const failedSummaries = summaries.filter(section => section.error);
-  const recent = getRecentOpenedCatalogSheets(user?.id);
-  const hasActivity = learning.data?.completed_count > 0 || xp.data?.total_xp > 0;
+  const recent = recentStudyEntries(recentStudy.data?.results, getRecentOpenedCatalogSheets(user?.id));
+  const hasActivity = learning.data?.completed_count > 0 || xp.data?.total_points > 0;
   const emptyState = hasActivity && bank.data?.active_count === 0 ? "cleared" : "new";
   // Continue already offers the latest sheet, so the list below starts with the
   // one before it; a student with no sheets sees Continue's invitation alone.
@@ -39,7 +43,7 @@ export default function Dashboard({ user, themeSettings, activeTheme }) {
   return <Page title="Dashboard" showHeading={false}>
     <div className="dashboard">
       <OfflineIndicator userId={user?.id} inline />
-      <ContinueCard sheetEntry={recent[0] || null} character={themeSettings.character} theme={activeTheme} />
+      <ContinueCard sheetEntry={recent[0] || null} user={user} character={themeSettings.character} theme={activeTheme} />
       {RESCUE_ENABLED && user?.id && <RescueEntry key={user.id} userId={user.id} />}
       <StudyStates learning={learning.data} bank={bank.data} xp={xp.data} streak={streak.data} loading={summaryLoading} />
       {failedSummaries.length > 0 && <div className="dashboard-summary-error">
@@ -47,7 +51,7 @@ export default function Dashboard({ user, themeSettings, activeTheme }) {
         <button className="btn btn-soft compact" type="button" disabled={failedSummaries.some(section => section.refreshing)} onClick={() => failedSummaries.forEach(section => section.reload())}>{t("common.tryAgain")}</button>
       </div>}
       <section className={`dashboard-secondary${recent.length ? "" : " is-single"}`} aria-label={t("dashboard.studyAndReview")}>
-        <ReviewQueue items={review.data?.results || []} loading={review.loading} refreshing={review.refreshing} error={review.error} onRetry={review.reload} emptyState={emptyState} />
+        <ReviewQueue dueCount={bank.data?.due_count || 0} items={review.data?.results || []} loading={review.loading} refreshing={review.refreshing} error={review.error} onRetry={review.reload} emptyState={emptyState} />
         {recent.length > 0 && <RecentContent sheetEntries={otherRecent} />}
       </section>
       {/* Preserve the timetable's existing request priority after summary reads. */}
@@ -72,7 +76,7 @@ function StudyStates({ learning, bank, xp, streak, loading }) {
   const levelPercent = levelTarget ? Math.min(100, Math.round((levelProgress / levelTarget) * 100)) : 0;
   const streakDays = whole(streak?.current_days);
   const bestDays = whole(streak?.longest_days);
-  const reviewCount = whole(bank?.active_count);
+  const reviewCount = whole(bank?.due_count ?? bank?.active_count);
   const completed = whole(learning?.completed_count);
   const saved = whole(learning?.bookmark_count);
 
@@ -120,23 +124,34 @@ function StudyStates({ learning, bank, xp, streak, loading }) {
   );
 }
 
-function ContinueCard({ sheetEntry, character = "none", theme }) {
+function ContinueCard({ sheetEntry, user, character = "none", theme }) {
   const { t, direction } = useI18n();
-  const sheet = sheetEntry?.sheet;
-  const material = sheetEntry?.material;
+  const { materials } = useCatalogMaterials(user);
+  const material = materials.find(item => item.slug === sheetEntry?.material?.slug) || sheetEntry?.material;
+  const sheet = material?.sheets?.find(item => item.slug === sheetEntry?.sheet?.slug || item.editions?.some(edition => edition.slug === sheetEntry?.sheet?.slug)) || sheetEntry?.sheet;
+  const position = sheetReadingPosition(sheetEntry);
   return (
-    <article className="panel continue-card">
-      <p className="eyebrow">{t(sheet ? "dashboard.continueStudying" : "dashboard.startStudying")}</p>
-      <h2 dir="auto">{sheet?.title || t("dashboard.welcomeStudy")}</h2>
+    <section className={`continue-section${sheet ? " has-sheet" : ""}`} aria-label={t("dashboard.pickUp")}>
+      {sheet && <header className="continue-section-heading"><h2>{t("dashboard.pickUp")}</h2><Link to="/materials">{t("dashboard.allSheets")}<Icon className="dashboard-forward" name="chevron-right" size={18} aria-hidden="true" /></Link></header>}
+      <article className={`panel continue-card${sheet ? " continue-card--sheet" : ""}`}>
+      {sheet && <div className="continue-sheet-cover" data-tone={sheetCoverTone(material)} aria-hidden="true"><span dir="auto">{material?.title}</span>{sheet.number ? <strong dir="ltr">{String(sheet.number).padStart(2, "0")}</strong> : <Icon name="file" size={72} />}</div>}
+      <div className="continue-sheet-content">
+      {sheet && <p className="continue-sheet-eyebrow">{t("dashboard.lastOpened")}</p>}
+      <h2 dir="auto">{sheet?.title || t("dashboard.startStudying")}</h2>
       {sheet && material ? <>
-        <p className="progress-meta"><bdi dir={direction}>{t("dashboard.sheetName", { name: material.title, number: sheet.number })}</bdi></p>
-        <Link className="btn btn-primary" to={sheetEntry.path}>{t("dashboard.continue")}<Icon className="dashboard-forward" name="arrow-up-right" size={18} aria-hidden="true" /></Link>
+        <p className="progress-meta"><bdi dir={direction}>{material.title}</bdi></p>
+        {position && <div className="continue-sheet-progress">
+          <div className="continue-sheet-progress-labels"><span>{t("dashboard.readingPage", { page: position.page, total: position.total })}</span><span dir="ltr">{position.percent}%</span></div>
+          <div className="continue-sheet-meter" role="progressbar" aria-label={t("dashboard.readingPosition")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={position.percent} aria-valuetext={t("dashboard.readingPage", { page: position.page, total: position.total })}><span style={{ width: `${position.percent}%` }} /></div>
+        </div>}
+        <Link className="btn btn-primary" to={sheetEntry.path}>{t("dashboard.resumeSheet")}<Icon className="dashboard-forward" name="chevron-right" size={18} aria-hidden="true" /></Link>
       </> : <>
-        <p>{t("dashboard.openSheetHint")}</p>
         <Link className="btn btn-primary" to="/materials">{t("dashboard.browseMaterials")}</Link>
       </>}
-      {character !== "none" && <div className="dashboard-art"><DashboardHero character={character} theme={theme} /></div>}
-    </article>
+      </div>
+      {!sheet && character !== "none" && <div className="dashboard-art"><DashboardHero character={character} theme={theme} /></div>}
+      </article>
+    </section>
   );
 }
 
@@ -158,12 +173,12 @@ function RecentContent({ sheetEntries }) {
 function RecentSheetLink({ entry }) {
   const { t, direction } = useI18n();
   const { material, sheet, path } = entry;
-  const displayName = t("dashboard.sheetName", { name: material.title, number: sheet.number });
+  const displayName = sheet.number ? t("dashboard.sheetName", { name: material.title, number: sheet.number }) : material.title;
   const accessibleName = sheet.title ? `${sheet.title} · ${displayName}` : displayName;
   return <Link className="dashboard-review-item dashboard-recent-material" to={path} aria-label={t("materials.openNamed", { name: accessibleName })}><span><strong dir="auto">{sheet.title}</strong><small><bdi dir={direction}>{displayName}</bdi></small></span><Icon className="dashboard-forward" name="arrow-up-right" size={15} aria-hidden="true" /></Link>;
 }
 
-function ReviewQueue({ items, loading, error, onRetry, refreshing = false, emptyState = "new" }) {
+function ReviewQueue({ items, loading, error, onRetry, refreshing = false, emptyState = "new", dueCount = 0 }) {
   const { t } = useI18n();
   const visibleItems = items.slice(0, 4);
   return (
@@ -183,7 +198,7 @@ function ReviewQueue({ items, loading, error, onRetry, refreshing = false, empty
             })}
           </div>
             : <div className="review-queue-empty"><span><Icon name={emptyState === "new" ? "target" : "check"} size={18} /></span><div><h3>{t(emptyState === "cleared" ? "dashboard.reviewCleared" : "dashboard.reviewFirstStep")}</h3><p>{t(emptyState === "cleared" ? "dashboard.reviewClearedBody" : "dashboard.reviewFirstStepBody")}</p></div></div>}
-      <Link className="btn btn-soft compact" to="/review">{t("dashboard.openReviewCenter")} <Icon className="dashboard-forward" name="arrow-up-right" size={15} aria-hidden="true" /></Link>
+      <Link className={`btn ${dueCount > 0 ? "btn-primary" : "btn-soft"} compact`} to={dueCount > 0 ? "/review/daily" : "/review"}>{t(dueCount > 0 ? "review.dashboardDaily" : "dashboard.openReviewCenter")} <Icon className="dashboard-forward" name="arrow-up-right" size={15} aria-hidden="true" /></Link>
     </article>
   );
 }

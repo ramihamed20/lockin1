@@ -384,12 +384,10 @@ test("touch iPad uses pinch zoom without visible zoom controls", async ({ browse
   const page = await context.newPage();
   await mockAuthenticatedWorkspace(page);
   await page.goto(ROUTE);
-  const continueInBrowser = page.getByRole("button", { name: "Continue in browser" });
-  // A cold touch context must finish the PWA launch gate. A one-time
-  // isVisible check can run before the asynchronously mounted gate appears.
-  await expect(continueInBrowser).toBeVisible();
-  await continueInBrowser.click();
-  await expect(page.locator(".pwa-launch-screen")).toBeHidden();
+  // A cold touch context reaches the reader directly; installation is an
+  // explicit Settings action and must not cover the study-mode choice.
+  await expect(page.getByRole("button", { name: /Normal Study/ })).toBeVisible();
+  await expect(page.locator(".pwa-launch-screen")).toHaveCount(0);
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   await expect.poll(() => page.evaluate(() => matchMedia("(any-pointer: coarse)").matches)).toBe(true);

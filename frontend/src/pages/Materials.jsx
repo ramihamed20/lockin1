@@ -1,3 +1,4 @@
+import { SearchableDirectory } from "../components/learning/SearchableDirectory.jsx";
 import { useEffect, useState } from "react";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { Link, useLocation, useParams } from "react-router-dom";
@@ -32,9 +33,11 @@ export default function Materials({ user = null }) {
         {materials.length === 0
           ? <EmptyState icon="study" title={t("materials.noCohortMaterialsTitle")} text={t("materials.noCohortMaterialsText")} />
           : (
+<SearchableDirectory items={materials}>{visible => (
             <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
-              {materials.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
+              {visible.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
             </section>
+)}</SearchableDirectory>
           )}
         {canAddSubjects(user) && <AddFirstYearSubject onChange={refresh} />}
       </section>
@@ -137,10 +140,10 @@ function AddFirstYearSubject({ onChange }) {
 
 function CatalogDirectoryHeader({ id, title, subtitle = "", backTo = "", backLabel = "", breadcrumb = null }) {
   return (
-    <header className="catalog-directory-header">
+    <header className={!backTo && !breadcrumb ? "visually-hidden" : "catalog-directory-header"}>
       {backTo && <Link className="catalog-back-link" to={backTo}><Icon name="arrow-left" size={18} aria-hidden="true" /><span dir="auto">{backLabel}</span></Link>}
       {breadcrumb}
-      <div className="catalog-directory-title"><h1 id={id} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
+      <div className="catalog-directory-title"><h1 id={id} className={!backTo && !breadcrumb ? "visually-hidden" : undefined} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
     </header>
   );
 }
@@ -151,24 +154,26 @@ export function CatalogMaterialSheets({ user = null }) {
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
 
-  if (loading) return <Page width="reading" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="card-list" /></Page>;
+  if (loading) return <Page width="sheets" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="sheet-library" /></Page>;
   if (error) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 
   return (
-    <Page width="reading" title={material.title} headingHandled>
-      <section className="catalog-directory" aria-labelledby="catalog-subject-heading">
+    <Page width="sheets" title={material.title} headingHandled>
+      <section className="catalog-directory catalog-sheet-directory" aria-labelledby="catalog-subject-heading">
         <CatalogDirectoryHeader id="catalog-subject-heading" title={material.title} backTo="/materials" backLabel={t("route.materials")} />
         {/* The student's own sheets are a branch of every subject, so the
             subject is never a dead end even before anything is published. */}
         <PersonalSheetsBranch material={material} user={user} />
         {material.sheets.length
           ? (
+<SearchableDirectory key={material.slug} items={material.sheets}>{visible => (
             <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
-              {material.sheets.map((sheet) => (
+              {visible.map((sheet) => (
                 <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
               ))}
             </section>
+)}</SearchableDirectory>
           )
           : <EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} />}
       </section>

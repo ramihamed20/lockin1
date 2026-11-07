@@ -84,7 +84,7 @@ export default function CreatorEducation() {
   }
 
   if (workspace.loading) return <LoadingPanel />;
-  if (workspace.error) return <ErrorPanel message={workspace.error} onRetry={workspace.reload} />;
+  if (workspace.error) return <ErrorPanel message={workspace.errorDetails || workspace.error} onRetry={workspace.reload} />;
 
   const normalizedQuery = query.trim().toLowerCase();
   const visibleNodes = nodes.filter((node) => {

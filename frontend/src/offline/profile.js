@@ -44,7 +44,7 @@ export async function forgetOfflineUser(userId) {
   invalidateOfflineSession();
   if (localStorage.getItem(CURRENT_USER_KEY) === String(userId)) localStorage.removeItem(CURRENT_USER_KEY);
   await offlineDatabase.delete(userId, "lease");
-  await clearOfflineDownloads(userId);
+  await clearOfflineDownloads(userId, { logout: true });
   for (const key of await offlineDatabase.keys(userId)) {
     if (!isRetainedOfflineWork(key)) await offlineDatabase.delete(userId, key);
   }

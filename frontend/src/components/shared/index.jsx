@@ -14,7 +14,7 @@ export function FullScreenState({ message, actionLabel = "", onAction = null, st
         <span className="startup-halo" />
         <span className="startup-logo-frame">
           <img
-            src={assetPath("/icons/lockin-light-192-v2.png")}
+            src={assetPath("/icons/lockin-logo.svg")}
             alt=""
             width="96"
             height="96"

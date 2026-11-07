@@ -516,7 +516,7 @@ function PaymentDetail({ paymentId, canManage, onReviewed, onClose }) {
   const [notice, setNotice] = useState("");
 
   if (data.loading) return <QueueDetail label="Payment detail"><LoadingPanel /></QueueDetail>;
-  if (data.error) return <QueueDetail label="Payment detail"><ErrorPanel message={data.error} onRetry={data.reload} /></QueueDetail>;
+  if (data.error) return <QueueDetail label="Payment detail"><ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} /></QueueDetail>;
 
   const payment = data.data;
   const manual = payment.manual_submission;
@@ -652,7 +652,7 @@ export default function PaymentsConsole({ canManage }) {
 
       <QueueRefreshStatus refreshing={list.refreshing} />
       {list.loading ? <QueueSkeleton /> : list.error ? (
-        <ErrorPanel message={list.error} onRetry={list.reload} />
+        <ErrorPanel message={list.errorDetails || list.error} onRetry={list.reload} />
       ) : (
         <section className="panel ops-table-panel" aria-busy={list.refreshing || undefined}>
           <div className="ops-panel-head">

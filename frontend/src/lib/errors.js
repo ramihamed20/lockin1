@@ -2,7 +2,7 @@ const HTML_PATTERN = /<!doctype\s+html|<html[\s>]|<body[\s>]|<head[\s>]|<script[
 // Runtime error names and stack frames reach `message` whenever a proxy, a
 // gateway, or an unhandled server exception answers a request. None of it is
 // useful to a reader, and it can name internal hosts and code paths.
-const TECHNICAL_PATTERN = /(?:traceback|stack trace|django debug|webpack|vite\/client|\b(?:type|reference|syntax|range|eval|uri|internal|aggregate)error\b|\bat\s+\S+:\d+:\d+)/i;
+const TECHNICAL_PATTERN = /(?:ErrorDetail\s*\(|DOMException|QuotaExceededError|SecurityError|traceback|stack trace|django debug|webpack|vite\/client|\b(?:type|reference|syntax|range|eval|uri|internal|aggregate)error\b|\bat\s+\S+:\d+:\d+)/i;
 
 export function isHtmlErrorMessage(value) {
   return typeof value === "string" && HTML_PATTERN.test(value);

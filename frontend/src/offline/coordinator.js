@@ -1,18 +1,19 @@
 import { request } from "../api/client.js";
 import { offlineDatabase } from "./database.js";
-import { downloadOfflineItem, fetchOfflineManifest, isOfflineItemStored, mayAutoDownload } from "./downloads.js";
-import { saveVerifiedLease } from "./lease.js";
+import { downloadOfflineItem, fetchOfflineManifest, isOfflineItemStored, isOfflineItemRemoved, mayAutoDownload } from "./downloads.js";
+import { saveVerifiedLease, offlineAccessStatus } from "./lease.js";
 import { flushPendingOperations, pendingOfflineOperations } from "./queue.js";
 // Registers the Focus and Review operation handlers with the shared queue.
 import "./focusSync.js";
 import "./rescueSync.js";
+import "./studyPlan.js";
 import { refreshReviewSnapshot } from "./review.js";
-import { captureOfflineSession, currentOfflineUserId } from "./sessionScope.js";
+import { captureOfflineSession, currentOfflineUserId, mutateOfflineCache } from "./sessionScope.js";
 
 export const DEFAULT_OFFLINE_PREFERENCES = Object.freeze({
-  automatic: false,
-  network: "wifi",
-  types: { sheet: true, summary: true, active_study: true, questions: true }
+  automatic: true,
+  network: "any",
+  types: { sheet: true, summary: true, active_study: false, questions: false }
 });
 
 export async function readOfflinePreferences(userId) {
@@ -21,17 +22,94 @@ export async function readOfflinePreferences(userId) {
 }
 
 export async function saveOfflinePreferences(userId, preferences) {
-  await offlineDatabase.put(userId, "preferences", preferences);
+  const assertCurrent = captureOfflineSession(userId);
+  await mutateOfflineCache(userId, async () => {
+    const previous = await offlineDatabase.get(userId, "preferences");
+    // A deliberate off → on action starts automatic storage again, including
+    // files previously cleared. Ordinary preference edits keep exclusions.
+    if (previous?.automatic === false && preferences.automatic === true) {
+      for (const key of await offlineDatabase.keys(userId)) {
+        if (String(key).startsWith("removed-download:")) await offlineDatabase.deleteScoped(userId, key, assertCurrent);
+      }
+    }
+    await offlineDatabase.putScoped(userId, "preferences", preferences, assertCurrent);
+  });
 }
 
 const activeRuns = new Map();
 const lastRuns = new Map();
 const retryTimers = new Map();
+const downloadRuns = new Map();
+const manifestChecks = new Map();
 // Foreground triggers (focus, resume, visibility) can fire in bursts. A quiet
 // period between automatic runs keeps them from turning into a request loop;
 // a regained connection, new offline work or a manual check always runs.
 export const AUTOMATIC_SYNC_INTERVAL_MS = 60_000;
 const FAILURE_BACKOFF_MS = [15_000, 60_000, 5 * 60_000];
+
+/** One sequential download queue, independent of uploads of the student's work. */
+function downloadAutomaticContent(userId, manifest, publish, assertCurrent) {
+  const existing = downloadRuns.get(userId);
+  if (existing?.assertCurrent.isCurrent()) {
+    existing.manifest = manifest;
+    return existing.promise;
+  }
+  const state = { manifest, assertCurrent, promise: null };
+  downloadRuns.set(userId, state);
+  state.promise = (async () => {
+    let failedDownloads = 0;
+    while (state.manifest) {
+      const current = state.manifest;
+      state.manifest = null;
+      // Make PDFs ready first, including for accounts that opted into quizzes.
+      const items = [...current.items].sort((a, b) => Number(!["sheet", "summary"].includes(a?.type)) - Number(!["sheet", "summary"].includes(b?.type)));
+      for (const item of items) {
+        assertCurrent();
+        if (navigator.onLine === false || document.visibilityState === "hidden") return failedDownloads;
+        const preferences = await readOfflinePreferences(userId);
+        if (!preferences.automatic || !mayAutoDownload(preferences.network)) return failedDownloads;
+        if (!item?.available || !preferences.types[item.type]) continue;
+        if (await isOfflineItemRemoved(userId, item.id)) continue;
+        if (!(await offlineAccessStatus(userId)).available) return failedDownloads;
+        try {
+          if (await isOfflineItemStored(userId, item, current)) continue;
+          assertCurrent();
+          publish("downloading", { itemId: item.id });
+          await downloadOfflineItem(userId, item, () => {}, { manifest: current, assertCurrent });
+        } catch (error) {
+          assertCurrent();
+          // The reader takes over a file's transport instead of fetching twice.
+          if (error?.name === "AbortError") continue;
+          failedDownloads += 1;
+          if ([401, 403].includes(error?.status) || error?.name === "QuotaExceededError" || !navigator.onLine) return failedDownloads;
+        }
+      }
+    }
+    return failedDownloads;
+  })().finally(() => { if (downloadRuns.get(userId) === state) downloadRuns.delete(userId); });
+  return state.promise;
+}
+
+/** Poll only the small authorized manifest; do not refetch Review/directories. */
+export async function refreshAutomaticDownloads(userId) {
+  const assertCurrent = captureOfflineSession(userId);
+  if (navigator.onLine === false || document.visibilityState === "hidden") return;
+  const preferences = await readOfflinePreferences(userId);
+  if (!preferences.automatic || !mayAutoDownload(preferences.network)) return;
+  if (!(await offlineAccessStatus(userId)).available) {
+    await synchronizeOffline(userId, undefined, { force: false, backgroundDownloads: true });
+    return;
+  }
+  const previous = manifestChecks.get(userId);
+  if (previous && Date.now() - previous < AUTOMATIC_SYNC_INTERVAL_MS) return;
+  manifestChecks.set(userId, Date.now());
+  const manifest = await fetchOfflineManifest(userId, assertCurrent);
+  const publish = publisher(userId, () => {});
+  const failedDownloads = await downloadAutomaticContent(userId, manifest, publish, assertCurrent);
+  assertCurrent();
+  const pending = await pendingOfflineOperations(userId);
+  publish(failedDownloads || pending.length ? "partial" : "synced");
+}
 
 function publisher(userId, onState) {
   return (state, detail = {}) => {
@@ -43,7 +121,7 @@ function publisher(userId, onState) {
 function throttled(userId, force) {
   if (force) return false;
   const last = lastRuns.get(userId);
-  if (!last) return false;
+  if (!last || !last.assertCurrent.isCurrent()) return false;
   const wait = last.failures ? FAILURE_BACKOFF_MS[Math.min(last.failures, FAILURE_BACKOFF_MS.length) - 1] : AUTOMATIC_SYNC_INTERVAL_MS;
   return Date.now() - last.at < wait;
 }
@@ -128,13 +206,16 @@ async function reconcileAfterFlush(userId, acknowledged, assertCurrent) {
  * Only the foreground page runs this; iOS does not run closed-app jobs.
  * @param {string} userId
  * @param {(state: string) => void} [onState]
- * @param {{ force?: boolean, scheduled?: boolean }} [options]
+ * @param {{ force?: boolean, scheduled?: boolean, backgroundDownloads?: boolean }} [options]
  */
-export async function synchronizeOffline(userId, onState = () => {}, { force = true, scheduled = false } = {}) {
+export async function synchronizeOffline(userId, onState = () => {}, { force = true, scheduled = false, backgroundDownloads = false } = {}) {
   const assertCurrent = captureOfflineSession(userId);
-  if (activeRuns.has(userId)) return activeRuns.get(userId);
+  const existing = activeRuns.get(userId);
+  if (existing?.assertCurrent.isCurrent()) return existing.promise;
   if (throttled(userId, force || scheduled)) return null;
   const publish = publisher(userId, onState);
+  const state = { assertCurrent, promise: null };
+  activeRuns.set(userId, state);
   const run = (async () => {
     publish("verifying");
     let leaseError = null;
@@ -194,29 +275,23 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
       }
       assertCurrent();
       const manifest = await fetchOfflineManifest(userId, assertCurrent);
-      const preferences = await readOfflinePreferences(userId);
-      let failedDownloads = 0;
-      // Without Automatic Downloads nothing is fetched here: a changed item keeps
-      // its stored version usable and Settings offers "Update available".
-      if (preferences.automatic && mayAutoDownload(preferences.network)) {
-        for (const item of manifest.items) {
-          if (!preferences.types[item.type]) continue;
-          // Unchanged content is skipped by version and checksum; for a changed
-          // bundle only the parts whose versions moved are fetched again.
-          if (await isOfflineItemStored(userId, item, manifest)) continue;
-          publish("downloading");
-          try {
-            await downloadOfflineItem(userId, item, () => {}, { manifest, assertCurrent });
-          } catch {
-            // A failed download stays retryable; independent items continue.
-            failedDownloads += 1;
-          }
-        }
-      }
-      const now = new Date().toISOString();
-      await offlineDatabase.putScoped(userId, "lastSync", now, assertCurrent);
-      await offlineDatabase.putScoped(userId, "syncCursor", { at: now, pending: remaining.length, failedDownloads }, assertCurrent);
-      publish(failedDownloads || remaining.length ? "partial" : "synced", { xpTotal: flushed.xpTotal });
+      // The manual check may wait for files, but it no longer owns the upload
+      // lock. A queued answer can start a fresh upload during this download.
+      if (activeRuns.get(userId) === state) activeRuns.delete(userId);
+      lastRuns.set(userId, { at: Date.now(), failures: 0, assertCurrent });
+      const finish = async (failedDownloads) => {
+        assertCurrent();
+        const now = new Date().toISOString();
+        const pending = await pendingOfflineOperations(userId);
+        await offlineDatabase.putScoped(userId, "lastSync", now, assertCurrent);
+        await offlineDatabase.putScoped(userId, "syncCursor", { at: now, pending: pending.length, failedDownloads }, assertCurrent);
+        publish(failedDownloads || pending.length ? "partial" : "synced");
+      };
+      // Large PDFs must never hold the sync lock while new answers/notes wait.
+      const downloading = downloadAutomaticContent(userId, manifest, publish, assertCurrent);
+      publish(remaining.length ? "partial" : "synced", { xpTotal: flushed.xpTotal });
+      if (backgroundDownloads) void downloading.then(finish).catch(() => undefined);
+      else await finish(await downloading);
       return manifest;
     } catch (error) {
       // The queued work above is already on the server. A directory or
@@ -225,22 +300,22 @@ export async function synchronizeOffline(userId, onState = () => {}, { force = t
       throw Object.assign(error instanceof Error ? error : new Error(String(error)), { afterFlush: true });
     }
   })();
-  activeRuns.set(userId, run);
+  state.promise = run;
   globalThis.clearTimeout(retryTimers.get(userId)?.timer);
   retryTimers.delete(userId);
   try {
     const manifest = await run;
-    lastRuns.set(userId, { at: Date.now(), failures: 0 });
+    lastRuns.set(userId, { at: Date.now(), failures: 0, assertCurrent });
     void scheduleAutomaticRetry(userId, { failed: false });
     return manifest;
   } catch (error) {
     if (!assertCurrent.isCurrent()) throw error;
     const failures = (lastRuns.get(userId)?.failures || 0) + 1;
-    lastRuns.set(userId, { at: Date.now(), failures });
+    lastRuns.set(userId, { at: Date.now(), failures, assertCurrent });
     publish(error?.afterFlush ? "partial" : syncFailureState(error));
     void scheduleAutomaticRetry(userId, { failed: true });
     throw error;
   } finally {
-    activeRuns.delete(userId);
+    if (activeRuns.get(userId) === state) activeRuns.delete(userId);
   }
 }

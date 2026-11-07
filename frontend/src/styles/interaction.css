@@ -549,3 +549,15 @@
     width: 100%;
   }
 }
+
+/* The sheet cover owns this card's colour; hover adds only a quiet edge. */
+@layer interaction {
+  html.ix-hover .catalog-sheet-grid > a.sheet-library-card:hover {
+    background: var(--surface);
+    border-color: color-mix(in srgb, var(--sheet-resume-action) 28%, var(--card-edge, var(--separator)));
+  }
+  html.ix-hover .dashboard .continue-card--sheet .btn-primary:hover {
+    color: white;
+    background: color-mix(in srgb, var(--sheet-resume-action) 90%, black);
+  }
+}

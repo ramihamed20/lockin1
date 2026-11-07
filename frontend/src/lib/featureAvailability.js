@@ -11,27 +11,27 @@ export const FEATURE_AVAILABILITY = Object.freeze({
 
 const FEATURE_REGISTRY = Object.freeze([
   // Lockin Mode keeps its lobby, sessions and API client intact; flipping this
-  // status back to AVAILABLE re-opens every entry point at once.
+  // availability is checked by the server-backed entry gate before opening.
   Object.freeze({
     id: "lock-in",
     primaryPath: "/lock-in",
     routes: ["/lock-in"],
     labelKey: "nav.lockInMode",
-    status: FEATURE_AVAILABILITY.COMING_SOON
+    status: FEATURE_AVAILABILITY.AVAILABLE
   }),
   Object.freeze({
     id: "study-plan",
     primaryPath: "/study-plan",
     routes: ["/study-plan"],
     labelKey: "nav.studyPlan",
-    status: FEATURE_AVAILABILITY.COMING_SOON
+    status: FEATURE_AVAILABILITY.AVAILABLE
   }),
   Object.freeze({
     id: "rank",
     primaryPath: "/ranked",
     routes: ["/ranked"],
     labelKey: "nav.ranked",
-    status: FEATURE_AVAILABILITY.COMING_SOON
+    status: FEATURE_AVAILABILITY.AVAILABLE
   }),
   Object.freeze({
     id: "community",

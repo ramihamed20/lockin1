@@ -118,7 +118,7 @@ async function addScene(panel, title, { cover = false } = {}) {
   await editor.getByTestId("lofi-video-input").setInputFiles({ name: "rain-loop.webm", mimeType: "video/webm", buffer: CLIP });
   // The clip is read in the browser first: its length is shown before upload.
   await expect(editor.getByText(/rain-loop\.webm · .* · 0:02 loop/)).toBeVisible();
-  if (cover) await editor.getByTestId("lofi-cover-input").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: readFileSync(new URL("../public/icons/lockin-gold-192-v2.png", import.meta.url)) });
+  if (cover) await editor.getByTestId("lofi-cover-input").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: readFileSync(new URL("../public/icons/lockin-gold-192-v3.png", import.meta.url)) });
   await editor.getByLabel("Title").fill(title);
   await editor.getByRole("button", { name: "Add scene" }).click();
   await expect(editor).toHaveCount(0);

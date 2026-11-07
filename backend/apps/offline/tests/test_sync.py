@@ -105,3 +105,35 @@ def test_sync_requires_a_user_bound_signed_lease() -> None:
         .status_code
         == 403
     )
+
+
+def test_rejected_validation_has_structured_details_instead_of_python_repr() -> None:
+    from rest_framework.exceptions import ErrorDetail, ValidationError
+
+    from apps.offline.models import OfflineOperationReceipt
+    from apps.offline.sync import replay_batch
+
+    user = create_user(email="offline-field-errors@example.com", verified=False)
+    operation_id = str(uuid4())
+    invalid = ValidationError(
+        {"choice_ids": [ErrorDetail("Choose one or more answers.", code="required")]}
+    )
+    with patch("apps.offline.sync._question_answer", side_effect=invalid):
+        result = replay_batch(
+            user=user,
+            operations=[
+                {
+                    "operation_id": operation_id,
+                    "operation_type": "question_answer",
+                    "payload": {},
+                }
+            ],
+        )
+    assert result["accepted"] == []
+    rejected = result["rejected"][0]
+    assert rejected["code"] == "rejected"
+    assert rejected["retryable"] is False
+    assert rejected["fields"] == {"choice_ids": ["Choose one or more answers."]}
+    assert rejected["field_codes"] == {"choice_ids": ["required"]}
+    assert "ErrorDetail" not in rejected["reason"]
+    assert not OfflineOperationReceipt.objects.filter(user=user, operation_id=operation_id).exists()

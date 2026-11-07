@@ -26,7 +26,9 @@ function searchErrorKey(error) {
 }
 
 function viewport() {
-  return { width: window.innerWidth, height: window.innerHeight };
+  const visual = window.visualViewport;
+  return { width: visual?.width || window.innerWidth, height: visual?.height || window.innerHeight,
+    left: visual?.offsetLeft || 0, top: visual?.offsetTop || 0 };
 }
 
 /** Its laid-out size: unlike a bounding box, never shrunk by the opening animation. */
@@ -52,6 +54,7 @@ export function FocusVideoPlayer() {
   const [videoId, setVideoId] = useState("");
   const [searching, setSearching] = useState(true);
   const [width, setWidth] = useState(START_WIDTH);
+  const [screen, setScreen] = useState(viewport);
   const [position, setPosition] = useState(/** @type {{ x: number, y: number } | null} */ (null));
   const [gesture, setGesture] = useState(/** @type {"" | "move" | "resize"} */ (""));
   const [chromeShown, setChromeShown] = useState(true);
@@ -59,9 +62,16 @@ export function FocusVideoPlayer() {
   const [search, setSearch] = useState(/** @type {{ status: "idle" | "loading" | "done" | "error", query: string, results: any[], errorKey: string }} */ ({ status: "idle", query: "", results: [], errorKey: "" }));
   const searchSeq = useRef(0);
   const inputRef = useRef(/** @type {HTMLInputElement | null} */ (null));
-  const gestureRef = useRef(/** @type {{ kind: "move" | "resize" | "press", id: number, edge?: string, startX: number, startY: number, start: { x: number, y: number, width: number, height: number } } | null} */ (null));
+  const gestureRef = useRef(/** @type {{ kind: "move" | "resize" | "press", id: number, target: HTMLElement, edge?: string, startX: number, startY: number, start: { x: number, y: number, width: number, height: number } } | null} */ (null));
   const chromeTimer = useRef(0);
   const media = useYouTubeMedia(frameRef, videoId);
+
+  const cancelGesture = useCallback(() => {
+    const active = gestureRef.current;
+    gestureRef.current = null;
+    setGesture("");
+    if (active?.target.hasPointerCapture?.(active.id)) active.target.releasePointerCapture(active.id);
+  }, []);
 
   useEffect(() => {
     const show = () => { setOpen(true); setSearching(true); };
@@ -79,6 +89,7 @@ export function FocusVideoPlayer() {
     if (!panel.matches(":popover-open")) panel.showPopover();
     // Reopened even if the browser closed it on entering full screen.
     const raise = () => {
+      cancelGesture();
       if (panel.matches(":popover-open")) panel.hidePopover();
       panel.showPopover();
     };
@@ -87,18 +98,22 @@ export function FocusVideoPlayer() {
       document.removeEventListener("fullscreenchange", raise);
       if (panel.matches(":popover-open")) panel.hidePopover();
     };
-  }, [open]);
+  }, [open, cancelGesture]);
 
   const keepInside = useCallback(() => {
     const panel = panelRef.current;
     if (!panel) return;
-    const size = panelSize(panel);
+    const bounds = viewport();
+    setScreen((current) => Object.keys(bounds).every((key) => current[key] === bounds[key]) ? current : bounds);
+    const measured = panelSize(panel);
+    const size = { width: Math.min(measured.width, Math.max(0, bounds.width - MARGIN * 2)),
+      height: Math.min(measured.height, Math.max(0, bounds.height - MARGIN * 2)) };
     setPosition((current) => {
       const start = current ?? {
-        x: document.documentElement.dir === "rtl" ? MARGIN : window.innerWidth - size.width - MARGIN,
-        y: window.innerHeight - size.height - MARGIN
+        x: document.documentElement.dir === "rtl" ? bounds.left + MARGIN : bounds.left + bounds.width - size.width - MARGIN,
+        y: bounds.top + bounds.height - size.height - MARGIN
       };
-      const next = clampPanelPosition(start, size, viewport(), MARGIN);
+      const next = clampPanelPosition(start, size, bounds, MARGIN);
       return current && current.x === next.x && current.y === next.y ? current : next;
     });
   }, []);
@@ -118,9 +133,25 @@ export function FocusVideoPlayer() {
   }, [showingSearch]);
   useEffect(() => {
     if (!open) return undefined;
-    window.addEventListener("resize", keepInside);
-    return () => window.removeEventListener("resize", keepInside);
-  }, [open, keepInside]);
+    const visual = window.visualViewport;
+    const resize = () => { cancelGesture(); keepInside(); };
+    const visibility = () => { if (document.visibilityState === "hidden") cancelGesture(); };
+    window.addEventListener("resize", resize);
+    window.addEventListener("blur", cancelGesture);
+    window.addEventListener("pagehide", cancelGesture);
+    document.addEventListener("visibilitychange", visibility);
+    visual?.addEventListener("resize", resize);
+    visual?.addEventListener("scroll", resize);
+    return () => {
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("blur", cancelGesture);
+      window.removeEventListener("pagehide", cancelGesture);
+      document.removeEventListener("visibilitychange", visibility);
+      visual?.removeEventListener("resize", resize);
+      visual?.removeEventListener("scroll", resize);
+      cancelGesture();
+    };
+  }, [open, keepInside, cancelGesture]);
   useEffect(() => () => window.clearTimeout(chromeTimer.current), []);
 
   /** The floating title bar comes back on any touch and fades after a quiet moment. */
@@ -131,6 +162,7 @@ export function FocusVideoPlayer() {
   }, []);
 
   function close() {
+    cancelGesture();
     searchSeq.current += 1;
     setOpen(false);
     setVideoId("");
@@ -174,12 +206,12 @@ export function FocusVideoPlayer() {
    * the picture (a tap until it travels, then a move), `resize` from an edge.
    */
   function beginGesture(event, kind, edge) {
-    if (event.button !== 0 || (kind === "move" && event.target.closest?.("button"))) return;
+    if (event.button !== 0 || gestureRef.current || (kind === "move" && event.target.closest?.("button"))) return;
     const panel = panelRef.current;
     if (!panel || !position) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    gestureRef.current = { kind, edge, id: event.pointerId, startX: event.clientX, startY: event.clientY, start: { ...position, ...panelSize(panel) } };
+    gestureRef.current = { kind, edge, id: event.pointerId, target: event.currentTarget, startX: event.clientX, startY: event.clientY, start: { ...position, ...panelSize(panel) } };
     if (kind !== "press") setGesture(kind === "resize" ? "resize" : "move");
     wakeChrome();
   }
@@ -206,13 +238,12 @@ export function FocusVideoPlayer() {
   function endGesture(event) {
     const active = gestureRef.current;
     if (!active || active.id !== event.pointerId) return;
-    gestureRef.current = null;
-    setGesture("");
+    cancelGesture();
     // A press that never travelled is a tap on the picture: play or pause.
     if (active.kind === "press" && event.type === "pointerup") media.toggle();
   }
 
-  const gestureHandlers = { onPointerMove: continueGesture, onPointerUp: endGesture, onPointerCancel: endGesture };
+  const gestureHandlers = { onPointerMove: continueGesture, onPointerUp: endGesture, onPointerCancel: endGesture, onLostPointerCapture: endGesture };
 
   if (!open) return null;
   const showSearch = searching || !videoId;
@@ -231,7 +262,7 @@ export function FocusVideoPlayer() {
       popover="manual"
       role="dialog"
       aria-label={t("focusVideo.label")}
-      style={{ width: panelWidth, ...(position ? { left: position.x, top: position.y } : { visibility: "hidden" }) }}
+      style={{ width: panelWidth, maxWidth: Math.max(0, screen.width - MARGIN * 2), maxHeight: Math.max(0, screen.height - MARGIN * 2), ...(position ? { left: position.x, top: position.y } : { visibility: "hidden" }) }}
       onPointerMove={showSearch ? undefined : wakeChrome}
       onKeyDown={(event) => {
         if (event.key === "Escape" && showSearch && videoId) setSearching(false);

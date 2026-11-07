@@ -139,6 +139,10 @@ export const focusApi = {
     );
   },
 
+  async getLockInAvailability() {
+    return objectPayload(await request("/focus/lock-in/availability"), "Lockin availability could not be checked.");
+  },
+
   async getLockIn() {
     return objectPayload(
       await request("/focus/lock-in"),
@@ -146,7 +150,7 @@ export const focusApi = {
     );
   },
 
-  async startLockIn({ documentVersionId = null, clientInstanceId, sessionType, plannedDurationSeconds = null, breakDurationSeconds = null, teamId = null, teamName = "", anonymous = false, goal = "", topic = "", note = "", tasks = [] }) {
+  async startLockIn({ documentVersionId = null, clientInstanceId, sessionType, plannedDurationSeconds = null, breakDurationSeconds = null, teamId = null, teamName = "", anonymous = false, goal = "", topic = "", note = "", tasks = [], experienceVersion = 1, edition = "university", pageStart = 1, pageEnd = null }) {
     if (typeof clientInstanceId !== "string" || !clientInstanceId || typeof sessionType !== "string") {
       throw new ApiError(0, null, "A stable session ID and session type are required.", "invalid_request");
     }
@@ -158,6 +162,9 @@ export const focusApi = {
       note,
       tasks
     };
+    if (experienceVersion === 2) {
+      Object.assign(body, { experience_version: 2, edition, page_start: pageStart, page_end: pageEnd });
+    }
     if (teamId) body.team_id = teamId;
     if (teamName) body.team_name = teamName;
     if (anonymous) body.anonymous = true;
@@ -198,9 +205,16 @@ export const focusApi = {
     );
   },
 
-  async getLockInLeaderboard(period = "weekly") {
+  async getLockInLeaderboard(period = "weekly", metric = "time") {
     if (!["weekly", "all_time"].includes(period)) throw new ApiError(0, null, "Unsupported period.", "invalid_request");
-    return objectPayload(await request(`/focus/lock-in/leaderboard?period=${period}`), "Leaderboard could not be loaded.");
+    if (!["time", "sheets", "accuracy", "continuous"].includes(metric)) throw new ApiError(0, null, "Unsupported ranking.", "invalid_request");
+    return objectPayload(await request(`/focus/lock-in/leaderboard?period=${period}&metric=${metric}`), "Leaderboard could not be loaded.");
+  },
+
+  async uploadLockInTeamImage(teamId, file) {
+    const body = new FormData();
+    body.append("file", file);
+    return objectPayload(await request(`/focus/lock-in/teams/${teamId}/image`, { method: "POST", body }), "The team picture could not be saved.");
   },
 
   async getLockInTeam(teamId) {
@@ -259,6 +273,16 @@ export const focusApi = {
     return objectPayload(
       await request(`/focus/lock-in/${sessionId}/leave-session`, { method: "POST", body: {} }),
       "The team Lockin could not be left."
+    );
+  },
+
+  async updateLockInGoal(sessionId, { goalPages, completedPages, expectedRevision }) {
+    return objectPayload(
+      await request(`/focus/lock-in/${sessionId}/goal`, {
+        method: "PUT",
+        body: { goal_pages: goalPages, completed_pages: completedPages, expected_revision: expectedRevision }
+      }),
+      "Your progress could not be saved."
     );
   },
 

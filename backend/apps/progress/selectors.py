@@ -1,9 +1,27 @@
+from uuid import UUID
+
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from apps.accounts.models import User
 
 from .models import Bookmark, LearningProgress, QuestionReview
+
+
+def planning_reading_progress(
+    *, user: User, version_ids: list[UUID]
+) -> dict[UUID, dict[str, object]]:
+    """Version-specific, self-reported reading evidence, never a mastery score."""
+    return {
+        row["version_id"]: {
+            "completion_percent": row["completion_percent"],
+            "status": row["status"],
+            "updated_at": row["updated_at"],
+        }
+        for row in LearningProgress.objects.filter(user=user, version_id__in=version_ids).values(
+            "version_id", "completion_percent", "status", "updated_at"
+        )
+    }
 
 
 def bookmarks_for_user(*, user: User) -> QuerySet[Bookmark]:

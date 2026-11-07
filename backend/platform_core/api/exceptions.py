@@ -34,6 +34,7 @@ def lockin_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
     code = "request_failed"
     message = "The request could not be completed."
     fields: Any = None
+    field_codes: Any = None
 
     if isinstance(exc, APIException):
         code_value = exc.get_codes()
@@ -47,8 +48,14 @@ def lockin_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
         if raw_detail is not None:
             message = str(raw_detail)
         fields = {key: value for key, value in detail.items() if key != "detail"} or None
+        if fields and isinstance(exc, APIException):
+            codes = exc.get_codes()
+            if isinstance(codes, dict):
+                field_codes = {key: value for key, value in codes.items() if key != "detail"}
     elif isinstance(detail, list):
         fields = {"non_field_errors": detail}
+        if isinstance(exc, APIException):
+            field_codes = {"non_field_errors": exc.get_codes()}
     elif detail:
         message = str(detail)
 
@@ -60,4 +67,6 @@ def lockin_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
             "request_id": request_id,
         }
     }
+    if field_codes:
+        response.data["error"]["field_codes"] = field_codes
     return response

@@ -98,7 +98,7 @@ export function PracticePlayerPage({ category }) {
   const back = { backTo, backLabel: t("practice.backToSets") };
   if (!category) return <DirectoryState title={t("materials.notFoundTitle")} backTo={BACK_TO_QUESTIONS} backLabel={t("route.questions")}><ErrorPanel message={t("questions.subjectUnavailable")} /></DirectoryState>;
   if (data.loading) return <DirectoryState title={t(category.titleKey)} {...back}><LoadingPanel variant="quiz" /></DirectoryState>;
-  if (data.error) return <DirectoryState title={t(category.titleKey)} {...back}><ErrorPanel message={data.error} onRetry={data.reload} /></DirectoryState>;
+  if (data.error) return <DirectoryState title={t(category.titleKey)} {...back}><ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} /></DirectoryState>;
   const set = data.data;
   if (!set?.slides.length) return <DirectoryState title={set?.title || t(category.titleKey)} {...back}><EmptyState icon="brain" title={t("practice.emptyTitle")} text={t("practice.emptyText")} /></DirectoryState>;
 

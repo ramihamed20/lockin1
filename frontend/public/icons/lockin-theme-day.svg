@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
+<title id="title">Lockin Logo</title>
+<desc id="desc">Theme-colored monogram with academic cap and golden bookmark</desc>
+<defs>
+  <linearGradient id="gold" x1="0%" y1="0%" x2="85%" y2="100%">
+    <stop offset="0" stop-color="#EBC575"/>
+    <stop offset="0.58" stop-color="#D5A346"/>
+    <stop offset="1" stop-color="#BD8627"/>
+  </linearGradient>
+</defs>
+<rect x="16" y="15" width="1221" height="1221" rx="265" fill="#f2f2f7"/>
+<g fill="#5b4bd6">
+  <!-- Initial L -->
+  <path d="M 305,252 C 299,252 296,256 296,262 L 296,773 C 296,867 369,947 474,947 L 705,947 C 710,927 685,879 654,853 C 639,841 618,833 596,833 L 521,833 C 485,833 463,812 463,774 L 463,420 C 463,339 406,273 326,254 C 318,252 311,252 305,252 Z"/>
+  <!-- n-shaped arch -->
+  <path d="M 782,516 C 695,516 629,582 629,665 L 629,811 C 660,828 690,855 708,874 L 708,668 C 708,628 741,599 782,599 C 824,599 857,630 857,671 L 857,880 C 857,916 886,945 921,949 L 939,949 L 939,670 C 939,582 870,516 782,516 Z"/>
+  <!-- Graduation cap -->
+  <path d="M 781,364 Q 789,360 798,364 L 936,434 Q 945,439 938,445 L 885,471 L 885,514 C 854,496 820,485 785,485 C 749,485 718,496 689,515 L 689,472 L 640,445 Q 630,441 637,435 Z"/>
+</g>
+<g fill="url(#gold)">
+  <!-- Ribbon: part of the learning icon -->
+  <path d="M 782,630 C 757,630 738,648 738,673 L 738,847 Q 738,851 742,849 L 780,820 Q 782,819 785,821 L 821,848 Q 826,852 826,846 L 826,671 C 826,647 808,630 782,630 Z"/>
+  <!-- Cap tassel -->
+  <path d="M 928,453 C 924,453 922,457 922,462 L 922,499 C 917,503 914,509 914,516 L 914,542 C 914,552 920,559 930,559 C 940,559 946,552 946,542 L 946,516 C 946,508 942,503 936,499 L 936,462 C 936,457 933,453 928,453 Z"/>
+</g>
+</svg>

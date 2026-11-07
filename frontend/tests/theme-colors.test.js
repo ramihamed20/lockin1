@@ -61,7 +61,7 @@ function contrast(a, b) {
 test("design tokens are the single source for the Night palette", () => {
   const root = tokenMap(selectorBlock(tokenStyles, ":root"));
   assert.equal(root["--bg"], "#080a10");
-  assert.equal(root["--surface"], "#10141c");
+  assert.equal(root["--surface"], "#15171d");
   assert.equal(root["--text"], "#eef1f7");
   assert.equal(root["--accent"], "#f1c04f");
   assert.equal(root["--danger"], "#f27272");
@@ -122,4 +122,15 @@ test("PWA chrome and immersive workspaces expose only light-theme overrides", ()
   assert.match(focus, /--workspace-stage-bg:\s*oklch\(90\.5% 0\.008 264\.5\)/);
   assert.match(focus, /--workspace-stage-bg:\s*oklch\(87\.9% 0\.008 91\.5\)/);
   assert.match(focus, /--workspace-stage-bg:\s*oklch\(86\.9% 0\.015 17\.4\)/);
+});
+
+
+test("current grouped surfaces retain AA text contrast in light and dark modes", () => {
+  const night = tokenMap(selectorBlock(tokenStyles, ":root"));
+  const light = tokenMap(selectorBlock(tokenStyles, ':root:is\\(\\[data-theme="day"\\], \\[data-theme="light"\\], \\[data-theme="dawn"\\], \\[data-theme="sunset"\\]\\)'));
+  for (const [mode, palette] of [["night", night], ["light", light]]) {
+    for (const surface of ["--bg", "--surface", "--surface-2", "--surface-3"]) {
+      for (const role of ["--text", "--muted"]) assert.ok(contrast(palette[role], palette[surface]) >= 4.5, `${mode} ${role} on ${surface}`);
+    }
+  }
 });

@@ -79,12 +79,16 @@ class OfflineSyncView(APIView):
             )
         except jwt.InvalidTokenError as error:
             raise PermissionDenied(
-                "A valid offline access lease is required to sync saved work."
+                "A valid offline access lease is required to sync saved work.",
+                code="offline_lease_invalid",
             ) from error
         # Work can only be done offline while a lease is valid, so a lease that
         # ended long ago no longer proves anything about pending work.
         if int(cast(int, claims["exp"])) + SYNC_GRACE_SECONDS < timezone.now().timestamp():
-            raise PermissionDenied("This offline access lease is too old to sync saved work.")
+            raise PermissionDenied(
+                "This offline access lease is too old to sync saved work.",
+                code="offline_lease_expired",
+            )
         result = replay_batch(user=user, operations=data["operations"])
         result["cursor"] = timezone.now().isoformat()
         return Response(result)

@@ -30,6 +30,7 @@ from .annotation_share_views import (
     AnnotationShareNoticesView,
     AnnotationShareReportView,
 )
+from .assistance_import_views import AdminAssistanceImportView
 from .personal_sheet_views import (
     PersonalSheetCollectionView,
     PersonalSheetDeleteView,
@@ -57,6 +58,13 @@ from .sheet_summary_views import (
     SheetSummaryCollectionView,
     SheetSummaryDetailView,
 )
+from .study_assistance_views import (
+    AdminStudyAssistanceDetailView,
+    AdminStudyAssistanceView,
+    DocumentStudyAssistanceView,
+    StudyAssistanceSavedView,
+)
+from .translation_views import AdminSheetTranslationView, DocumentTranslationView
 from .views import (
     ArchiveLearningObjectView,
     CatalogAddedSubjectCollectionView,
@@ -72,6 +80,7 @@ from .views import (
     PublicLearningObjectDetailView,
     PublicLearningObjectListView,
     PublishLearningObjectView,
+    RecentCatalogWorkspacesView,
     RejectLearningObjectView,
     SubmitLearningObjectView,
     TransferLearningObjectView,
@@ -80,6 +89,44 @@ from .views import (
 app_name = "content"
 
 urlpatterns = [
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/assistance/import",
+        AdminAssistanceImportView.as_view(),
+        name="admin-assistance-import",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/assistance",
+        DocumentStudyAssistanceView.as_view(),
+        name="document-study-assistance",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/assistance/<uuid:idea_id>/saved",
+        StudyAssistanceSavedView.as_view(),
+        name="study-assistance-saved",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/assistance",
+        AdminStudyAssistanceView.as_view(),
+        name="admin-study-assistance",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/assistance/<uuid:idea_id>",
+        AdminStudyAssistanceDetailView.as_view(),
+        name="admin-study-assistance-detail",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/translations",
+        AdminSheetTranslationView.as_view(),
+        name="admin-sheet-translations",
+    ),
+    path(
+        "catalog/documents/<uuid:document_id>/translation",
+        DocumentTranslationView.as_view(),
+        name="document-translation",
+    ),
+    path(
+        "catalog/workspaces/recent", RecentCatalogWorkspacesView.as_view(), name="recent-workspaces"
+    ),
     # Keep the structural UUID route before the two-slug alias resolver: UUIDs
     # are valid slugs, so the broader pattern would otherwise shadow workspace
     # GET/PATCH requests and return 404/405 before authorization is evaluated.

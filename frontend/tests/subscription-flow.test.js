@@ -116,13 +116,16 @@ test("plans sit directly under Store in the navigation", async () => {
   assert.notEqual(translate("ar", "nav.subscription"), "nav.subscription");
 });
 
-test("subscribing is one screen: pick a plan, then pay, with the terms one link away", () => {
-  const page = source("../src/pages/Subscription.jsx");
-  // No intermediate steps or explanations between the plan and the card.
-  assert.doesNotMatch(page, /CHECKOUT_STEPS|goToStep|subscription\.howItWorks/);
-  assert.match(page, /subscription\.payAmount", \{ amount:/);
-  assert.match(page, /subscription-pay-toggle/);
-  assert.match(page, /href="#\/terms"/);
+test("guided subscription instructions are translated in both interface languages", async () => {
+  const { translate } = await import("../src/lib/i18n.js");
+  for (const locale of ["en", "ar"]) {
+    for (const key of ["stepPlan", "stepReview", "stepPay", "accessTerms", "policyConsent", "privacyLink", "policyEligibility"]) {
+      assert.notEqual(translate(locale, `subscription.${key}`), `subscription.${key}`);
+    }
+    const instructions = translate(locale, "subscription.cardInstructions", { amount: "25 LYD" });
+    assert.ok(instructions.includes("25 LYD"));
+    assert.ok(!instructions.includes("{amount}"));
+  }
 });
 
 test("the approved policy preserves statutory claims after the voluntary guarantee", async () => {

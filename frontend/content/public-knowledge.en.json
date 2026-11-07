@@ -100,7 +100,7 @@
       "requirements": "Only the sources and questions published for your study path appear; Mix is not available right now."
     },
     "review": {
-      "requirements": "Review collects mistakes only from questions that support review."
+      "requirements": "Your daily review selects up to 20 due questions from your mistake bank using the existing schedule, prioritising repeated mistakes. You can also choose a subject."
     },
     "weekly": {
       "requirements": "Appears when questions you corrected in review are ready to recall; an empty test is never shown."
@@ -313,11 +313,12 @@
     },
     "find-mistakes": {
       "question": "How do I review my mistakes?",
-      "shortAnswer": "Open the Review Center, then the review bank or «Start review» when there are active questions. Mistakes from supported sources are the ones that enter this system.",
+      "shortAnswer": "Open the Review Center and start Your review today for due questions, or Choose a subject for a specific subject. Only mistakes from supported sources enter this system.",
       "detailedSteps": [
         "Open the Review Center.",
-        "Choose «Open Review Bank» or «Start review» if it appears.",
-        "Choose the subject, answer the questions shown, then check your review result."
+        "Choose a short session of about 5 or 10 minutes, then Start review.",
+        "Answer before revealing feedback, and open the source page when available.",
+        "Check your session results, or Choose a subject to open the review bank."
       ]
     },
     "saved-mistakes": {

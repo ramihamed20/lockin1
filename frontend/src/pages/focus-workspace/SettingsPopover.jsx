@@ -1,4 +1,4 @@
-import { BookOpen, Bookmark, Circle, Download, Eraser, Eye, FileText, Hash, Image as ImageIcon, PenLine, Power, Ruler, Sparkles, Trash2, Upload, X, ZoomIn } from "lucide-react";
+import { ArrowLeftRight, ArrowUpDown, BookOpen, Bookmark, Circle, Download, Eraser, Eye, FileText, Hash, Image as ImageIcon, PenLine, Power, Ruler, Sparkles, Trash2, Upload, X, ZoomIn } from "lucide-react";
 import { DRAWING_INPUT } from "../../workspace/input/gestureStateMachine.js";
 import { PAGE_BACKGROUND_CHOICES, SETTINGS_SECTIONS } from "./constants.js";
 import { SettingsToggle } from "./controls.jsx";
@@ -7,7 +7,7 @@ import { moveWithinRadioGroup } from "./studyDialogs.jsx";
 /**
  * Workspace settings: drawing, canvas, view and other sections.
  */
-export function SettingsPopover({ activeVirtualPage, activeVirtualPageId, addBlankPage, annotationsHidden, applyRestoredBackup, autoImproveHandwriting, backupBusy, backupInputRef, changeDrawingInput, changeVirtualPageBackground, circleToErase, clearPageAnnotations, closeSurfaceAndRestoreFocus, deleteBlankPage, drawAndHold, drawingInput, exportBusy, exportStudyDocument, exportWorkspaceBackup, includeWorkspacePages, keepScreenAwake, page, pageAnnotations, pdfDocumentReady, pendingImport, popover, readWorkspaceBackup, rememberLastPosition, rememberZoomLevel, saveErrorReason, saveState, scribbleToErase, setActiveTool, setAnnotationsHidden, setAutoImproveHandwriting, setCircleToErase, setDrawAndHold, setIncludeWorkspacePages, setKeepScreenAwake, setPendingImport, setRememberLastPosition, setRememberZoomLevel, setScribbleToErase, setSelectedIds, setSettingsTab, setShowPageNumber, settingsTab, sheet, showPageNumber, t, wakeLockSupported, workspaceReady }) {
+export function SettingsPopover({ pageDirection, changePageDirection, activeVirtualPage, activeVirtualPageId, addBlankPage, annotationsHidden, applyRestoredBackup, autoImproveHandwriting, backupBusy, backupInputRef, changeDrawingInput, changeVirtualPageBackground, circleToErase, clearPageAnnotations, closeSurfaceAndRestoreFocus, deleteBlankPage, drawAndHold, drawingInput, exportBusy, exportStudyDocument, exportWorkspaceBackup, includeWorkspacePages, keepScreenAwake, page, pageAnnotations, pdfDocumentReady, pendingImport, popover, readWorkspaceBackup, rememberLastPosition, rememberZoomLevel, saveErrorReason, saveState, scribbleToErase, setActiveTool, setAnnotationsHidden, setAutoImproveHandwriting, setCircleToErase, setDrawAndHold, setIncludeWorkspacePages, setKeepScreenAwake, setPendingImport, setRememberLastPosition, setRememberZoomLevel, setScribbleToErase, setSelectedIds, setSettingsTab, setShowPageNumber, settingsTab, sheet, showPageNumber, t, wakeLockSupported, workspaceReady }) {
   return <>
     {workspaceReady && popover("settings").shown && <section {...popover("settings").props} id="workspace-settings-popover" className="workspace-v2-settings-popover workspace-v8-settings" role="dialog" aria-label={t("focus.workspaceSettings")} onPointerDown={(event) => event.stopPropagation()}>
       <header className="workspace-v8-settings-head"><strong>{t("focus.settings")}</strong><button type="button" aria-label={t("focus.closeWorkspaceSettings")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
@@ -58,6 +58,13 @@ export function SettingsPopover({ activeVirtualPage, activeVirtualPageId, addBla
           </div>
         </>}
         {settingsTab === "view" && <>
+          {sheet.pdfUrl && <div className="workspace-v8-settings-group">
+            <p className="workspace-v8-settings-label">{t("focus.pageDirection")}</p>
+            <div className="workspace-v8-segmented" role="radiogroup" aria-label={t("focus.pageDirection")}>
+              <button type="button" role="radio" aria-checked={pageDirection === "vertical"} tabIndex={pageDirection === "vertical" ? 0 : -1} onKeyDown={moveWithinRadioGroup} onClick={() => changePageDirection("vertical")}><ArrowUpDown size={16} aria-hidden="true" />{t("focus.verticalPages")}</button>
+              <button type="button" role="radio" aria-checked={pageDirection === "horizontal"} tabIndex={pageDirection === "horizontal" ? 0 : -1} onKeyDown={moveWithinRadioGroup} onClick={() => changePageDirection("horizontal")}><ArrowLeftRight size={16} aria-hidden="true" />{t("focus.horizontalPages")}</button>
+            </div>
+          </div>}
           <div className="workspace-v8-settings-group">
             <SettingsToggle icon={ZoomIn} label={t("focus.rememberZoomLevel")} description={t("focus.reopenThisSheetAtYour")} checked={rememberZoomLevel} onChange={setRememberZoomLevel} />
             <SettingsToggle icon={Hash} label={t("focus.showPageNumber")} description={t("focus.keepThePageCounterIn")} checked={showPageNumber} onChange={setShowPageNumber} />

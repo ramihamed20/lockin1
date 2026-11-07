@@ -7,12 +7,12 @@
  * already start on this version, so they are not shown the after-update panel.
  */
 export const WHATS_NEW = {
-  id: "0.1.4",
-  version: "0.1.4",
-  date: "2026-10-25",
+  id: "0.1.5",
+  version: "0.1.5",
+  date: "2026-11-02",
   summary: {
-    en: "Smoother writing, easier controls and a faster study experience.",
-    ar: "كتابة أكثر سلاسة، واستخدام أسهل، وتجربة دراسية أسرع."
+    en: "More flexible PDF reading, study tools, and improved focus controls.",
+    ar: "قراءة PDF بمرونة أكبر، وأدوات دراسة أكثر، وتحكم أفضل في التركيز."
   },
   items: [
     {

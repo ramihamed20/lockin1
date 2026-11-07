@@ -98,8 +98,12 @@ body::after {
   box-shadow: none;
 }
 
-.brand-logo-img {
+.brand-mark .brand-logo-img {
+  box-sizing: border-box;
+  padding: 6px;
   border-radius: inherit;
+  background: #FFFDF9;
+  object-fit: contain;
 }
 
 .brand strong {
@@ -519,8 +523,8 @@ body::after {
 .section-heading h2 {
   margin: 0;
   font-size: var(--title-large);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
   letter-spacing: var(--tracking-title);
   text-wrap: balance;
 }
@@ -552,6 +556,9 @@ body::after {
     gap: 16px;
   }
 }
+
+/* Loading content uses the same quiet entry as the loaded screen. */
+.app-shell .skeleton-page-heading { display: none; }
 
 /* --- Surfaces ------------------------------------------------------------ */
 

@@ -72,7 +72,7 @@ export default function Community() {
   }
 
   if (home.loading) return <LoadingPanel />;
-  if (home.error) return <ErrorPanel message={home.error} onRetry={home.reload} />;
+  if (home.error) return <ErrorPanel message={home.errorDetails || home.error} onRetry={home.reload} />;
 
   return (
     <Page title="Community" subtitle={t("community.subtitle")}>
@@ -163,7 +163,7 @@ export function CommunityContext({ user }) {
   }
 
   if (context.loading) return <LoadingPanel />;
-  if (context.error) return <ErrorPanel message={context.error} onRetry={context.reload} />;
+  if (context.error) return <ErrorPanel message={context.errorDetails || context.error} onRetry={context.reload} />;
 
   return (
     <Page title="Community" subtitle={t("community.contextSubtitle")}>

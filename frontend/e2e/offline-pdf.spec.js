@@ -80,10 +80,10 @@ async function mockServer(page, state) {
           id: PDF_ITEM, type: "sheet", document_id: DOCUMENT_ID, document_version_id: VERSION_ID, material_slug: MATERIAL, sheet_slug: SHEET,
           subject_id: "subject-histology", sheet_id: "server-sheet-1", edition: "university", title: "Sheet 1", version: 1, updated_at: null,
           size: pdf.length, checksum, download_url: `/api/v1/files/${FILE_ID}/view`, dependencies: [], available: true
-        }]
+        }, ...(state.extraFiles || [])]
       });
     }
-    if (pathname === `/api/v1/files/${FILE_ID}/view`) {
+    if (pathname === `/api/v1/files/${FILE_ID}/view` || state.extraFiles?.some((item) => pathname === item.download_url)) {
       state.fileRequests += 1;
       return route.fulfill({ status: 200, contentType: "application/pdf", body: pdf });
     }
@@ -113,7 +113,7 @@ async function downloadSubject(page) {
   await page.goto("/#/settings?section=offline");
   const offlineSection = page.locator("#settings-offline");
   await expect(offlineSection.getByText("Offline access available")).toBeVisible({ timeout: 20_000 });
-  await offlineSection.getByRole("button", { name: "Download subject" }).click();
+  // PDFs are now downloaded automatically, without visiting the download action.
   await expect(offlineSection.getByText("Downloaded", { exact: true })).toBeVisible({ timeout: 30_000 });
 }
 
@@ -159,6 +159,30 @@ test.describe("under the production Content-Security-Policy", () => {
   // The worker would answer the shell from its cache without the header.
   test.use({ serviceWorkers: "block" });
 
+  test("newly published PDFs download while the student stays on the same screen", async ({ page, baseURL }) => {
+    test.setTimeout(90_000);
+    const state = { ...newState(), extraFiles: [] };
+    await applyProductionPolicy(page, baseURL);
+    await mockServer(page, state);
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await page.clock.install();
+    await downloadSubject(page);
+    expect(state.fileRequests).toBe(1);
+    const pdf = await pdfBytes;
+    const nextId = "3e9f4051-6273-4d84-9e95-0f1a2b3c4d5e";
+    state.extraFiles.push({
+      id: "new-document:sheet", type: "sheet", document_id: "new-document", document_version_id: "new-version",
+      material_slug: MATERIAL, sheet_slug: "sheet-2", subject_id: "subject-histology", sheet_id: "server-sheet-2", edition: "university",
+      title: "Sheet 2", version: 1, size: pdf.length, checksum: createHash("sha256").update(pdf).digest("hex"),
+      download_url: `/api/v1/files/${nextId}/view`, dependencies: [], available: true
+    });
+    await page.clock.fastForward(61_000);
+    await expect.poll(() => state.fileRequests).toBe(2);
+    await expect(page.locator("#settings-offline").getByText("Downloaded", { exact: true })).toBeVisible();
+    await openSheet(page);
+    expect(state.fileRequests).toBe(2);
+  });
+
   test("first opening saves automatically and subsequent online/offline openings transfer no PDF", async ({ page, baseURL }) => {
     test.setTimeout(120_000);
     const state = newState();
@@ -177,7 +201,9 @@ test.describe("under the production Content-Security-Policy", () => {
       };
     }), { user: USER_ID, item: PDF_ITEM }), { timeout: 20_000 }).toBe(true);
     const initialRequests = state.fileRequests;
-    expect(initialRequests).toBe(1);
+    // A foreground open can cancel an unfinished prefetch and own the transport.
+    expect(initialRequests).toBeGreaterThanOrEqual(1);
+    expect(initialRequests).toBeLessThanOrEqual(2);
 
     let releaseMetadata;
     state.metadataGate = new Promise((resolve) => { releaseMetadata = resolve; });

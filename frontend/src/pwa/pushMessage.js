@@ -7,7 +7,7 @@ export function notificationFromPush(payload, binding, now = Date.now()) {
     title: payload.title.slice(0, 160),
     options: {
       body: payload.body.slice(0, 320), tag: `lock-in:${payload.id}`,
-      icon: "/icons/lockin-gold-192-v2.png",
+      icon: "/icons/lockin-gold-192-v3.png",
       data: { binding: binding.binding, id: payload.id }
     }
   };

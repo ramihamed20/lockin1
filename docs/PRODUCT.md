@@ -1349,3 +1349,26 @@ Lock-in now restores the original dark, study-focused visual language through a 
 starting with the shell, sign-in, and dashboard. This is intentionally a presentation migration:
 students keep the current secure, server-backed behavior while every future page is reshaped to feel
 native to the original Sidebar, cards, menus, responsive navigation, and typography.
+
+
+## Dentistry carryover subjects in Study Plan (2026-11-04)
+
+Second Year students use their existing added First Year subjects (currently up to two)
+in the same exam plan and daily capacity as their Second Year work. No additional
+subject selection or access grant is stored by Study Plan. Materials remains the
+selection flow; existing operator approval still governs later subject swaps.
+
+An ExamPeriod may explicitly link a carryover_period from First Year of the same
+dentistry program, institution and exam kind. Migration 0015 links the published
+Tripoli 2026/2027 midterms. A student sees only their own period with the chosen
+First Year schedules and syllabus merged into its personalized projection; they
+cannot open the full First Year exam API. No schedule or syllabus is copied into
+another cohort. Inactive, draft, invalid and revoked source subjects grant nothing.
+
+Reading, Active Study, questions and due review use each subject's source exam date;
+a missing subject schedule falls back to its source period start. Exam days from
+both selected years are excluded from new allocations. Added-subject changes alter
+the preview fingerprint, requiring a new preview before apply. Saved completed
+work is preserved. Existing daily briefings and exam review priorities include
+currently authorized carried subjects. The timetable marks First Year rows and
+links to Materials for selection; returning to the tab refreshes exam discovery.

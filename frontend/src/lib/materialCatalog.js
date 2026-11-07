@@ -222,7 +222,8 @@ export function rememberLastOpenedCatalogSheet(materialSlug, sheetSlug, snapshot
       sheetSlug,
       materialTitle: resolvedMaterial.title,
       sheetTitle: resolvedSheet.title,
-      sheetNumber: resolvedSheet.number
+      sheetNumber: resolvedSheet.number,
+      openedAt: new Date().toISOString()
     };
     const next = [opened, ...current.filter((entry) => entry.materialSlug !== materialSlug || entry.sheetSlug !== sheetSlug)].slice(0, MAX_RECENT_OPENED_SHEETS);
     globalThis.localStorage?.setItem(keys.recent, JSON.stringify(next));
@@ -253,7 +254,7 @@ function resolveOpenedSheet(entry) {
   const { material, sheet } = getCatalogSheet(entry.materialSlug, entry.sheetSlug);
   const resolvedMaterial = material || (entry.materialTitle ? { slug: entry.materialSlug, title: entry.materialTitle } : null);
   const resolvedSheet = sheet || (entry.sheetTitle ? { slug: entry.sheetSlug, title: entry.sheetTitle, number: entry.sheetNumber } : null);
-  return resolvedMaterial && resolvedSheet ? { material: resolvedMaterial, sheet: resolvedSheet, path: `/materials/catalog/${entry.materialSlug}/sheets/${entry.sheetSlug}/workspace` } : null;
+  return resolvedMaterial && resolvedSheet ? { material: resolvedMaterial, sheet: resolvedSheet, openedAt: entry.openedAt || "", path: `/materials/catalog/${entry.materialSlug}/sheets/${entry.sheetSlug}/workspace` } : null;
 }
 
 export function getRecentOpenedCatalogSheets(userId = null) {

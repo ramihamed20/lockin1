@@ -1,5 +1,6 @@
 import secrets
 import uuid
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -14,9 +15,20 @@ def focus_team_invite_code() -> str:
     return f"{secrets.randbelow(900_000) + 100_000:06d}"
 
 
+def focus_invite_expiry() -> "datetime":
+    return timezone.now() + timedelta(days=1)
+
+
 class FocusTeam(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=80)
+    image = models.ForeignKey(
+        "files.ManagedFile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="focus_team_images",
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="owned_focus_teams"
     )
@@ -24,7 +36,15 @@ class FocusTeam(models.Model):
         max_length=12, unique=True, db_index=True, default=focus_team_invite_code
     )
     max_members = models.PositiveSmallIntegerField(default=8)
+    cohort = models.ForeignKey(
+        "education.StudentCohort",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="focus_teams",
+    )
     joining_locked = models.BooleanField(default=False)
+    invite_expires_at = models.DateTimeField(default=focus_invite_expiry)
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -132,6 +152,9 @@ class FocusSession(models.Model):
     team_name = models.CharField(max_length=80, blank=True)
     anonymous = models.BooleanField(default=False)
     lock_in_live = models.BooleanField(default=False)
+    experience_version = models.PositiveSmallIntegerField(default=1)
+    deadline_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    study_metadata = models.JSONField(default=dict, blank=True)
     team = models.ForeignKey(
         FocusTeam,
         on_delete=models.SET_NULL,
@@ -211,12 +234,32 @@ class FocusSessionParticipant(models.Model):
     last_seen_at = models.DateTimeField(default=timezone.now)
     break_started_at = models.DateTimeField(null=True, blank=True)
     break_seconds = models.PositiveIntegerField(default=0)
+    active_microseconds = models.PositiveBigIntegerField(default=0)
+    active_since = models.DateTimeField(null=True, blank=True)
+    credited_at = models.DateTimeField(null=True, blank=True)
+    private_note = models.TextField(blank=True)
+    note_revision = models.PositiveIntegerField(default=1)
+    goal_pages = models.PositiveIntegerField(null=True, blank=True)
+    completed_pages = models.PositiveIntegerField(default=0)
+    goal_revision = models.PositiveIntegerField(default=1)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=("session", "user"), name="focus_session_participant_unique"
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(goal_pages__isnull=True, completed_pages=0)
+                    | Q(
+                        goal_pages__isnull=False,
+                        goal_pages__gte=1,
+                        goal_pages__lte=10_000,
+                        completed_pages__lte=F("goal_pages"),
+                    )
+                ),
+                name="focus_participant_goal_valid",
+            ),
         ]
         indexes = [models.Index(fields=("user", "left_at"), name="focus_participant_user_idx")]
 
@@ -352,6 +395,7 @@ class ActiveStudyRun(models.Model):
     stage = models.CharField(max_length=24, choices=Stage.choices, default=Stage.READING)
     completed_parts = models.JSONField(default=list)
     plan_signature = models.JSONField(default=dict)
+    planning_source = models.JSONField(default=dict, blank=True)
     # The Pomodoro countdown as the student's last device left it, so another
     # device resumes the same minute. Timing only: progress stays above.
     pomodoro_clock = models.JSONField(default=dict, blank=True)
@@ -416,6 +460,7 @@ class ActiveStudyAttempt(models.Model):
     total = models.PositiveSmallIntegerField()
     passed = models.BooleanField(null=True, blank=True)
     continued_anyway = models.BooleanField(default=False)
+    source_evidence = models.JSONField(default=dict, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -713,3 +758,45 @@ class LofiScene(models.Model):
 
 
 from .rescue_models import RescueMutationReceipt, RescueSession  # noqa: E402, F401
+
+
+class FocusInviteWindow(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    started_at = models.DateTimeField(default=timezone.now)
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    def __str__(self) -> str:
+        return str(self.user_id)
+
+
+class FocusTeamInvitation(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(FocusTeam, on_delete=models.CASCADE, related_name="direct_invitations")
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_focus_invitations"
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="focus_invitations"
+    )
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    expires_at = models.DateTimeField(default=focus_invite_expiry)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("team", "recipient"), name="focus_team_recipient_invite_unique"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(sender=models.F("recipient")), name="focus_team_invite_not_self"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.team_id}:{self.recipient_id}:{self.status}"

@@ -1,8 +1,9 @@
 from uuid import UUID
 
+from django.db import models
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import APIException, PermissionDenied
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,7 +11,8 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 
 from .contracts import QuestionAttemptEvent
-from .models import ReviewAnswerLog
+from .daily import daily_review_payload
+from .models import ReviewAnswerLog, ReviewItem
 from .selectors import (
     active_review_items,
     current_weekly_session,
@@ -126,6 +128,50 @@ class ReviewBankSubjectView(APIView):
         )
 
 
+class DailyReviewView(APIView):
+    def get(self, request: Request) -> Response:
+        return Response(daily_review_payload(user=_user(request), now=timezone.now()))
+
+
+class ReviewSourceView(APIView):
+    """Resolve the current published reference, rechecking reader access on every click."""
+
+    def get(self, request: Request, item_id: UUID) -> Response:
+        from apps.content.models import CatalogDocument
+        from apps.content.views import _catalog_document_by_id
+
+        item = (
+            ReviewItem.objects.select_related("last_question_version")
+            .filter(pk=item_id, user=_user(request))
+            .first()
+        )
+        version = item.last_question_version if item else None
+        if version is None or not version.source_learning_object_id or not version.source_page:
+            raise NotFound("A source page is not available for this question.")
+        document = CatalogDocument.objects.filter(
+            is_active=True,
+            edition="university",
+            version__learning_object_id=version.source_learning_object_id,
+            version__learning_object__published_version_id=models.F("version_id"),
+        ).first()
+        if document is None:
+            raise NotFound("The source is no longer available.")
+        document = _catalog_document_by_id(user=_user(request), document_id=document.id)
+        if document.version.created_at > version.created_at:
+            raise NotFound("The source was updated. Its original page needs reverification.")
+        page_count = document.version.page_count or document.managed_file.pdf_page_count
+        if page_count is None or version.source_page > page_count:
+            raise NotFound("The source page is no longer available.")
+        return Response(
+            {
+                "material_slug": document.material_slug,
+                "sheet_slug": document.sheet_slug,
+                "page": version.source_page,
+                "document_version_id": str(document.version_id),
+            }
+        )
+
+
 class ReviewBankAnswerView(APIView):
     def post(self, request: Request, item_id: UUID) -> Response:
         serializer = ReviewAnswerWriteSerializer(data=request.data)
@@ -138,12 +184,16 @@ class ReviewBankAnswerView(APIView):
                 selected_option_ids=tuple(str(value) for value in data["selected_option_ids"]),
                 idempotency_key=data["idempotency_key"],
                 context=ReviewAnswerLog.Context.REVIEW_BANK,
+                confidence=data["confidence"],
+                active_seconds=data["active_seconds"],
             )
         except ReviewRuleError as error:
             _raise_rule(error)
         return Response(
             {
                 "was_correct": result.answer_log.was_correct,
+                "confidence": result.answer_log.confidence,
+                "active_seconds": result.answer_log.active_seconds,
                 "review_item": review_item_payload(result.review_item, reveal_answer=True),
                 "mistake_event_id": result.mistake_event.id if result.mistake_event else None,
             }
@@ -199,6 +249,8 @@ class WeeklyRecallAnswerView(APIView):
                 idempotency_key=data["idempotency_key"],
                 context=ReviewAnswerLog.Context.WEEKLY_RECALL,
                 weekly_question_id=weekly_question.id,
+                confidence=data["confidence"],
+                active_seconds=data["active_seconds"],
             )
         except ReviewRuleError as error:
             _raise_rule(error)
@@ -206,6 +258,8 @@ class WeeklyRecallAnswerView(APIView):
         return Response(
             {
                 "was_correct": result.answer_log.was_correct,
+                "confidence": result.answer_log.confidence,
+                "active_seconds": result.answer_log.active_seconds,
                 "review_item": review_item_payload(result.review_item, reveal_answer=True),
                 "session": weekly_session_payload(refreshed),
                 "mistake_event_id": result.mistake_event.id if result.mistake_event else None,
