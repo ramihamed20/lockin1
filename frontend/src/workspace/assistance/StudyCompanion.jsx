@@ -114,6 +114,7 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
     if (!isPhone || event.button > 0 || dragPointerRef.current) return;
     const bounds = rootRef.current?.getBoundingClientRect();
     if (!bounds) return;
+    suppressPetClickRef.current = false;
     dragPointerRef.current = {
       id: event.pointerId, x: event.clientX, y: event.clientY,
       left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height, moved: false
