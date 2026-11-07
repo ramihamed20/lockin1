@@ -271,7 +271,64 @@ html.ix-hover .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-to
 @media (max-width: 560px) {
   .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button strong { font-size: .82rem; }
   .workspace-v2 .workspace-v2-action-popover .workspace-v3-menu-list > button small { font-size: .68rem; }
-  .workspace-v2 .workspace-v8-settings .workspace-v8-settings-panel { padding: 0 10px 10px; }
+  /* Override the older bottom sheet's edge-to-edge width and tall height.
+     Keep controls tappable and let the body scroll inside a smaller popover. */
+  .workspace-v2 .workspace-v8-settings {
+    top: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    inset-inline-start: auto;
+    inset-inline-end: max(12px, env(safe-area-inset-right));
+    width: min(296px, calc(100% - 24px));
+    height: auto;
+    max-height: min(52dvh, calc(100% - var(--workspace-toolbar-height, 54px) - 24px));
+    border-radius: 16px;
+  }
+  .workspace-v2 .workspace-v8-settings > .workspace-v8-settings-head {
+    min-height: 44px;
+    padding: 0 4px 0 12px;
+  }
+  .workspace-v2 .workspace-v8-settings > .workspace-v8-settings-head button {
+    width: 44px;
+    height: 44px;
+  }
+  .workspace-v2 .workspace-v8-settings-tabs {
+    margin: 5px 8px 7px;
+    gap: 2px;
+    padding: 2px;
+  }
+  .workspace-v2 .workspace-v8-settings-tabs button {
+    min-height: 44px;
+    padding: 0 2px;
+    font-size: .68rem;
+  }
+  .workspace-v2 .workspace-v8-settings .workspace-v8-settings-panel {
+    gap: 6px;
+    padding: 0 8px 8px;
+  }
+  .workspace-v2 .workspace-v8-settings .workspace-v8-settings-group {
+    padding: 1px 8px;
+    border-radius: 11px;
+  }
+  .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action) {
+    min-height: 44px;
+    padding: 5px 0;
+    gap: 6px;
+  }
+  .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action) > svg {
+    width: 16px;
+    height: 16px;
+  }
+  .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action) strong { font-size: .76rem; }
+  .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action) small {
+    font-size: .63rem;
+    line-height: 1.3;
+  }
+  .workspace-v2 .workspace-v8-settings .workspace-v8-segmented { gap: 4px; }
+  .workspace-v2 .workspace-v8-settings .workspace-v8-segmented button {
+    min-height: 56px;
+    padding: 6px 2px;
+    font-size: .63rem;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .workspace-v2 .workspace-v2-action-popover,
