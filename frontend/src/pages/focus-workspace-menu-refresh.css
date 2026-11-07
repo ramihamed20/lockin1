@@ -1140,9 +1140,6 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-i
   }
 }
 
-/* On phones the companion is summoned via the toolbar + menu, never a
-   floating restore chip. Tablet and desktop add menus remain unchanged. */
-.workspace-v2 .workspace-add-phone-companion { display: none; }
-@media (max-width: 600px), (max-height: 500px) and (max-width: 900px) {
-  .workspace-v2 .workspace-add-phone-companion { display: flex; }
-}
+/* The PDF + menu is the sole add/restore entry on every viewport:
+   never strand tablet or desktop users after hiding their companion. */
+.workspace-v2 .workspace-add-phone-companion { display: flex; }
