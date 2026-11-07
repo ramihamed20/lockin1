@@ -6359,8 +6359,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
               <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
                 allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
                 onSave={commitCustomColor} portalRef={rootRef} t={t} />
-              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
             </DockableToolRail>
+            {/* Always show all five saved pens. The tablet gets a short second
+                row rather than squeezing favorite slots into the scrolling
+                drawing rail, where only the first two used to be visible. */}
+            {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
                 because the rail scrolls them out of reach exactly when writing
                 needs them. */}
