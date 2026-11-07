@@ -3405,6 +3405,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       // That left page one hidden behind the toolbar after a downward swipe.
       bounds.minScrollTop = 0;
     }
+    if (whiteboard) {
+      // Whiteboards have an Add page footer after the final page. The document
+      // root's offsetHeight/offsetWidth measures the pages only; restricting
+      // gestures to those bounds makes the footer unreachable even when the
+      // scroll surface reserves extra space for it. Allow navigation through
+      // that reserved space, but leave ordinary PDFs page-bounded.
+      if (pageDirection === "horizontal") bounds.maxScrollLeft = fullBounds.maxScrollLeft;
+      else bounds.maxScrollTop = fullBounds.maxScrollTop;
+    }
     return bounds;
   }
 
