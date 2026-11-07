@@ -1843,6 +1843,29 @@ html.ix-hover .notifications-v2 .notification-feed-item:hover { background: colo
 
 .notifications-v2 .notification-load-more { justify-self: center; }
 
+/* Numeric unread badge, kept clear of the bell's hit target. */
+.notifications-menu-wrap > .icon-btn { position: relative; }
+.notifications-menu-wrap .notification-count {
+  position: absolute;
+  inset-block-start: -4px;
+  inset-inline-end: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 19px;
+  padding-inline: 4px;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
 /* --- Achievements ------------------------------------------------------------ */
 
 .achievements-v2-row { align-items: flex-start; padding-block: 14px; }
