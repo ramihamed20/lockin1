@@ -30,11 +30,18 @@ function dropGeometry(x, y) {
     if (right <= left || bottom <= top || x < left || x > right || y < top + 8 || y > bottom) continue;
     const toolbar = sharedToolbar || pane.querySelector(".workspace-v2-toolbar");
     const toolbarRect = toolbar?.getBoundingClientRect();
+    // A top-docked toolbar obscures the first part of the PDF. Crop the
+    // visual drop affordance to the usable area, but never crop from a
+    // bottom/floating toolbar (that would erase most of the drop target).
+    const topDocked = toolbarRect && toolbarRect.top <= top + Math.min(112, (bottom - top) / 4)
+      && toolbarRect.bottom > top && toolbarRect.bottom < bottom - 40;
+    const usableTop = topDocked ? Math.max(top, toolbarRect.bottom) : top;
+    if (y < usableTop + 8) continue;
     // Exclude only the toolbar itself, not everything above/below it.
     if (toolbarRect && x >= toolbarRect.left && x <= toolbarRect.right
         && y >= toolbarRect.top && y <= toolbarRect.bottom) continue;
     return {
-      left, top, width: right - left, height: bottom - top,
+      left, top: usableTop, width: right - left, height: bottom - usableTop,
       stacked: window.matchMedia(MOBILE_BREAKPOINT).matches
     };
   }
