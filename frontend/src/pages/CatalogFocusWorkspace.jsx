@@ -619,6 +619,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
   const [sideTab, setSideTab] = useState("notes");
   const [openSurface, setOpenSurface] = useState(null);
+  // KeepAlive retains reader instances between tabs. Do not restore an open
+  // Notes drawer when the student returns to this sheet; reopen only on tap.
+  useEffect(() => {
+    if (!paneActive) setOpenSurface((current) => current === "notes" ? null : current);
+  }, [paneActive]);
   const [brushSize, setBrushSize] = useState(() => Number(initialToolSettings.size) || 4);
   const [brushOpacity, setBrushOpacity] = useState(() => rememberedWritingTool === "pen" ? Number(initialToolSettings.opacity) || 1 : 1);
   const [pencilOpacity, setPencilOpacity] = useState(() => rememberedWritingTool === "pencil" ? Number(initialToolSettings.opacity) || .78 : .78);
