@@ -151,9 +151,21 @@ test("whiteboard Add page is fully visible above the bottom edge after three pag
         && pageRect.bottom < buttonRect.top
         && buttonRect.top > stageRect.top + 88
         && buttonRect.bottom <= stageRect.bottom - 70
+        && buttonRect.left >= stageRect.left + 8
+        && buttonRect.right <= stageRect.right - 8
         && buttonRect.width >= 120
         && getComputedStyle(button).transform === "none";
     }), `Add page should be fully visible at ${viewport.width}x${viewport.height}`).toBe(true);
+    if (viewport.width === 390) {
+      // On a zoomed phone page the student can pan sideways; the button must
+      // still remain centred within the visible part of the stage.
+      await stage.evaluate((element) => { element.scrollLeft = element.scrollWidth - element.clientWidth; });
+      await expect.poll(() => stage.evaluate((element) => {
+        const stageBounds = element.getBoundingClientRect();
+        const buttonBounds = element.querySelector(".workspace-whiteboard-footer button").getBoundingClientRect();
+        return buttonBounds.left >= stageBounds.left + 8 && buttonBounds.right <= stageBounds.right - 8;
+      })).toBe(true);
+    }
   }
   await addPage.click();
   await expect(onScreen(page, ".workspace-v2-a4-page")).toHaveCount(4);
