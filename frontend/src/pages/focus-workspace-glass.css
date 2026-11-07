@@ -260,6 +260,19 @@ html.ix-hover .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choi
 /* Under its own heading a size slider needs no second label. */
 
 .workspace-v2 .workspace-v2-tool-range input { width: 100%; min-width: 0; height: 30px; margin: 0; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer; }
+/* A quick horizontal drag on iOS must belong to the range, not the inspector
+   scroller (which otherwise cancels the gesture). Only the slider hit area
+   disables touch panning; the rest of the options panel still scrolls. */
+.workspace-v2 .workspace-v2-tool-range input[type="range"] {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+@media (pointer: coarse) {
+  .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input[type="range"] {
+    min-height: 44px;
+  }
+}
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input::-webkit-slider-runnable-track,
 .workspace-v2 .workspace-v2-settings-popover .workspace-v2-tool-range input::-webkit-slider-runnable-track {
   height: 5px;
