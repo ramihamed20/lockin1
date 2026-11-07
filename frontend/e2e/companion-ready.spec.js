@@ -47,3 +47,50 @@ test('failed page help retries and confirmed server ideas can be saved',async({p
  await expect(page.getByRole('button',{name:'Idea saved',exact:true})).toHaveAttribute('aria-pressed','true');
  expect(saved).toBe(true);
 });
+
+test('study companion stays compact on phone, larger on iPad, and its panels fit both',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.addInitScript(()=>localStorage.setItem('lock-in.locale','ar'));
+ await page.route('**/api/v1/catalog/documents/**',r=>r.fulfill({json:{version_id:'test-version',results:[]}}));
+ await page.setViewportSize({width:390,height:844});
+ await page.goto('/e2e/fixtures/companion-ready/');
+ const pet=page.locator('.study-companion-pet');
+ const panel=page.locator('.study-companion-panel');
+ const bounds=async(locator)=>locator.evaluate(element=>{
+  const rect=element.getBoundingClientRect();
+  return {x:rect.x,y:rect.y,width:rect.width,height:rect.height};
+ });
+ const checkInsideViewport=async(locator)=>{
+  const rect=await bounds(locator);
+  const viewport=page.viewportSize();
+  expect(rect.x).toBeGreaterThanOrEqual(-1);
+  expect(rect.y).toBeGreaterThanOrEqual(-1);
+  expect(rect.x+rect.width).toBeLessThanOrEqual(viewport.width+1);
+  expect(rect.y+rect.height).toBeLessThanOrEqual(viewport.height+1);
+ };
+ await expect(pet).toBeVisible();
+ const phone=await bounds(pet);
+ expect(phone.width).toBeLessThanOrEqual(90);
+ await checkInsideViewport(pet);
+ await pet.click();
+ await expect(panel).toBeVisible();
+ await checkInsideViewport(panel);
+ await panel.locator('header button').click();
+
+ await page.setViewportSize({width:820,height:1180});
+ await expect(pet).toBeVisible();
+ const ipad=await bounds(pet);
+ expect(ipad.width).toBeGreaterThan(phone.width);
+ expect(ipad.width).toBeLessThanOrEqual(130);
+ await checkInsideViewport(pet);
+ await pet.click();
+ await expect(panel).toBeVisible();
+ await checkInsideViewport(panel);
+ await panel.locator('header button').click();
+
+ await page.setViewportSize({width:844,height:390});
+ await pet.click();
+ await expect(panel).toBeVisible();
+ await checkInsideViewport(panel);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+});
