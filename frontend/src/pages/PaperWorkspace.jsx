@@ -313,6 +313,8 @@ function PaperSession({ session, onSessionChange, onEnd }) {
   const timer = useFocusTimer(totalSeconds, () => setNotice(t("paper.focusDone")));
   const [endOpen, setEndOpen] = useState(false);
   const [studyOpen, setStudyOpen] = useState(false);
+  // Notes are optional: each new study session starts with the panel closed.
+  const [notesOpen, setNotesOpen] = useState(false);
   const run = session.run;
   const setRun = useCallback((nextRun) => onSessionChange((current) => ({ ...current, run: nextRun })), [onSessionChange]);
 
@@ -325,9 +327,8 @@ function PaperSession({ session, onSessionChange, onEnd }) {
   const progress = 1 - timer.left / totalSeconds;
 
   return (
-    // Grid areas: timer + search beside a compact Notes, then the player and
-    // Status at full width (see paper-workspace.css).
-    <div className="paper-workspace">
+    // Notes never occupy workspace space until the student chooses to show them.
+    <div className={`paper-workspace${notesOpen ? " has-notes" : ""}`}>
         <div className="paper-timer" role="group" aria-label={t("paper.timer")}>
           <span className="paper-ring" style={cssVars({ "--paper-progress": progress })} aria-hidden="true"><Icon name="clock" size={18} /></span>
           <span className="paper-time" role="timer" aria-label={t("paper.timer")}>{formatClock(timer.left)}</span>
@@ -337,12 +338,13 @@ function PaperSession({ session, onSessionChange, onEnd }) {
               <Icon name={timer.running ? "pause" : "play"} size={19} />
             </button>
             <button type="button" className="paper-round" onClick={timer.reset} aria-label={t("paper.reset")}><Icon name="reset" size={19} /></button>
+            <button type="button" className={`paper-round${notesOpen ? " is-active" : ""}`} onClick={() => setNotesOpen((open) => !open)} aria-label={t("paper.notes")} aria-pressed={notesOpen} aria-expanded={notesOpen} aria-controls="paper-notes-panel" title={t("paper.notes")}><Icon name="pencil" size={18} /></button>
             <button type="button" className="paper-round" onClick={() => setEndOpen(true)} aria-label={t("paper.end")}><Icon name="square" size={17} /></button>
           </div>
         </div>
 
         <PaperPlayer sessionOver={!timer.running && timer.left <= 0} />
-        <PaperNotes sheetId={session.sheet.learningObjectId} />
+        {notesOpen && <PaperNotes sheetId={session.sheet.learningObjectId} />}
         <PaperStatus session={session} focusedMinutes={timer.focusedMinutes} onCheckpoint={() => setStudyOpen(true)} onChangeSheet={onEnd} />
 
       {studyOpen && (
@@ -713,7 +715,11 @@ function PaperNotes({ sheetId }) {
   const { t } = useI18n();
   const key = NOTES_KEY_PREFIX + sheetId;
   const [value, setValue] = useState(() => readStorage(key) || "");
+  const valueRef = useRef(value);
   const [saving, setSaving] = useState(false);
+
+  // Closing the optional panel must not discard a last-second unsaved edit.
+  useEffect(() => () => writeStorage(key, valueRef.current), [key]);
 
   useEffect(() => {
     if (!saving) return undefined;
@@ -722,12 +728,12 @@ function PaperNotes({ sheetId }) {
   }, [key, value, saving]);
 
   return (
-    <section className="paper-box paper-notes" aria-labelledby="paper-notes-title">
+    <section id="paper-notes-panel" className="paper-box paper-notes" aria-labelledby="paper-notes-title">
       <div className="paper-box-head">
         <h2 id="paper-notes-title"><Icon name="pencil" size={17} />{t("paper.notes")}</h2>
         {value && <span className="paper-saved" aria-live="polite">{saving ? "…" : t("paper.saved")}</span>}
       </div>
-      <textarea value={value} onChange={(event) => { setValue(event.target.value); setSaving(true); }} placeholder={t("paper.notesPlaceholder")} aria-labelledby="paper-notes-title" dir="auto" />
+      <textarea value={value} onChange={(event) => { valueRef.current = event.target.value; setValue(event.target.value); setSaving(true); }} placeholder={t("paper.notesPlaceholder")} aria-labelledby="paper-notes-title" dir="auto" />
     </section>
   );
 }
