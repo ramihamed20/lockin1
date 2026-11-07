@@ -96,6 +96,38 @@ test("a phone keeps favorites in the pen panel, where its full toolbar has no ro
   }
 });
 
+test("the star saves five full pens, shows them in the toolbar, and stays saved across reloads", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page);
+  await openPenPanel(page);
+  const panel = page.locator("#workspace-pen-options");
+  const star = panel.locator(".workspace-v4-favorite-color.is-favorite-pen");
+  const inks = ["#2563eb", "#e5383b", "#f5b700", "#16a34a", "#7c3aed", "#f97316"];
+  for (const [index, color] of inks.slice(0, 5).entries()) {
+    await panel.getByRole("button", { name: `Use ${color}` }).click();
+    await expect(star).toHaveAttribute("aria-pressed", "false");
+    await star.click();
+    await expect(star).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot")).toHaveCount(index + 1);
+  }
+  await panel.getByRole("button", { name: `Use ${inks[5]}` }).click();
+  await expect(star).toBeDisabled();
+  await expect(page.locator(".workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot")).toHaveCount(5);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.favorite-pens.v1") || "[]").length)).toBe(5);
+
+  // Re-select a starred pen, unstar it, and prove its slot is free again.
+  await panel.getByRole("button", { name: `Use ${inks[0]}` }).click();
+  await expect(star).toHaveAttribute("aria-pressed", "true");
+  await star.click();
+  await expect(page.locator(".workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot")).toHaveCount(4);
+  await expect(star).toHaveAttribute("aria-pressed", "false");
+
+  await page.reload();
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot")).toHaveCount(4);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.favorite-pens.v1") || "[]").length)).toBe(4);
+});
+
 async function writeInZoomWindow(page, fromRatio, toRatio, pointerId) {
   const surface = page.locator(".workspace-zoom-window-surface");
   const box = await surface.boundingBox();
