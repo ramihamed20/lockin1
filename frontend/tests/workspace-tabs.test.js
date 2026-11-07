@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 import {
-  MAX_WORKSPACE_TABS,
   closeWorkspaceTab,
   nextWhiteboardNumber,
   openWorkspaceTab,
@@ -58,14 +57,34 @@ test("closing the active tab moves to its neighbour", () => {
   assert.equal(background.state.activeId, board.id);
 });
 
-test("a full strip drops its oldest inactive tab", () => {
+test("opening many sheets never silently closes an earlier tab", () => {
   let state = { tabs: [], activeId: "" };
-  for (let index = 0; index < MAX_WORKSPACE_TABS + 2; index += 1) {
+  for (let index = 0; index < 20; index += 1) {
     state = openWorkspaceTab(state, sheetTab({ materialSlug: "m", sheetSlug: `sheet-${index}` }));
   }
-  assert.equal(MAX_WORKSPACE_TABS, 4);
-  assert.equal(state.tabs.length, MAX_WORKSPACE_TABS);
-  assert.equal(state.activeId, sheetTab({ materialSlug: "m", sheetSlug: `sheet-${MAX_WORKSPACE_TABS + 1}` }).id);
+  assert.equal(state.tabs.length, 20);
+  assert.deepEqual(state.tabs.map((tab) => tab.sheetSlug), Array.from({ length: 20 }, (_, index) => `sheet-${index}`));
+  assert.equal(state.activeId, sheetTab({ materialSlug: "m", sheetSlug: "sheet-19" }).id);
+  // Opening an already loaded sheet selects it without creating duplicates.
+  state = openWorkspaceTab(state, sheetTab({ materialSlug: "m", sheetSlug: "sheet-0" }));
+  assert.equal(state.tabs.length, 20);
+  assert.equal(state.activeId, sheetTab({ materialSlug: "m", sheetSlug: "sheet-0" }).id);
+});
+
+test("many open sheets survive session storage, sanitization and manual close", () => {
+  const storage = memoryStorage();
+  let state = { tabs: [], activeId: "" };
+  for (let index = 0; index < 16; index += 1) {
+    state = openWorkspaceTab(state, sheetTab({ materialSlug: "m", sheetSlug: `sheet-${index}` }));
+  }
+  const saved = writeWorkspaceTabs("student", state, storage);
+  const restored = readWorkspaceTabs("student", storage);
+  assert.equal(saved.tabs.length, 16);
+  assert.equal(restored.tabs.length, 16);
+  assert.equal(restored.activeId, sheetTab({ materialSlug: "m", sheetSlug: "sheet-15" }).id);
+  const closed = closeWorkspaceTab(restored, sheetTab({ materialSlug: "m", sheetSlug: "sheet-3" }).id);
+  assert.equal(closed.state.tabs.length, 15);
+  assert.ok(closed.state.tabs.some((tab) => tab.sheetSlug === "sheet-0"));
 });
 
 test("whiteboards are numbered with the first free number", () => {
