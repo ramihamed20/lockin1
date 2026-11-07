@@ -612,6 +612,16 @@ test("the live ink layer paints while the stroke is still down and carries its o
 
 test("phone adds and restores the study companion from the plus menu", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
+  // Most Focus UI tests use a local PDF fixture with no catalog document.
+  // This one needs the real companion gate's document id as well.
+  await page.route("**/api/v1/catalog/documents/biochemistry-1/vitamin-1", (route) => route.fulfill({ json: {
+    document: {
+      id: "11111111-1111-4111-8111-111111111111",
+      document_version_id: "22222222-2222-4222-8222-222222222222",
+      file_id: "33333333-3333-4333-8333-333333333333",
+      view_url: "/api/v1/files/33333333-3333-4333-8333-333333333333/view"
+    }
+  } }));
   await openWorkspace(page, { width: 390, height: 844 });
   const companion = page.locator(".study-companion-pet");
   await expect(companion).toHaveCount(0);
