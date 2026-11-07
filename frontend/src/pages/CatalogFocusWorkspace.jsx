@@ -4028,7 +4028,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       });
       const elasticZoom = elasticZoomScale(rawScale, minimumAllowedZoom(), MAX_FOCUS_ZOOM, ZOOM_OVERSHOOT_RATIO);
       gesture.pinch.currentScale = elasticZoom.legal;
-      gesture.pinch.displayScale = elasticZoom.display;
+      // In horizontal reading 120% is a strict visual floor too, not merely
+      // the scale committed after a rubber-band pinch settles.
+      gesture.pinch.displayScale = pageDirection === "horizontal"
+        ? Math.max(HORIZONTAL_READING_ZOOM_FLOOR, elasticZoom.display)
+        : elasticZoom.display;
       scheduleLivePinchFrame();
       return;
     }
