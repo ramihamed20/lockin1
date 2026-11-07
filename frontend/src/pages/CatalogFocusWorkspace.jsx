@@ -6359,7 +6359,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                     data-color-motion={animatingColor ? colorAnimation.revision : undefined}
                     style={id === activeTool && SWATCH_TOOLS.has(id) ? cssVars({ "--workspace-tool-color": activeColor, "--workspace-swatch-size": `${swatchSize}px` }) : undefined}
                     onClick={() => chooseWritingTool(id)}
-                  ><WorkspaceToolIcon key={animatingColor ? colorAnimation.revision : 0} tool={id} fallback={ToolIcon} />{animatingColor && <span key={colorAnimation.revision} className="workspace-v3-tool-color-trace" aria-hidden="true" />}{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
+                  ><WorkspaceToolIcon tool={id} fallback={ToolIcon} />{animatingColor && <span key={colorAnimation.revision} className="workspace-v3-tool-color-trace" aria-hidden="true" />}{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
                 })}
                 <WorkspaceIconButton label={t("focus.add")} className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
               </div>
