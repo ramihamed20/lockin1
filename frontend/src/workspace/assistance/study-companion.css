@@ -1,17 +1,24 @@
 .study-companion {
+  /* Keep the character noticeably smaller on phones than on iPads. */
   --companion-width: 148px;
+  --companion-height: 172px;
   position: fixed; z-index: 160; inset-inline-end: 14px;
-  inset-block-end: calc(46px + env(safe-area-inset-bottom));
-  inline-size: var(--companion-width); block-size: 172px; pointer-events: none;
+  inset-block-end: calc(54px + env(safe-area-inset-bottom));
+  inline-size: var(--companion-width); block-size: var(--companion-height);
+  pointer-events: none; isolation: isolate;
   color: var(--text); text-align: start;
 }
+.study-companion[dir="rtl"] { inset-inline-end: max(10px, env(safe-area-inset-left)); }
+.study-companion[dir="ltr"] { inset-inline-end: max(10px, env(safe-area-inset-right)); }
 .study-companion button { font: inherit; cursor: pointer; }
 .study-companion button:focus-visible,.study-companion-restore:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .study-companion button:disabled { cursor: default; opacity: .6; }
 .study-companion-pet { border: 0; background: transparent; padding: 0; inline-size: 100%; block-size: 100%; pointer-events: auto; transform-origin: 50% 92%; touch-action: manipulation; }
 .study-companion-pet img { inline-size: 100%; block-size: 100%; object-fit: contain; pointer-events: none; user-select: none; }
 
-.study-companion-preferences { position: absolute; inset-block-end: 0; inset-inline-end: 3px; inline-size: 44px; block-size: 44px; display: grid; place-items: center; pointer-events: auto; border: 0; border-radius: var(--radius-full); color: var(--muted); background: var(--surface); }
+.study-companion-preferences { position: absolute; inset-block-end: -3px; inset-inline-end: -4px; inline-size: 44px; block-size: 44px; display: grid; place-items: center; pointer-events: auto; border: 0; border-radius: var(--radius-full); color: var(--muted); background: transparent; }
+.study-companion-preferences::before { content: ""; position: absolute; inset: 6px; border: 1px solid var(--card-edge); border-radius: inherit; background: var(--surface); box-shadow: 0 3px 12px rgb(0 0 0 / .1); }
+.study-companion-preferences svg { position: relative; }
 .study-companion-bubble { position: absolute; inset-inline-end: calc(100% - 15px); inset-block-end: 76px; inline-size: 246px; border-radius: var(--radius-card); background: var(--surface); box-shadow: 0 8px 32px rgb(0 0 0 / .17); border: 1px solid var(--card-edge); pointer-events: auto; animation: companion-enter 230ms var(--motion-enter-ease, ease-out); }
 .study-companion-bubble::after { content: ""; position: absolute; inset-inline-end: -6px; inset-block-end: 22px; inline-size: 12px; block-size: 12px; background: var(--surface); transform: rotate(45deg); z-index: -1; }
 .study-companion-bubble > button:first-child { display: flex; align-items: flex-start; gap: 8px; inline-size: 100%; border: 0; background: transparent; color: var(--text); text-align: start; padding: 16px 18px 9px; min-block-size: 54px; }
@@ -53,24 +60,54 @@
 
 @keyframes companion-enter { from {opacity: 0; transform: translateY(6px)} to {opacity: 1; transform: translateY(0)} }
 @keyframes companion-caret { 0%,100% {opacity: 1} 50% {opacity: 0} }
-@media(max-width:600px) {
-  .study-companion { --companion-width: 112px; inset-inline-end: 4px; inset-block-end: calc(46px + env(safe-area-inset-bottom)); block-size: 134px; }
-  .study-companion-preferences { inset-inline-end: 0; inset-block-end: -5px; }
-  .study-companion-bubble { inline-size: min(242px, calc(100vw - 126px)); inset-inline-end: calc(100% - 12px); inset-block-end: 65px; }
-  .study-companion-bubble > button:first-child { gap: 6px; padding: 13px 14px 6px; }
-  .study-companion-bubble strong { font-size: 13px; }
-  .study-companion-next { padding-inline: 14px; }
-  .study-companion-panel,.study-companion-options { position: fixed; inset-inline: 14px; inline-size: auto; inset-block-end: calc(180px + env(safe-area-inset-bottom)); max-block-size: calc(100dvh - 255px - env(safe-area-inset-bottom)); }
+/* iPad and compact tablets: unobtrusive, still comfortably tappable. */
+@media (min-width:601px) and (max-width:1180px) {
+  .study-companion { --companion-width: 124px; --companion-height: 148px; }
+  .study-companion-bubble { inline-size: 218px; inset-block-end: 67px; }
+  .study-companion-panel { inline-size: min(350px, calc(100vw - 160px)); max-block-size: min(600px, calc(100dvh - 125px)); }
+}
+
+/* Phones: small floating character, full-width reading panels, 44px touch targets. */
+@media (max-width:600px) {
+  .study-companion {
+    --companion-width: 82px; --companion-height: 100px;
+    inset-block-end: calc(60px + env(safe-area-inset-bottom));
+  }
+  .study-companion-preferences { inset-inline-end: -5px; inset-block-end: -4px; }
+  .study-companion-bubble {
+    inline-size: min(194px, calc(100vw - 112px));
+    inset-inline-end: calc(100% - 10px); inset-block-end: 52px;
+    border-radius: 16px;
+  }
+  .study-companion-bubble > button:first-child { gap: 6px; padding: 11px 12px 5px; }
+  .study-companion-bubble strong { font-size: 12px; line-height: 1.6; }
+  .study-companion-next { padding-inline: 12px; }
+  .study-companion-panel,.study-companion-options {
+    position: fixed; inset-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
+    inline-size: auto; inset-block-end: calc(148px + env(safe-area-inset-bottom));
+    max-block-size: max(140px, calc(100dvh - 208px - env(safe-area-inset-bottom)));
+  }
   .study-companion-lesson { padding: 17px 18px 15px; }
   .study-companion-lesson h2 { font-size: 18px; }
-  .study-companion-text { font-size: 14px; line-height: 1.95; }
+  .study-companion-text { font-size: 14px; line-height: 1.85; }
+  .study-companion-restore { inset-block-end: calc(64px + env(safe-area-inset-bottom)); }
 }
-@media(max-height:550px) {
-  .study-companion { --companion-width: 92px; block-size: 110px; inset-block-end: 36px; }
-  .study-companion-panel,.study-companion-options { position: fixed; inset-block-start: 60px; inset-block-end: 70px; inset-inline-start: auto; inset-inline-end: 112px; inline-size: min(370px, calc(100vw - 132px)); max-block-size: none; }
+
+/* Short landscape viewports must not clip the explanation or its close control. */
+@media (max-height:550px) {
+  .study-companion { --companion-width: 76px; --companion-height: 90px; inset-block-end: calc(44px + env(safe-area-inset-bottom)); }
+  .study-companion-bubble { inline-size: min(180px, calc(100vw - 112px)); inset-block-end: 44px; }
+  .study-companion-panel,.study-companion-options {
+    position: fixed; inset-block-start: max(10px, env(safe-area-inset-top));
+    inset-block-end: calc(55px + env(safe-area-inset-bottom));
+    inset-inline-start: auto; inset-inline-end: calc(102px + env(safe-area-inset-right));
+    inline-size: min(370px, calc(100vw - 122px));
+    max-block-size: none;
+  }
   .study-companion-panel header,.study-companion-options header { padding-block: 4px; }
   .study-companion-lesson { padding-block: 12px; }
 }
+
 @media(prefers-reduced-motion:reduce) {
   .study-companion.has-motion .study-companion-pet,.study-companion-panel,.study-companion-options,.study-companion-followup,.study-companion-caret,.study-companion-bubble { animation: none; }
   .study-companion-caret { display: none; }
