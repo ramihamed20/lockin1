@@ -1109,9 +1109,10 @@ export function ContinuousA4Pdf({
     height: isHorizontal ? `${horizontalDocumentHeight}px` : `${baseDocumentHeight * zoom}px`
   });
   const footerAnchorStyle = /** @type {import("react").CSSProperties} */ ({
-    left: isHorizontal ? `${horizontalContentWidth}px` : `${Math.max(0, (stageViewport.width - scaledDocumentWidth) / 2)}px`,
+    "--workspace-footer-view-width": `${stageViewport.width}px`,
+    left: isHorizontal ? `${horizontalContentWidth}px` : "0px",
     top: isHorizontal ? `${Math.max(96, stageViewport.height * 0.32)}px` : `${footerTop}px`,
-    width: isHorizontal ? `${slotWidth}px` : `${scaledDocumentWidth}px`
+    width: isHorizontal ? `${slotWidth}px` : `${Math.max(stageViewport.width, scaledDocumentWidth)}px`
   });
   const documentStyle = /** @type {import("react").CSSProperties} */ ({
     "--workspace-a4-zoom": zoom,
