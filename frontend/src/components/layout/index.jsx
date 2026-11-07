@@ -504,6 +504,7 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
   const profileGestureRef = useRef(null);
   const suppressProfileClickRef = useRef(false);
   const notificationsRef = useRef(null);
+  const notificationRevisionRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isStoreRoute = location.pathname === "/store";
@@ -702,13 +703,52 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
     };
   }, [notificationsOpen]);
 
+  // Keep the inbox in sync without a persistent socket or background polling.
+  // Refresh the small server-side revision only while the app is visible, and
+  // load the dropdown feed again only when its contents have actually changed.
+  useEffect(() => {
+    notificationRevisionRef.current = null;
+    setNotifications([]);
+    setUnreadCount(0);
+  }, [user?.id]);
+
   useEffect(() => {
     let active = true;
-    motivationApi.notificationSummary()
-      .then((summary) => { if (active) setUnreadCount(Number(summary.unread_count) || 0); })
-      .catch(() => { if (active) setUnreadCount(0); });
-    return () => { active = false; };
-  }, [notificationVersion]);
+    let pending = false;
+    async function checkUpdates() {
+      if (!active || !user?.id || document.visibilityState === "hidden" || pending) return;
+      pending = true;
+      try {
+        const summary = await motivationApi.notificationSummary();
+        if (!active) return;
+        const revision = Number(summary.revision) || 0;
+        const previous = notificationRevisionRef.current;
+        notificationRevisionRef.current = revision;
+        setUnreadCount(Math.max(0, Number(summary.unread_count) || 0));
+        if (notificationsOpen && previous !== null && revision !== previous) {
+          const feed = await motivationApi.listNotifications();
+          if (active) setNotifications(feed.results);
+        }
+      } catch {
+        // A temporary network problem must not erase the user's unread badge.
+      } finally {
+        pending = false;
+      }
+    }
+    const onResume = () => { if (document.visibilityState === "visible") void checkUpdates(); };
+    void checkUpdates();
+    const timer = window.setInterval(onResume, 45_000);
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("focus", onResume);
+    window.addEventListener("online", onResume);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("focus", onResume);
+      window.removeEventListener("online", onResume);
+    };
+  }, [notificationVersion, notificationsOpen, user?.id]);
 
   function logoutFromMenu() {
     closeProfileMenu({ restoreFocus: false });
@@ -849,13 +889,14 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
           setNotificationError("This notification refers to a screen that is not available in the current frontend integration.");
           return;
         }
+        setNotificationsOpen(false);
         navigate(result.route);
       } else {
         await motivationApi.markNotificationRead(notification.id);
         await refreshNotifications();
         onNotificationsChanged?.();
+        // A read-only announcement is acknowledged in place, not a surprise redirect.
         setNotificationsOpen(false);
-        navigate(notificationFallbackRoute(notification));
       }
     } catch (error) {
       setNotificationError(isApiError(error) && error.status === 410 ? "This notification target is no longer available." : error.message || "This notification could not be opened.");
@@ -964,11 +1005,12 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
         <button 
           className="icon-btn"
           onClick={() => setNotificationsOpen(!notificationsOpen)}
-          aria-label={t("common.notifications")}
+          aria-label={unreadCount ? `${t("common.notifications")} · ${t("notifications.unreadCount", { count: unreadCount })}` : t("common.notifications")}
           aria-expanded={notificationsOpen}
+          aria-controls="notifications-menu"
         >
           <Icon name="bell" />
-          {unreadCount > 0 && <span className="dot" />}
+          {unreadCount > 0 && <span className="notification-count" aria-hidden="true">{unreadCount > 99 ? "99+" : unreadCount}</span>}
         </button>
         {notificationsPresence.mounted && (
           <section className={`notifications-dropdown ${notificationsPresence.closing ? "is-closing" : ""}`.trim()} id="notifications-menu" aria-label={t("common.notifications")} inert={notificationsPresence.closing ? "" : undefined}>
