@@ -78,8 +78,6 @@
 }
 .workspace-split-pane-remove:focus-visible { outline: 2px solid var(--accent, #8e61ff); outline-offset: 2px; }
 .workspace-split-pane-remove:active { transform: scale(.94); }
-.workspace-split-study-sheet { display:flex; align-items:center; gap:5px; padding:2px 6px; min-width:105px; max-width:190px; color:var(--text,#fff); font-size:11px; }
-.workspace-split-study-sheet select { color:inherit; background:var(--surface-2,#2a3037); border:1px solid var(--separator,#454b58); border-radius:8px; padding:5px; min-width:0; max-width:145px; font:inherit; text-overflow:ellipsis; }
 /* Grid-owned resize rails follow actual row/column tracks and support 20–80%.
    They float on the seam without adding an implicit grid column or row. */
 .workspace-split-divider {
@@ -141,7 +139,6 @@
   .workspace-split-layout.is-split[data-pane-count="3"] > .workspace-split-divider[data-axis="secondary"] > .workspace-split-grip {
     width: 4px; height: 45px;
   }
-  .workspace-split-study-sheet { min-width: 80px; max-width: 125px; }
 }
 @media (prefers-reduced-motion:reduce) {
   .workspace-split-layout.is-split > .workspace-pane { animation:none!important; }
