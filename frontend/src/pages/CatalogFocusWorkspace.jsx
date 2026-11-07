@@ -6407,16 +6407,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 }}
               />}
               <WorkspaceIconButton label={sideOpen ? t("focus.closeNotes") : t("focus.openNotes")} className="workspace-v3-utility-button is-phone-overflow" active={sideOpen} aria-pressed={sideOpen} aria-expanded={sideOpen} aria-controls="workspace-notes-panel" data-workspace-tool="note" disabled={!workspaceReady} onClick={() => selectTool("note")}><MessageSquare size={18} /></WorkspaceIconButton>
-              {isMulti && showWorkspaceTabs && <label className="workspace-split-study-sheet">
-                <span>{currentAppLocale() === "ar" ? "الشيت" : "Sheet"}</span>
-                <select aria-label={currentAppLocale() === "ar" ? "الشيت المستخدم للدراسة والمؤقت والملخص" : "Sheet for Active Study, Pomodoro and Summary"}
-                  value={currentTabId} onChange={(event) => {
-                    const selected = tabBarTabs.find((item) => item.id === event.target.value);
-                    if (selected && selected.id !== currentTabId) showWorkspaceTab(selected);
-                  }}>
-                  {tabBarTabs.map((tab) => <option key={tab.id} value={tab.id}>{tab.title || (tab.kind === "whiteboard" ? `Whiteboard ${tab.number || 1}` : tab.id)}</option>)}
-                </select>
-              </label>}
               {!whiteboard && !personal && <button type="button" className={`workspace-v2-study-mode-button is-narrow-overflow is-${studyMode || "choose"}${studyMode === "active" && activeStudy ? " has-progress" : ""}${openSurface === "study" ? " is-active" : ""}`} data-workspace-surface="study" aria-haspopup="dialog" aria-expanded={openSurface === "study"} aria-controls="workspace-study-popover" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "study" ? null : "study")} aria-label={studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.study")} title={studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.study")}><Brain size={18} />{!(studyMode === "active" && activeStudy) && <span className="workspace-v2-study-mode-label" aria-hidden="true">{t("focus.study")}</span>}{studyMode === "active" && activeStudy && <span className="workspace-v2-study-mode-status"><strong>{t("focus.active")}</strong><small>{t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page })}</small></span>}</button>}
               <WorkspaceIconButton label={t("focus.moreWorkspaceActions")} className={`workspace-v3-utility-button${studyInProgress ? " has-study-progress" : ""}`} active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} />{studyInProgress && <span className="workspace-v3-more-badge" aria-hidden="true" />}</WorkspaceIconButton>
             </div>
