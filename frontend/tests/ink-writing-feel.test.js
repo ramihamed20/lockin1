@@ -116,3 +116,30 @@ test("Elite 1 touch-reported tablet pen can draw unless the student chose pen-on
   assert.equal(pointerCanDraw("touch", defaultDrawingInput({ userAgent: androidAgent })), true);
   assert.equal(pointerCanDraw("pen", DRAWING_INPUT.STYLUS_ONLY), true);
 });
+
+test("unrecognized browser pointers draw only when the user enables touch-pen compatibility", async () => {
+  const { DRAWING_INPUT, pointerCanDraw, classifyStylusInput } = await import("../src/workspace/input/gestureStateMachine.js");
+  assert.equal(pointerCanDraw("pen", DRAWING_INPUT.STYLUS_ONLY), true);
+  assert.equal(pointerCanDraw("mouse", DRAWING_INPUT.STYLUS_ONLY), true);
+  assert.equal(pointerCanDraw("touch", DRAWING_INPUT.STYLUS_ONLY), false);
+  assert.equal(pointerCanDraw("", DRAWING_INPUT.STYLUS_ONLY), false);
+  assert.equal(pointerCanDraw("unknown", DRAWING_INPUT.STYLUS_ONLY), false);
+  for (const kind of ["touch", "", null, "unknown"]) {
+    assert.equal(pointerCanDraw(kind, DRAWING_INPUT.STYLUS_AND_FINGER), true);
+    assert.equal(classifyStylusInput(kind), "touch");
+  }
+  assert.equal(classifyStylusInput("pen"), "pen");
+  assert.equal(classifyStylusInput("mouse"), "other");
+  // Samsung, Lenovo, Xiaomi and Huawei active-pen devices preserve the normal
+  // tablet default unless the user explicitly requests touch input.
+  for (const userAgent of [
+    "Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-X710)",
+    "Mozilla/5.0 (Linux; Android 13; Lenovo TB370FU)",
+    "Mozilla/5.0 (Linux; Android 15; Xiaomi Pad 7)",
+    "Mozilla/5.0 (Linux; Android 14; HUAWEI MatePad)"
+  ]) {
+    const { defaultDrawingInput } = await import("../src/workspace/input/gestureStateMachine.js");
+    assert.equal(defaultDrawingInput({ userAgent, shortestScreenSide: 800, coarsePointer: true }), DRAWING_INPUT.STYLUS_ONLY);
+    assert.equal(defaultDrawingInput({ stored: DRAWING_INPUT.STYLUS_AND_FINGER, userAgent }), DRAWING_INPUT.STYLUS_AND_FINGER);
+  }
+});
