@@ -242,6 +242,7 @@ import { PageNavigator, ZoomBar } from "./focus-workspace/pageControls.jsx";
 import { SettingsPopover } from "./focus-workspace/SettingsPopover.jsx";
 import { ToolOptionsPanel } from "./focus-workspace/ToolOptionsPanel.jsx";
 import { QuickColorPicker } from "./focus-workspace/QuickColorPicker.jsx";
+import { ToolbarAccessories } from "./focus-workspace/ToolbarAccessories.jsx";
 import { AddMenu, CardEditor, ExportMenu, MoreMenu, PageBackgroundMenu, SearchMenu, StudyMenu, TextEditor } from "./focus-workspace/menus.jsx";
 import { FavoritePens } from "./focus-workspace/FavoritePens.jsx";
 import { FAVORITE_PENS_CHANGE_EVENT, FAVORITE_PENS_KEY, FAVORITE_PEN_TOOLS, MAX_FAVORITE_PENS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, normalizeFavoritePens, saveFavoritePens } from "./focus-workspace/favoritePens.js";
@@ -6363,14 +6364,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
                 onSave={commitCustomColor} portalRef={rootRef} t={t} />}
             </DockableToolRail>
-            {/* Once a pen is starred, show colors and up to FIVE pen profiles
-                together in a dedicated row, never a two-swatch scroll window. */}
-            {workspaceReady && favoritePens.length > 0 && <div className="workspace-toolbar-accessories">
+            {/* Saved colors and pens share the UPPER toolbar row with the tab strip,
+                without making a third row or concealing the five presets. */}
+            {workspaceReady && favoritePens.length > 0 && <ToolbarAccessories>
               <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
                 allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
                 onSave={commitCustomColor} portalRef={rootRef} t={t} />
               {favoritePensStrip("is-toolbar")}
-            </div>}
+            </ToolbarAccessories>}
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
                 because the rail scrolls them out of reach exactly when writing
                 needs them. */}
