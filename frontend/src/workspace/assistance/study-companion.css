@@ -128,3 +128,102 @@
 
 .study-companion-card-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
 .study-companion-card-nav button { min-height: 44px; padding: 8px 12px; border: 0; border-radius: var(--radius-full); color: var(--accent-text); background: var(--surface-2); }
+
+/* Companion popovers: smaller, purpose-built mobile surfaces rather than a desktop-sized menu. */
+.study-companion-options > button { overflow-wrap: anywhere; white-space: normal; }
+.study-companion-saved > button { align-items: flex-start; line-height: 1.65; flex-shrink: 0; }
+.study-companion-options > div:not(.study-companion-characters) { padding: 12px 16px; }
+.study-companion-options > div:not(.study-companion-characters) p { margin-block: 0 9px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.study-companion-characters button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-inline-size: 0; line-height: 1.4; }
+.study-companion-characters button span { overflow-wrap: anywhere; text-align: center; }
+.study-companion-settings > button[aria-pressed] > span:last-child {
+  padding: 4px 9px; border-radius: var(--radius-full); background: var(--surface-2);
+}
+.study-companion-settings > button[aria-pressed="true"] > span:last-child {
+  color: var(--accent-text); background: var(--accent-soft);
+}
+.study-companion-lesson, .study-companion-options { -webkit-overflow-scrolling: touch; }
+.study-companion-panel, .study-companion-options { overscroll-behavior: contain; }
+.study-companion-panel header > span, .study-companion-options header strong { min-inline-size: 0; overflow-wrap: anywhere; }
+.study-companion-card-nav span { white-space: nowrap; font-size: 12px; color: var(--muted); }
+
+/* Settings are compact, while explanation cards stay large enough to read comfortably. */
+@media (max-width:600px) {
+  .study-companion-panel, .study-companion-options {
+    inset-inline-start: auto;
+    inset-inline-end: max(12px, env(safe-area-inset-left), env(safe-area-inset-right));
+    inline-size: min(342px, calc(100vw - 24px));
+    max-block-size: max(140px, calc(100dvh - 208px - env(safe-area-inset-bottom)));
+    border-radius: 20px;
+    box-shadow: 0 12px 36px rgb(0 0 0 / .16);
+  }
+  .study-companion-settings {
+    inline-size: min(300px, calc(100vw - 24px));
+  }
+  .study-companion-saved {
+    inline-size: min(324px, calc(100vw - 24px));
+  }
+  .study-companion-panel header, .study-companion-options header {
+    gap: 8px; min-block-size: 48px; padding: 4px 8px 4px 14px;
+  }
+  .study-companion-options header strong { font-size: 13px; }
+  .study-companion-panel header button, .study-companion-options header button {
+    flex: 0 0 44px;
+  }
+  .study-companion-settings .study-companion-characters {
+    gap: 8px; padding: 9px 12px 11px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .study-companion-settings .study-companion-characters button {
+    min-block-size: 96px; padding: 5px 7px; border-radius: 13px; font-size: 12px;
+  }
+  .study-companion-settings .study-companion-characters img {
+    inline-size: 58px; block-size: 62px; max-inline-size: 100%;
+  }
+  .study-companion-options > button {
+    flex-shrink: 0; gap: 8px; min-block-size: 44px; padding: 9px 13px;
+    font-size: 13px; line-height: 1.5;
+  }
+  .study-companion-options > button > span:last-child { font-size: 12px; }
+  .study-companion-options > p { margin: 12px 14px; line-height: 1.6; }
+  .study-companion-lesson { padding: 13px 16px 15px; }
+  .study-companion-lesson h2 {
+    font-size: 16px; line-height: 1.6; margin-block-end: 12px;
+  }
+  .study-companion-ready-note { gap: 6px; margin-block-end: 12px; line-height: 1.55; }
+  .study-companion-text { font-size: 14px; line-height: 1.75; }
+  .study-companion-followup { margin-block-start: 14px; padding-block-start: 12px; }
+  .study-companion-followup > button { gap: 8px; padding: 9px 11px; font-size: 13px; }
+  .study-companion-save { margin-block-start: 12px; padding-block-start: 10px; }
+  .study-companion-card-nav { gap: 6px; margin-block-start: 12px; }
+  .study-companion-card-nav button { min-inline-size: 74px; padding: 7px 10px; font-size: 12px; }
+  .study-companion-bubble strong { overflow-wrap: anywhere; }
+  .study-companion-restore {
+    inset-inline-end: max(12px, env(safe-area-inset-left), env(safe-area-inset-right));
+    max-inline-size: calc(100vw - 24px);
+  }
+}
+/* In short landscape layouts keep the settings and close button accessible. */
+@media (max-height:550px) {
+  .study-companion-panel, .study-companion-options {
+    inset-block-start: max(8px, env(safe-area-inset-top));
+    inset-block-end: calc(55px + env(safe-area-inset-bottom));
+    inset-inline-start: auto;
+    inset-inline-end: calc(102px + max(env(safe-area-inset-left), env(safe-area-inset-right)));
+    inline-size: min(340px, calc(100vw - 122px));
+    max-block-size: none;
+  }
+  .study-companion-settings { inline-size: min(292px, calc(100vw - 122px)); }
+  .study-companion-saved { inline-size: min(318px, calc(100vw - 122px)); }
+  .study-companion-settings .study-companion-characters { padding-block: 5px; }
+  .study-companion-settings .study-companion-characters button { min-block-size: 74px; }
+  .study-companion-settings .study-companion-characters img { block-size: 44px; inline-size: 50px; }
+}
+@media (max-width:500px) and (max-height:550px) {
+  .study-companion-panel, .study-companion-options {
+    inset-inline-end: max(12px, env(safe-area-inset-left), env(safe-area-inset-right));
+    inline-size: min(342px, calc(100vw - 24px));
+  }
+  .study-companion-settings { inline-size: min(300px, calc(100vw - 24px)); }
+  .study-companion-saved { inline-size: min(324px, calc(100vw - 24px)); }
+}
