@@ -609,3 +609,41 @@ test("the live ink layer paints while the stroke is still down and carries its o
   await dispatchPointer(stage, "pointerup", 52, pageBounds.x + pageBounds.width * .62, highlightY);
   await expect(page.locator(".workspace-v2-annotation-layer [data-annotation-type='highlighter']")).toHaveCount(1);
 });
+
+test("phone adds and restores the study companion from the plus menu", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page, { width: 390, height: 844 });
+  const companion = page.locator(".study-companion-pet");
+  await expect(companion).toHaveCount(0);
+  const add = async () => {
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const action = page.getByRole("button", { name: /Add study companion/ });
+    await expect(action).toBeVisible();
+    await action.click();
+    await expect(companion).toBeVisible();
+  };
+  await add();
+  await expect.poll(() => page.evaluate(() => {
+    const value = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:controls-student") || "null");
+    return value?.phoneAdded === true && value?.hidden === false;
+  })).toBe(true);
+
+  await page.locator(".study-companion-preferences").click();
+  await page.getByRole("button", { name: "Hide companion", exact: true }).click();
+  await expect(companion).toHaveCount(0);
+  await expect(page.locator(".study-companion-restore")).toHaveCount(0);
+  await add();
+
+  const start = await companion.boundingBox();
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(start.x + start.width / 2 - 95, start.y + start.height / 2 - 75, { steps: 8 });
+  await page.mouse.up();
+  const moved = await companion.boundingBox();
+  expect(Math.hypot(moved.x - start.x, moved.y - start.y)).toBeGreaterThan(30);
+  await expect.poll(() => page.evaluate(() => {
+    const value = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:controls-student") || "null");
+    return value?.position?.x >= 0 && value?.position?.x <= 1 && value?.position?.y >= 0 && value?.position?.y <= 1;
+  })).toBe(true);
+  await expect(page.locator(".study-companion-panel")).toHaveCount(0);
+});
