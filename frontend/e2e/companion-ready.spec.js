@@ -216,3 +216,67 @@ test("dragging the phone companion moves without opening help and survives reloa
   expect(narrow.x + narrow.width).toBeLessThanOrEqual(320);
   expect(narrow.y + narrow.height).toBeLessThanOrEqual(568);
 });
+
+test('phone + adds a draggable companion, keeps its position and restores it without a floating button', async ({ page }) => {
+ await page.emulateMedia({ reducedMotion: 'reduce' });
+ await page.setViewportSize({ width: 390, height: 844 });
+ await page.addInitScript(() => localStorage.setItem('lock-in.locale', 'en'));
+ await page.route('**/api/v1/catalog/documents/**', route => route.fulfill({ json: { version_id: 'test-version', results: [] } }));
+ await page.goto('/e2e/fixtures/companion-ready/?toolbar');
+ const pet = page.locator('.study-companion-pet');
+ const add = page.getByRole('button', { name: 'Add', exact: true });
+ await expect(pet).toHaveCount(0);
+ await expect(page.locator('.study-companion-restore')).toHaveCount(0);
+ await add.click();
+ const menu = page.getByRole('dialog', { name: 'Add to page' });
+ await expect(menu.getByRole('button', { name: 'Add study companion' })).toBeVisible();
+ await menu.getByRole('button', { name: 'Add study companion' }).click();
+ await expect(pet).toBeVisible();
+ await expect(page.locator('.study-companion-restore')).toHaveCount(0);
+ const original = await pet.boundingBox();
+ const x = original.x + original.width / 2;
+ const y = original.y + original.height / 2;
+ await pet.dispatchEvent('pointerdown', { pointerId: 82, pointerType: 'touch', isPrimary: true, button: 0, buttons: 1, clientX: x, clientY: y });
+ for (let i = 1; i <= 8; i++) {
+  await pet.dispatchEvent('pointermove', { pointerId: 82, pointerType: 'touch', isPrimary: true, button: 0, buttons: 1, clientX: x - 10 * i, clientY: y - 15 * i });
+ }
+ await pet.dispatchEvent('pointerup', { pointerId: 82, pointerType: 'touch', isPrimary: true, button: 0, buttons: 0, clientX: x - 80, clientY: y - 120 });
+ await expect(page.locator('.study-companion-panel')).toHaveCount(0);
+ await expect.poll(async () => (await pet.boundingBox()).x).toBeLessThan(original.x - 40);
+ await expect.poll(async () => (await pet.boundingBox()).y).toBeLessThan(original.y - 70);
+ const moved = await pet.boundingBox();
+ const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('lock-in.study-companion.v1:test-student')));
+ expect(saved.phoneAdded).toBe(true);
+ expect(saved.position.x).toBeGreaterThanOrEqual(0);
+ expect(saved.position.x).toBeLessThanOrEqual(1);
+ expect(saved.position.y).toBeGreaterThanOrEqual(0);
+ expect(saved.position.y).toBeLessThanOrEqual(1);
+
+ await page.reload();
+ await expect(pet).toBeVisible();
+ const restored = await pet.boundingBox();
+ expect(Math.abs(restored.x - moved.x)).toBeLessThan(3);
+ expect(Math.abs(restored.y - moved.y)).toBeLessThan(3);
+ await pet.click();
+ await expect(page.locator('.study-companion-panel')).toBeVisible();
+ await page.locator('.study-companion-panel header button').click();
+ await page.locator('.study-companion-preferences').click();
+ await page.getByRole('button', { name: 'Hide companion', exact: true }).click();
+ await expect(pet).toHaveCount(0);
+ await expect(page.locator('.study-companion-restore')).toHaveCount(0);
+ await add.click();
+ await page.getByRole('dialog', { name: 'Add to page' }).getByRole('button', { name: 'Add study companion' }).click();
+ await expect(pet).toBeVisible();
+ await expect(page.locator('.study-companion-restore')).toHaveCount(0);
+});
+
+test('toolbar companion cannot be accidentally added on tablet, which keeps its original launcher', async ({ page }) => {
+ await page.emulateMedia({ reducedMotion: 'reduce' });
+ await page.setViewportSize({ width: 820, height: 1180 });
+ await page.addInitScript(() => localStorage.setItem('lock-in.locale', 'en'));
+ await page.route('**/api/v1/catalog/documents/**', route => route.fulfill({ json: { version_id: 'test-version', results: [] } }));
+ await page.goto('/e2e/fixtures/companion-ready/?toolbar');
+ await page.getByRole('button', { name: 'Add', exact: true }).click();
+ await expect(page.locator('.workspace-add-phone-companion')).toBeHidden();
+ await expect(page.locator('.study-companion-pet')).toBeVisible();
+});
