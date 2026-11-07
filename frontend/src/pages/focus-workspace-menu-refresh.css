@@ -285,7 +285,8 @@ html.ix-hover .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-to
   }
   .workspace-v2 .workspace-v8-settings > .workspace-v8-settings-head {
     min-height: 44px;
-    padding: 0 4px 0 12px;
+    padding-block: 0;
+    padding-inline: 12px 4px;
   }
   .workspace-v2 .workspace-v8-settings > .workspace-v8-settings-head button {
     width: 44px;
