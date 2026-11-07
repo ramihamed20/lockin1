@@ -16,7 +16,7 @@ function dropGeometry(x, y) {
     const stage = pane.querySelector(".workspace-v2-document-stage");
     // In single-reader mode .workspace-pane uses display: contents and has
     // no geometry. Its visible PDF stage is the actual drop target.
-    if (pane.classList.contains("is-kept") || getComputedStyle(pane).visibility === "hidden") continue;
+    if (pane.classList.contains("is-kept") || window.getComputedStyle(pane).visibility === "hidden") continue;
     const stageRect = stage?.getBoundingClientRect();
     if (!stageRect?.width || !stageRect.height) continue;
     const wrapperRect = pane.getBoundingClientRect();
