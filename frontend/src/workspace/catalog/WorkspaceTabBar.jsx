@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, FileText, Folder, NotebookPen, Plus, X, Youtube } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns2, FileText, Folder, NotebookPen, Plus, X, Youtube } from "lucide-react";
 import { personalSheetsApi } from "../../api/personalSheets.js";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { currentAppLocale } from "../../lib/i18n.js";
@@ -165,7 +165,7 @@ function SheetChoice({ choice, open, onPick }) {
 export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, onSelect, onClose, onNewWhiteboard, onOpenSheet }) {
   const { t } = useI18n();
   const paneActive = useWorkspacePaneActive();
-  const { dropSplit } = useWorkspaceSplit();
+  const { dropSplit, splitIds } = useWorkspaceSplit();
   const { startDrag, shouldSuppressClick, preview } = useWorkspaceTabDrag(dropSplit);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -301,10 +301,18 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
         const active = tab.id === activeId;
         const label = tabLabel(tab, t);
         return <div key={tab.id} ref={active ? activeTabRef : undefined} className={`workspace-tab${active ? " is-active" : ""}${preview?.id === tab.id ? " is-dragging" : ""}`} data-tab-kind={tab.kind}>
-          <button type="button" role="tab" aria-selected={active} title={currentAppLocale() === "ar" ? (active ? label : `${label} — اسحب لتقسيم الشاشة`) : (active ? label : `${label} — drag into the reader to split`)} onPointerDown={(event) => { if (tabs.length > 1 && !active) startDrag(event, tab, label); }} onClick={(event) => { if (shouldSuppressClick()) { event.preventDefault(); event.stopPropagation(); return; } if (!active) onSelect(tab); }} onKeyDown={(event) => { if (event.altKey && event.key === "Enter" && !active) { event.preventDefault(); dropSplit(tab.id, "end"); } }}>
+          <button type="button" role="tab" aria-selected={active} title={currentAppLocale() === "ar" ? (active ? label : `${label} — اسحب لتقسيم الشاشة`) : (active ? label : `${label} — drag into the reader to split`)} onPointerDown={(event) => { if (tabs.length > 1) startDrag(event, tab, label); }} onClick={(event) => { if (shouldSuppressClick()) { event.preventDefault(); event.stopPropagation(); return; } if (!active) onSelect(tab); }} onKeyDown={(event) => { if (event.altKey && event.key === "Enter" && !active) { event.preventDefault(); dropSplit(tab.id, "end"); } }}>
             {tab.kind === "whiteboard" ? <NotebookPen size={14} aria-hidden="true" /> : tab.kind === "personal" ? <Folder size={14} aria-hidden="true" /> : <FileText size={14} aria-hidden="true" />}
             <span dir="auto">{label}</span>
           </button>
+          {tabs.length > 1 && splitIds.length < 4 && !splitIds.includes(tab.id) && (
+            <button type="button" className="workspace-tab-split"
+              aria-label={currentAppLocale() === "ar" ? `تقسيم الشاشة مع ${label}` : `Split screen with ${label}`}
+              title={currentAppLocale() === "ar" ? `فتح ${label} بجانب الشيت` : `Open ${label} beside this sheet`}
+              onClick={() => dropSplit(tab.id, "end")}>
+              <Columns2 size={15} aria-hidden="true" />
+            </button>
+          )}
           {tabs.length > 1 && <button type="button" className="workspace-tab-close" aria-label={t("workspaceTabs.closeTab", { name: label })} title={t("workspaceTabs.closeTab", { name: label })} onClick={() => onClose(tab)}><X size={13} /></button>}
         </div>;
       })}
