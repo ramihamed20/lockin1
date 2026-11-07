@@ -1,0 +1,97 @@
+/* Focus toolbar rhythm: grouped by workflow, without decorative rails.
+   Back | writing + selection | Undo/Redo | colour + presets | Study + More.
+   The actual buttons, active tool capsule, and floating dock stay unchanged.
+   CSS scoped to the toolbar so Notes, settings and document tabs keep their
+   existing separators. This stylesheet loads after earlier Focus skins. */
+
+/* No repeated hairlines between adjacent icon groups. The tab strip has its
+   own single underline, which remains an important document boundary. */
+.workspace-v2 .workspace-v2-toolbar .workspace-v2-control-group.is-exit::after,
+.workspace-v2 .workspace-v2-toolbar .workspace-v2-toolbar-actions::before,
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors::before,
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-primary .workspace-v2-history::before,
+.workspace-v2 .workspace-v2-toolbar > .workspace-v2-history.is-docked::before,
+.workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > [data-workspace-tool="select"]::before,
+.workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > [data-workspace-surface="add"]::before {
+  display: none;
+  content: none;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit,
+.workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions,
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors,
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-primary .workspace-v2-history,
+.workspace-v2 .workspace-v2-toolbar > .workspace-v2-history.is-docked {
+  border: 0;
+}
+
+/* A little group rhythm without wasting a full icon-width on dividers. */
+.workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit {
+  padding-inline-end: 6px;
+  gap: 4px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-v3-primary {
+  gap: 4px;
+  justify-content: flex-start;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list {
+  gap: 2px;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > [data-workspace-tool="select"] {
+  margin-inline-start: 5px;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > [data-workspace-surface="add"] {
+  margin-inline-start: 2px;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-primary .workspace-v2-history {
+  margin: 0 2px;
+  padding: 0;
+  gap: 1px;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors {
+  margin: 0 2px;
+  padding-inline: 3px 0;
+  gap: 1px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions {
+  margin-inline-start: 5px;
+  padding-inline-start: 0;
+  gap: 2px;
+}
+
+/* Tablets get evenly sized tap targets, not uneven space-evenly gaps between
+   individual tools. Free width remains for colours and study controls. */
+@media (min-width: 700px) {
+  .workspace-v2 .workspace-v2-toolbar > .workspace-tool-dock[data-dock-edge="top"] .workspace-v2-tool-list {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+  }
+}
+
+/* Compact layouts still keep Undo/Redo pinned beside the rail. Do not change
+   hit target dimensions: 38-44px is owned by the existing responsive styles. */
+@media (max-width: 1179px), (max-height: 599px) {
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit {
+    padding-inline-end: 3px;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v3-primary { gap: 2px; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > [data-workspace-tool="select"] {
+    margin-inline-start: 3px;
+  }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v3-primary .workspace-v2-history {
+    margin-inline: 1px;
+  }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors {
+    margin: 0;
+    padding-inline: 2px 0;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-history.is-docked { margin: 0; padding: 0; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions { margin-inline-start: 2px; }
+}
+@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit { padding-inline-end: 0; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v3-primary { gap: 0; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list { gap: 0; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > [data-workspace-tool="select"],
+  .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > [data-workspace-surface="add"] { margin-inline-start: 0; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions { margin-inline-start: 0; }
+}
