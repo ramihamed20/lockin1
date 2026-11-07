@@ -75,3 +75,60 @@
 @media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
   .workspace-favorite-pens.is-toolbar { display: none; }
 }
+
+
+/* Five favorites are a compact, independently scrollable part of the rail.
+   On iPad portrait we keep 44px tap targets; landscape fits all five at once.
+   Menu actions portal out of this clipped strip and remain fully accessible. */
+.workspace-favorite-pens.is-toolbar {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: clamp(94px, 16vw, 198px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 11px;
+  padding-inline: 3px;
+}
+.workspace-favorite-pens.is-toolbar::-webkit-scrollbar { display: none; }
+.workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot {
+  flex: 0 0 auto;
+}
+.workspace-favorite-pens.is-panel {
+  flex-wrap: wrap;
+  max-width: 100%;
+  gap: 5px;
+}
+.workspace-favorite-pens.is-panel .workspace-favorite-pen {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.workspace-favorite-pens.is-panel .workspace-favorite-pen.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+.workspace-favorite-pen-menu {
+  min-width: 210px;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow-float, 0 14px 34px rgb(0 0 0 / .26));
+}
+.workspace-favorite-pen-menu button { color: var(--text); }
+.workspace-favorite-pen-menu button:hover,
+.workspace-favorite-pen-menu button:focus-visible { background: var(--surface-2); }
+.workspace-favorite-pen-menu button.is-danger { color: var(--danger, #ce4a50); }
+@media (min-width: 1180px) and (min-height: 600px) {
+  .workspace-favorite-pens.is-toolbar { max-width: 188px; }
+}
+@media (min-width: 700px) and (max-width: 899px) and (min-height: 600px) {
+  .workspace-favorite-pens.is-toolbar {
+    max-width: 92px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-favorite-pen { transition: none; }
+}
