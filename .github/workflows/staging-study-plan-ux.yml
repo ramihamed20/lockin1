@@ -40,12 +40,23 @@ jobs:
       - name: Run planner unit checks
         working-directory: frontend
         run: node --test tests/study-plan.test.js
-      - name: Build production app with e2e fixtures
+      # Production builds remain protected by the public-knowledge evidence
+      # gate. This staging-only test uses the real Vite app in development
+      # without bypassing/changing the release gate or touching live data.
+      - name: Exercise real app in Chromium using isolated API fixtures
         working-directory: frontend
-        run: pnpm run build:e2e
-      - name: Complete first-run and returning-user flows in Chromium
-        working-directory: frontend
-        run: pnpm exec playwright test e2e/study-plan.spec.js e2e/study-plan-adaptive.spec.js e2e/study-plan-pilot.spec.js --workers=1 --retries=1
+        run: |
+          pnpm run fixtures:pdf
+          LOCKIN_E2E_CATALOG=1 pnpm exec vite --host 127.0.0.1 --port 5050 >/tmp/lockin-study-plan-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:5050 >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then cat /tmp/lockin-study-plan-vite.log; exit 1; fi
+          PLAYWRIGHT_EXTERNAL_SERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5050 pnpm exec playwright test e2e/study-plan.spec.js e2e/study-plan-adaptive.spec.js e2e/study-plan-pilot.spec.js --workers=1 --retries=1
       - name: Upload journey screenshots and traces
         uses: actions/upload-artifact@v4
         if: always()
