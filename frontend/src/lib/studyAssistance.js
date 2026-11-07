@@ -16,7 +16,10 @@ export function assistanceForPage(rows, page, start = 1, end = Infinity) {
   if (!Number.isInteger(page) || page < 1 || page < start || page > end) return [];
   return (Array.isArray(rows) ? rows : [])
     .map(normalizeAssistanceIdea)
-    .filter((row) => row && (row.page === null || row.page === page));
+    .filter((row) => row && (row.page === null || row.page === page))
+    // Show reviewed help for the current PDF page before sheet-wide guidance.
+    // Stable sorting preserves the author's position within each group.
+    .sort((a, b) => Number(b.page === page) - Number(a.page === page));
 }
 
 export function savedAssistanceForRange(rows, start = 1, end = Infinity) {
