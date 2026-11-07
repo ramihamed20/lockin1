@@ -3,12 +3,13 @@ import { TRANSIENT_INK_KIND } from "../../workspace/ink/transientInk.js";
 import { normalizeToolColor } from "../../workspace/catalog/toolPalette.js";
 
 /**
- * Favorite pens: up to four saved pens (tool, pen type, colour, thickness and
+ * Favorite pens: up to five saved pens (tool, pen type, colour, thickness and
  * opacity) the student switches to with one tap, as in Notability's favorites
  * toolbar. A per-device preference, like recent colours; never sent anywhere.
  */
 export const FAVORITE_PENS_KEY = "lock-in.catalog-workspace.favorite-pens.v1";
-export const MAX_FAVORITE_PENS = 4;
+export const FAVORITE_PENS_CHANGE_EVENT = "lock-in:favorite-pens-changed";
+export const MAX_FAVORITE_PENS = 5;
 export const FAVORITE_PEN_TOOLS = new Set(["pen", "highlighter"]);
 const PROFILES = new Set([...Object.values(PEN_PROFILE), TRANSIENT_INK_KIND.POINTER]);
 
@@ -43,12 +44,17 @@ export function loadFavoritePens() {
   }
 }
 
-export function saveFavoritePens(favorites) {
+export function saveFavoritePens(favorites, { notify = false } = {}) {
+  const normalized = normalizeFavoritePens(favorites);
   try {
-    window.localStorage.setItem(FAVORITE_PENS_KEY, JSON.stringify(normalizeFavoritePens(favorites)));
+    window.localStorage.setItem(FAVORITE_PENS_KEY, JSON.stringify(normalized));
+    // Other mounted readers in the same tab don't receive browser storage
+    // events, so notify them when the user changes a favorite pen.
+    if (notify) window.dispatchEvent(new Event(FAVORITE_PENS_CHANGE_EVENT));
   } catch {
     // Favorites stay usable for this visit when storage is refused.
   }
+  return normalized;
 }
 
 /** The favorite the current pen already is, or -1. */
