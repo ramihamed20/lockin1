@@ -154,9 +154,22 @@ export function defaultDrawingInput({ stored = null, coarsePointer = false, shor
   return phone ? DRAWING_INPUT.STYLUS_AND_FINGER : DRAWING_INPUT.STYLUS_ONLY;
 }
 
+/**
+ * Trust explicit pen and mouse events. Capacitive pens can be reported as
+ * "touch", and a few browsers report an empty/unknown type, so allow those
+ * only when the student has selected touch-compatible drawing. No browser can
+ * safely infer a passive pen from finger-like touch coordinates.
+ */
 export function pointerCanDraw(pointerType, drawingInput) {
   if (pointerType === "pen" || pointerType === "mouse") return true;
-  return pointerType === "touch" && drawingInput === DRAWING_INPUT.STYLUS_AND_FINGER;
+  return (pointerType === "touch" || pointerType === "" || pointerType == null || pointerType === "unknown")
+    && drawingInput === DRAWING_INPUT.STYLUS_AND_FINGER;
+}
+
+export function classifyStylusInput(pointerType) {
+  if (pointerType === "pen") return "pen";
+  if (pointerType === "touch" || pointerType === "" || pointerType == null || pointerType === "unknown") return "touch";
+  return "other";
 }
 
 export function suspiciousPalmContact({ event, activePenCount, lastPenAt, lastPenPosition, now = Date.now(), activeTouchCount = 0 }) {
