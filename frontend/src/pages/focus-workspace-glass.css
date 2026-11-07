@@ -1974,6 +1974,51 @@ html.ix-hover .workspace-tab:not(.is-active):is(:hover, :focus-within) .workspac
   transition: width 160ms var(--fx-spring), height 160ms var(--fx-spring), background-color 160ms ease;
 }
 
+/* Picking an ink swatch briefly makes the active toolbar pen dip and draw a
+   short stroke in the chosen colour. The glyph and dot keep that colour after
+   the motion; nothing grows outside the button's touch target. */
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:has(> .workspace-v3-tool-swatch) > svg {
+  color: var(--workspace-tool-color);
+}
+.workspace-v3-tool-color-trace {
+  position: absolute;
+  inset-inline-start: calc(50% - 10px);
+  inset-block-end: 4px;
+  z-index: 1;
+  width: 20px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--workspace-tool-color);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--workspace-tool-color) 42%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: left center;
+}
+@keyframes workspace-v3-pen-reink {
+  0% { transform: translateY(-1px) rotate(0) scale(1.08); }
+  36% { transform: translateY(1px) rotate(-12deg) scale(.97); }
+  68% { transform: translateY(-2px) rotate(5deg) scale(1.13); }
+  100% { transform: translateY(-1px) rotate(0) scale(1.08); }
+}
+@keyframes workspace-v3-ink-swipe {
+  0% { opacity: 0; transform: scaleX(.12) translateY(2px); }
+  28% { opacity: .92; transform: scaleX(.35) translateY(0); }
+  70% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-color-animated > svg {
+    animation: workspace-v3-pen-reink 440ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+  .workspace-v3-tool-button.is-color-animated > .workspace-v3-tool-color-trace {
+    animation: workspace-v3-ink-swipe 540ms ease-out both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-v3-tool-button.is-color-animated > svg { animation: none !important; }
+  .workspace-v3-tool-color-trace { display: none; }
+}
+
 /* The sliders button sits with the quick colours, so it shows where they do. */
 @media (min-width: 700px) and (min-height: 600px) {
   .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors { padding-inline-end: 0; }
