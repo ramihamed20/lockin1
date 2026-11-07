@@ -106,7 +106,8 @@ test("sheets and whiteboards open as tabs, each keeping its own state", async ({
   await expect(tabs(page)).toHaveText(["Vitamin -1", "Vitamin -2"]);
 });
 
-test("whiteboard Add page remains reachable after scrolling past the final page", async ({ page }) => {
+test("whiteboard Add page is fully visible above the bottom edge after three pages on tablets and phones", async ({ page }) => {
+  test.setTimeout(90_000);
   await mockAuthenticatedWorkspace(page);
   await page.setViewportSize({ width: 834, height: 1194 });
   await page.goto(ROUTE);
@@ -118,27 +119,44 @@ test("whiteboard Add page remains reachable after scrolling past the final page"
   const addPage = onScreen(page, ".workspace-whiteboard-footer button");
   await expect(onScreen(page, '[data-workspace-page="1"] .workspace-v2-a4-canvas.is-visible')).toBeVisible({ timeout: 20_000 });
   await expect(addPage).toHaveCount(1);
-  // Programmatically setting scrollTop bypasses the reader's custom bounds,
-  // which is why the old regression test passed while users still got stuck.
-  // Exercise the real wheel/pan handler and verify it can reach the footer.
-  const initialTop = await stage.evaluate((element) => element.scrollTop);
-  await stage.evaluate((element) => {
-    element.dispatchEvent(new WheelEvent("wheel", {
-      bubbles: true, cancelable: true, deltaY: 6000
-    }));
-  });
-  await expect.poll(() => stage.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialTop + 40);
-  await expect.poll(async () => stage.evaluate((element) => {
-    const stageRect = element.getBoundingClientRect();
-    const lastPageRect = element.querySelector(".workspace-v2-a4-page:last-of-type").getBoundingClientRect();
-    const buttonRect = element.querySelector(".workspace-whiteboard-footer button").getBoundingClientRect();
-    return lastPageRect.bottom < stageRect.top + stageRect.height / 2 - 40
-      && buttonRect.top >= stageRect.top
-      && buttonRect.bottom <= stageRect.bottom;
-  })).toBe(true);
-
+  // The reported bug occurs after several lined pages (3/3 in the screenshot).
   await addPage.click();
-  await expect(onScreen(page, ".workspace-v2-a4-page.is-virtual.is-background-lined")).toHaveCount(1);
+  await expect(onScreen(page, ".workspace-v2-a4-page")).toHaveCount(2);
+  await addPage.click();
+  await expect(onScreen(page, ".workspace-v2-a4-page")).toHaveCount(3);
+
+  for (const viewport of [
+    { width: 834, height: 1194 }, // iPad portrait
+    { width: 1194, height: 834 }, // iPad landscape
+    { width: 390, height: 844 }, // iPhone portrait
+    { width: 844, height: 390 } // short landscape viewport
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect.poll(() => stage.evaluate((element) => element.clientHeight)).toBeGreaterThan(150);
+    // Use the real reader wheel handler: setting scrollTop directly bypasses
+    // the bounds that caused the original broken button.
+    await stage.evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new WheelEvent("wheel", {
+        bubbles: true, cancelable: true, deltaY: 25000
+      }));
+    });
+    await expect.poll(async () => stage.evaluate((element) => {
+      const stageRect = element.getBoundingClientRect();
+      const pageRect = [...element.querySelectorAll(".workspace-v2-a4-page")].at(-1).getBoundingClientRect();
+      const button = element.querySelector(".workspace-whiteboard-footer button");
+      const buttonRect = button.getBoundingClientRect();
+      const footerAnchor = element.querySelector(".workspace-v2-a4-footer-anchor");
+      return Boolean(footerAnchor)
+        && pageRect.bottom < buttonRect.top
+        && buttonRect.top > stageRect.top + 88
+        && buttonRect.bottom <= stageRect.bottom - 70
+        && buttonRect.width >= 120
+        && getComputedStyle(button).transform === "none";
+    }), `Add page should be fully visible at ${viewport.width}x${viewport.height}`).toBe(true);
+  }
+  await addPage.click();
+  await expect(onScreen(page, ".workspace-v2-a4-page")).toHaveCount(4);
 });
 
 test("four kept PDF tabs release hidden raster buffers and repaint the same reader on return", async ({ page }) => {
