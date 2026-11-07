@@ -246,6 +246,7 @@ import "./focus-workspace-glass.css";
 import "./focus-tool-panel-compact.css";
 import "./focus-phone.css";
 import "./focus-workspace/compact-ink-options.css";
+import "./focus-workspace-menu-refresh.css";
 
 /**
  * The workspace mounts a large annotation and PDF stack, so the sheet is
