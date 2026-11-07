@@ -822,391 +822,262 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-
   color: var(--accent-text);
 }
 
-
-/* V13 — Theme-aware tool inspectors: pen, highlighter, eraser, select, shapes.
-   The toolbar, Notes and menus already use the site's Night/Day/Dawn/Sunset
-   tokens. Tool previews and actual ink colors stay independent of the theme. */
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options {
-  --tool-surface: var(--material-thick, var(--surface));
-  --tool-group: var(--surface-2);
-  --tool-raised: var(--surface-3);
-  --tool-text: var(--text);
-  --tool-muted: var(--muted);
-  --tool-soft: var(--soft);
-  --tool-border: var(--border);
-  --tool-separator: var(--separator);
-  --tool-accent: var(--accent);
-  --tool-accent-text: var(--accent-text);
-  --tool-accent-soft: var(--accent-soft);
-  --tool-on-accent: var(--on-accent);
-  --fx-glass: var(--tool-surface);
-  --fx-solid: var(--surface);
-  --fx-accent: var(--tool-accent);
-  --fx-switch-on: var(--tool-accent);
+/* Tool Inspector v15 — one semantic surface for all four Lockin themes.
+   Replaces overlapping V13/V14 patches. Palette swatches and ink previews
+   always retain the user's real ink colors; all UI controls follow the theme. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector {
+  --ins-surface: var(--surface);
+  --ins-fill: var(--surface-2);
+  --ins-hover: var(--surface-3);
+  --ins-text: var(--text);
+  --ins-muted: var(--muted);
+  --ins-border: var(--border);
+  --ins-separator: var(--separator);
+  --ins-accent: var(--accent);
+  --ins-accent-ink: var(--accent-text);
+  --ins-active: var(--accent-soft);
+  --ins-on-accent: var(--on-accent);
+  --fx-accent: var(--ins-accent);
+  --fx-switch-on: var(--ins-accent);
   --fx-danger: var(--danger);
-  --workspace-gold: var(--tool-accent);
-  --workspace-gold-bright: var(--tool-accent-text);
-  --fx-text: var(--tool-text);
-  --fx-text-2: var(--tool-muted);
-  --fx-text-3: var(--tool-soft);
-  --fx-edge: var(--tool-border);
-  --fx-hair: var(--tool-separator);
-  --fx-fill: var(--tool-group);
-  --fx-fill-strong: var(--tool-raised);
-  --workspace-panel: var(--tool-surface);
-  --workspace-chrome-text: var(--tool-text);
-  --workspace-chrome-secondary: var(--tool-muted);
-  --workspace-control-bg: var(--tool-group);
-  --workspace-control-border: var(--tool-border);
-  --workspace-on-accent: var(--tool-on-accent);
-  color: var(--tool-text);
-  background: var(--tool-surface);
-  border: 1px solid var(--tool-border);
+  --fx-solid: var(--ins-surface);
+  --fx-text: var(--ins-text);
+  --fx-text-2: var(--ins-muted);
+  --fx-text-3: var(--soft);
+  --fx-fill: var(--ins-fill);
+  --fx-fill-strong: var(--ins-hover);
+  --fx-edge: var(--ins-border);
+  --fx-hair: var(--ins-separator);
+  --workspace-panel: var(--ins-surface);
+  --workspace-control-bg: var(--ins-fill);
+  --workspace-control-border: var(--ins-border);
+  --workspace-chrome-text: var(--ins-text);
+  --workspace-chrome-secondary: var(--ins-muted);
+  --workspace-gold: var(--ins-accent);
+  --workspace-gold-bright: var(--ins-accent-ink);
+  color: var(--ins-text);
+  background: var(--ins-surface);
+  border: 1px solid var(--ins-border);
   border-radius: 18px;
   box-shadow: var(--shadow-float);
-  backdrop-filter: var(--material-filter, blur(22px));
-  -webkit-backdrop-filter: var(--material-filter, blur(22px));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options::before {
-  background: var(--tool-surface);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector::before {
+  background: var(--ins-surface);
+  border-color: var(--ins-border);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-options-title {
-  border-bottom: 1px solid var(--tool-separator);
-  color: var(--tool-text);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-options-title {
+  min-height: 44px;
+  gap: 10px;
+  padding: 8px 14px;
+  color: var(--ins-text);
+  border-bottom: 1px solid var(--ins-separator);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-options-title strong {
-  color: var(--tool-text);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-options-title strong {
+  color: var(--ins-text);
+  font-size: .83rem;
+  font-weight: 700;
+  opacity: 1;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-options-title small,
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body :is(h3, p, .workspace-v2-range-heading > span) {
-  color: var(--tool-muted);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-options-title small {
+  color: var(--ins-muted);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-preview-well {
-  color: var(--tool-text);
-  background: var(--tool-group);
-  border: 1px solid var(--tool-border);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-preview-well {
+  background: var(--ins-fill);
+  border: 1px solid var(--ins-border);
+  border-radius: 9px;
   box-shadow: none;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body {
-  color: var(--tool-text);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-panel-body {
+  color: var(--ins-text);
+  scrollbar-color: var(--ins-border) transparent;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body > .workspace-v5-inspector-section {
-  border-color: var(--tool-separator);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-panel-body > .workspace-v5-inspector-section {
+  border-color: var(--ins-separator);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body > .workspace-v7-adjust,
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-custom-color-editor {
-  background: var(--tool-group);
-  border-color: var(--tool-border);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-panel-body :is(h3, p) {
+  color: var(--ins-muted);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-panel-body > .workspace-v7-adjust {
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-panel-body > .workspace-v7-adjust {
+  background: var(--ins-fill);
+  border-color: var(--ins-separator);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink .workspace-v7-panel-body > .workspace-v7-adjust {
   background: transparent;
   border: 0;
+  box-shadow: none;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range {
-  color: var(--tool-muted);
+
+/* Uniform, readable, low-contrast tiles in both dark and light palettes. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button {
+  color: var(--ins-muted);
+  background: var(--ins-fill);
+  border: 1px solid var(--ins-border);
+  border-radius: 11px;
+  box-shadow: none;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-range-heading output {
-  color: var(--tool-text);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button.is-active {
+  color: var(--ins-accent-ink);
+  background: var(--ins-active);
+  border-color: var(--accent-border);
+  box-shadow: none;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input {
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v4-pen-profiles .workspace-v4-nib {
+  color: var(--ins-muted);
+  filter: none;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v4-pen-profiles button.is-active .workspace-v4-nib {
+  color: var(--ins-accent-ink);
+}
+html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button:hover:not(.is-active) {
+  color: var(--ins-text);
+  background: var(--ins-hover);
+}
+
+/* The actual ink discs are never recolored. Only the selection rings and
+   add/favorite buttons change with the active website theme. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-color-swatch.is-active::before {
+  outline: 2px solid var(--ins-accent);
+  outline-offset: 3px;
+  box-shadow: inset 0 0 0 1px var(--ins-border);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector :is(.workspace-v2-custom-color, .workspace-v4-favorite-color) {
+  color: var(--ins-muted);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-custom-color::before {
+  border-color: var(--ins-muted);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v4-favorite-color > svg {
+  border-color: var(--ins-border);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v4-favorite-color.is-active {
+  color: var(--ins-accent-ink);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-custom-color-editor {
+  color: var(--ins-text);
+  background: var(--ins-fill);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-custom-color-editor button {
+  color: var(--ins-on-accent);
+  background: var(--ins-accent);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector :is(.workspace-v6-color-strip button, .workspace-v7-fill-colors button).is-active {
+  box-shadow: 0 0 0 2px var(--ins-surface), 0 0 0 4px var(--ins-accent);
+}
+
+/* Clear slider labels: values get exactly the same readable text as titles.
+   The slider track is the website accent, not the selected pen color. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-range-heading > span {
+  color: var(--ins-text);
+  opacity: 1;
+  font-size: .75rem;
+  font-weight: 550;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-range-heading output {
+  color: var(--ins-text);
+  opacity: 1;
+  font-size: .75rem;
+  font-weight: 650;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-range input {
   --ink-track-direction: to right;
-  accent-color: var(--tool-accent);
+  accent-color: var(--ins-accent);
 }
-:root[data-theme][dir="rtl"] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input,
-:root[data-theme] [dir="rtl"] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input {
+:root[data-theme][dir="rtl"] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-range input,
+:root[data-theme] [dir="rtl"] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-range input {
   --ink-track-direction: to left;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-webkit-slider-runnable-track {
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-range input::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
-  background: linear-gradient(
-    var(--ink-track-direction, to right),
-    var(--tool-accent) 0 var(--workspace-range-progress),
-    var(--tool-border) var(--workspace-range-progress) 100%
-  );
+  background: linear-gradient(var(--ink-track-direction, to right),
+    var(--ins-accent) 0 var(--workspace-range-progress),
+    var(--border-strong) var(--workspace-range-progress) 100%);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-webkit-slider-thumb {
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-range input::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   margin-top: -6px;
-  border: 2px solid var(--tool-surface);
+  border: 2px solid var(--ins-accent);
   border-radius: 50%;
-  background: var(--tool-accent);
-  box-shadow: var(--shadow-sm);
+  background: var(--ins-surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / .17);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-track {
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-range input::-moz-range-track {
   height: 4px;
-  border-radius: 999px;
-  background: var(--tool-border);
+  background: var(--border-strong);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-progress {
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-range input::-moz-range-progress {
   height: 4px;
-  background: var(--tool-accent);
+  background: var(--ins-accent);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-thumb {
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-tool-range input::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--tool-surface);
+  border: 2px solid var(--ins-accent);
   border-radius: 50%;
-  background: var(--tool-accent);
-  box-shadow: var(--shadow-sm);
+  background: var(--ins-surface);
 }
 
-/* A color swatch is real ink: only its selection ring belongs to the theme. */
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-color-swatch.is-active::before {
-  outline: 2px solid var(--tool-accent);
-  outline-offset: 3px;
-  box-shadow: inset 0 0 0 1px var(--tool-border);
+/* Small switches, settings and the optional drawing section. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-settings-toggle {
+  color: var(--ins-text);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-custom-color,
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v4-favorite-color {
-  color: var(--tool-muted);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-settings-toggle small,
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-tool-extras-toggle {
+  color: var(--ins-muted);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-custom-color::before {
-  border-color: var(--tool-muted);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-switch-track {
+  background: var(--ins-hover);
+  border: 1px solid var(--ins-border);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v4-favorite-color > svg {
-  border-color: var(--tool-border);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-switch-track > span {
+  background: var(--text);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v4-favorite-color.is-active {
-  color: var(--tool-accent-text);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track {
+  background: var(--ins-accent);
+  border-color: var(--ins-accent);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-custom-color-editor button {
-  color: var(--tool-on-accent);
-  background: var(--tool-accent);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track > span {
+  background: var(--ins-on-accent);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspace-v6-color-strip button, .workspace-v7-fill-colors button).is-active {
-  box-shadow: 0 0 0 2px var(--tool-surface), 0 0 0 4px var(--tool-accent);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-fill-custom {
-  border-color: var(--tool-border);
-}
-
-/* Tool mode tiles are selected in the site's accent instead of a fixed blue. */
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button {
-  color: var(--tool-muted);
-  background: var(--tool-group);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button.is-active {
-  border-color: var(--accent-border);
-  color: var(--tool-accent-text);
-  background: var(--tool-accent-soft);
-  box-shadow: none;
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button.is-active {
-  color: var(--tool-accent-text);
-  border-color: var(--accent-border);
-  background: var(--tool-accent-soft);
-}
-html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspace-v2-icon-choices, .workspace-v4-pen-profiles) button:not(.is-active):hover {
-  color: var(--tool-text);
-  background: var(--tool-raised);
-}
-
-/* Switches, expanded options and destructive rows use the semantic palette. */
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-switch-track {
-  background: var(--tool-raised);
-  border: 1px solid var(--tool-border);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-switch-track > span {
-  background: var(--tool-text);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track {
-  background: var(--tool-accent);
-  border-color: var(--tool-accent);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track > span {
-  background: var(--tool-on-accent);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-tool-extras-toggle {
-  border-color: var(--tool-separator);
-  color: var(--tool-muted);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-settings-action.is-danger {
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v2-settings-action.is-danger {
   color: var(--danger);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-select-row select {
-  color: var(--tool-text);
-  background: var(--tool-group);
-  border: 1px solid var(--tool-border);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector .workspace-v7-select-row select {
+  color: var(--ins-text);
+  background: var(--ins-fill);
+  border: 1px solid var(--ins-border);
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(button, input, select):focus-visible {
-  outline: 2px solid var(--tool-accent);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector :is(button, input, select):focus-visible {
+  outline: 2px solid var(--ins-accent);
   outline-offset: 2px;
 }
 
-/* The tool inspector still has to fit under the toolbar on a narrow iPad. */
-@media (max-width: 560px) {
-  :root[data-theme] .workspace-v2 .workspace-v2-tool-options {
-    max-width: calc(100% - 16px);
-  }
-}
-
-
-/* V14: Inspector contrast fix and compact theme-consistent surfaces.
-   A single opaque card and its labels/tiles use matching surface and text
-   tokens. Earlier glass/ink styles mixed a light card with dark-mode tiles,
-   white labels and pen-colored sliders. Keep ink swatches themselves intact. */
-
-/* These scoped surface pairs guarantee readable contrast even where a
-   historical toolbar variable remains dark in a light theme. Accents still
-   resolve from the current Lockin site's --accent tokens. */
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options {
-  --ins-bg: #171b26;
-  --ins-tile: #252a36;
-  --ins-well: #202633;
-  --ins-text: #eef1f7;
-  --ins-muted: #a8b0c0;
-  --ins-border: rgb(255 255 255 / .10);
-  --ins-track: #485163;
-  --ins-active: var(--accent);
-  --ins-active-text: var(--accent-text);
-  --ins-soft: var(--accent-soft);
-  --fx-text: var(--ins-text);
-  --fx-text-2: var(--ins-muted);
-  --fx-text-3: var(--ins-muted);
-  --fx-solid: var(--ins-bg);
-  --fx-fill: var(--ins-tile);
-  --fx-fill-strong: var(--ins-well);
-  --fx-hair: var(--ins-border);
-  --fx-edge: var(--ins-border);
-  --workspace-panel: var(--ins-bg);
-  --workspace-control-bg: var(--ins-tile);
-  --workspace-control-border: var(--ins-border);
-  color: var(--ins-text);
-  background: var(--ins-bg);
-  border-color: var(--ins-border);
-  box-shadow: var(--shadow-float);
-}
-:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v2-tool-options {
-  --ins-bg: #fff;
-  --ins-tile: var(--surface-2);
-  --ins-well: var(--surface-3);
-  --ins-text: #141821;
-  --ins-muted: #535b6b;
-  --ins-border: var(--border);
-  --ins-track: var(--border-strong);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options::before {
-  background: var(--ins-bg);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-options-title {
-  color: var(--ins-text);
-  border-bottom-color: var(--ins-border);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-options-title strong,
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-range-heading output {
-  color: var(--ins-text);
-  opacity: 1;
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(
-  .workspace-v2-tool-options-title small,
-  .workspace-v2-range-heading > span,
-  .workspace-v7-panel-body h3,
-  .workspace-v7-panel-body p,
-  .workspace-tool-extras-toggle
-) {
-  color: var(--ins-muted);
-  opacity: 1;
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-preview-well {
-  background: var(--ins-well);
-  border-color: var(--ins-border);
-  box-shadow: none;
-}
-
-/* All ink-type, shape and eraser choices are grouped neutral tiles; only the
-   selected one uses the site's accent, never its own ink color as the tile. */
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button,
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button {
-  color: var(--ins-text);
-  background: var(--ins-tile);
-  border: 1px solid var(--ins-border);
-  box-shadow: none;
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button.is-active,
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button.is-active {
-  color: var(--ins-active-text);
-  background: var(--ins-soft);
-  border-color: var(--accent-border);
-  box-shadow: none;
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v4-pen-profiles .workspace-v4-nib {
-  color: var(--ins-muted);
-  opacity: 1;
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v4-pen-profiles button.is-active .workspace-v4-nib {
-  color: var(--ins-active-text);
-}
-html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button:hover:not(.is-active) {
-  color: var(--ins-text);
-  background: var(--ins-well);
-}
-
-/* The preview should show ink, but thickness and opacity are UI controls,
-   following the selected theme rather than the selected pen color. */
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-webkit-slider-runnable-track {
-  height: 4px;
-  background: linear-gradient(var(--ink-track-direction, to right),
-    var(--ins-active) 0 var(--workspace-range-progress),
-    var(--ins-track) var(--workspace-range-progress) 100%);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-webkit-slider-thumb {
-  width: 16px;
-  height: 16px;
-  margin-top: -6px;
-  border: 2px solid var(--ins-bg);
-  border-radius: 50%;
-  background: var(--ins-active);
-  box-shadow: 0 1px 4px rgb(0 0 0 / .18);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-track {
-  height: 4px;
-  background: var(--ins-track);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-progress {
-  height: 4px;
-  background: var(--ins-active);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--ins-bg);
-  background: var(--ins-active);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action) {
-  color: var(--ins-text);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action) small {
-  color: var(--ins-muted);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-switch-track {
-  background: var(--ins-track);
-  border-color: var(--ins-border);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track {
-  background: var(--ins-active);
-  border-color: var(--ins-active);
-}
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-switch-track > span {
-  background: #fff;
-}
-
-/* Keep the compact floating card contained and the control labels readable. */
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink {
+/* Compact cards stay compact. No huge blocks or loss of touch targets. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink {
+  width: min(312px, calc(100% - 16px));
+  max-width: min(312px, calc(100% - 16px));
   border-radius: 18px;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-panel-body {
-  padding-inline: 12px;
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink .workspace-v7-panel-body {
+  padding: 2px 12px 8px;
+  border-radius: 0 0 18px 18px;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-options-title {
-  min-height: 42px;
-  padding-inline: 14px;
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink .workspace-v7-panel-body > .workspace-v5-inspector-section {
+  padding-block: 5px;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body .workspace-v7-adjust {
-  color: var(--ins-text);
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink .workspace-v7-adjust > .workspace-v2-tool-range + .workspace-v2-tool-range {
+  min-height: 56px;
+  padding-block-start: 2px;
+  box-shadow: none;
 }
-:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-custom-color-editor {
-  color: var(--ins-text);
-  background: var(--ins-tile);
+@media (max-width: 560px) {
+  :root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector {
+    max-width: calc(100% - 16px);
+  }
+  :root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink .workspace-v7-panel-body {
+    max-height: min(55dvh, 390px);
+  }
 }
