@@ -232,7 +232,7 @@ import { AUTOSAVE_IDLE_MS, COLORS, CONFIGURABLE_TOOLS, DRAWING_TOOLS, ERASER_MOD
 import { StudyModeDialog } from "./focus-workspace/studyDialogs.jsx";
 import { ACTIVE_RESULT_STAGES, clearActiveStudyDraft, clearActiveStudyEntry, clearActiveStudyResume, readActiveStudyDraft, readActiveStudyEntry, readActiveStudyResume, writeActiveStudyEntry, writeActiveStudyResume } from "./focus-workspace/activeStudyStorage.js";
 import { ActiveStudyQuiz } from "./focus-workspace/ActiveStudyQuiz.jsx";
-import { cloneAnnotation, copiedAnnotations, loadRecentColors, loadStoredWorkspace, loadStringList, loadToolMemory, loadWorkspaceSettings } from "./focus-workspace/preferences.js";
+import { cloneAnnotation, copiedAnnotations, loadRecentColors, loadStoredWorkspace, loadStringList, loadToolMemory, loadWorkspaceSettings, persistRecentColors, WORKSPACE_PALETTE_CHANGE_EVENT } from "./focus-workspace/preferences.js";
 import { AnnotationVisuals, COVER_COLOR, DraftAnnotationLayer } from "./focus-workspace/annotationVisuals.jsx";
 import { DockableToolRail } from "./focus-workspace/DockableToolRail.jsx";
 import { WorkspaceToolIcon } from "./focus-workspace/WorkspaceToolIcon.jsx";
@@ -241,6 +241,7 @@ import { useToolRail } from "./focus-workspace/useToolRail.js";
 import { PageNavigator, ZoomBar } from "./focus-workspace/pageControls.jsx";
 import { SettingsPopover } from "./focus-workspace/SettingsPopover.jsx";
 import { ToolOptionsPanel } from "./focus-workspace/ToolOptionsPanel.jsx";
+import { QuickColorPicker } from "./focus-workspace/QuickColorPicker.jsx";
 import { AddMenu, CardEditor, ExportMenu, MoreMenu, PageBackgroundMenu, SearchMenu, StudyMenu, TextEditor } from "./focus-workspace/menus.jsx";
 import { FavoritePens } from "./focus-workspace/FavoritePens.jsx";
 import { FAVORITE_PEN_TOOLS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, normalizeFavoritePens, saveFavoritePens } from "./focus-workspace/favoritePens.js";
@@ -680,6 +681,23 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [favoriteColors, setFavoriteColors] = useState(() => loadStringList(FAVORITE_COLORS_KEY, 5));
   const [customColorDraft, setCustomColorDraft] = useState(COLORS[0]);
   const [customColorEditorOpen, setCustomColorEditorOpen] = useState(false);
+  // An already-open sheet must see colours saved from another retained reader.
+  useEffect(() => {
+    const same = (left, right) => left.length === right.length && left.every((color, i) => color === right[i]);
+    const sync = (event) => {
+      if (event.type === "storage" && event.key !== RECENT_COLORS_KEY && event.key !== FAVORITE_COLORS_KEY) return;
+      const saved = loadRecentColors();
+      const favorites = loadStringList(FAVORITE_COLORS_KEY, 5);
+      setRecentColors((current) => same(current, saved) ? current : saved);
+      setFavoriteColors((current) => same(current, favorites) ? current : favorites);
+    };
+    window.addEventListener(WORKSPACE_PALETTE_CHANGE_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(WORKSPACE_PALETTE_CHANGE_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   const [rememberLastPosition, setRememberLastPosition] = useState(initialRememberLastPosition);
   const [rememberZoomLevel, setRememberZoomLevel] = useState(initialRememberZoomLevel);
   const [showPageNumber, setShowPageNumber] = useState(storedWorkspaceSettings.showPageNumber !== false);
@@ -1302,7 +1320,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (openSurface === "text") window.setTimeout(() => textInputRef.current?.focus(), 0);
   }, [openSurface]);
   useEffect(() => {
-    try { window.localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recentColors)); } catch { /* Recent colors are an optional local preference. */ }
+    persistRecentColors(recentColors);
   }, [recentColors]);
   useEffect(() => {
     try { window.localStorage.setItem(FAVORITE_COLORS_KEY, JSON.stringify(favoriteColors)); } catch { /* Favorites are an optional local preference. */ }
@@ -5063,14 +5081,23 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function toggleFavoriteColor() {
     const normalized = normalizeToolColor(activeColor);
     if (!normalized) return;
-    setFavoriteColors((items) => items.includes(normalized) ? items.filter((color) => color !== normalized) : [normalized, ...items].slice(0, 5));
+    const next = favoriteColors.includes(normalized)
+      ? favoriteColors.filter((color) => color !== normalized)
+      : [normalized, ...favoriteColors].slice(0, 5);
+    setFavoriteColors(next);
+    try { window.localStorage.setItem(FAVORITE_COLORS_KEY, JSON.stringify(next)); } catch { /* Device preference only. */ }
+    window.dispatchEvent(new Event(WORKSPACE_PALETTE_CHANGE_EVENT));
   }
 
-  function commitCustomColor() {
-    const normalized = normalizeToolColor(customColorDraft);
+  function commitCustomColor(color = customColorDraft) {
+    // The pen-inspector button passes a click event, while the quick '+' picker
+    // passes a hex string. Both paths save into one shared device palette.
+    const normalized = normalizeToolColor(typeof color === "string" ? color : customColorDraft);
     if (!normalized) return;
     if (!paletteColors.includes(normalized) && paletteColors.length >= MAX_PALETTE_COLORS) return;
-    setRecentColors((items) => addSavedColor(items, normalized, MAX_PALETTE_COLORS, COLORS));
+    const next = addSavedColor(recentColors, normalized, MAX_PALETTE_COLORS, COLORS);
+    persistRecentColors(next, { notify: true });
+    setRecentColors(next);
     updateSelectionColor(normalized);
     setCustomColorEditorOpen(false);
   }
@@ -5079,8 +5106,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const normalized = normalizeToolColor(color);
     if (!normalized) return;
     const nextColors = removeSavedColor(recentColors, normalized, MAX_PALETTE_COLORS, COLORS);
+    persistRecentColors(nextColors, { notify: true });
     setRecentColors(nextColors);
-    setFavoriteColors((items) => items.filter((item) => item !== normalized));
+    const nextFavorites = favoriteColors.filter((item) => item !== normalized);
+    setFavoriteColors(nextFavorites);
+    try { window.localStorage.setItem(FAVORITE_COLORS_KEY, JSON.stringify(nextFavorites)); } catch { /* Device preference only. */ }
+    window.dispatchEvent(new Event(WORKSPACE_PALETTE_CHANGE_EVENT));
     if (activeColor === normalized) setActiveColor(normalizeSavedPalette([...COLORS, ...nextColors], MAX_PALETTE_COLORS)[0] || COLORS[0]);
     if (customColorDraft === normalized) setCustomColorDraft(COLORS[0]);
   }
@@ -6121,7 +6152,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const customColors = addSavedColor(recentColors, null, MAX_PALETTE_COLORS, COLORS);
   const customColorSet = new Set(customColors);
   const paletteColors = normalizeSavedPalette([...favoriteColors, ...COLORS, ...customColors], MAX_PALETTE_COLORS);
-  const quickColors = normalizeSavedPalette([...favoriteColors, ...recentColors, ...COLORS], 3);
+  // Most recently saved custom colours come first; all remain reachable by
+  // horizontal swiping, with the '+' control pinned alongside the strip.
+  const quickColors = normalizeSavedPalette([...recentColors, ...favoriteColors, ...COLORS], MAX_PALETTE_COLORS);
   const activeToolOpacity = activeTool === "highlighter" ? highlighterOpacity : activeTool === "pencil" ? pencilOpacity : brushOpacity;
   // What the Zoom Window writes with: the pen or highlighter in use (the
   // Pointer pen's glow does not belong in a magnified window, so it writes ink).
@@ -6284,9 +6317,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
-              <div className="workspace-v3-quick-colors" role="group" aria-label={t("focus.quickAnnotationColors")}>
-                {quickColors.map((color) => <button key={color} type="button" className={`workspace-v3-quick-color${activeColor === color ? " is-active" : ""}`} aria-label={t("focus.useColor", { color })} aria-pressed={activeColor === color} title={color} disabled={!showColorPalette} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)}><span /></button>)}
-              </div>
+              <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
+                allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
+                onSave={commitCustomColor} portalRef={rootRef} t={t} />
               {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
             </DockableToolRail>
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
