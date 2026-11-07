@@ -32,6 +32,12 @@ export function StudyAssistancePanel({ sheet }) {
   }, [key, sheet.id, edition, view, reloadVersion]);
   const ready = !loading && data.key === key && data.available;
   const rows = data.key === key ? data.results : [];
+  const publishedRows = rows.filter((row) => row.is_published);
+  const publishedPageCount = new Set(publishedRows.filter((row) => Number.isInteger(row.page) && row.page > 0).map((row) => row.page)).size;
+  const unpublishedCount = rows.length - publishedRows.length;
+  const coverageCopy = locale === "ar"
+    ? `منشورة: ${publishedRows.length} · صفحات مرتبطة: ${publishedPageCount}${data.page_count ? " من " + data.page_count : ""} · مسودات: ${unpublishedCount}`
+    : `Published: ${publishedRows.length} · Pages linked: ${publishedPageCount}${data.page_count ? " of " + data.page_count : ""} · Drafts: ${unpublishedCount}`;
   function change(name, value) { setDraft((current) => ({ ...current, [name]: value })); setMessage(""); }
   async function save(event) {
     event.preventDefault();
@@ -65,6 +71,11 @@ export function StudyAssistancePanel({ sheet }) {
     {message && <p className="form-alert success" role="status">{message}</p>}
     {!loading && data.key === key && !data.available && <p className="form-alert">{t("studyCompanion.admin.addPdf")}</p>}
     {ready && <>
+      <div className="admin-assistance-coverage" role="status" aria-live="polite">
+        <strong>{locale === "ar" ? "جاهزية رفيق الدراسة" : "Companion content readiness"}</strong>
+        <span>{coverageCopy}</span>
+        {!publishedRows.length && <small>{locale === "ar" ? "لن يرى الطالب محتوى خاصًا بالشيت حتى تنشر البطاقات بعد مراجعتها. ستبقى النصائح الدراسية العامة متاحة." : "Students will only see general study tips until reviewed cards are published for this sheet."}</small>}
+      </div>
       <CompanionImportPanel key={key} sheet={sheet} edition={edition} view={view} onImported={() => setReloadVersion(value => value + 1)} />
       <div className="admin-assistance-list">{rows.length ? rows.map((row) => <button type="button" key={row.id} disabled={pending} onClick={() => { setDraft({ ...row, page: row.page ?? "" }); setError(""); setMessage(""); }} aria-pressed={draft.id === row.id}><span dir="auto">{row.question}</span><small>{row.page === null ? t("studyCompanion.admin.sheetWide") : t("studyCompanion.admin.page") + " " + row.page} · {t(row.is_published ? "studyCompanion.admin.published" : "studyCompanion.admin.draft")}</small></button>) : <p>{t("studyCompanion.admin.empty")}</p>}</div>
       <button type="button" className="btn btn-soft" disabled={pending} onClick={() => { setDraft({ ...emptyIdea(), position: rows.length ? Math.max(...rows.map((row) => row.position)) + 1 : 0 }); setError(""); setMessage(""); }}>{t("studyCompanion.admin.new")}</button>
