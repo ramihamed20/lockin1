@@ -23,9 +23,8 @@ for(const locale of ['en','ar']) test(`general companion works without prepared 
  await page.locator('.study-companion-characters button').last().click();
  await expect(page.locator('.study-companion-characters button').last()).toHaveAttribute('aria-pressed','true');
  await page.getByRole('button',{name:locale==='ar'?'إخفاء الرفيق':'Hide companion',exact:true}).click();
- await expect(page.locator('.study-companion-restore')).toBeVisible();
- await page.locator('.study-companion-restore').click();
- await expect(page.locator('.study-companion-pet')).toBeVisible();
+ await expect(page.locator('.study-companion-restore')).toHaveCount(0);
+ await expect(page.locator('.study-companion-pet')).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
 });
 test('failed page help retries and confirmed server ideas can be saved',async({page})=>{
@@ -265,22 +264,34 @@ test('phone + adds a draggable companion, keeps its position and restores it wit
  await expect(pet).toHaveCount(0);
  await expect(page.locator('.study-companion-restore')).toHaveCount(0);
  await add.click();
- await page.getByRole('dialog', { name: 'Add to page' }).getByRole('button', { name: 'Add study companion' }).click();
+ await page.getByRole('dialog', { name: 'Add to page' }).getByRole('button', { name: 'Show companion' }).click();
  await expect(pet).toBeVisible();
  await expect(page.locator('.study-companion-restore')).toHaveCount(0);
 });
 
-test('toolbar companion cannot be accidentally added on tablet, which keeps its original launcher', async ({ page }) => {
+test('tablet also adds and restores companion only through the + menu', async ({ page }) => {
  await page.emulateMedia({ reducedMotion: 'reduce' });
  await page.setViewportSize({ width: 820, height: 1180 });
  await page.addInitScript(() => localStorage.setItem('lock-in.locale', 'en'));
  await page.route('**/api/v1/catalog/documents/**', route => route.fulfill({ json: { version_id: 'test-version', results: [] } }));
  await page.goto('/e2e/fixtures/companion-ready/?toolbar');
- await page.getByRole('button', { name: 'Add', exact: true }).click();
+ const add = page.getByRole('button', { name: 'Add', exact: true });
+ const pet = page.locator('.study-companion-pet');
+ await expect(pet).toHaveCount(0);
+ await expect(page.locator('.study-companion-restore')).toHaveCount(0);
+ await add.click();
  const menu = page.locator('#workspace-add-popover');
- await expect(menu.locator('.workspace-add-phone-companion')).toBeHidden();
- await menu.locator('header button').click();
- await expect(page.locator('.study-companion-pet')).toBeVisible();
+ await expect(menu.locator('.workspace-add-phone-companion')).toBeVisible();
+ await menu.getByRole('button', { name: 'Add study companion' }).click();
+ await expect(pet).toBeVisible();
+ await page.locator('.study-companion-preferences').click();
+ await page.getByRole('button', { name: 'Hide companion', exact: true }).click();
+ await expect(pet).toHaveCount(0);
+ await expect(page.locator('.study-companion-restore')).toHaveCount(0);
+ await add.click();
+ await menu.getByRole('button', { name: 'Show companion' }).click();
+ await expect(pet).toBeVisible();
+ await expect(page.locator('.study-companion-restore')).toHaveCount(0);
 });
 
 test('prepared page help appears ahead of sheet-wide tips with kind and PDF page',async({page})=>{
