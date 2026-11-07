@@ -3432,7 +3432,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       top: stage.scrollTop,
       direction,
       bounds: readerScrollBounds(),
-      startPageKey: activePageKey,
+      // The intersection observer can lag a fast drag after zoom/scroll. Use
+      // the page actually under the pointer rather than stale React page state.
+      startPageKey: captureHorizontalZoomAnchor(clientX, clientY)?.pageKey ?? activePageKey,
       limits,
       // Store the inverse rubber-band value once, so an in-flight spring is
       // part of the new drag's origin instead of being cleared first.
