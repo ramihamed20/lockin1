@@ -1086,11 +1086,11 @@ export function ContinuousA4Pdf({
   const surfaceStyle = /** @type {import("react").CSSProperties} */ ({
     "--workspace-a4-zoom": zoom,
     width: isHorizontal ? `${Math.max(stageViewport.width, pages.length * slotWidth)}px` : `${Math.max(scaledDocumentWidth, stageViewport.width)}px`,
-    height: isHorizontal ? `${Math.max(stageViewport.height, horizontalDocumentHeight + stageViewport.height / 2)}px` : `${baseDocumentHeight * zoom + stageViewport.height}px`
+    height: isHorizontal ? `${Math.max(stageViewport.height, horizontalDocumentHeight + stageViewport.height / 2)}px` : `${baseDocumentHeight * zoom + stageViewport.height / 2}px`
   });
   const liveLayerStyle = /** @type {import("react").CSSProperties} */ ({
     left: isHorizontal ? "0px" : `${Math.max(0, (stageViewport.width - scaledDocumentWidth) / 2)}px`,
-    top: isHorizontal ? "0px" : `${stageViewport.height / 2}px`,
+    top: "0px",
     width: isHorizontal ? `${pages.length * slotWidth}px` : `${scaledDocumentWidth}px`,
     height: isHorizontal ? `${horizontalDocumentHeight}px` : `${baseDocumentHeight * zoom}px`
   });
@@ -1107,11 +1107,12 @@ export function ContinuousA4Pdf({
     transform: `scale(${zoom})`
   });
 
-  // The document is inset by half the stage height and centred in the stage
-  // width, so a rotation or a docked panel moves it under a scroll position
-  // that stays put. Keep the same point of the page under the stage: the top
-  // edge vertically, the centre horizontally. A zoom change in the same commit
-  // is anchored by the workspace instead, which owns zoom.
+  // The vertical document begins at the top of its scroll surface. Previously
+  // a half-viewport offset above page one let a downward drag expose a huge
+  // empty strip and made the first page settle behind the toolbar. The stage's
+  // own padding provides the only top clearance. Horizontal pages keep their
+  // separate viewport-sized slot geometry. Zoom anchoring is owned by the
+  // workspace, while horizontal/vertical resizing preserves reading position.
   const previousLayoutRef = useRef({ viewport: stageViewport, zoom, pageDirection });
   useLayoutEffect(() => {
     const previous = previousLayoutRef.current;
@@ -1144,7 +1145,8 @@ export function ContinuousA4Pdf({
     const overflow = Math.max(0, after.surfaceWidth - after.width);
     const nextLeft = Math.min(overflow, Math.max(0, documentCentre + after.documentLeft - after.centreLine));
     stage.scrollLeft = rightToLeft ? nextLeft - overflow : nextLeft;
-    stage.scrollTop = Math.max(0, stage.scrollTop + (stageViewport.height - previous.viewport.height) / 2);
+    // Vertical pages no longer have a height-dependent top offset. Resizing
+    // the reader must not shift the reading position by half the delta.
   }, [isHorizontal, pageDirection, pageGeometryReady, pages, slotWidth, stageRef, stageViewport, zoom]);
 
   // A split pane is shorter and often has a different fitted zoom than its
