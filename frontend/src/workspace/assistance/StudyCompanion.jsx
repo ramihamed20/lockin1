@@ -23,6 +23,41 @@ function useReducedMotion() {
   return reduced;
 }
 
+const PHONE_COMPANION_QUERY = "(max-width: 600px), (max-height: 500px) and (max-width: 900px)";
+const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+
+function usePhoneCompanionLayout() {
+  const [isPhone, setIsPhone] = useState(() => Boolean(window.matchMedia?.(PHONE_COMPANION_QUERY).matches));
+  useEffect(() => {
+    const query = window.matchMedia?.(PHONE_COMPANION_QUERY);
+    const update = () => setIsPhone(Boolean(query?.matches));
+    query?.addEventListener?.("change", update);
+    return () => query?.removeEventListener?.("change", update);
+  }, []);
+  return isPhone;
+}
+
+/** Pixel geometry is constrained to safe tappable screen space, not PDF units. */
+function phoneCompanionBounds(viewport, width, height) {
+  const minLeft = 8;
+  const minTop = Math.min(56, Math.max(8, viewport.height - height - 8));
+  return {
+    minLeft, minTop,
+    maxLeft: Math.max(minLeft, viewport.width - width - 8),
+    maxTop: Math.max(minTop, viewport.height - height - 56)
+  };
+}
+
+function companionPositionFromRatio(position, viewport) {
+  if (!position) return null;
+  const smallLandscape = viewport.height <= 550;
+  const bounds = phoneCompanionBounds(viewport, smallLandscape ? 76 : 82, smallLandscape ? 90 : 100);
+  return {
+    left: bounds.minLeft + position.x * (bounds.maxLeft - bounds.minLeft),
+    top: bounds.minTop + position.y * (bounds.maxTop - bounds.minTop)
+  };
+}
+
 function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionPhase, readyCopy, onRetry, loadFailed, onNext, onPrevious, cardNumber, cardCount }) {
   const { t } = useI18n();
   const [explaining, setExplaining] = useState(false);
@@ -57,12 +92,69 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
 }
 
 /** Independent overlay; it never owns PDF navigation, annotations or quiz state. */
-export default function StudyCompanion({ userId, documentId, versionId, edition = "university", view = "study", page, pageStart = 1, pageLimit = Infinity, active = true, portalRoot = null }) {
+export default function StudyCompanion({ userId, documentId, versionId, edition = "university", view = "study", page, pageStart = 1, pageLimit = Infinity, active = true, portalRoot = null, phoneAddFromToolbar = false }) {
   const { t, direction, locale } = useI18n();
   const readyCopy = companionReadyCopy[locale] || companionReadyCopy.en;
   const [retry, setRetry] = useState(0);
   const reduced = useReducedMotion();
   const [preferences, setPreferences] = useCompanionPreferences(userId);
+  const isPhone = usePhoneCompanionLayout();
+  const [viewport, setViewport] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const [dragPosition, setDragPosition] = useState(null);
+  const dragPointerRef = useRef(null);
+  const dragPositionRef = useRef(null);
+  const suppressPetClickRef = useRef(false);
+  useEffect(() => {
+    const update = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", update, { passive: true });
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  const position = isPhone ? (dragPosition || companionPositionFromRatio(preferences.position, viewport)) : null;
+  function beginPetPointer(event) {
+    if (!isPhone || event.button > 0 || dragPointerRef.current) return;
+    const bounds = rootRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    dragPointerRef.current = {
+      id: event.pointerId, x: event.clientX, y: event.clientY,
+      left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height, moved: false
+    };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is progressive. */ }
+  }
+  function movePetPointer(event) {
+    const drag = dragPointerRef.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    if (!drag.moved && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 8) return;
+    drag.moved = true;
+    event.preventDefault();
+    const bounds = phoneCompanionBounds(viewport, drag.width, drag.height);
+    const next = {
+      left: clamp(drag.left + event.clientX - drag.x, bounds.minLeft, bounds.maxLeft),
+      top: clamp(drag.top + event.clientY - drag.y, bounds.minTop, bounds.maxTop)
+    };
+    dragPositionRef.current = next;
+    setDragPosition(next);
+  }
+  function finishPetPointer(event, cancelled = false) {
+    const drag = dragPointerRef.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    dragPointerRef.current = null;
+    if (!drag.moved || cancelled) {
+      if (cancelled) { dragPositionRef.current = null; setDragPosition(null); }
+      return;
+    }
+    suppressPetClickRef.current = true;
+    const bounds = phoneCompanionBounds(viewport, drag.width, drag.height);
+    const placed = dragPositionRef.current;
+    if (placed) setPreferences((current) => ({
+      ...current,
+      position: {
+        x: (placed.left - bounds.minLeft) / Math.max(1, bounds.maxLeft - bounds.minLeft),
+        y: (placed.top - bounds.minTop) / Math.max(1, bounds.maxTop - bounds.minTop)
+      }
+    }));
+    dragPositionRef.current = null;
+    setDragPosition(null);
+  }
   const [data, setData] = useState({ key: "", ideas: [], failed: false });
   const [selected, setSelected] = useState(0);
   const [surface, setSurface] = useState("");
@@ -138,9 +230,29 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
 
   if (!enabled) return null;
   const target = portalRoot || document.body;
-  if (preferences.hidden) return createPortal(<button type="button" className="study-companion-restore" onClick={() => setPreferences((current) => ({ ...current, hidden: false }))}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.show")}</button>, target);
-  return createPortal(<div ref={rootRef} dir={direction} className={"study-companion" + (motion ? " has-motion" : "") + (surface ? " is-expanded" : "")} data-motion-state={motion ? characterMotion.state : "idle"} onPointerDown={(event) => event.stopPropagation()}>
-    <button type="button" className="study-companion-pet" ref={petRef} onClick={() => { setError(""); const targetSurface = idea ? "idea" : "saved"; setSurface(surface === targetSurface ? "" : targetSurface); }} aria-label={t(idea ? "studyCompanion.open" : "studyCompanion.savedIdeas")} aria-expanded={surface === "idea" || surface === "saved"}><CompanionCharacter character={preferences.character} state={characterMotion.state} sequenceKey={characterMotion.sequenceKey} motion={motion} /></button>
+  // On a phone the + tool is the single entry point. Never leave a second
+  // floating "show companion" chip over the page after the student hides it.
+  if (preferences.hidden || (phoneAddFromToolbar && isPhone && !preferences.phoneAdded)) {
+    return phoneAddFromToolbar && isPhone ? null : preferences.hidden
+      ? createPortal(<button type="button" className="study-companion-restore" onClick={() => setPreferences((current) => ({ ...current, hidden: false }))}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.show")}</button>, target)
+      : null;
+  }
+  return createPortal(<div ref={rootRef} dir={direction}
+    className={"study-companion" + (motion ? " has-motion" : "") + (surface ? " is-expanded" : "") + (isPhone ? " is-phone-draggable" : "") + (phoneAddFromToolbar ? " is-toolbar-companion" : "") + (position ? " is-positioned" : "") + (dragPosition ? " is-dragging" : "")}
+    style={position ? { left: position.left + "px", top: position.top + "px" } : undefined}
+    data-motion-state={motion ? characterMotion.state : "idle"} onPointerDown={(event) => event.stopPropagation()}>
+    <button type="button" className="study-companion-pet" ref={petRef}
+      onPointerDown={beginPetPointer}
+      onPointerMove={movePetPointer}
+      onPointerUp={(event) => finishPetPointer(event)}
+      onPointerCancel={(event) => finishPetPointer(event, true)}
+      onClick={() => {
+        if (suppressPetClickRef.current) { suppressPetClickRef.current = false; return; }
+        setError("");
+        const targetSurface = idea ? "idea" : "saved";
+        setSurface(surface === targetSurface ? "" : targetSurface);
+      }}
+      aria-label={t(idea ? "studyCompanion.open" : "studyCompanion.savedIdeas")} aria-expanded={surface === "idea" || surface === "saved"}><CompanionCharacter character={preferences.character} state={characterMotion.state} sequenceKey={characterMotion.sequenceKey} motion={motion} /></button>
     <button type="button" className="study-companion-preferences" onClick={() => setSurface(surface === "settings" ? "" : "settings")} aria-label={t("studyCompanion.settings")} aria-expanded={surface === "settings"}><Settings size={15} aria-hidden="true" /></button>
     {!surface && idea && <div className="study-companion-bubble"><button type="button" onClick={() => setSurface("idea")}><Sparkles size={14} aria-hidden="true" /><strong dir="auto">{idea.teaser}</strong></button>{ideas.length > 1 && <button type="button" className="study-companion-next" onClick={() => { setSelected((selected + 1) % ideas.length); setError(""); }}><MoreHorizontal size={15} aria-hidden="true" />{t("studyCompanion.nextIdea")}</button>}</div>}
     {surface === "idea" && idea && <IdeaExplanation key={key + "/" + idea.id} idea={idea} motion={motion} busy={busy} error={error} onSave={() => void saveIdea()} onClose={close} onMotionPhase={characterMotion.phase} readyCopy={readyCopy} cardNumber={selected + 1} cardCount={reviewIdea ? 1 : ideas.length} onNext={() => { setSelected((selected + 1) % ideas.length); setError(""); }} onPrevious={() => { setSelected((selected + ideas.length - 1) % ideas.length); setError(""); }} loadFailed={Boolean(data.failed)} onRetry={() => setRetry(value => value + 1)} />}
