@@ -48,6 +48,58 @@ async function savedAnnotations(page) {
   return parseCatalogWorkspace(await page.evaluate((key) => localStorage.getItem(key), key))?.annotations ?? [];
 }
 
+// Exercise the touch pointer path directly: a regular range.fill() or a
+// programmatic input event never reproduces the fast-swipe bug on Safari.
+async function swipeRangeRapidly(range, start, end) {
+  await range.evaluate((input, { start, end }) => {
+    const box = input.getBoundingClientRect();
+    const pointerId = 806;
+    const fire = (type, progress, verticalOffset = 0) => input.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerId, pointerType: "touch", isPrimary: true,
+      button: 0, buttons: type === "pointerup" ? 0 : 1,
+      clientX: box.left + box.width * progress,
+      clientY: box.top + box.height / 2 + verticalOffset
+    }));
+    fire("pointerdown", start);
+    // One large movement with no intermediate positions, slightly outside the
+    // track's vertical bounds, must still update the controlled range.
+    fire("pointermove", end, 24);
+    fire("pointerup", end, 40);
+  }, { start, end });
+}
+
+test("fast touch swipes adjust thickness and opacity without the inspector stealing them", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page, { width: 390, height: 844 });
+  await openPenPanel(page);
+  const panel = page.locator("#workspace-pen-options");
+  const thickness = panel.locator(".workspace-v2-tool-range.is-stroke input[type='range']");
+  const opacity = panel.locator(".workspace-v2-tool-range.is-opacity input[type='range']");
+
+  for (const slider of [thickness, opacity]) {
+    await expect(slider).toBeVisible();
+    await expect(slider).toHaveCSS("touch-action", "none");
+    expect((await slider.boundingBox()).height).toBeGreaterThanOrEqual(38);
+  }
+  await swipeRangeRapidly(thickness, .18, 1.15);
+  await expect.poll(async () => Number(await thickness.inputValue())).toBe(12);
+  await swipeRangeRapidly(thickness, .8, -.15);
+  await expect.poll(async () => Number(await thickness.inputValue())).toBe(1);
+
+  await swipeRangeRapidly(opacity, .2, 1.12);
+  await expect.poll(async () => Number(await opacity.inputValue())).toBe(1);
+  await swipeRangeRapidly(opacity, .9, -.16);
+  await expect.poll(async () => Number(await opacity.inputValue())).toBe(.2);
+
+  // RTL sliders must move toward their minimum on the right and maximum on
+  // the left, unlike their LTR counterparts.
+  await page.evaluate(() => { document.documentElement.dir = "rtl"; });
+  await swipeRangeRapidly(opacity, .7, -.14);
+  await expect.poll(async () => Number(await opacity.inputValue())).toBe(1);
+  await swipeRangeRapidly(opacity, .2, 1.15);
+  await expect.poll(async () => Number(await opacity.inputValue())).toBe(.2);
+});
+
 test("choosing an ink colour replays a brief pen animation in the toolbar", async ({ page }) => {
   await mockWorkspace(page);
   await openWorkspace(page);
