@@ -994,7 +994,7 @@ export default function LockInMode({ user }) {
     finally { setBusy(""); }
   }
 
-  if (state.loading) return <main className="lock-in-screen"><LoadingPanel /></main>;
+  if (state.loading) return <main className="lock-in-screen"><LoadingPanel variant="lock-in" /></main>;
   if (state.error && !state.bootstrap && !state.payload) return <main className="lock-in-screen"><ErrorPanel message={state.error} onRetry={load} /></main>;
   if (!state.payload && !setupMode) return <LockInLobby bootstrap={state.bootstrap} onSolo={() => { setSetupTeamId(null); setSetupMode("solo"); }} onTeamStart={(id) => { setSetupTeamId(id); setSetupMode("team-session"); }} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} onResumeSession={(id) => navigate(`/lock-in/${id}`)} onExit={returnToSource} onRefresh={refreshBootstrap} />;
   if (!state.payload) return <LockInSetup bootstrap={state.bootstrap} teamId={setupTeamId} preselectedDocumentVersionId={location.state?.preselectedDocumentVersionId} onStart={startSession} onExit={returnToSource} onBack={() => setSetupMode("")} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} busy={starting} error={state.error} />;
