@@ -160,20 +160,23 @@ export function defaultDrawingInput({ stored = null, coarsePointer = false, shor
  * only when the student has selected touch-compatible drawing. No browser can
  * safely infer a passive pen from finger-like touch coordinates.
  */
+export function isTouchLikePointer(pointerType) {
+  return pointerType === "touch" || pointerType === "" || pointerType == null || pointerType === "unknown";
+}
+
 export function pointerCanDraw(pointerType, drawingInput) {
   if (pointerType === "pen" || pointerType === "mouse") return true;
-  return (pointerType === "touch" || pointerType === "" || pointerType == null || pointerType === "unknown")
-    && drawingInput === DRAWING_INPUT.STYLUS_AND_FINGER;
+  return isTouchLikePointer(pointerType) && drawingInput === DRAWING_INPUT.STYLUS_AND_FINGER;
 }
 
 export function classifyStylusInput(pointerType) {
   if (pointerType === "pen") return "pen";
-  if (pointerType === "touch" || pointerType === "" || pointerType == null || pointerType === "unknown") return "touch";
+  if (isTouchLikePointer(pointerType)) return "touch";
   return "other";
 }
 
 export function suspiciousPalmContact({ event, activePenCount, lastPenAt, lastPenPosition, now = Date.now(), activeTouchCount = 0 }) {
-  if (event.pointerType !== "touch" || activeTouchCount > 0) return false;
+  if (!isTouchLikePointer(event.pointerType) || activeTouchCount > 0) return false;
   const contactSize = Math.max(Number(event.width) || 1, Number(event.height) || 1);
   const distanceFromPen = lastPenPosition ? Math.hypot(event.clientX - lastPenPosition.x, event.clientY - lastPenPosition.y) : Number.POSITIVE_INFINITY;
   // A broad or nearby contact while the stylus is down is a palm. Two small,
