@@ -14,7 +14,7 @@ from apps.accounts.roles import Role, user_has_role
 
 from .models import Notification
 from .pagination import NotificationCursorPagination
-from .selectors import notifications_for_user, preferences_for_user, unread_count
+from .selectors import notification_summary, notifications_for_user, preferences_for_user
 from .serializers import NotificationSerializer, PlatformNoticeSerializer, PreferenceSerializer
 from .services import (
     NotificationTargetUnavailable,
@@ -48,7 +48,7 @@ class NotificationListView(ListAPIView[Notification]):
 
 class NotificationSummaryView(APIView):
     def get(self, request: Request) -> Response:
-        return Response({"unread_count": unread_count(user=_user(request))})
+        return Response(notification_summary(user=_user(request)))
 
 
 class NotificationReadView(APIView):
