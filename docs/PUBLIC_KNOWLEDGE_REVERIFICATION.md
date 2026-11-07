@@ -1,5 +1,37 @@
 # Public knowledge evidence review — 14 October 2026
 
+## 8 November 2026 — unified-release source evidence review (pre-deployment)
+
+Review scope: the five drifted evidence paths in the public registry, not live production.
+The full-file verifier is intentionally retained. Changes were cross-checked
+against the registry's published, conditional feature claims and associated
+repository tests; these checks **do not** establish physical-device behavior,
+production PDF durability or an external mail-delivery guarantee.
+
+- `frontend/tests/materials-catalog.test.js`: reviewed cohort/catalog assertions,
+  including medicine and dentistry-specific catalogs and account-scoped access;
+  the public registry still limits availability to the user's published cohort.
+- `frontend/src/lib/i18n.js`: new interface and assistance wording is not a
+  public promise that every cohort has AI translation, flashcards or other tools;
+  the published help remains conditional on actual access and prepared content.
+- `frontend/src/pages/CatalogFocusWorkspace.jsx`: reader, annotation,
+  customization and Split Screen changes reviewed against conditional PDF,
+  private annotations and prepared-question help; these still describe the
+  original file as unchanged and do not guarantee uninterrupted sync.
+- `frontend/src/pages/Review.jsx`: review and Weekly Recall interface changes
+  retain the source-of-truth server queue and readiness constraints in the
+  existing published help. The public claim is not generalized to every item.
+- `backend/apps/study_plans/review_priorities.py`: exam awareness is explicitly
+  gated on Study Plan V2 enablement, user cohort and optional allowlist, with a
+  14-day horizon. The publicly documented Review Bank remains due-item based;
+  no universal exam-readiness recommendation is advertised.
+
+The refreshed source digests are a code-review acknowledgment only. The release
+remains blocked until CI browser, backend, container builds and staging checks
+pass for the exact release commit, with migration/rollback review. Any later
+change to these evidence files must trigger a fresh verification.
+
+
 ## Automatic PDF downloads — 29 October 2026
 
 The follow-up hardening review covers two additional source changes: App waits
