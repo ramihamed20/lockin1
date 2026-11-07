@@ -264,3 +264,37 @@ for (const language of ["en", "ar"]) {
     await expect(page.locator(".focus-video")).toBeVisible();
   });
 }
+
+
+test("writing, history and palette read as one clean toolbar without divider clutter", async ({ page }) => {
+  test.setTimeout(60_000);
+  await openWorkspace(page, { width: 834, height: 1194 });
+  const structure = await toolbar(page).evaluate((bar) => {
+    const tool = bar.querySelector(".workspace-v2-tool-list");
+    const history = bar.querySelector(".workspace-v3-primary .workspace-v2-history");
+    const colors = bar.querySelector(".workspace-v3-quick-colors");
+    const primary = bar.querySelector(".workspace-v3-primary");
+    const actions = bar.querySelector(".workspace-v2-toolbar-actions");
+    const after = (first, second) => Boolean(first && second && (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING));
+    const hairlines = [
+      [".workspace-v2-control-group.is-exit", "::after"],
+      [".workspace-v2-toolbar-actions", "::before"],
+      [".workspace-v3-quick-colors", "::before"],
+      [".workspace-v3-primary .workspace-v2-history", "::before"],
+      [".workspace-v2-tool-list [data-workspace-tool='select']", "::before"]
+    ].map(([selector, pseudo]) => {
+      const element = bar.querySelector(selector);
+      if (!element) return false;
+      const style = getComputedStyle(element, pseudo);
+      return style.content === "none" || style.display === "none";
+    });
+    return {
+      order: after(tool, history) && after(history, colors) && after(primary, actions),
+      hairlines,
+      buttons: Array.from(tool.querySelectorAll("[data-workspace-tool]"), (button) => button.dataset.workspaceTool)
+    };
+  });
+  expect(structure.order).toBe(true);
+  expect(structure.hairlines).toEqual([true, true, true, true, true]);
+  expect(structure.buttons.slice(0, 4)).toEqual(["pen", "highlighter", "eraser", "select"]);
+});
