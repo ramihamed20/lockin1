@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motivationApi } from "../api/motivation.js";
 import { isApiError } from "../api/client.js";
-import { isKnownNotificationRoute, notificationFallbackRoute } from "../lib/notificationRoutes.js";
+import { isKnownNotificationRoute } from "../lib/notificationRoutes.js";
 import { notificationPresentation } from "../lib/notificationPresentation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
@@ -17,7 +17,7 @@ function dateLabel(value, t) {
 }
 
 export default function Notifications({ user = null, onNotificationsChanged }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const navigate = useNavigate();
   const [unreadOnly, setUnreadOnly] = useState(false);
   const feed = useAsyncData(() => motivationApi.listNotifications({ unreadOnly }), [user?.id, unreadOnly], { cacheKey: `notifications:${user?.id}:${unreadOnly}` });
@@ -36,6 +36,26 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
     setNextCursor(feed.data.nextCursor);
     setVisibleCount(5);
   }, [feed.data]);
+
+  // Background refresh without sockets, even after returning from another app.
+  // useAsyncData.reload keeps the current cards visible during the request.
+  useEffect(() => {
+    const reloadOnResume = () => {
+      if (document.visibilityState !== "visible") return;
+      feed.reload();
+      summary.reload();
+    };
+    const interval = window.setInterval(reloadOnResume, 60_000);
+    document.addEventListener("visibilitychange", reloadOnResume);
+    window.addEventListener("online", reloadOnResume);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", reloadOnResume);
+      window.removeEventListener("online", reloadOnResume);
+    };
+  }, [feed.reload, summary.reload, user?.id]);
+
+  const dateFormatter = new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" });
 
   // Loading and failure keep the page's title and column, so nothing moves
   // when the feed arrives.
@@ -95,7 +115,7 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
         await motivationApi.markNotificationRead(notification.id);
         onNotificationsChanged?.();
         refresh();
-        navigate(notificationFallbackRoute(notification));
+        // An announcement without a destination is simply marked as read.
       }
     } catch (error) {
       if (isApiError(error) && error.status === 410) {
@@ -126,17 +146,29 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
             <Tab value="all">{t("notifications.all")}</Tab>
             <Tab value="unread">{summary.data?.unread_count ? t("notifications.unreadCount", { count: summary.data?.unread_count }) : t("notifications.unread")}</Tab>
           </TabList>
-          {summary.data?.unread_count > 0 && <button className="notifications-v2-mark" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}</button>}
+          <div className="notifications-v2-actions">
+            <button className="notifications-v2-refresh" type="button" onClick={refresh} disabled={feed.refreshing || summary.refreshing} aria-label={t("notifications.refresh")}>
+              <Icon name="refresh-cw" size={16} aria-hidden="true" /><span>{t("notifications.refresh")}</span>
+            </button>
+            {summary.data?.unread_count > 0 && <button className="notifications-v2-mark" type="button" onClick={() => { void markAllRead(); }} disabled={busyId === "all"}>{busyId === "all" ? t("notifications.marking") : t("common.markAllRead")}</button>}
+          </div>
         </div>
         {actionError && <ErrorPanel message={actionError} onRetry={feed.reload} />}
         {!notifications.length ? <EmptyState title={t(unreadOnly ? "notifications.noUnreadTitle" : "notifications.emptyTitle")} text={t(unreadOnly ? "notifications.noUnreadText" : "notifications.emptyText")} /> : (
           <div className="notification-feed">
-            {visibleNotifications.map((notification) => {
+            {visibleNotifications.map((notification, index) => {
               const presentation = notificationPresentation(notification.category);
+              const currentDate = new Date(notification.created_at);
+              const currentDay = Number.isNaN(currentDate.getTime()) ? "unknown" : currentDate.toDateString();
+              const previousDate = index ? new Date(visibleNotifications[index - 1].created_at) : null;
+              const previousDay = previousDate && !Number.isNaN(previousDate.getTime()) ? previousDate.toDateString() : "unknown";
+              const showDay = index === 0 || currentDay !== previousDay;
               const isRead = Boolean(notification.read_at);
               const isBusy = busyId === notification.id;
               const canMarkRead = !isRead || notification.has_target;
-              return <article className={`notification-feed-item notification-tone-${presentation.tone} ${isRead ? "is-read" : "is-unread"}`} key={notification.id}>
+              return <Fragment key={notification.id}>
+                {showDay && <h2 className="notification-date-group">{currentDay === "unknown" ? t("notifications.dateFallback") : dateFormatter.format(currentDate)}</h2>}
+                <article className={`notification-feed-item notification-tone-${presentation.tone} ${isRead ? "is-read" : "is-unread"}`}>
                 <span className="notification-category-icon" aria-label={t("notifications.categoryLabel", { name: t(presentation.labelKey) })}><Icon name={presentation.icon} size={19} /></span>
                 <div className="notification-feed-content">
                   <div className="notification-feed-meta"><span>{t(presentation.labelKey)}</span>{!isRead && <b>{t("notifications.new")}</b>}<time dateTime={notification.created_at} dir="auto">{dateLabel(notification.created_at, t)}</time></div>
@@ -144,7 +176,8 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
                   <p dir="auto">{notification.body}</p>
                 </div>
                 <button className="btn btn-soft compact" type="button" disabled={isBusy || !canMarkRead} onClick={() => { void openNotification(notification); }}>{isBusy ? t("common.opening") : notification.has_target ? t("common.open") : isRead ? t("notifications.read") : t("notifications.markRead")}</button>
-              </article>;
+                </article>
+              </Fragment>;
             })}
           </div>
         )}
