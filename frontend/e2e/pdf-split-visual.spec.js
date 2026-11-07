@@ -121,8 +121,11 @@ for (const viewport of [
     await expectTopAlignedPages(page, 2);
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-after.png`, fullPage: false });
     const seam = page.locator('.workspace-split-divider[data-axis="primary"]');
-    await seam.locator('.workspace-split-ratio-toggle').click();
-    await seam.getByRole("button", { name: "70/30" }).click();
+    // The old ratio popover is intentionally removed; resize in 5% steps.
+    const axisIsRows = (await seam.getAttribute("aria-orientation")) === "horizontal";
+    const rtlColumns = await page.locator(".workspace-split-layout").evaluate((node) => getComputedStyle(node).direction === "rtl");
+    const growKey = axisIsRows ? "ArrowDown" : (rtlColumns ? "ArrowLeft" : "ArrowRight");
+    for (let i = 0; i < 4; i += 1) await seam.press(growKey);
     await expect(seam).toHaveAttribute("aria-valuenow", "70");
     const bigger = await page.locator('.workspace-pane[data-split-slot="0"]').boundingBox();
     const smaller = await page.locator('.workspace-pane[data-split-slot="1"]').boundingBox();
@@ -185,10 +188,9 @@ test("one original shared toolbar controls two, three and four PDF cells", async
       const secondary = layout.locator('.workspace-split-divider[data-axis="secondary"]');
       await expect(primary).toBeVisible();
       await expect(secondary).toBeVisible();
-      await primary.locator(".workspace-split-ratio-toggle").click();
-      await primary.getByRole("button", { name: "70/30" }).click();
-      await secondary.locator(".workspace-split-ratio-toggle").click();
-      await secondary.getByRole("button", { name: "60/40" }).click();
+      const rtlColumns = await layout.evaluate((node) => getComputedStyle(node).direction === "rtl");
+      for (let i = 0; i < 4; i += 1) await primary.press(rtlColumns ? "ArrowLeft" : "ArrowRight");
+      for (let i = 0; i < 2; i += 1) await secondary.press("ArrowDown");
       await expect(primary).toHaveAttribute("aria-valuenow", "70");
       await expect(secondary).toHaveAttribute("aria-valuenow", "60");
     }
