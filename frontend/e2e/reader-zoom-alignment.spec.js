@@ -273,7 +273,8 @@ test("horizontal two-finger pinch keeps the selected PDF page under the fingers"
 
 test("horizontal zoom begins at 120 percent, cannot zoom out further, and can zoom in", async ({ page }) => {
   await mockReader(page, { horizontal: true });
-  await page.setViewportSize({ width: 820, height: 1180 });
+  // The + / - buttons are intentionally desktop-only. Touchscreens use pinch.
+  await page.setViewportSize({ width: 1280, height: 900 });
   await openReader(page);
   await expect(page.locator(".workspace-v2-a4-document")).toHaveClass(/is-horizontal/);
   const actualScale = () => page.locator(".workspace-v2-a4-zoom-surface").evaluate(
