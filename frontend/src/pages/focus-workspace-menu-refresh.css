@@ -680,7 +680,7 @@ html.ix-hover .workspace-v2 .workspace-v2-side .workspace-v2-note-delete:hover {
   color: var(--on-accent);
   background: var(--accent);
 }
-html.ix-hover :root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-note-editor button:not(:disabled):hover {
+html.ix-hover[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-note-editor button:not(:disabled):hover {
   background: var(--accent-hover);
 }
 :root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-note-editor textarea:focus {
@@ -742,7 +742,7 @@ html.ix-hover :root[data-theme] .workspace-v2 .workspace-v2-side .workspace-v2-n
   color: var(--accent-text);
   background: var(--accent-soft);
 }
-html.ix-hover :root[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button):hover:not(:disabled):not(.is-active) {
+html.ix-hover[data-theme] .workspace-v2 .workspace-v2-toolbar :is(.workspace-v2-icon-button, .workspace-v2-study-mode-button):hover:not(:disabled):not(.is-active) {
   color: var(--text);
   background: var(--surface-3);
 }
