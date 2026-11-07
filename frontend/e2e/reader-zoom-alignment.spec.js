@@ -23,14 +23,15 @@ const DOCUMENT_ID = "5e0f1a2b-3c4d-4e5f-9a61-8293a4b5c6d7";
 const FILE_ID = "6f1a2b3c-4d5e-4f60-8b72-93a4b5c6d7e8";
 const pdf = readFile(new URL("./fixtures/pdf/sheet-17.pdf", import.meta.url));
 
-async function mockReader(page, { language = "en" } = {}) {
+async function mockReader(page, { language = "en", horizontal = false } = {}) {
   await withoutServiceWorker(page);
-  await page.addInitScript((locale) => {
+  await page.addInitScript(({ locale, horizontalPages }) => {
     try {
       window.localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now()));
       window.localStorage.setItem("lock-in.locale", locale);
+      if (horizontalPages) window.localStorage.setItem("lock-in.catalog-workspace.settings.v1", JSON.stringify({ pageDirection: "horizontal" }));
     } catch { /* private mode */ }
-  }, language);
+  }, { locale: language, horizontalPages: horizontal });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -182,4 +183,90 @@ test("an Arabic reader zooms centred and can still pan across a zoomed page", as
   await expect.poll(async () => Math.abs((await pageMargins(page)).left)).toBeLessThanOrEqual(1);
   await stage.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
   await expect.poll(async () => Math.abs((await pageMargins(page)).right)).toBeLessThanOrEqual(1);
+});
+
+/** The page and relative point under the centre of the horizontal reader. */
+async function horizontalFocalPoint(page) {
+  return page.evaluate(() => {
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const view = stage.getBoundingClientRect();
+    const x = view.left + view.width / 2;
+    const y = view.top + Math.min(180, view.height / 2);
+    const candidates = [...stage.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]")];
+    let match = null;
+    let distance = Infinity;
+    for (const node of candidates) {
+      const rect = node.getBoundingClientRect();
+      const dx = Math.max(rect.left - x, 0, x - rect.right);
+      const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+      if (dx + dy * .05 >= distance) continue;
+      distance = dx + dy * .05;
+      match = { key: Number(node.dataset.workspacePage), x: (x - rect.left) / rect.width, y: (y - rect.top) / rect.height, width: rect.width };
+    }
+    return match;
+  });
+}
+
+test("horizontal Zoom In/Out preserves a distant page and its focal position", async ({ page }) => {
+  await mockReader(page, { horizontal: true });
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await openReader(page);
+  await expect(page.locator(".workspace-v2-a4-document")).toHaveClass(/is-horizontal/);
+  // Start on page 7, not near the document origin where a broken global
+  // document anchor can go unnoticed.
+  await page.locator('[data-pdf-page="7"]').evaluate((element) => {
+    const stage = element.closest(".workspace-v2-document-stage");
+    const rect = element.getBoundingClientRect();
+    const view = stage.getBoundingClientRect();
+    stage.scrollLeft += rect.left + rect.width / 2 - (view.left + view.width / 2);
+    stage.scrollTop = 0;
+  });
+  await expect.poll(async () => (await horizontalFocalPoint(page))?.key).toBe(7);
+  const initial = await horizontalFocalPoint(page);
+  for (const label of ["Zoom in", "Zoom in", "Zoom out", "Zoom in", "Zoom out", "Zoom out"]) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect.poll(async () => (await horizontalFocalPoint(page))?.key).toBe(7);
+    const current = await horizontalFocalPoint(page);
+    expect(Math.abs(current.x - initial.x), `${label}: horizontal focal drift`).toBeLessThan(0.08);
+  }
+});
+
+test("horizontal two-finger pinch keeps the selected PDF page under the fingers", async ({ page }) => {
+  await mockReader(page, { horizontal: true });
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await openReader(page);
+  await expect(page.locator(".workspace-v2-a4-document")).toHaveClass(/is-horizontal/);
+  await page.locator('[data-pdf-page="5"]').evaluate((element) => {
+    const stage = element.closest(".workspace-v2-document-stage");
+    const rect = element.getBoundingClientRect();
+    const view = stage.getBoundingClientRect();
+    stage.scrollLeft += rect.left + rect.width / 2 - (view.left + view.width / 2);
+    stage.scrollTop = 0;
+  });
+  await expect.poll(async () => (await horizontalFocalPoint(page))?.key).toBe(5);
+  const initial = await horizontalFocalPoint(page);
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await stage.boundingBox();
+  const x = bounds.x + bounds.width / 2;
+  const y = bounds.y + Math.min(180, bounds.height / 2);
+  const touch = (type, id, px) => stage.dispatchEvent(type, {
+    pointerId: id, pointerType: "touch", isPrimary: id === 71,
+    clientX: px, clientY: y, button: 0, buttons: type === "pointerup" ? 0 : 1,
+    pressure: type === "pointerup" ? 0 : .5, width: 9, height: 9,
+    bubbles: true, cancelable: true
+  });
+  await touch("pointerdown", 71, x - 80);
+  await touch("pointerdown", 72, x + 80);
+  for (let step = 1; step <= 5; step += 1) {
+    const distance = 80 + step * 20;
+    await touch("pointermove", 71, x - distance);
+    await touch("pointermove", 72, x + distance);
+  }
+  await touch("pointerup", 71, x - 180);
+  await touch("pointerup", 72, x + 180);
+  await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/, { timeout: 10_000 });
+  await expect.poll(async () => (await horizontalFocalPoint(page))?.key).toBe(5);
+  const final = await horizontalFocalPoint(page);
+  expect(Math.abs(final.x - initial.x), "pinch focal drift").toBeLessThan(0.08);
+  expect(final.width).toBeGreaterThan(initial.width);
 });
