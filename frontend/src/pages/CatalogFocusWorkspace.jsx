@@ -627,6 +627,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   });
   const [activeTool, setActiveTool] = useState(rememberedWritingTool);
   const [activeColor, setActiveColor] = useState(initialToolSettings.color || COLORS[0]);
+  // One-shot toolbar feedback for a deliberately chosen ink colour. A revision
+  // key replays the motion even when the same swatch is tapped twice.
+  const [colorAnimation, setColorAnimation] = useState({ tool: null, revision: 0 });
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
   const [sideTab, setSideTab] = useState("notes");
@@ -5037,6 +5040,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (annotationsHidden) setAnnotationsHidden(false);
     if (tool === "pen") setPenProfile(profile);
     setActiveColor(favorite.color);
+    if (SWATCH_TOOLS.has(tool)) setColorAnimation((current) => ({ tool, revision: current.revision + 1 }));
     setBrushSize(favorite.width);
     if (tool === "highlighter") setHighlighterOpacity(favorite.opacity);
     else setBrushOpacity(favorite.opacity);
@@ -5116,6 +5120,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function chooseAnnotationColor(color) {
     const normalized = normalizeToolColor(color) || activeColor;
     updateSelectionColor(normalized);
+    const tool = activeToolRef.current;
+    if (SWATCH_TOOLS.has(tool)) setColorAnimation((current) => ({ tool, revision: current.revision + 1 }));
   }
 
   function toggleFavoriteColor() {
@@ -6335,9 +6341,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 {PRIMARY_WRITE_TOOLS.map(([id, labelKey, ToolIcon, responsiveClass]) => {
                   const label = t(labelKey);
                   const expanded = activeTool === id && toolOptionsOpen === id;
+                  const animatingColor = activeTool === id && colorAnimation.tool === id && colorAnimation.revision > 0;
                   return <WorkspaceIconButton
                     key={id}
-                    className={`workspace-v3-tool-button${id === "pen" ? " is-hero" : ""}${responsiveClass ? ` ${responsiveClass}` : ""}`}
+                    className={`workspace-v3-tool-button${id === "pen" ? " is-hero" : ""}${responsiveClass ? ` ${responsiveClass}` : ""}${animatingColor ? " is-color-animated" : ""}`}
                     label={label}
                     disabled={!workspaceReady}
                     active={activeTool === id}
@@ -6345,9 +6352,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                     aria-expanded={CONFIGURABLE_TOOLS.has(id) ? expanded : undefined}
                     aria-controls={CONFIGURABLE_TOOLS.has(id) ? `workspace-${id}-options` : undefined}
                     data-workspace-tool={id}
+                    data-color-motion={animatingColor ? colorAnimation.revision : undefined}
                     style={id === activeTool && SWATCH_TOOLS.has(id) ? cssVars({ "--workspace-tool-color": activeColor, "--workspace-swatch-size": `${swatchSize}px` }) : undefined}
                     onClick={() => chooseWritingTool(id)}
-                  ><WorkspaceToolIcon tool={id} fallback={ToolIcon} />{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
+                  ><WorkspaceToolIcon key={animatingColor ? colorAnimation.revision : 0} tool={id} fallback={ToolIcon} />{animatingColor && <span key={colorAnimation.revision} className="workspace-v3-tool-color-trace" aria-hidden="true" />}{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
                 })}
                 <WorkspaceIconButton label={t("focus.add")} className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
               </div>
