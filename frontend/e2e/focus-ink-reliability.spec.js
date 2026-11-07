@@ -123,6 +123,71 @@ for (const device of [
   }
 });
 
+test("RTL zoom and pan keep the live pen on the same page coordinates as its saved SVG", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await openWorkspace(page, IPAD_PORTRAIT);
+  const stage = page.locator(".workspace-v2-document-stage");
+  const stageBox = await stage.boundingBox();
+  await stage.dispatchEvent("wheel", {
+    bubbles: true, cancelable: true, ctrlKey: true, deltaY: -4000,
+    clientX: stageBox.x + stageBox.width / 2, clientY: stageBox.y + stageBox.height / 3
+  });
+  await expect.poll(() => page.locator(".workspace-v2-a4-document").evaluate(
+    (node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom"))
+  )).toBeGreaterThan(3);
+
+  // Reproduce Arabic direction on the canvas containing block, while keeping
+  // the stage's scroll axis deterministic across browser engines.
+  const sheetPage = page.locator(".workspace-v2-a4-page").first();
+  await sheetPage.evaluate((node) => { node.style.direction = "rtl"; });
+  await stage.evaluate((node) => {
+    node.style.direction = "ltr";
+    node.scrollLeft = Math.floor((node.scrollWidth - node.clientWidth) / 2);
+  });
+  await expect.poll(async () => {
+    const pageBox = await sheetPage.boundingBox();
+    const viewBox = await stage.boundingBox();
+    return viewBox.x - pageBox.x;
+  }).toBeGreaterThan(40);
+
+  const box = await stage.boundingBox();
+  const start = { x: box.x + box.width * .3, y: box.y + box.height * .36 };
+  await dispatchPointer(stage, "pointerdown", 920, start.x, start.y);
+  for (let index = 1; index <= 24; index += 1) {
+    await dispatchPointer(stage, "pointermove", 920, start.x + index * 5, start.y);
+  }
+
+  const canvas = page.locator(".workspace-v2-live-annotation-canvas");
+  await expect.poll(() => canvas.evaluate((node) => node.width)).toBeGreaterThan(0);
+  const geometry = await canvas.evaluate((node) => {
+    const sheet = node.parentElement;
+    const sheetBox = sheet.getBoundingClientRect();
+    const inkBox = node.getBoundingClientRect();
+    const scale = sheetBox.width / parseFloat(getComputedStyle(sheet).width);
+    return {
+      cropLeft: parseFloat(node.style.left),
+      actualLeft: inkBox.left,
+      expectedLeft: sheetBox.left + parseFloat(node.style.left) * scale,
+      right: getComputedStyle(node).right
+    };
+  });
+  expect(geometry.cropLeft).toBeGreaterThan(0);
+  expect(Math.abs(geometry.actualLeft - geometry.expectedLeft)).toBeLessThan(1.5);
+  expect(geometry.right).toBe("auto");
+
+  const visibleInk = await canvas.evaluate((node, point) => {
+    const rect = node.getBoundingClientRect();
+    const x = Math.floor((point.x - rect.left) * node.width / rect.width);
+    const y = Math.floor((point.y - rect.top) * node.height / rect.height);
+    const data = node.getContext("2d").getImageData(x - 2, y - 2, 5, 5).data;
+    return data.some((value, index) => index % 4 === 3 && value > 0);
+  }, { x: start.x + 75, y: start.y });
+  expect(visibleInk).toBe(true);
+
+  await dispatchPointer(stage, "pointerup", 920, start.x + 120, start.y);
+  await expect(page.locator('.workspace-v2-annotation-layer [data-annotation-type="pen"]')).toHaveCount(1);
+});
+
 test("wobbly pen and highlighter lines become clean straight lines of the same tool", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
