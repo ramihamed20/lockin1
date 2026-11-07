@@ -1,4 +1,4 @@
-import { generalCompanionIdeas, companionReadyCopy } from "../../lib/companionTips.js";
+import { generalCompanionIdeas, companionReadyCopy, companionKindLabels } from "../../lib/companionTips.js";
 import "./study-companion.css";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -59,7 +59,8 @@ function companionPositionFromRatio(position, viewport) {
 }
 
 function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionPhase, readyCopy, onRetry, loadFailed, onNext, onPrevious, cardNumber, cardCount }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const kindLabels = companionKindLabels[locale] || companionKindLabels.en;
   const [explaining, setExplaining] = useState(false);
   const [complete, setComplete] = useState(false);
   const [solution, setSolution] = useState(false);
@@ -74,6 +75,7 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
   return <section className="study-companion-panel" role="dialog" aria-modal="false" aria-labelledby={id}>
     <header><span><Sparkles size={17} aria-hidden="true" />{t("studyCompanion.name")}</span><button type="button" ref={closeRef} onClick={onClose} aria-label={t("studyCompanion.close")}><X size={18} /></button></header>
     <div className="study-companion-lesson">
+      {!idea.general && <p className="study-companion-kind"><span>{kindLabels[idea.kind]}</span>{idea.page !== null && <span>{locale === "ar" ? "صفحة" : "Page"} {idea.page}</span>}</p>}
       {idea.general && <div className="study-companion-ready-note"><p className="study-companion-ready-label"><Sparkles size={13} aria-hidden="true" />{readyCopy.general}</p><p role="status">{loadFailed ? readyCopy.failed : readyCopy.empty}</p><button type="button" className="study-companion-retry" onClick={onRetry}>{readyCopy.retry}</button></div>}
       <h2 id={id} dir="auto">{idea.question}</h2>
       {!explaining && <button type="button" className="btn btn-primary study-companion-explain" onClick={() => setExplaining(true)}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.explain")}</button>}
