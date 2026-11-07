@@ -8,7 +8,8 @@ import { useCallback, useEffect, useState } from "react";
  * device.
  */
 
-export const MAX_WORKSPACE_TABS = 4;
+// The number of open document tabs is not limited. Only the number of live
+// PDF panes is bounded by WorkspaceKeepAlive, to protect memory on iPad.
 const STORAGE_PREFIX = "lock-in.workspace-tabs.v1";
 const CHANGE_EVENT = "lock-in:workspace-tabs";
 const SLUG = /^[a-z0-9][a-z0-9-]{0,199}$/i;
@@ -100,14 +101,15 @@ export function sanitizeWorkspaceTabs(value) {
     if (!tab || seen.has(tab.id)) return [];
     seen.add(tab.id);
     return [tab];
-  }).slice(0, MAX_WORKSPACE_TABS);
+  });
   const activeId = tabs.some((tab) => tab.id === value?.activeId) ? value.activeId : (tabs[0]?.id || "");
   return { tabs, activeId };
 }
 
 /**
- * Makes `tab` the open one, adding it after the active tab when it is new. A
- * full strip drops its oldest tab that is not the active one.
+ * Makes `tab` the open one, adding it after the active tab when it is new.
+ * Open documents stay available until the student explicitly closes them.
+ * Hidden readers can be unmounted by WorkspaceKeepAlive without closing tabs.
  */
 export function openWorkspaceTab(state, tab) {
   const current = sanitizeWorkspaceTabs(state);
@@ -121,10 +123,6 @@ export function openWorkspaceTab(state, tab) {
   const tabs = [...current.tabs];
   const activeIndex = tabs.findIndex((item) => item.id === current.activeId);
   tabs.splice(activeIndex < 0 ? tabs.length : activeIndex + 1, 0, tab);
-  while (tabs.length > MAX_WORKSPACE_TABS) {
-    const oldest = tabs.findIndex((item) => item.id !== tab.id && item.id !== current.activeId);
-    tabs.splice(oldest < 0 ? 0 : oldest, 1);
-  }
   return sanitizeWorkspaceTabs({ tabs, activeId: tab.id });
 }
 
