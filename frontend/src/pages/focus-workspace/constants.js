@@ -25,7 +25,8 @@ export const RECENT_COLORS_KEY = "lock-in.catalog-workspace.recent-colors.v1";
 export const FAVORITE_COLORS_KEY = "lock-in.catalog-workspace.favorite-colors.v1";
 export const WORKSPACE_SETTINGS_KEY = "lock-in.catalog-workspace.settings.v1";
 export const FINGER_SCROLL_HINT_KEY = "lock-in.catalog-workspace.finger-scroll-hint.v1";
-export const MAX_PALETTE_COLORS = 10;
+// Eight built-in inks plus room for saved custom colours across sheets.
+export const MAX_PALETTE_COLORS = 32;
 export const ZOOM_OVERSHOOT_RATIO = .22;
 export const NO_ANNOTATIONS = Object.freeze([]);
 export const ZOOM_SETTLE_MS = 220;
