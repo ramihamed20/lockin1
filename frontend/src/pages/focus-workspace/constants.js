@@ -9,6 +9,8 @@ export const PAGE_WIDTH = 690;
 export const PAGE_SPACE = 1000;
 export const MIN_FOCUS_ZOOM = WORKSPACE_ZOOM.minimum;
 export const MAX_FOCUS_ZOOM = WORKSPACE_ZOOM.catalogMaximum;
+// Horizontal reading starts at 120% and never permits zooming out below it.
+export const HORIZONTAL_READING_ZOOM_FLOOR = 1.2;
 export const AUTOSAVE_IDLE_MS = 750;
 // The server mirror trails the local save, so a burst of strokes or a scroll
 // becomes one request rather than many.
