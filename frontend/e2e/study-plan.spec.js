@@ -209,7 +209,11 @@ test("students pick their own subjects, use quick choices and pull an overdue se
   await expect(page.getByText("2 of 12 chosen")).toBeVisible();
   const saved = page.waitForRequest(request => request.url().endsWith("/study-plan/profile"));
   await saveWizard(page);
-  expect((await saved).postDataJSON().subjects).toEqual(["Oral Histology", "Pharmacology"]);
+  const savedProfile = (await saved).postDataJSON();
+  expect(savedProfile.subjects).toEqual(["Oral Histology", "Pharmacology"]);
+  expect(savedProfile.timezone).toBe("Africa/Tripoli");
+  expect(state.getProfile().timezone).toBe("Africa/Tripoli");
+  await expect(page.locator(".plan-wizard-timezone")).toHaveCount(0);
   await selectStage(page, "Today");
   await page.locator(".plan-hero").getByRole("button", { name: "Add session", exact: true }).click();
   await page.getByRole("button", { name: "Pharmacology", exact: true }).click();
