@@ -618,9 +618,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const activePageKey = activeVirtualPageId ?? page;
   const [zoom, setZoom] = useState(() => {
     if (!sheet?.pdfUrl) return 1.3;
-    // Horizontal page-turning has a fixed, readable 120% starting scale.
-    // Vertical scrolling keeps its responsive fit-to-width opening scale.
-    if (storedWorkspaceSettings.pageDirection === "horizontal") return HORIZONTAL_READING_ZOOM_FLOOR;
+    // Only vertical page flow is exposed; ignore a previously saved sideways mode.
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
     return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitZoom));
   });
@@ -717,7 +715,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [rememberLastPosition, setRememberLastPosition] = useState(initialRememberLastPosition);
   const [rememberZoomLevel, setRememberZoomLevel] = useState(initialRememberZoomLevel);
   const [showPageNumber, setShowPageNumber] = useState(storedWorkspaceSettings.showPageNumber !== false);
-  const [pageDirection, setPageDirection] = useState(storedWorkspaceSettings.pageDirection === "horizontal" ? "horizontal" : "vertical");
+  // Temporarily disable horizontal page turning for every sheet, including
+  // readers whose previous preference still says "horizontal".
+  const pageDirection = "vertical";
   const [keepScreenAwake, setKeepScreenAwake] = useState(storedWorkspaceSettings.keepScreenAwake === true);
   const [zoomHud, setZoomHud] = useState({ visible: false, label: "" });
   // Whether the student has chosen what draws. Until they do, the device
@@ -1798,20 +1798,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   }, [applyPendingReaderAnchor]);
 
   const resetReaderToPageOne = useCallback(() => placeReaderAt(1), [placeReaderAt]);
-
-  function changePageDirection(next) {
-    if (!sheet?.pdfUrl || (next !== "horizontal" && next !== "vertical") || next === pageDirection) return;
-    const anchor = captureReaderAnchor();
-    stopScrollMomentum();
-    // Refit the new layout once. Horizontal always starts at 120%; vertical
-    // returns to width-fit rather than inheriting the enlarged sideways scale.
-    pdfZoomModeRef.current = "fit";
-    setPageDirection(next);
-    // Wait for the new column/row geometry before locating the same page.
-    requestAnimationFrame(() => requestAnimationFrame(() => placeReaderAt({
-      page: anchor.page, virtualPageId: anchor.virtualPageId, pageOffset: null, left: null
-    })));
-  }
 
   /** The page on screen and how far into it the reader is, zoom-independent. */
   const captureReaderAnchor = useCallback(() => {
@@ -6449,7 +6435,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
           <ToolOptionsPanel favoritesStrip={favoritePensStrip("is-panel")} activeFavoritePen={activeFavoritePen} favoritePenCount={favoritePens.length} onToggleFavoritePen={toggleFavoritePen} activeColor={activeColor} activePenOption={activePenOption} activeTool={activeTool} activeToolLabel={activeToolLabel} activeToolOpacity={activeToolOpacity} brushSize={brushSize} changePenProfile={changePenProfile} chooseAnnotationColor={chooseAnnotationColor} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} commitCustomColor={commitCustomColor} customColorDraft={customColorDraft} customColorEditorOpen={customColorEditorOpen} customColorSet={customColorSet} deleteCustomColor={deleteCustomColor} displayedToolOptions={displayedToolOptions} drawAndHold={drawAndHold} eraserMode={eraserMode} eraserSize={eraserSize} favoriteColors={favoriteColors} inkToolActive={inkToolActive} lassoMode={lassoMode} pageAnnotations={pageAnnotations} paletteColors={paletteColors} penProfile={penProfile} recentColors={recentColors} selectedAnnotations={selectedAnnotations} setBrushSize={setBrushSize} setCircleToErase={setCircleToErase} setCustomColorDraft={setCustomColorDraft} setCustomColorEditorOpen={setCustomColorEditorOpen} setDrawAndHold={setDrawAndHold} setEraserMode={setEraserMode} setEraserSize={setEraserSize} setLassoMode={setLassoMode} setShapeAngle={setShapeAngle} setShapeDashed={setShapeDashed} setShapeFill={setShapeFill} setShapeFillColor={setShapeFillColor} setShapeSnapGrid={setShapeSnapGrid} setShapeStyle={setShapeStyle} shapeAngle={shapeAngle} shapeDashed={shapeDashed} shapeFill={shapeFill} shapeFillColor={shapeFillColor} shapeSnapGrid={shapeSnapGrid} shapeStyle={shapeStyle} showColorPalette={showColorPalette} t={t} toggleFavoriteColor={toggleFavoriteColor} toolOptionsOpen={toolOptionsOpen} toolOptionsRef={toolOptionsRef} updateActiveToolOpacity={updateActiveToolOpacity} workspaceReady={workspaceReady} />
 
-          <SettingsPopover openNotes={() => selectTool("note")} pageDirection={pageDirection} changePageDirection={changePageDirection} activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
+          <SettingsPopover openNotes={() => selectTool("note")} activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
 
           <div
             className={`workspace-v2-document-stage is-tool-${activeTool}`}
