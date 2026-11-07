@@ -99,6 +99,54 @@ test("wizard reveals one step at a time, validates days and preserves earlier an
   expect(state.getProfile().timezone).toBeTruthy();
 });
 
+for (const [width, locale] of [[390, "en"], [820, "ar"]]) {
+  test(`first normal plan goes from onboarding to real session completion at ${width}px in ${locale}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width < 500 ? 844 : 1180 });
+    const state = await planner(page, { locale, materials: MATERIALS });
+    await page.goto("/#/study-plan");
+    await page.locator(".plan-wizard-next").click();
+    await page.locator(".plan-wizard-next").click();
+    // Choose actual catalog material, rather than generating an unlinked subject.
+    await page.locator(".plan-chips[role='group'] .plan-chip").first().click();
+    await saveWizard(page);
+    await expect(page.locator(".plan-hero")).toBeVisible();
+    await expect(page.locator(".plan-preview")).toBeVisible();
+    await expect(page.locator(".plan-preview .btn-primary")).toBeVisible();
+    await expect(page.locator(".plan-wizard-timezone")).toHaveCount(0);
+    expect(state.getProfile().configured).toBe(true);
+    expect(state.getProfile().subjects.length).toBe(1);
+    // Saving preferences MUST NOT generate tasks without student confirmation.
+    expect(state.getItems()).toHaveLength(0);
+    await page.screenshot({ path: `output/study-plan/first-review-${width}-${locale}.png`, fullPage: true });
+    await page.locator(".plan-preview .btn-primary").click();
+    await expect(page.locator(".plan-preview")).toHaveCount(0);
+    await expect(page.locator(".plan-task-list li")).toHaveCount(1);
+    expect(state.getItems()).toHaveLength(1);
+    // Student completion is persisted and survives reloading the browser.
+    await page.locator(".plan-task-list .plan-check").first().click();
+    expect(state.getItems()[0].status).toBe("completed");
+    await page.reload();
+    await expect(page.locator(".plan-task-list .plan-check").first()).toHaveAttribute("aria-pressed", "true");
+    await page.screenshot({ path: `output/study-plan/first-completed-${width}-${locale}.png`, fullPage: true });
+  });
+}
+
+test("first custom plan opens a ready-to-use session editor and persists its first task", async ({ page }) => {
+  const state = await planner(page);
+  await page.goto("/#/study-plan");
+  await page.getByRole("radio", { name: "Custom", exact: true }).check();
+  await saveWizard(page);
+  await expect(page.locator(".plan-editor")).toBeVisible();
+  await expect(page.locator(".plan-preview")).toHaveCount(0);
+  expect(state.getProfile().mode).toBe("custom");
+  await page.getByLabel("What will you study?", { exact: true }).fill("Review dental anatomy");
+  await page.getByRole("button", { name: "Save session", exact: true }).click();
+  await expect(page.locator(".plan-editor")).toHaveCount(0);
+  await expect(page.locator(".plan-task-list")).toContainText("Review dental anatomy");
+  await page.reload();
+  await expect(page.locator(".plan-task-list")).toContainText("Review dental anatomy");
+});
+
 test("long subject catalogs stay compact and can be searched before saving", async ({ page }) => {
   const materials = Array.from({ length: 10 }, (_, index) => ({
     slug: `subject-${index + 1}`, title: `Subject ${index + 1}`, sheets: []
