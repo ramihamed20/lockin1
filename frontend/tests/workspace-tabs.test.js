@@ -181,6 +181,17 @@ test("split divider hides percentage controls and snaps to the nearest five perc
   assert.match(host, /workspace-split-grip/);
 });
 
+test("split toolbar omits the redundant sheet title selector", async () => {
+  const [reader, css] = await Promise.all([
+    readWorkspaceSource(),
+    readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
+  ]);
+  assert.doesNotMatch(reader, /workspace-split-study-sheet/);
+  assert.doesNotMatch(css, /workspace-split-study-sheet/);
+  // The sheet tabs remain so students can still switch active documents.
+  assert.match(reader, /<WorkspaceTabBar /);
+});
+
 test("split pointer resizing follows physical direction in RTL and LTR layouts", () => {
   // LTR: column 1 is the left sheet; moving right grows that sheet.
   assert.equal(splitPercentFromPointer(0, 1000, 400, false), 40);
