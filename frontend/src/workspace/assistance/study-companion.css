@@ -395,3 +395,22 @@
   .study-companion.is-expanded .study-companion-pet,
   .study-companion-card-nav button { transition: none; }
 }
+
+/* Phone companions use the toolbar + button as their only summon/restore
+   control. A dragged character stays inside the viewport in RTL and LTR. */
+.study-companion.is-positioned,
+.study-companion.is-positioned[dir] {
+  inset: auto;
+}
+.study-companion.is-phone-draggable .study-companion-pet {
+  touch-action: none;
+  cursor: grab;
+}
+.study-companion.is-phone-draggable.is-dragging .study-companion-pet {
+  cursor: grabbing;
+}
+@media (max-width: 600px), (max-height: 500px) and (max-width: 900px) {
+  /* The full lesson opens when the character is tapped. Keep the draggable
+     avatar itself small, without an offscreen speech bubble at screen edges. */
+  .study-companion.is-toolbar-companion .study-companion-bubble { display: none; }
+}
