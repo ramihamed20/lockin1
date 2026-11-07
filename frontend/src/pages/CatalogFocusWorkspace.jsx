@@ -1696,9 +1696,23 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       setPageJumpDraft("1");
       viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: 0 };
       initialPageViewRef.current = viewKey;
+      // The toolbar can finish measuring or the PDF placeholder can resize on
+      // the following paint. Correct only this initial page-one placement; do
+      // not steal the reader's position later during ordinary scrolling.
+      if (pageDirection === "vertical") {
+        requestAnimationFrame(() => {
+          if (initialPageViewRef.current !== viewKey || pageRef.current !== 1 || pendingReaderAnchorRef.current) return;
+          const first = stage.querySelector('[data-pdf-page="1"]');
+          if (!first) return;
+          const stageTop = stage.getBoundingClientRect().top;
+          const desiredTop = stageTop + readerVisibleTopInset(stage);
+          const offset = first.getBoundingClientRect().top - desiredTop;
+          if (Math.abs(offset) > 1) stage.scrollTop = Math.max(0, stage.scrollTop + offset);
+        });
+      }
     };
     requestAnimationFrame(() => requestAnimationFrame(positionInitialPage));
-  }, [materialSlug, minimumPdfZoom, readerVisibleTopInset, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
+  }, [materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
 
   const markPdfDocumentReady = useCallback(() => setPdfDocumentReady(true), []);
 
