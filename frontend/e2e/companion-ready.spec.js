@@ -144,3 +144,38 @@ for (const [locale, width, height] of [
  await fits(explanation);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
 });
+
+for (const [locale, width, height] of [['ar',320,568], ['en',390,844], ['ar',844,390]]) {
+ test(`companion learning card keeps navigation visible while content scrolls at ${width}x${height} (${locale})`,async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.setViewportSize({width,height});
+  await page.addInitScript(language=>localStorage.setItem('lock-in.locale',language),locale);
+  await page.route('**/api/v1/catalog/documents/**',route=>route.fulfill({json:{
+   version_id:'test-version',
+   results:[{...idea,explanation:'Long explanation to test scrolling. '.repeat(100)}]
+  }}));
+  await page.goto('/e2e/fixtures/companion-ready/');
+  await page.locator('.study-companion-pet').click();
+  const panel=page.locator('.study-companion-panel');
+  const body=page.locator('.study-companion-lesson');
+  const footer=page.locator('.study-companion-card-nav');
+  await expect(panel).toBeVisible();
+  await expect(footer).toBeVisible();
+  await page.locator('.study-companion-explain').click();
+  await expect(page.locator('.study-companion-text')).toBeVisible();
+  await expect.poll(()=>body.evaluate(element=>element.scrollHeight>element.clientHeight)).toBe(true);
+  const before=await footer.boundingBox();
+  const initialPanel=await panel.boundingBox();
+  await body.evaluate(element=>{element.scrollTop=element.scrollHeight;});
+  await expect(footer).toBeInViewport();
+  const after=await footer.boundingBox();
+  const finalPanel=await panel.boundingBox();
+  expect(Math.abs(after.y-before.y)).toBeLessThan(2);
+  expect(Math.abs(finalPanel.height-initialPanel.height)).toBeLessThan(2);
+  expect(finalPanel.x).toBeGreaterThanOrEqual(-1);
+  expect(finalPanel.y).toBeGreaterThanOrEqual(-1);
+  expect(finalPanel.x+finalPanel.width).toBeLessThanOrEqual(width+1);
+  expect(finalPanel.y+finalPanel.height).toBeLessThanOrEqual(height+1);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+ });
+}
