@@ -7,30 +7,37 @@ const DRAG_START_PX = 12;
 const MOBILE_BREAKPOINT = "(max-width: 640px)";
 
 /** Derive a drop zone only when the pointer actually reaches the PDF area. */
-function dropGeometry() {
-  const pane = document.querySelector(".workspace-pane.is-active .workspace-v2");
-  const stage = pane?.querySelector(".workspace-v2-document-stage");
-  const paneRect = pane?.getBoundingClientRect();
-  const stageRect = stage?.getBoundingClientRect();
-  const toolbar = document.querySelector(".workspace-split-shared-chrome .workspace-v2-toolbar")
-    || pane?.querySelector(".workspace-v2-toolbar");
-  const toolbarBottom = toolbar?.getBoundingClientRect().bottom || 0;
-  if (!paneRect?.width || !paneRect?.height || !stageRect?.width || !stageRect?.height) return null;
-  // The purple drop target must NEVER include or dim the global tools area.
-  // Clamp both its hit testing and visible preview to the uncovered PDF stage.
-  const left = Math.max(stageRect.left, paneRect.left, 0);
-  const right = Math.min(stageRect.right, paneRect.right, window.innerWidth);
-  const top = Math.max(stageRect.top, paneRect.top, toolbarBottom + 8, 0);
-  const bottom = Math.min(stageRect.bottom, paneRect.bottom, window.innerHeight);
-  if (right <= left || bottom <= top) return null;
-  return {
-    left, top, width: right - left, height: bottom - top,
-    stacked: window.matchMedia(MOBILE_BREAKPOINT).matches
-  };
+function dropGeometry(x, y) {
+  // The current sheet and every visible split pane are valid drop targets.
+  // Never consider a hidden keep-alive reader: it may have stale geometry.
+  const panes = document.querySelectorAll(".workspace-pane.is-active, .workspace-pane.is-secondary");
+  const sharedToolbar = document.querySelector(".workspace-split-shared-chrome .workspace-v2-toolbar");
+  for (const pane of panes) {
+    const stage = pane.querySelector(".workspace-v2-document-stage");
+    const paneRect = pane.getBoundingClientRect();
+    const stageRect = stage?.getBoundingClientRect();
+    if (!paneRect.width || !paneRect.height || !stageRect?.width || !stageRect.height) continue;
+    // The stage itself is the drop zone. A floating/dockable toolbar may sit
+    // at the bottom of the screen: its bottom edge must NOT erase the PDF zone.
+    const left = Math.max(stageRect.left, paneRect.left, 0);
+    const right = Math.min(stageRect.right, paneRect.right, window.innerWidth);
+    const top = Math.max(stageRect.top, paneRect.top, 0);
+    const bottom = Math.min(stageRect.bottom, paneRect.bottom, window.innerHeight);
+    if (right <= left || bottom <= top || x < left || x > right || y < top + 8 || y > bottom) continue;
+    const toolbar = sharedToolbar || pane.querySelector(".workspace-v2-toolbar");
+    const toolbarRect = toolbar?.getBoundingClientRect();
+    // Exclude only the toolbar itself, not everything above/below it.
+    if (toolbarRect && x >= toolbarRect.left && x <= toolbarRect.right
+        && y >= toolbarRect.top && y <= toolbarRect.bottom) continue;
+    return {
+      left, top, width: right - left, height: bottom - top,
+      stacked: window.matchMedia(MOBILE_BREAKPOINT).matches
+    };
+  }
+  return null;
 }
-
 export function splitDropZone(x, y) {
-  const bounds = dropGeometry();
+  const bounds = dropGeometry(x, y);
   if (!bounds) return null;
   if (x < bounds.left || x > bounds.left + bounds.width || y < bounds.top + 8 || y > bounds.top + bounds.height) return null;
   return bounds.stacked
@@ -71,7 +78,7 @@ export function useWorkspaceTabDrag(onDrop) {
       setPreview({
         id: tab.id, x: nextEvent.clientX, y: nextEvent.clientY, label,
         side: splitDropZone(nextEvent.clientX, nextEvent.clientY),
-        geometry: dropGeometry()
+        geometry: dropGeometry(nextEvent.clientX, nextEvent.clientY)
       });
     };
     const cleanup = () => {
