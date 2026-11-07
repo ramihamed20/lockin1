@@ -1,9 +1,10 @@
 import { DocumentSearchPanel } from "../../workspace/catalog/DocumentSearchPanel.jsx";
-import { Languages, Bookmark, Brain, Download, Eye, EyeOff, FileText, Hand, Image as ImageIcon, Info, MessageSquare, NotebookPen, Plus, Search, Settings, Shapes, Share2, Trash2, Type, Users, X, Youtube, ZoomIn } from "lucide-react";
+import { Languages, Bookmark, Brain, Download, Eye, EyeOff, FileText, Hand, Image as ImageIcon, Info, MessageSquare, NotebookPen, Plus, Search, Settings, Shapes, Share2, Sparkles, Trash2, Type, Users, X, Youtube, ZoomIn } from "lucide-react";
 import { requestFocusVideo } from "../../workspace/catalog/focusVideo.js";
 import { requestSheetPicker } from "../../workspace/catalog/WorkspaceTabBar.jsx";
 import { NOTE_CARD_KINDS } from "../../workspace/catalog/noteCardLayout.js";
 import { PAGE_BACKGROUND_CHOICES } from "./constants.js";
+import { readCompanionPreferences, saveCompanionPreferences } from "../../lib/studyAssistance.js";
 
 /**
  * Search in the document.
@@ -153,7 +154,7 @@ export function PageBackgroundMenu({ addBlankPage, page, popover, setOpenSurface
 /**
  * Add to page: text, image, note card, cover, and new pages.
  */
-export function AddMenu({ closeSurfaceAndRestoreFocus, page, popover, selectTool, setActiveTool, setCardDraft, setCardKind, setClipSelecting, setCoverSelecting, setEditingCardId, setEditingTextId, setFocusMessage, setLassoMode, setOpenSurface, setSelectedIds, setTextDraft, sheet, studyMode, t, workspaceReady }) {
+export function AddMenu({ companionUserId, companionAvailable, closeSurfaceAndRestoreFocus, page, popover, selectTool, setActiveTool, setCardDraft, setCardKind, setClipSelecting, setCoverSelecting, setEditingCardId, setEditingTextId, setFocusMessage, setLassoMode, setOpenSurface, setSelectedIds, setTextDraft, sheet, studyMode, t, workspaceReady }) {
   return <>
     {workspaceReady && popover("add").shown && <section {...popover("add").props} id="workspace-add-popover" className="workspace-v2-action-popover is-add" role="dialog" aria-label={t("focus.addToPage")} onPointerDown={(event) => event.stopPropagation()}>
       <header><strong>{t("focus.addToPage")} {page}</strong><button type="button" aria-label={t("focus.closeAddMenu")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]')}><X size={17} /></button></header>
@@ -164,6 +165,10 @@ export function AddMenu({ closeSurfaceAndRestoreFocus, page, popover, selectTool
         <button type="button" data-workspace-tool="cover" onClick={() => { setCoverSelecting(true); setClipSelecting(false); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage(t("focus.dragOverWhatToHide")); }}><EyeOff size={18} /><span><strong>{t("focus.hidePartOfPage")}</strong><small>{t("focus.hidePartOfPageHint")}</small></span></button>
         {sheet.pdfUrl && <hr className="workspace-v9-menu-separator" />}
         {sheet.pdfUrl && <button type="button" data-drill="" aria-label={t("focus.addPage")} onClick={() => setOpenSurface("page-background")}><Plus size={18} /><span><strong>{t("focus.addPage2")}</strong></span></button>}
+        {companionAvailable && <button type="button" className="workspace-add-phone-companion" onClick={() => {
+          saveCompanionPreferences(companionUserId, { ...readCompanionPreferences(companionUserId), hidden: false, phoneAdded: true });
+          closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]');
+        }}><Sparkles size={18} aria-hidden="true" /><span><strong>{t("studyCompanion.add")}</strong><small>{t("studyCompanion.dragToMove")}</small></span></button>}
         <hr className="workspace-v9-menu-separator" />
       </div>
       {studyMode === "active" && <p className="workspace-v7-menu-note"><Info size={15} aria-hidden="true" />{t("focus.pagesYouAddBelongTo")}</p>}
