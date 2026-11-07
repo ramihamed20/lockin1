@@ -34,7 +34,7 @@ test("route loading uses real screen silhouettes, not a single generic spinner",
   }
   assert.match(ui, /data-skeleton-system="cupertino"/);
   assert.match(ui, /role="status"/);
-  assert.match(ui, /if \(\/\^\\\/review/);
+  assert.match(ui, /return "review";/);
 });
 
 test("student screens and dashboard no longer show fake empty states while loading", async () => {
