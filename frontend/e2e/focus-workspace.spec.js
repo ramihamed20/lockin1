@@ -312,7 +312,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
     await penOptions.getByRole("button", { name: "Save custom color" }).click();
     await expect(penOptions.getByRole("button", { name: `Use ${color}` })).toHaveCount(1);
   }
-  await expect(penOptions.getByRole("button", { name: "Add Color" })).toHaveCount(0);
+  await expect(penOptions.getByRole("button", { name: "Add Color" })).toBeVisible();
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.recent-colors.v1") || "[]").length)).toBe(2);
   await page.screenshot({ path: `${SCREENSHOT_DIR}/focus-pen-colors-phone.png`, fullPage: false });
   await penOptions.getByRole("button", { name: "Use #123456" }).click();
@@ -323,7 +323,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await penOptions.getByRole("button", { name: "Add Color" }).click();
   await penOptions.locator('input[aria-label="Choose custom color"]').fill("#6789ab");
   await penOptions.getByRole("button", { name: "Save custom color" }).click();
-  await expect(penOptions.getByRole("button", { name: "Add Color" })).toHaveCount(0);
+  await expect(penOptions.getByRole("button", { name: "Add Color" })).toBeVisible();
   await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.recent-colors.v1") || "[]").length)).toBe(2);
   await page.reload();
   await expect(studyDialog).toBeVisible();
@@ -905,4 +905,38 @@ test("an online True/False checkpoint is answered and submitted through the serv
   await page.reload();
   await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Active Study/ }).first().click();
   await expect(page.getByRole("button", { name: "Pages 11–20" })).toBeVisible({ timeout: 20_000 });
+});
+
+
+test("toolbar Add Color stays beside saved inks and persists when another sheet opens", async ({ page }) => {
+  test.setTimeout(75_000);
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto(WORKSPACE_ROUTE);
+  await page.getByRole("dialog", { name: "Choose study mode" }).getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+  const bar = page.locator(".workspace-pane.is-active .workspace-v2-toolbar");
+  const add = bar.locator(".workspace-v3-color-add");
+  await expect(add).toBeVisible();
+  const firstPosition = await bar.evaluate((root) => {
+    const swatch = root.querySelector(".workspace-v3-color-scroll");
+    const button = root.querySelector(".workspace-v3-color-add");
+    return button.getBoundingClientRect().left > swatch.getBoundingClientRect().left;
+  });
+  expect(firstPosition).toBe(true);
+  await add.click();
+  const picker = page.getByRole("dialog", { name: "Add Color" });
+  await expect(picker).toBeVisible();
+  await picker.locator('input[type="color"]').fill("#3ba6aa");
+  await picker.getByRole("button", { name: "Save custom color" }).click();
+  await expect(picker).toHaveCount(0);
+  await expect(bar.locator('.workspace-v3-quick-color[title="#3ba6aa"]')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.recent-colors.v1") || "[]"))).toContain("#3ba6aa");
+
+  // A different sheet's reader sees the same saved palette after navigation.
+  await page.goto(SHARED_TEST_SHEET_ROUTE);
+  const dialog = page.getByRole("dialog", { name: "Choose study mode" });
+  if (await dialog.isVisible()) await dialog.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".workspace-pane.is-active .workspace-v3-quick-color[title='#3ba6aa']")).toHaveCount(1);
 });
