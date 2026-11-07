@@ -5,7 +5,7 @@ import { Icon } from "../../lib/icons.jsx";
 import { getStreakTier } from "../../lib/streakTier.js";
 import { motivationApi } from "../../api/motivation.js";
 import { isApiError } from "../../api/client.js";
-import { isKnownNotificationRoute, notificationFallbackRoute } from "../../lib/notificationRoutes.js";
+import { isKnownNotificationRoute } from "../../lib/notificationRoutes.js";
 import { notificationPresentation } from "../../lib/notificationPresentation.js";
 import { PROGRESSION_UPDATED_EVENT } from "../../lib/progressionEvents.js";
 import { COMPACT_SHELL_QUERY, bottomNavPaths, hubForPath, hubMemberPaths, navItems, railExtraItems, themeOptions } from "../../lib/constants.js";
@@ -504,6 +504,7 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
   const profileGestureRef = useRef(null);
   const suppressProfileClickRef = useRef(false);
   const notificationsRef = useRef(null);
+  const notificationRevisionRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isStoreRoute = location.pathname === "/store";
@@ -702,13 +703,51 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
     };
   }, [notificationsOpen]);
 
+  // Refresh only the lightweight revision while visible; reload inbox contents
+  // on changes. A temporary network failure keeps the last known unread count.
+  useEffect(() => {
+    notificationRevisionRef.current = null;
+    setNotifications([]);
+    setUnreadCount(0);
+  }, [user?.id]);
+
   useEffect(() => {
     let active = true;
-    motivationApi.notificationSummary()
-      .then((summary) => { if (active) setUnreadCount(Number(summary.unread_count) || 0); })
-      .catch(() => { if (active) setUnreadCount(0); });
-    return () => { active = false; };
-  }, [notificationVersion]);
+    let pending = false;
+    async function checkUpdates() {
+      if (!active || !user?.id || document.visibilityState === "hidden" || pending) return;
+      pending = true;
+      try {
+        const summary = await motivationApi.notificationSummary();
+        if (!active) return;
+        const revision = Number(summary.revision) || 0;
+        const previous = notificationRevisionRef.current;
+        notificationRevisionRef.current = revision;
+        setUnreadCount(Math.max(0, Number(summary.unread_count) || 0));
+        if (notificationsOpen && previous !== null && revision !== previous) {
+          const feed = await motivationApi.listNotifications();
+          if (active) setNotifications(feed.results);
+        }
+      } catch {
+        // Do not reset a valid unread badge when a device briefly disconnects.
+      } finally {
+        pending = false;
+      }
+    }
+    const onResume = () => { if (document.visibilityState === "visible") void checkUpdates(); };
+    void checkUpdates();
+    const interval = window.setInterval(onResume, 45_000);
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("focus", onResume);
+    window.addEventListener("online", onResume);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("focus", onResume);
+      window.removeEventListener("online", onResume);
+    };
+  }, [notificationVersion, notificationsOpen, user?.id]);
 
   function logoutFromMenu() {
     closeProfileMenu({ restoreFocus: false });
@@ -849,13 +888,14 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
           setNotificationError("This notification refers to a screen that is not available in the current frontend integration.");
           return;
         }
+        setNotificationsOpen(false);
         navigate(result.route);
       } else {
         await motivationApi.markNotificationRead(notification.id);
         await refreshNotifications();
         onNotificationsChanged?.();
+        // Informational notices are acknowledged without an unrelated redirect.
         setNotificationsOpen(false);
-        navigate(notificationFallbackRoute(notification));
       }
     } catch (error) {
       setNotificationError(isApiError(error) && error.status === 410 ? "This notification target is no longer available." : error.message || "This notification could not be opened.");
@@ -964,11 +1004,12 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
         <button 
           className="icon-btn"
           onClick={() => setNotificationsOpen(!notificationsOpen)}
-          aria-label={t("common.notifications")}
+          aria-label={unreadCount ? `${t("common.notifications")} · ${t("notifications.unreadCount", { count: unreadCount })}` : t("common.notifications")}
           aria-expanded={notificationsOpen}
+          aria-controls="notifications-menu"
         >
           <Icon name="bell" />
-          {unreadCount > 0 && <span className="dot" />}
+          {unreadCount > 0 && <span className="notification-count" aria-hidden="true">{unreadCount > 99 ? "99+" : unreadCount}</span>}
         </button>
         {notificationsPresence.mounted && (
           <section className={`notifications-dropdown ${notificationsPresence.closing ? "is-closing" : ""}`.trim()} id="notifications-menu" aria-label={t("common.notifications")} inert={notificationsPresence.closing ? "" : undefined}>
