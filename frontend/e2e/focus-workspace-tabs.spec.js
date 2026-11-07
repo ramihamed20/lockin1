@@ -118,7 +118,16 @@ test("whiteboard Add page remains reachable after scrolling past the final page"
   const addPage = onScreen(page, ".workspace-whiteboard-footer button");
   await expect(onScreen(page, '[data-workspace-page="1"] .workspace-v2-a4-canvas.is-visible')).toBeVisible({ timeout: 20_000 });
   await expect(addPage).toHaveCount(1);
-  await stage.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  // Programmatically setting scrollTop bypasses the reader's custom bounds,
+  // which is why the old regression test passed while users still got stuck.
+  // Exercise the real wheel/pan handler and verify it can reach the footer.
+  const initialTop = await stage.evaluate((element) => element.scrollTop);
+  await stage.evaluate((element) => {
+    element.dispatchEvent(new WheelEvent("wheel", {
+      bubbles: true, cancelable: true, deltaY: 6000
+    }));
+  });
+  await expect.poll(() => stage.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialTop + 40);
   await expect.poll(async () => stage.evaluate((element) => {
     const stageRect = element.getBoundingClientRect();
     const lastPageRect = element.querySelector(".workspace-v2-a4-page:last-of-type").getBoundingClientRect();
