@@ -19,6 +19,8 @@ import "./styles/motion.css";
 // even though route stylesheets load lazily.
 import "./styles/interaction.css";
 import "./styles/motion-system.css";
+// Shared loading system is intentionally last within the system cascade layer.
+import "./styles/apple-skeleton.css";
 
 import React from "react";
 import { createRoot } from "react-dom/client";
