@@ -12,7 +12,7 @@
 
   /* Native-style placeholders gently breathe rather than sweeping a bright
      diagonal shimmer across a page. Shape and position stay constant. */
-  :where(.skeleton, .biweekly-skeleton, .mg-skeleton-icon, .mg-skeleton-line, .rank-mode-skeleton i,
+  :where(.skeleton, .biweekly-skeleton, .mg-skeleton-icon, .mg-skeleton-line, .rank-mode-skeleton i, .rank-mode-skeleton-row i,
     .review-center-skeleton > span, .ops-skeleton-rows .skeleton) {
     display: block;
     min-inline-size: 0;
@@ -248,6 +248,21 @@
   .ops-queue-skeleton .ops-skeleton-row {
     border-color: var(--loading-hairline);
   }
+  /* Leaderboards: a standing panel, followed by reserved row silhouettes. */
+  .rank-mode-skeleton-standing {
+    background: var(--surface);
+    border: 1px solid var(--card-edge);
+    border-radius: 20px;
+  }
+  .rank-mode-skeleton-row {
+    background: var(--surface);
+    border-block-end: 1px solid var(--loading-hairline);
+  }
+  .rank-mode-skeleton-row i {
+    background: var(--loading-fill);
+    background-image: none;
+    animation: lockin-skeleton-breathe 2.2s ease-in-out infinite;
+  }
 
   .loading-panel {
     min-width: 0;
@@ -287,7 +302,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .loading-panel { animation: none; }
-    :where(.skeleton, .biweekly-skeleton, .mg-skeleton-icon, .mg-skeleton-line, .rank-mode-skeleton i, .review-center-skeleton > span, .ops-skeleton-rows .skeleton) {
+    :where(.skeleton, .biweekly-skeleton, .mg-skeleton-icon, .mg-skeleton-line, .rank-mode-skeleton i, .rank-mode-skeleton-row i, .review-center-skeleton > span, .ops-skeleton-rows .skeleton) {
       animation: none;
       opacity: 1;
     }
