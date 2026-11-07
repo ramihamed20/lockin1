@@ -1843,6 +1843,69 @@ html.ix-hover .notifications-v2 .notification-feed-item:hover { background: colo
 
 .notifications-v2 .notification-load-more { justify-self: center; }
 
+/* A compact badge reports the actual unread count without covering the bell. */
+.notifications-menu-wrap > .icon-btn { position: relative; }
+.notifications-menu-wrap .notification-count {
+  position: absolute;
+  inset-block-start: -4px;
+  inset-inline-end: -6px;
+  min-width: 19px;
+  height: 19px;
+  padding-inline: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  color: #fff;
+  background: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.notifications-v2-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.notifications-v2-refresh {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--soft);
+  font: inherit;
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+.notifications-v2-refresh:disabled { cursor: default; opacity: 0.5; }
+.notifications-v2-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.notifications-v2 .notification-date-group {
+  margin: 0;
+  padding: 10px 18px 8px;
+  background: var(--surface-2);
+  color: var(--soft);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+}
+.notifications-v2 .notification-date-group:not(:first-child) {
+  border-block-start: 1px solid var(--separator);
+}
+@media (pointer: coarse) {
+  .notifications-v2-refresh { min-height: 44px; }
+}
+@media (max-width: 639px) {
+  .notifications-v2-actions { width: 100%; justify-content: space-between; }
+  .notifications-v2 .notification-date-group { padding-inline: 14px; }
+}
+
 /* --- Achievements ------------------------------------------------------------ */
 
 .achievements-v2-row { align-items: flex-start; padding-block: 14px; }
