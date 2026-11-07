@@ -51,12 +51,21 @@ def test_notification_api_is_scoped_and_updates_counter() -> None:
     response = client.get("/api/v1/notifications")
     assert response.status_code == 200
     assert response.json()["results"][0]["id"] == str(notification.id)
-    assert client.get("/api/v1/notifications/summary").json()["unread_count"] == 1
+    assert client.get("/api/v1/notifications/summary").json() == {
+        "unread_count": 1, "revision": 1,
+    }
     opened = client.post(f"/api/v1/notifications/{notification.id}/open")
     assert opened.json()["route"] == "/dashboard"
-    assert client.get("/api/v1/notifications/summary").json()["unread_count"] == 0
+    assert client.get("/api/v1/notifications/summary").json() == {
+        "unread_count": 0, "revision": 2,
+    }
+    client.post(f"/api/v1/notifications/{notification.id}/read")
+    assert client.get("/api/v1/notifications/summary").json()["revision"] == 2
 
     client.force_authenticate(other)
+    assert client.get("/api/v1/notifications/summary").json() == {
+        "unread_count": 0, "revision": 0,
+    }
     assert client.post(f"/api/v1/notifications/{notification.id}/read").status_code == 404
 
 
