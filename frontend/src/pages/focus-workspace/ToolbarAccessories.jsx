@@ -18,7 +18,7 @@ export function ToolbarAccessories({ children }) {
       toolbar.style.setProperty("--workspace-accessories-reserve", `${width}px`);
     };
     measure();
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    const observer = typeof window.ResizeObserver !== "undefined" ? new window.ResizeObserver(measure) : null;
     observer?.observe(element);
     window.addEventListener("resize", measure);
     return () => {

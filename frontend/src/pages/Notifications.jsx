@@ -33,13 +33,16 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
     setVisibleCount(5);
   }, [feed.data]);
 
+  const reloadFeed = feed.reload;
+  const reloadSummary = summary.reload;
+
   // Keep notifications current when the reader returns to the app.
   // Existing list rows remain on screen during refreshes.
   useEffect(() => {
     const onResume = () => {
       if (document.visibilityState !== "visible") return;
-      feed.reload();
-      summary.reload();
+      reloadFeed();
+      reloadSummary();
     };
     const interval = window.setInterval(onResume, 60_000);
     document.addEventListener("visibilitychange", onResume);
@@ -49,7 +52,7 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
       document.removeEventListener("visibilitychange", onResume);
       window.removeEventListener("online", onResume);
     };
-  }, [feed.reload, summary.reload, user?.id]);
+  }, [reloadFeed, reloadSummary, user?.id]);
 
   // Loading and failure keep the page's title and column, so nothing moves
   // when the feed arrives.

@@ -25,7 +25,7 @@ test('live staging opts into secure HMR and saved CSS emits a websocket update',
     await live.listen();
     const port = live.httpServer.address().port;
     const messages = [];
-    socket = new WebSocket(`ws://127.0.0.1:${port}/__hmr?token=${live.config.webSocketToken}`, 'vite-hmr');
+    socket = new globalThis.WebSocket(`ws://127.0.0.1:${port}/__hmr?token=${live.config.webSocketToken}`, 'vite-hmr');
     socket.addEventListener('message', e => messages.push(JSON.parse(e.data)));
     await new Promise((resolve, reject) => {
       socket.addEventListener('open', resolve);

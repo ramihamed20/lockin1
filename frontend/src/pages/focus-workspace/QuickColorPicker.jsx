@@ -31,7 +31,7 @@ export function QuickColorPicker({ colors, activeColor, enabled, allowAdd, onSel
         ? current : { left, top, width });
     };
     place();
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(place) : null;
+    const observer = typeof window.ResizeObserver !== "undefined" ? new window.ResizeObserver(place) : null;
     if (observer) { observer.observe(portalRoot); if (plusRef.current) observer.observe(plusRef.current); }
     window.addEventListener("resize", place);
     window.visualViewport?.addEventListener("resize", place);

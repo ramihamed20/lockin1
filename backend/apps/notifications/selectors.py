@@ -20,7 +20,11 @@ def unread_count(*, user: User) -> int:
 
 def notification_summary(*, user: User) -> dict[str, int]:
     """A lightweight, account-scoped revision snapshot for inbox refreshes."""
-    counter = NotificationCounter.objects.filter(user=user).values("unread_count", "revision").first()
+    counter = (
+        NotificationCounter.objects.filter(user=user)
+        .values("unread_count", "revision")
+        .first()
+    )
     return {
         "unread_count": int(counter["unread_count"]) if counter else 0,
         "revision": int(counter["revision"]) if counter else 0,

@@ -246,7 +246,7 @@ import { ToolOptionsPanel } from "./focus-workspace/ToolOptionsPanel.jsx";
 import { QuickColorPicker } from "./focus-workspace/QuickColorPicker.jsx";
 import { AddMenu, CardEditor, ExportMenu, MoreMenu, PageBackgroundMenu, SearchMenu, StudyMenu, TextEditor } from "./focus-workspace/menus.jsx";
 import { FavoritePens } from "./focus-workspace/FavoritePens.jsx";
-import { FAVORITE_PENS_CHANGE_EVENT, FAVORITE_PENS_KEY, FAVORITE_PEN_TOOLS, MAX_FAVORITE_PENS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, normalizeFavoritePens, saveFavoritePens } from "./focus-workspace/favoritePens.js";
+import { FAVORITE_PENS_CHANGE_EVENT, FAVORITE_PENS_KEY, FAVORITE_PEN_TOOLS, MAX_FAVORITE_PENS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, saveFavoritePens } from "./focus-workspace/favoritePens.js";
 import { ZoomWindow } from "./focus-workspace/ZoomWindow.jsx";
 import { initialZoomRegion } from "./focus-workspace/zoomWindowModel.js";
 import "./catalog-focus-workspace.css";
@@ -1554,7 +1554,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
    * reader's zoom. Its inter-page gaps are recalculated at every scale, so a
    * position inside the entire document is NOT a stable zoom anchor.
    */
-  function captureHorizontalZoomAnchor(clientX, clientY) {
+  const captureHorizontalZoomAnchor = useCallback((clientX, clientY) => {
     if (pageDirection !== "horizontal" || !sheet?.pdfUrl) return null;
     const root = documentRef.current;
     if (!root) return null;
@@ -1563,7 +1563,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       rect: element.getBoundingClientRect()
     }));
     return horizontalZoomPageAnchor(pages, clientX, clientY, activeVirtualPageIdRef.current ?? pageRef.current);
-  }
+  }, [pageDirection, sheet?.pdfUrl]);
 
   function reconciledZoomScroll(pending, stage, root, documentBounds, finalZoom, focalClientX, focalClientY) {
     if (pending.horizontalAnchor) {
@@ -1706,7 +1706,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const observer = new window.ResizeObserver(keepPdfFitted);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
+  }, [captureHorizontalZoomAnchor, clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
