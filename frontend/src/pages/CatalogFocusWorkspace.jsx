@@ -1615,16 +1615,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       if (previousStageWidth !== null && previousStageWidth !== stageWidth && documentBounds?.height > 0) {
         const stageBounds = stage.getBoundingClientRect();
         const currentZoom = Math.max(.001, zoomRef.current);
+        const focalClientX = pageDirection === "horizontal" ? stageBounds.left + stageBounds.width / 2 : stageBounds.left;
+        const focalClientY = pageDirection === "horizontal" ? stageBounds.top + Math.min(stageBounds.height / 2, 180) : stageBounds.top;
         pendingFitAnchorRef.current = {
           finalZoom: nextZoom,
-          documentAnchorX: (stageBounds.left - documentBounds.left) / currentZoom,
-          documentAnchorY: (stageBounds.top - documentBounds.top) / currentZoom,
-          focalClientX: stageBounds.left,
-          focalClientY: stageBounds.top,
-          horizontalAnchor: captureHorizontalZoomAnchor(
-            stageBounds.left + stageBounds.width / 2,
-            stageBounds.top + Math.min(stageBounds.height / 2, 180)
-          )
+          documentAnchorX: (focalClientX - documentBounds.left) / currentZoom,
+          documentAnchorY: (focalClientY - documentBounds.top) / currentZoom,
+          focalClientX,
+          focalClientY,
+          horizontalAnchor: captureHorizontalZoomAnchor(focalClientX, focalClientY)
         };
       }
       zoomRef.current = nextZoom;
@@ -1634,7 +1633,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const observer = new window.ResizeObserver(keepPdfFitted);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [clampReaderZoom, materialSlug, minimumPdfZoom, sheet?.pdfUrl, sheetSlug]);
+  }, [clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, sheet?.pdfUrl, sheetSlug]);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
