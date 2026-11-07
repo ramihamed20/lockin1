@@ -54,7 +54,7 @@ async function planner(page, { configured = false, locale = "en", materials = []
     }
     return send({ count: 0, results: [] });
   });
-  return { reject: value => { rejectSave = value; }, getItems: () => items, changeItem: (id, changes) => { Object.assign(items.find(item => item.id === id), changes); stalePreview = true; } };
+  return { reject: value => { rejectSave = value; }, getProfile: () => profile, getItems: () => items, changeItem: (id, changes) => { Object.assign(items.find(item => item.id === id), changes); stalePreview = true; } };
 }
 
 async function saveWizard(page) {
@@ -70,7 +70,7 @@ async function saveWizard(page) {
 async function selectStage(page, title) { await page.locator(".plan-journey-steps button").filter({ hasText: title }).click(); }
 
 test("wizard reveals one step at a time, validates days and preserves earlier answers", async ({ page }) => {
-  await planner(page);
+  const state = await planner(page);
   await page.goto("/#/study-plan");
   await expect(page.locator(".plan-wizard-steps > button")).toHaveCount(4);
   await expect(page.getByLabel("Minutes per day", { exact: true })).toHaveCount(0);
@@ -89,8 +89,14 @@ test("wizard reveals one step at a time, validates days and preserves earlier an
   await expect(page.getByLabel("Minutes per day", { exact: true })).toHaveValue("75");
   await page.locator(".plan-wizard-next").click();
   await expect(page.getByLabel("Subjects", { exact: true })).toHaveValue("Anatomy");
-  await saveWizard(page);
+  await page.locator(".plan-wizard-next").click();
+  await expect(page.getByLabel("Timezone", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".plan-wizard-timezone")).toHaveCount(0);
+  await page.locator(".plan-wizard-next").click();
   await expect(page.locator(".plan-hero")).toBeVisible();
+  // The server still receives a timezone for correct local-day scheduling,
+  // even though students never need to enter or see this technical setting.
+  expect(state.getProfile().timezone).toBeTruthy();
 });
 
 test("long subject catalogs stay compact and can be searched before saving", async ({ page }) => {
