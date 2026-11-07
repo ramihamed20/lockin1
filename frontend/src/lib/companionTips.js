@@ -1,3 +1,10 @@
+// Labels for the six persisted card kinds. Teaching angles (common confusions,
+// comparisons, short clinical examples) reuse these kinds without a migration.
+export const companionKindLabels = {
+ en: { understand:'Understand', fact:'Side fact', simplify:'Simplify', memory:'Memory aid', organize:'Organize', connection:'Connect ideas', general:'General study tip' },
+ ar: { understand:'شرح سريع', fact:'معلومة إضافية', simplify:'تبسيط', memory:'طريقة حفظ', organize:'تنظيم', connection:'ربط أفكار', general:'نصيحة دراسية' }
+};
+
 // General study coaching only; these are never presented as explanations of a PDF.
 const tips = {
  en: [
