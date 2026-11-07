@@ -106,6 +106,37 @@ test("sheets and whiteboards open as tabs, each keeping its own state", async ({
   await expect(tabs(page)).toHaveText(["Vitamin -1", "Vitamin -2"]);
 });
 
+test("whiteboard can scroll past its last page to reach Add page", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.getByRole("button", { name: "New tab" }).click();
+  await page.getByRole("menuitem", { name: /Whiteboard/ }).click();
+
+  const stage = onScreen(page, ".workspace-v2-document-stage");
+  const addPage = onScreen(page, ".workspace-whiteboard-footer button");
+  await expect(addPage).toHaveCount(1);
+  await expect(onScreen(page, '[data-workspace-page="1"] .workspace-v2-a4-canvas.is-visible')).toBeVisible({ timeout: 20_000 });
+  await stage.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  const geometry = await stage.evaluate((element) => {
+    const stageRect = element.getBoundingClientRect();
+    const lastPage = element.querySelector(".workspace-v2-a4-page:last-of-type");
+    const button = element.querySelector(".workspace-whiteboard-footer button");
+    const pageRect = lastPage.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    return {
+      spaceAfterPage: stageRect.top + stageRect.height / 2 - pageRect.bottom,
+      buttonOnScreen: buttonRect.top >= stageRect.top && buttonRect.bottom <= stageRect.bottom
+    };
+  });
+  expect(geometry.spaceAfterPage).toBeGreaterThan(40);
+  expect(geometry.buttonOnScreen).toBe(true);
+
+  await addPage.click();
+  await expect(onScreen(page, ".workspace-v2-a4-page.is-virtual.is-background-lined")).toHaveCount(1);
+});
+
 test("four kept PDF tabs release hidden raster buffers and repaint the same reader on return", async ({ page }) => {
   test.setTimeout(120_000);
   await mockAuthenticatedWorkspace(page);
