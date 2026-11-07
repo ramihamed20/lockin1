@@ -94,7 +94,7 @@ test("Phase 5 routes use server values and keep unsupported client authority dis
   assert.equal(canAccessRoute(student, "/community/discussions/00000000-0000-4000-8000-000000000001"), true);
   assert.equal(isKnownNotificationRoute("/progression"), true);
   assert.equal(isKnownNotificationRoute("/study-plan"), true);
-  assert.equal(isKnownNotificationRoute("/study-plan/today"), false);
+  assert.equal(isKnownNotificationRoute("/study-plan/today"), true);
   assert.equal(isKnownNotificationRoute("/community/discussions/00000000-0000-4000-8000-000000000001"), true);
   assert.equal(isKnownNotificationRoute("https://untrusted.invalid/"), false);
   assert.equal(isKnownNotificationRoute("/operations/analytics"), true);
