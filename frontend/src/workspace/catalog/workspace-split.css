@@ -183,6 +183,33 @@
   .workspace-split-layout.is-split > .workspace-pane { animation:none!important; }
 }
 
+/* A one-tap alternative to dragging, always visible on touch screens.
+   Splitting must not depend on hover or on native Safari drag gestures. */
+.workspace-tab-split {
+  display: grid;
+  width: 28px;
+  height: 32px;
+  flex: 0 0 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--fx-text-2, #b7c0cf);
+  background: transparent;
+  cursor: pointer;
+}
+.workspace-tab-split:hover, .workspace-tab-split:focus-visible {
+  color: var(--fx-accent, #8e61ff);
+  background: var(--fx-fill-strong, rgba(140, 140, 160, .15));
+}
+.workspace-tab-split:focus-visible {
+  outline: 2px solid var(--fx-accent, #8e61ff);
+  outline-offset: -2px;
+}
+@media (max-width: 640px) {
+  .workspace-tab-split { width: 24px; height: 30px; flex-basis: 24px; }
+}
+
 /* A tab behaves like a draggable document, but still remains a normal
    clickable/keyboard-accessible tab unless the pointer actually moves. */
 .workspace-tab > button[role="tab"] { cursor: grab; touch-action: pan-x; }
