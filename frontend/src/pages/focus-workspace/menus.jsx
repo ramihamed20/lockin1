@@ -168,7 +168,7 @@ export function AddMenu({ companionUserId, companionAvailable, closeSurfaceAndRe
         {companionAvailable && <button type="button" className="workspace-add-phone-companion" onClick={() => {
           saveCompanionPreferences(companionUserId, { ...readCompanionPreferences(companionUserId), hidden: false, phoneAdded: true });
           closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]');
-        }}><Sparkles size={18} aria-hidden="true" /><span><strong>{t("studyCompanion.add")}</strong><small>{t("studyCompanion.dragToMove")}</small></span></button>}
+        }}><Sparkles size={18} aria-hidden="true" /><span><strong>{t(readCompanionPreferences(companionUserId).phoneAdded ? "studyCompanion.show" : "studyCompanion.add")}</strong><small>{t("studyCompanion.dragToMove")}</small></span></button>}
         <hr className="workspace-v9-menu-separator" />
       </div>
       {studyMode === "active" && <p className="workspace-v7-menu-note"><Info size={15} aria-hidden="true" />{t("focus.pagesYouAddBelongTo")}</p>}
