@@ -228,7 +228,7 @@ import { ActiveStudyExitDialog } from "../components/shared/CheckpointExitDialog
 import { acknowledgeFocusDocument, markFocusDocumentDirty, registerOpenFocusDocument } from "../offline/focusSync.js";
 import { readActiveStudyRun } from "../offline/activeStudy.js";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
-import { AUTOSAVE_IDLE_MS, COLORS, CONFIGURABLE_TOOLS, DRAWING_TOOLS, ERASER_MODES, FAVORITE_COLORS_KEY, FINGER_SCROLL_HINT_KEY, FIT_READING_WIDTH, HOLD_ENDPOINT_TOLERANCE_PX, HOLD_RECOGNITION_MS, MAX_FOCUS_ZOOM, MAX_PALETTE_COLORS, MIN_FOCUS_ZOOM, NO_ANNOTATIONS, PAGE_BACKGROUND_CHOICES, PAGE_COUNT, PAGE_SPACE, PAGE_WIDTH, PEN_PROFILE_OPTIONS, POPOVER_SURFACES, PRIMARY_WRITE_TOOLS, RECENT_COLORS_KEY, SERVER_SYNC_DELAY_MS, SPRING_DEADLINE_MS, STATUS_MESSAGE_MS, SWATCH_TOOLS, TOOL_ITEMS, TOOL_MEMORY_KEY, WORKSPACE_SETTINGS_KEY, ZOOM_OVERSHOOT_RATIO, ZOOM_SETTLE_MS, isStageControl, isUnfinished } from "./focus-workspace/constants.js";
+import { AUTOSAVE_IDLE_MS, COLORS, CONFIGURABLE_TOOLS, DRAWING_TOOLS, ERASER_MODES, FAVORITE_COLORS_KEY, FINGER_SCROLL_HINT_KEY, FIT_READING_WIDTH, HOLD_ENDPOINT_TOLERANCE_PX, HOLD_RECOGNITION_MS, HORIZONTAL_READING_ZOOM_FLOOR, MAX_FOCUS_ZOOM, MAX_PALETTE_COLORS, MIN_FOCUS_ZOOM, NO_ANNOTATIONS, PAGE_BACKGROUND_CHOICES, PAGE_COUNT, PAGE_SPACE, PAGE_WIDTH, PEN_PROFILE_OPTIONS, POPOVER_SURFACES, PRIMARY_WRITE_TOOLS, RECENT_COLORS_KEY, SERVER_SYNC_DELAY_MS, SPRING_DEADLINE_MS, STATUS_MESSAGE_MS, SWATCH_TOOLS, TOOL_ITEMS, TOOL_MEMORY_KEY, WORKSPACE_SETTINGS_KEY, ZOOM_OVERSHOOT_RATIO, ZOOM_SETTLE_MS, isStageControl, isUnfinished } from "./focus-workspace/constants.js";
 import { StudyModeDialog } from "./focus-workspace/studyDialogs.jsx";
 import { ACTIVE_RESULT_STAGES, clearActiveStudyDraft, clearActiveStudyEntry, clearActiveStudyResume, readActiveStudyDraft, readActiveStudyEntry, readActiveStudyResume, writeActiveStudyEntry, writeActiveStudyResume } from "./focus-workspace/activeStudyStorage.js";
 import { ActiveStudyQuiz } from "./focus-workspace/ActiveStudyQuiz.jsx";
@@ -616,6 +616,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const activePageKey = activeVirtualPageId ?? page;
   const [zoom, setZoom] = useState(() => {
     if (!sheet?.pdfUrl) return 1.3;
+    // Horizontal page-turning has a fixed, readable 120% starting scale.
+    // Vertical scrolling keeps its responsive fit-to-width opening scale.
+    if (storedWorkspaceSettings.pageDirection === "horizontal") return HORIZONTAL_READING_ZOOM_FLOOR;
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
     return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitZoom));
   });
@@ -800,6 +803,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   const minimumPdfZoom = useCallback(() => {
     if (!sheet?.pdfUrl) return MIN_FOCUS_ZOOM;
+    // "Fit" in horizontal mode means the requested 120% baseline.
+    if (pageDirection === "horizontal") return HORIZONTAL_READING_ZOOM_FLOOR;
     const stage = stageRef.current;
     const stageWidth = stage?.clientWidth || window.innerWidth;
     // Phones and tablets (an iPad Pro in landscape too) fit the page edge to
@@ -812,16 +817,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       A4_PAGE_WIDTH,
       0
     )));
-  }, [sheet?.pdfUrl]);
+  }, [pageDirection, sheet?.pdfUrl]);
 
   // Fit width is the opening/reset scale, not the lower pinch limit. Keep a
   // half-width view available on tablets while retaining a readable floor.
   // The floor is half the stage's width even where fit is a reading width.
   const minimumAllowedZoom = useCallback(() => {
     if (!sheet?.pdfUrl) return MIN_FOCUS_ZOOM;
+    // Applies to both button Zoom Out and two-finger/trackpad pinch.
+    if (pageDirection === "horizontal") return HORIZONTAL_READING_ZOOM_FLOOR;
     const stageFit = Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageRef.current?.clientWidth || window.innerWidth, A4_PAGE_WIDTH, 0)));
     return Math.min(minimumPdfZoom(), Math.max(0.3, stageFit * 0.5));
-  }, [minimumPdfZoom, sheet?.pdfUrl]);
+  }, [minimumPdfZoom, pageDirection, sheet?.pdfUrl]);
 
   const clampReaderZoom = useCallback((value) => {
     return Math.min(MAX_FOCUS_ZOOM, Math.max(minimumAllowedZoom(), Number.isFinite(Number(value)) ? Number(value) : 1));
@@ -1616,7 +1623,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         const stageBounds = stage.getBoundingClientRect();
         const currentZoom = Math.max(.001, zoomRef.current);
         const focalClientX = pageDirection === "horizontal" ? stageBounds.left + stageBounds.width / 2 : stageBounds.left;
-        const focalClientY = pageDirection === "horizontal" ? stageBounds.top + Math.min(stageBounds.height / 2, 180) : stageBounds.top;
+        const focalClientY = pageDirection === "horizontal"
+          ? stageBounds.top + Math.min(stageBounds.height / 2, 180)
+          : stageBounds.top + readerVisibleTopInset(stage);
         pendingFitAnchorRef.current = {
           finalZoom: nextZoom,
           documentAnchorX: (focalClientX - documentBounds.left) / currentZoom,
@@ -1633,7 +1642,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const observer = new window.ResizeObserver(keepPdfFitted);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, sheet?.pdfUrl, sheetSlug]);
+  }, [clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
+
+  // The floating toolbar shares the reader grid cell with the PDF stage.
+  // Scroll offsets are measured against the *visible* top edge, not the
+  // scroller's origin hidden underneath that toolbar.
+  const readerVisibleTopInset = useCallback((stage) => {
+    if (!stage) return 0;
+    const stageTop = stage.getBoundingClientRect().top;
+    const cssPadding = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
+    const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? stageTop;
+    return Math.max(cssPadding, toolbarBottom - stageTop + 12);
+  }, []);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
@@ -1661,8 +1681,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       if (!initialPage) return;
       const stageBounds = stage.getBoundingClientRect();
       const pageBounds = initialPage.getBoundingClientRect();
-      const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
-      const targetTop = stage.scrollTop + pageBounds.top - stageBounds.top - paddingTop;
+      const visibleTop = readerVisibleTopInset(stage);
+      const targetTop = stage.scrollTop + pageBounds.top - stageBounds.top - visibleTop;
       // The stage scrolls left-to-right in every reading direction (see
       // .workspace-v2-document-stage), so one clamped range serves Arabic too.
       const left = centeredScrollLeft({ scrollLeft: stage.scrollLeft, pageLeft: pageBounds.left, viewportLeft: stageBounds.left, viewportWidth: stage.clientWidth, pageWidth: pageBounds.width, scrollWidth: stage.scrollWidth });
@@ -1678,7 +1698,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       initialPageViewRef.current = viewKey;
     };
     requestAnimationFrame(() => requestAnimationFrame(positionInitialPage));
-  }, [materialSlug, minimumPdfZoom, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
+  }, [materialSlug, minimumPdfZoom, readerVisibleTopInset, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
 
   const markPdfDocumentReady = useCallback(() => setPdfDocumentReady(true), []);
 
@@ -1700,8 +1720,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const stageBounds = stage.getBoundingClientRect();
     const pageBounds = target.getBoundingClientRect();
     const pageTop = pageBounds.top - stageBounds.top + stage.scrollTop;
-    const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
-    const top = anchor.pageOffset === null ? pageTop - paddingTop : pageTop + anchor.pageOffset * pageBounds.height;
+    const visibleTop = readerVisibleTopInset(stage);
+    const top = anchor.pageOffset === null ? pageTop - visibleTop : pageTop + anchor.pageOffset * pageBounds.height;
     const left = anchor.left ?? centeredScrollLeft({ scrollLeft: stage.scrollLeft, pageLeft: pageBounds.left, viewportLeft: stageBounds.left, viewportWidth: stage.clientWidth, pageWidth: pageBounds.width, scrollWidth: stage.scrollWidth });
     stage.scrollTo({ left, top: Math.max(0, top), behavior: "auto" });
     viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: Math.max(0, anchor.pageOffset || 0) };
@@ -1709,7 +1729,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     pageRef.current = anchor.page;
     setPage(anchor.page);
     setActiveVirtualPageId(anchor.virtualPageId ?? null);
-  }, [materialSlug, sheet?.pdfUrl, sheetSlug]);
+  }, [materialSlug, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
 
   /**
    * Moves the reader to a page, or back to an anchor taken with
@@ -1734,6 +1754,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (!sheet?.pdfUrl || (next !== "horizontal" && next !== "vertical") || next === pageDirection) return;
     const anchor = captureReaderAnchor();
     stopScrollMomentum();
+    // Refit the new layout once. Horizontal always starts at 120%; vertical
+    // returns to width-fit rather than inheriting the enlarged sideways scale.
+    pdfZoomModeRef.current = "fit";
     setPageDirection(next);
     // Wait for the new column/row geometry before locating the same page.
     requestAnimationFrame(() => requestAnimationFrame(() => placeReaderAt({
@@ -4468,10 +4491,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const targetLeft = targetBounds.left - stageBounds.left + stage.scrollLeft;
     // The toolbar floats over the top of the stage; its padding keeps a page
     // that is jumped to from starting underneath it.
-    const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
+    const visibleTop = readerVisibleTopInset(stage);
     const top = point
       ? targetTop + (Math.min(1000, Math.max(0, point.y)) / 1000) * targetBounds.height - stage.clientHeight * 0.32
-      : targetTop - paddingTop;
+      : targetTop - visibleTop;
     const left = point
       ? targetLeft + (Math.min(1000, Math.max(0, point.x)) / 1000) * targetBounds.width - stage.clientWidth * 0.5
       : pageDirection === "horizontal" && sheet?.pdfUrl
