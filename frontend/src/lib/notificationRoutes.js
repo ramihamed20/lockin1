@@ -18,6 +18,7 @@ const NOTIFICATION_DESTINATIONS = new Set([
 ]);
 
 const NOTIFICATION_DESTINATION_PREFIXES = [
+  "/study-plan/",
   "/materials/catalog/",
   "/questions/",
   "/review/",
