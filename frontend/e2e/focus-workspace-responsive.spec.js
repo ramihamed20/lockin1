@@ -246,7 +246,9 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   const toolbar = page.locator(".workspace-v2-toolbar");
   await expect(toolbar).toHaveCSS("border-radius", "0px");
   expect(await toolbar.boundingBox()).toMatchObject({ x: 0, y: 0, width: 834 });
-  await expect(toolbar.locator(".workspace-v3-quick-color")).toHaveCount(3);
+  // Every default ink stays in the swipeable strip; Add stays visible beside it.
+  await expect(toolbar.locator(".workspace-v3-quick-color")).toHaveCount(8);
+  await expect(toolbar.locator(".workspace-v3-color-add")).toBeVisible();
   const sizing = await toolbar.evaluate((node) => {
     // Rendered buttons only: a hidden group (the docked Undo/Redo, a single-tab strip) hides its children too.
     const boxes = [...node.querySelectorAll("button")].filter((button) => button.getClientRects().length > 0).map((button) => ({ label: button.getAttribute("aria-label"), box: button.getBoundingClientRect() }));
@@ -254,7 +256,15 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
     return {
       // The tablet bar is compact by design: 40px tools and 34px tabs.
       tooSmall: boxes.filter(({ box }) => box.width < 34 || box.height < 34).map(({ label }) => label),
-      clipped: boxes.filter(({ box, label }) => label && box.left >= rail.left && box.left < rail.right && box.right > rail.right + 3).map(({ label }) => label),
+      // A scrollable colour strip intentionally clips its off-screen swatches;
+      // only controls outside their *own* scroll viewport are layout errors.
+      clipped: boxes.filter(({ box, label }) => {
+        if (!label) return false;
+        const colorStrip = [...node.querySelectorAll(".workspace-v3-color-scroll .workspace-v3-quick-color")]
+          .some((color) => color.getAttribute("aria-label") === label);
+        if (colorStrip) return false;
+        return box.left >= rail.left && box.left < rail.right && box.right > rail.right + 3;
+      }).map(({ label }) => label),
       toolbarOverflow: node.scrollWidth - node.clientWidth
     };
   });
