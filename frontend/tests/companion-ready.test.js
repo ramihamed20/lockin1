@@ -15,3 +15,11 @@ test('general coaching is complete, marked as general and cannot be mistaken for
   }
  }
 });
+
+test("saved companion drag coordinates are validated and clamped", async () => {
+  const { companionPreferences } = await import("../src/lib/studyAssistance.js");
+  assert.equal(companionPreferences(null).phoneAdded, false);
+  assert.equal(companionPreferences(null).position, null);
+  assert.deepEqual(companionPreferences({ phoneAdded: true, position: { x: -2, y: 9 } }).position, { x: 0, y: 1 });
+  assert.equal(companionPreferences({ position: { x: "bad", y: 0.5 } }).position, null);
+});
