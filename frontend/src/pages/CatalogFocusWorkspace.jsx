@@ -4757,6 +4757,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // Takes effect for the very next pointerdown, before React re-renders.
     activeToolRef.current = nextTool;
     toolStateRef.current = next;
+    // Revisiting a tool should not replay an old colour-selection animation.
+    setColorAnimation((current) => current.tool === nextTool ? current : { ...current, tool: null });
     if (nextTool === "pen") setPenProfile(rememberedProfile);
     if (remembered) {
       setActiveColor(remembered.color || COLORS[0]);
@@ -5145,6 +5147,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     persistRecentColors(next, { notify: true });
     setRecentColors(next);
     updateSelectionColor(normalized);
+    const tool = activeToolRef.current;
+    if (SWATCH_TOOLS.has(tool)) setColorAnimation((current) => ({ tool, revision: current.revision + 1 }));
     setCustomColorEditorOpen(false);
   }
 
