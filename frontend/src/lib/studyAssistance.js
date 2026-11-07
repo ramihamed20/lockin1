@@ -37,7 +37,15 @@ export function companionPreferences(value) {
   return {
     character: value?.character === "girl" ? "girl" : "boy",
     motion: value?.motion !== false,
-    hidden: value?.hidden === true
+    hidden: value?.hidden === true,
+    // New phone sessions add the companion from the workspace + menu.
+    phoneAdded: value?.phoneAdded === true,
+    position: Number.isFinite(value?.position?.x) && Number.isFinite(value?.position?.y)
+      ? {
+        x: Math.min(1, Math.max(0, value.position.x)),
+        y: Math.min(1, Math.max(0, value.position.y))
+      }
+      : null
   };
 }
 
