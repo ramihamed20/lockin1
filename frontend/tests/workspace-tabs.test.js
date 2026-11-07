@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { snapSplitPercent, splitPercentFromPointer, splitResizeKeyDelta } from "../src/workspace/catalog/splitSizing.js";
 import { readWorkspaceSource } from "./helpers/workspaceSource.js";
 import {
   closeWorkspaceTab,
@@ -171,13 +172,39 @@ test("split divider hides percentage controls and snaps to the nearest five perc
     readFile(new URL("../src/workspace/catalog/WorkspaceKeepAlive.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
   ]);
-  assert.match(host, /const snapSplitPercent = \(number\) => Math\.max\(20, Math\.min\(80, Math\.round\(number \/ 5\) \* 5\)\)/);
-  assert.match(host, /set\(snapSplitPercent\(\(current - start\) \* 100 \/ \(end - start\)\)\)/);
+  assert.match(host, /import \{ snapSplitPercent, splitPercentFromPointer, splitResizeKeyDelta \}/);
+  assert.match(host, /splitPercentFromPointer\(start, end, current, splitIsRtlColumns\(rows\)\)/);
   assert.match(host, /set\(\(value\) => snapSplitPercent\(value \+ delta\)\)/);
   assert.match(host, /aria-valuenow=\{Math\.round\(percent\)\}/);
   assert.doesNotMatch(host, /ratioMenu|SIZE_PRESETS|workspace-split-ratio-toggle|workspace-split-ratio-presets/);
   assert.doesNotMatch(css, /workspace-split-ratio-toggle|workspace-split-ratio-presets/);
   assert.match(host, /workspace-split-grip/);
+});
+
+test("split pointer resizing follows physical direction in RTL and LTR layouts", () => {
+  // LTR: column 1 is the left sheet; moving right grows that sheet.
+  assert.equal(splitPercentFromPointer(0, 1000, 400, false), 40);
+  assert.equal(splitPercentFromPointer(0, 1000, 600, false), 60);
+  // RTL: column 1 is the right sheet; moving left grows that sheet.
+  assert.equal(splitPercentFromPointer(0, 1000, 600, true), 40);
+  assert.equal(splitPercentFromPointer(0, 1000, 400, true), 60);
+  // RTL does not reverse the vertical axis: moving down grows the top row.
+  assert.equal(splitPercentFromPointer(100, 900, 420, false), 40);
+  assert.equal(splitPercentFromPointer(100, 900, 580, false), 60);
+  // The same direction rules apply to two-, three- and four-sheet dividers.
+  assert.equal(splitPercentFromPointer(0, 1000, 476, true), 50);
+  assert.equal(snapSplitPercent(52.9), 55);
+  assert.equal(snapSplitPercent(48), 50);
+  assert.equal(splitPercentFromPointer(0, 1000, 0, true), 80);
+  assert.equal(splitPercentFromPointer(0, 1000, 1000, true), 20);
+  assert.equal(splitPercentFromPointer(100, 100, 100, true), null);
+  // Physical keyboard directions correspond to physical divider movement.
+  assert.equal(splitResizeKeyDelta("ArrowRight", false), 5);
+  assert.equal(splitResizeKeyDelta("ArrowRight", true), -5);
+  assert.equal(splitResizeKeyDelta("ArrowLeft", true), 5);
+  assert.equal(splitResizeKeyDelta("ArrowDown", true), 5);
+  assert.equal(splitResizeKeyDelta("ArrowUp", false), -5);
+  assert.equal(splitResizeKeyDelta("Escape", true), 0);
 });
 
 test("split controls work for the active tab, touch fallback and floating toolbars", async () => {
