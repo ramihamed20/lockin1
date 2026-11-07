@@ -11,6 +11,7 @@ const NOTIFICATION_DESTINATIONS = new Set([
   "/materials",
   "/questions",
   "/review",
+  "/study-plan",
   "/bookmarks",
   "/notifications",
   "/store"
