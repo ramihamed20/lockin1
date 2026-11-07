@@ -120,6 +120,7 @@ import {
   lockedGestureVelocity,
   pointerCanDraw,
   defaultDrawingInput,
+  usesTouchStylusTablet,
   pointerSnapshot,
   suspiciousPalmContact
 } from "../workspace/input/gestureStateMachine.js";
@@ -732,9 +733,25 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return defaultDrawingInput({
       stored,
       coarsePointer: Boolean(window.matchMedia?.("(pointer: coarse)").matches),
-      shortestScreenSide: Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight)
+      shortestScreenSide: Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight),
+      userAgent: window.navigator.userAgent || ""
     });
   });
+  // Android Chrome often hides the device model in its reduced user agent.
+  // Query the real model when available so the Elite 1 bundled touch stylus
+  // works without making finger drawing the default on every tablet.
+  useEffect(() => {
+    const uaData = window.navigator.userAgentData;
+    if (drawingInputChosenRef.current || typeof uaData?.getHighEntropyValues !== "function") return undefined;
+    let active = true;
+    Promise.resolve(uaData.getHighEntropyValues(["model"])).then(({ model }) => {
+      if (active && !drawingInputChosenRef.current && usesTouchStylusTablet({
+        deviceModel: model,
+        userAgent: window.navigator.userAgent || ""
+      })) setDrawingInput(DRAWING_INPUT.STYLUS_AND_FINGER);
+    }).catch(() => { /* The student can still choose touch drawing in Settings. */ });
+    return () => { active = false; };
+  }, []);
   const [annotations, setAnnotations] = useState([]);
   const [notes, setNotes] = useState([]);
   const [annotationsHidden, setAnnotationsHidden] = useState(false);
