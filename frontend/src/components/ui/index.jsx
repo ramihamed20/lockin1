@@ -74,8 +74,10 @@ export function EmptyState({ title, text, icon = "", action = null }) {
   return <article className="empty-state">{icon ? <LockinIcon name={icon} size={30} /> : <Icon name="sparkles" />}<h2 dir="auto">{title}</h2><p dir="auto">{text}</p>{action && <Link className="btn btn-soft compact empty-state-action" to={action.to}>{action.label}</Link>}</article>;
 }
 
-export function Skeleton({ className = "", style = undefined }) {
-  return <span className={`skeleton ${className}`.trim()} style={style} aria-hidden="true" />;
+/** Shared decorative placeholder. Keep geometry with the loaded component;
+ * only the unified loading stylesheet controls tone and pulse. */
+export function Skeleton({ className = "", style = undefined, shape = "line" }) {
+  return <span className={`skeleton skeleton--${shape} ${className}`.trim()} style={style} aria-hidden="true" />;
 }
 
 export function SkeletonText({ lines = 2, className = "" }) {
@@ -83,11 +85,11 @@ export function SkeletonText({ lines = 2, className = "" }) {
 }
 
 export function SkeletonAvatar({ className = "" }) {
-  return <Skeleton className={`skeleton-avatar ${className}`.trim()} />;
+  return <Skeleton shape="circle" className={`skeleton-avatar ${className}`.trim()} />;
 }
 
 export function SkeletonButton({ className = "" }) {
-  return <Skeleton className={`skeleton-button ${className}`.trim()} />;
+  return <Skeleton shape="pill" className={`skeleton-button ${className}`.trim()} />;
 }
 
 function SkeletonCard({ children, className = "" }) {
@@ -151,6 +153,74 @@ function DocumentSkeleton() {
   return <div className="skeleton-page skeleton-page--document"><SkeletonCard className="skeleton-document-toolbar"><Skeleton className="skeleton-tool-group" /><Skeleton className="skeleton-tool-group" /><SkeletonButton /></SkeletonCard><SkeletonCard className="skeleton-document-sheet"><Skeleton className="skeleton-document-title" /><SkeletonText lines={6} /><Skeleton className="skeleton-document-image" /><SkeletonText lines={5} /></SkeletonCard></div>;
 }
 
+/** A single grouped-list silhouette shared by inbox, admin and short result lists. */
+function GroupedListSkeleton({ count = 5 }) {
+  return <div className="skeleton-page skeleton-page--grouped-list">
+    <SkeletonCard className="skeleton-grouped-card">
+      <div className="skeleton-grouped-heading"><Skeleton className="skeleton-section-heading" /><Skeleton className="skeleton-grouped-chip" /></div>
+      {Array.from({ length: count }, (_, index) => <div className="skeleton-grouped-row" key={index}>
+        <SkeletonAvatar className="skeleton-grouped-avatar" />
+        <SkeletonText lines={2} />
+        <Skeleton className="skeleton-grouped-trailing" />
+      </div>)}
+    </SkeletonCard>
+  </div>;
+}
+
+/** The review centre is a daily action, smaller weekly card, then subject rows. */
+function ReviewSkeleton() {
+  return <div className="skeleton-page skeleton-page--review">
+    <SkeletonCard className="skeleton-review-primary">
+      <div className="skeleton-review-heading"><SkeletonAvatar /><SkeletonText lines={2} /></div>
+      <Skeleton className="skeleton-review-description" />
+      <div className="skeleton-review-actions"><SkeletonButton /><SkeletonButton /></div>
+    </SkeletonCard>
+    <SkeletonCard className="skeleton-review-secondary">
+      <div className="skeleton-review-heading"><SkeletonAvatar /><SkeletonText lines={2} /></div>
+      <SkeletonButton />
+    </SkeletonCard>
+    <Skeleton className="skeleton-section-heading" />
+    <GroupedListSkeleton count={3} />
+  </div>;
+}
+
+/** Same hierarchy as the plan: day selector, today's tasks and weekly progress. */
+function StudyPlanSkeleton() {
+  return <div className="skeleton-page skeleton-page--study-plan">
+    <div className="skeleton-plan-heading"><SkeletonText lines={2} /><SkeletonButton /></div>
+    <SkeletonCard className="skeleton-plan-week">
+      {Array.from({ length: 7 }, (_, index) => <div className="skeleton-plan-day" key={index}>
+        <Skeleton className="skeleton-plan-day-label" /><Skeleton shape="circle" className="skeleton-plan-day-date" />
+      </div>)}
+    </SkeletonCard>
+    <div className="skeleton-plan-summary"><Skeleton className="skeleton-section-heading" /><Skeleton className="skeleton-plan-progress" /></div>
+    <SkeletonCard className="skeleton-plan-tasks">
+      {Array.from({ length: 4 }, (_, index) => <div className="skeleton-grouped-row" key={index}>
+        <Skeleton shape="circle" className="skeleton-plan-checkbox" />
+        <SkeletonText lines={2} />
+        <Skeleton className="skeleton-grouped-trailing" />
+      </div>)}
+    </SkeletonCard>
+  </div>;
+}
+
+function NotificationsSkeleton() {
+  return <div className="skeleton-page skeleton-page--notifications">
+    <div className="skeleton-notification-filters"><SkeletonButton /><SkeletonButton /></div>
+    <GroupedListSkeleton count={6} />
+  </div>;
+}
+
+/** Lock-in modes: the student chooses Solo or Team after the loading screen. */
+function LockInModeSkeleton() {
+  return <div className="skeleton-page skeleton-page--lock-in">
+    <SkeletonCard className="skeleton-lockin-hero"><Skeleton className="skeleton-lockin-title" /><SkeletonText lines={2} /><Skeleton className="skeleton-lockin-orbit" /></SkeletonCard>
+    <div className="skeleton-lockin-modes">
+      {Array.from({ length: 2 }, (_, index) => <SkeletonCard key={index} className="skeleton-lockin-mode"><SkeletonAvatar /><SkeletonText lines={2} /><SkeletonButton /></SkeletonCard>)}
+    </div>
+  </div>;
+}
+
 function AdminOverviewSkeleton() {
   const rows = (count) => Array.from({ length: count }, (_, index) => (
     <div className="skeleton-admin-row" key={index}>
@@ -175,6 +245,11 @@ function StandardSkeleton({ variant }) {
   if (variant === "admin-list") return <div className="skeleton-page"><SkeletonCard className="skeleton-list-card">{Array.from({ length: 5 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /><SkeletonButton /></div>)}</SkeletonCard></div>;
   if (variant === "admin-form") return <div className="skeleton-page"><SkeletonCard><SkeletonText lines={2} />{Array.from({ length: 4 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonText lines={2} /><SkeletonButton /></div>)}</SkeletonCard></div>;
   if (variant === "admin-overview") return <AdminOverviewSkeleton />;
+  if (variant === "list") return <GroupedListSkeleton />;
+  if (variant === "review") return <ReviewSkeleton />;
+  if (variant === "study-plan") return <StudyPlanSkeleton />;
+  if (variant === "notifications") return <NotificationsSkeleton />;
+  if (variant === "lock-in") return <LockInModeSkeleton />;
   if (variant === "dashboard") return <DashboardSkeleton />;
   if (variant === "profile") return <ProfileSkeleton />;
   if (variant === "progress") return <ProgressSkeleton />;
@@ -200,7 +275,11 @@ function loadingVariant(pathname) {
   if (/\/attempts?\//.test(pathname)) return "quiz";
   if (/^\/(materials|questions)$/.test(pathname)) return "material-list";
   if (/^\/materials\/catalog\/[^/]+$/.test(pathname)) return "sheet-library";
-  if (/^\/(notifications|review|bookmarks|community|achievements|subscription|my-group|analysis)/.test(pathname)) return "list";
+  if (/^\/review(?:\/|$)/.test(pathname)) return "review";
+  if (/^\/study-plan(?:\/|$)/.test(pathname)) return "study-plan";
+  if (/^\/notifications(?:\/|$)/.test(pathname)) return "notifications";
+  if (/^\/lock-in(?:\/|$)|^\/lockin(?:\/|$)/.test(pathname)) return "lock-in";
+  if (/^\/(bookmarks|community|achievements|subscription|my-group|analysis)/.test(pathname)) return "list";
   return "grid";
 }
 
@@ -211,7 +290,8 @@ export function LoadingPanel({ variant = "auto" }) {
   const metadata = routeMetadata(location.pathname, t);
   const resolvedVariant = variant === "auto" ? loadingVariant(location.pathname) : variant;
   return (
-    <section className={`loading-panel loading-panel--${resolvedVariant}`} aria-label={t("common.loading")} aria-busy="true">
+    <section className={`loading-panel loading-panel--${resolvedVariant}`} aria-label={t("common.loading")} aria-busy="true" data-skeleton-system="cupertino">
+      <span className="visually-hidden" role="status">{t("common.loading")}</span>
       {!hasPageIdentity && <h1 className="visually-hidden">{metadata.h1}</h1>}
       <StandardSkeleton variant={resolvedVariant} />
     </section>
