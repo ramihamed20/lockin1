@@ -3309,7 +3309,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const rawTop = pan.top - delta.y + (delta.y ? pan.baseVirtualY : 0);
       const top = elasticScrollPosition(rawTop, pan.bounds.minScrollTop, pan.bounds.maxScrollTop, pan.limits.y);
       stage.scrollTop = top.legal;
-      elasticY = delta.y ? -top.overshoot : 0;
+      // Never stretch the first vertical page into the toolbar or expose
+      // empty space above it on a downward pull. Normal page scrolling and
+      // the end-of-document edge keep their existing behaviour.
+      const atVerticalStart = pageDirection === "vertical" && sheet?.pdfUrl
+        && rawTop < pan.bounds.minScrollTop;
+      elasticY = atVerticalStart ? 0 : (delta.y ? -top.overshoot : 0);
     }
     // Free pan applies both components of the physical finger vector. Bounds
     // constrain each axis independently, so reaching one edge never kills the
@@ -3346,7 +3351,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (!sheet?.pdfUrl || !stage || !root) return fullBounds;
     const stageRect = stage.getBoundingClientRect();
     const rootRect = root.getBoundingClientRect();
-    return visibleDocumentScrollBounds({
+    const bounds = visibleDocumentScrollBounds({
       contentStartX: rootRect.left - stageRect.left + stage.scrollLeft,
       contentStartY: rootRect.top - stageRect.top + stage.scrollTop,
       contentWidth: root.offsetWidth,
@@ -3361,6 +3366,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       verticalEdgeReveal: WORKSPACE_GESTURE.verticalEdgeReveal,
       preserveCurrent
     });
+    if (pageDirection === "vertical") {
+      // The stage reserves toolbar clearance in its top padding, not in the
+      // scroll coordinate. Document-relative bounds previously set the minimum
+      // to paddingTop - edgeReveal and blocked returning to scrollTop=0.
+      // That left page one hidden behind the toolbar after a downward swipe.
+      bounds.minScrollTop = 0;
+    }
+    return bounds;
   }
 
   function schedulePanFrame() {
@@ -3432,7 +3445,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         const horizontalLimit = Math.min(60, Math.max(24, stage.clientWidth * .08)) * speedFactor;
         const verticalLimit = Math.min(60, Math.max(24, stage.clientHeight * .07)) * speedFactor;
         const edgeX = -elasticScrollPosition(next.unclampedLeft, momentum.bounds.minScrollLeft, momentum.bounds.maxScrollLeft, horizontalLimit).overshoot;
-        const edgeY = -elasticScrollPosition(next.unclampedTop, momentum.bounds.minScrollTop, momentum.bounds.maxScrollTop, verticalLimit).overshoot;
+        const edgeY = pageDirection === "vertical" && sheet?.pdfUrl
+          && next.unclampedTop < momentum.bounds.minScrollTop
+          ? 0
+          : -elasticScrollPosition(next.unclampedTop, momentum.bounds.minScrollTop, momentum.bounds.maxScrollTop, verticalLimit).overshoot;
         stopScrollMomentum({ endActivity: false });
         startPanSpringBack(edgeX, edgeY);
         return;
@@ -6316,7 +6332,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   return (
     <main className={`workspace-v2${zoomWindow ? " has-zoom-window" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}${singleTab ? " has-single-tab" : ""}`} ref={rootRef} data-knowledge-open={knowledgeOpen ? "true" : undefined} aria-busy={!workspaceReady} aria-label={t("focus.workspaceLabel", { title: sheet.title })}>
       <div className={`workspace-v2-body${sideOpen ? " has-side" : ""}`}>
-        <section ref={readerRef} className={`workspace-v2-reader${sheet.pdfUrl && pageDirection === "vertical" ? " is-vertical-reading" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
+        <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
           {!isMulti ? toolbarMarkup : paneActive && toolbarHost ? createPortal(toolbarMarkup, toolbarHost) : null}
 
           {marksSet && <button type="button" className="workspace-marks-chip" data-workspace-marks-chip="" onClick={() => setMarksOpen(true)}>
