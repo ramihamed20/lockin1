@@ -1083,22 +1083,35 @@ export function ContinuousA4Pdf({
   const maximumPageHeight = pages.reduce((height, entry) => Math.max(height,
     A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)), 0);
   const horizontalDocumentHeight = maximumPageHeight * zoom;
-  // The whiteboard's Add page control follows the final page. Give the stage
-  // a little extra reachable scroll room so the control can clear the bottom
-  // edge and remain tappable, including on short / touch viewports. Ordinary
-  // PDFs keep exactly the same scroll geometry and first-page alignment.
-  const whiteboardEndRoom = documentFooter ? Math.max(72, Math.min(stageViewport.height * 0.15, 180)) : 0;
-  const horizontalContentWidth = pages.length * slotWidth + (documentFooter ? slotWidth : 0);
+  // Render the whiteboard action outside the zoomed page layer. Previously it
+  // was scaled with the PDF and could sit below the scrollable surface's final
+  // visible edge. Give it an explicit unscaled 88px slot and enough bottom
+  // clearance for the iPad home indicator / floating page dock.
+  const footerSlotHeight = documentFooter ? 88 : 0;
+  const footerGap = documentFooter ? 20 : 0;
+  const footerBottomClearance = documentFooter
+    ? Math.min(200, Math.max(96, stageViewport.height * 0.22))
+    : 0;
+  const footerTop = baseDocumentHeight * zoom + footerGap;
+  const verticalSurfaceHeight = documentFooter
+    ? footerTop + footerSlotHeight + footerBottomClearance
+    : baseDocumentHeight * zoom + stageViewport.height / 2;
+  const horizontalContentWidth = pages.length * slotWidth;
   const surfaceStyle = /** @type {import("react").CSSProperties} */ ({
     "--workspace-a4-zoom": zoom,
-    width: isHorizontal ? `${Math.max(stageViewport.width, horizontalContentWidth)}px` : `${Math.max(scaledDocumentWidth, stageViewport.width)}px`,
-    height: isHorizontal ? `${Math.max(stageViewport.height, horizontalDocumentHeight + stageViewport.height / 2)}px` : `${baseDocumentHeight * zoom + stageViewport.height / 2 + whiteboardEndRoom}px`
+    width: isHorizontal ? `${Math.max(stageViewport.width, horizontalContentWidth + (documentFooter ? slotWidth : 0))}px` : `${Math.max(scaledDocumentWidth, stageViewport.width)}px`,
+    height: isHorizontal ? `${Math.max(stageViewport.height, horizontalDocumentHeight + stageViewport.height / 2)}px` : `${verticalSurfaceHeight}px`
   });
   const liveLayerStyle = /** @type {import("react").CSSProperties} */ ({
     left: isHorizontal ? "0px" : `${Math.max(0, (stageViewport.width - scaledDocumentWidth) / 2)}px`,
     top: "0px",
     width: isHorizontal ? `${horizontalContentWidth}px` : `${scaledDocumentWidth}px`,
     height: isHorizontal ? `${horizontalDocumentHeight}px` : `${baseDocumentHeight * zoom}px`
+  });
+  const footerAnchorStyle = /** @type {import("react").CSSProperties} */ ({
+    left: isHorizontal ? `${horizontalContentWidth}px` : `${Math.max(0, (stageViewport.width - scaledDocumentWidth) / 2)}px`,
+    top: isHorizontal ? `${Math.max(96, stageViewport.height * 0.32)}px` : `${footerTop}px`,
+    width: isHorizontal ? `${slotWidth}px` : `${scaledDocumentWidth}px`
   });
   const documentStyle = /** @type {import("react").CSSProperties} */ ({
     "--workspace-a4-zoom": zoom,
@@ -1232,9 +1245,9 @@ export function ContinuousA4Pdf({
             </div>}
           </section>
         ))}
-        {documentProxy && documentFooter}
         </div>
       </div>
+      {documentProxy && documentFooter && <div className="workspace-v2-a4-footer-anchor" style={footerAnchorStyle}>{documentFooter}</div>}
       {!documentProxy && <div className="workspace-v2-a4-status" role={pdfError ? "alert" : "status"} style={{ bottom: "auto", height: `${stageViewport.height}px` }}>
         <p>{pdfError || (loadStalled ? "This PDF is taking longer than usual." : status)}</p>
         {(pdfError || loadStalled) && <button type="button" onClick={retryDocument}>Retry PDF</button>}
