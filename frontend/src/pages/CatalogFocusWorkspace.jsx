@@ -242,7 +242,6 @@ import { PageNavigator, ZoomBar } from "./focus-workspace/pageControls.jsx";
 import { SettingsPopover } from "./focus-workspace/SettingsPopover.jsx";
 import { ToolOptionsPanel } from "./focus-workspace/ToolOptionsPanel.jsx";
 import { QuickColorPicker } from "./focus-workspace/QuickColorPicker.jsx";
-import { ToolbarAccessories } from "./focus-workspace/ToolbarAccessories.jsx";
 import { AddMenu, CardEditor, ExportMenu, MoreMenu, PageBackgroundMenu, SearchMenu, StudyMenu, TextEditor } from "./focus-workspace/menus.jsx";
 import { FavoritePens } from "./focus-workspace/FavoritePens.jsx";
 import { FAVORITE_PENS_CHANGE_EVENT, FAVORITE_PENS_KEY, FAVORITE_PEN_TOOLS, MAX_FAVORITE_PENS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, normalizeFavoritePens, saveFavoritePens } from "./focus-workspace/favoritePens.js";
@@ -6369,21 +6368,14 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
-              {/* Keep the original compact single-row toolbar until the first
-                  pen is starred. Extra rows must never appear for students
-                  who have no saved presets. */}
-              {favoritePens.length === 0 && <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
-                allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
-                onSave={commitCustomColor} portalRef={rootRef} t={t} />}
-            </DockableToolRail>
-            {/* Saved colors and pens share the UPPER toolbar row with the tab strip,
-                without making a third row or concealing the five presets. */}
-            {workspaceReady && favoritePens.length > 0 && <ToolbarAccessories>
+              {/* All colours and up to five starred pens stay in the SAME
+                  horizontally scrolling tool rail as the writing tools. Do
+                  not move them to a tab row when a favorite is added. */}
               <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
                 allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
                 onSave={commitCustomColor} portalRef={rootRef} t={t} />
-              {favoritePensStrip("is-toolbar")}
-            </ToolbarAccessories>}
+              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
+            </DockableToolRail>
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
                 because the rail scrolls them out of reach exactly when writing
                 needs them. */}
