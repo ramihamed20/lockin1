@@ -48,10 +48,10 @@ test("account, edition, view, version and page have independent in-memory identi
 
 test("untrusted browser preferences contain only the permitted appearance choices", () => {
   assert.deepEqual(companionPreferences({ character: "admin", motion: "false", hidden: "true", token: "ignored" }), {
-    character: "boy", motion: true, hidden: false
+    character: "boy", motion: true, hidden: false, phoneAdded: false, position: null
   });
   assert.deepEqual(companionPreferences({ character: "girl", motion: false, hidden: true }), {
-    character: "girl", motion: false, hidden: true
+    character: "girl", motion: false, hidden: true, phoneAdded: false, position: null
   });
 });
 
@@ -63,4 +63,18 @@ test("writing preserves Arabic combining marks and emoji as graphemes", () => {
   assert.equal(chunks.at(-1), "👩🏽‍⚕️");
   assert.ok(writingDuration(5000) <= 4800);
   assert.ok(writingDuration(1) >= 400);
+});
+
+test("page-specific cards lead while authored order is preserved within each scope", () => {
+  const rows = [
+    row({ id: "00000000-0000-4000-8000-000000000001", page: null, question: "General first" }),
+    row({ id: "00000000-0000-4000-8000-000000000002", page: 2, question: "Page-specific first" }),
+    row({ id: "00000000-0000-4000-8000-000000000003", page: 2, question: "Page-specific second" }),
+    row({ id: "00000000-0000-4000-8000-000000000004", page: null, question: "General second" }),
+    row({ id: "00000000-0000-4000-8000-000000000005", page: 3, question: "Other page" })
+  ];
+  const titles = assistanceForPage(rows, 2, 1, 3).map(x => x.question);
+  assert.deepEqual(titles, ["Page-specific first", "Page-specific second", "General first", "General second"]);
+  assert.deepEqual(assistanceForPage(rows, 3, 1, 3).map(x => x.question), ["Other page", "General first", "General second"]);
+  assert.deepEqual(rows.map(x => x.question), ["General first", "Page-specific first", "Page-specific second", "General second", "Other page"]);
 });
