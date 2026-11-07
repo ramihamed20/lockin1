@@ -205,6 +205,13 @@ test("all five favorite pens are visible at once in the iPad toolbar", async ({ 
     await page.setViewportSize(viewport);
     const group = page.locator(".workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-favorite-pens.is-toolbar");
     await expect(group).toBeVisible();
+    // The favorites never occupy a third row below the drawing tools.
+    // On portrait iPad/mobile they are ABOVE those tools, on desktop beside.
+    await expect.poll(async () => page.locator(".workspace-v2-toolbar").evaluate((bar) => {
+      const accessory = bar.querySelector(".workspace-toolbar-accessories")?.getBoundingClientRect();
+      const tools = bar.querySelector(".workspace-tool-dock")?.getBoundingClientRect();
+      return Boolean(accessory && tools && accessory.top <= tools.top + 2);
+    })).toBe(true);
     const buttons = group.locator(".workspace-favorite-pen-slot > .workspace-favorite-pen");
     await expect(buttons).toHaveCount(5);
     for (const button of await buttons.all()) await expect(button).toBeInViewport();
