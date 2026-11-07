@@ -1041,3 +1041,172 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspac
     max-width: calc(100% - 16px);
   }
 }
+
+
+/* V14: Inspector contrast fix and compact theme-consistent surfaces.
+   A single opaque card and its labels/tiles use matching surface and text
+   tokens. Earlier glass/ink styles mixed a light card with dark-mode tiles,
+   white labels and pen-colored sliders. Keep ink swatches themselves intact. */
+
+/* These scoped surface pairs guarantee readable contrast even where a
+   historical toolbar variable remains dark in a light theme. Accents still
+   resolve from the current Lockin site's --accent tokens. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options {
+  --ins-bg: #171b26;
+  --ins-tile: #252a36;
+  --ins-well: #202633;
+  --ins-text: #eef1f7;
+  --ins-muted: #a8b0c0;
+  --ins-border: rgb(255 255 255 / .10);
+  --ins-track: #485163;
+  --ins-active: var(--accent);
+  --ins-active-text: var(--accent-text);
+  --ins-soft: var(--accent-soft);
+  --fx-text: var(--ins-text);
+  --fx-text-2: var(--ins-muted);
+  --fx-text-3: var(--ins-muted);
+  --fx-solid: var(--ins-bg);
+  --fx-fill: var(--ins-tile);
+  --fx-fill-strong: var(--ins-well);
+  --fx-hair: var(--ins-border);
+  --fx-edge: var(--ins-border);
+  --workspace-panel: var(--ins-bg);
+  --workspace-control-bg: var(--ins-tile);
+  --workspace-control-border: var(--ins-border);
+  color: var(--ins-text);
+  background: var(--ins-bg);
+  border-color: var(--ins-border);
+  box-shadow: var(--shadow-float);
+}
+:root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v2-tool-options {
+  --ins-bg: #fff;
+  --ins-tile: var(--surface-2);
+  --ins-well: var(--surface-3);
+  --ins-text: #141821;
+  --ins-muted: #535b6b;
+  --ins-border: var(--border);
+  --ins-track: var(--border-strong);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options::before {
+  background: var(--ins-bg);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-options-title {
+  color: var(--ins-text);
+  border-bottom-color: var(--ins-border);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-options-title strong,
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-range-heading output {
+  color: var(--ins-text);
+  opacity: 1;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(
+  .workspace-v2-tool-options-title small,
+  .workspace-v2-range-heading > span,
+  .workspace-v7-panel-body h3,
+  .workspace-v7-panel-body p,
+  .workspace-tool-extras-toggle
+) {
+  color: var(--ins-muted);
+  opacity: 1;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-preview-well {
+  background: var(--ins-well);
+  border-color: var(--ins-border);
+  box-shadow: none;
+}
+
+/* All ink-type, shape and eraser choices are grouped neutral tiles; only the
+   selected one uses the site's accent, never its own ink color as the tile. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button,
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button {
+  color: var(--ins-text);
+  background: var(--ins-tile);
+  border: 1px solid var(--ins-border);
+  box-shadow: none;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button.is-active,
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-pen-profiles button.is-active {
+  color: var(--ins-active-text);
+  background: var(--ins-soft);
+  border-color: var(--accent-border);
+  box-shadow: none;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v4-pen-profiles .workspace-v4-nib {
+  color: var(--ins-muted);
+  opacity: 1;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v4-pen-profiles button.is-active .workspace-v4-nib {
+  color: var(--ins-active-text);
+}
+html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body :is(.workspace-v4-pen-profiles, .workspace-v2-icon-choices) button:hover:not(.is-active) {
+  color: var(--ins-text);
+  background: var(--ins-well);
+}
+
+/* The preview should show ink, but thickness and opacity are UI controls,
+   following the selected theme rather than the selected pen color. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-webkit-slider-runnable-track {
+  height: 4px;
+  background: linear-gradient(var(--ink-track-direction, to right),
+    var(--ins-active) 0 var(--workspace-range-progress),
+    var(--ins-track) var(--workspace-range-progress) 100%);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 2px solid var(--ins-bg);
+  border-radius: 50%;
+  background: var(--ins-active);
+  box-shadow: 0 1px 4px rgb(0 0 0 / .18);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-track {
+  height: 4px;
+  background: var(--ins-track);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-progress {
+  height: 4px;
+  background: var(--ins-active);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--ins-bg);
+  background: var(--ins-active);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action) {
+  color: var(--ins-text);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options :is(.workspace-v2-settings-toggle, .workspace-v2-settings-action) small {
+  color: var(--ins-muted);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-switch-track {
+  background: var(--ins-track);
+  border-color: var(--ins-border);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-settings-toggle[aria-checked="true"] .workspace-v2-switch-track {
+  background: var(--ins-active);
+  border-color: var(--ins-active);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-switch-track > span {
+  background: #fff;
+}
+
+/* Keep the compact floating card contained and the control labels readable. */
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink {
+  border-radius: 18px;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-panel-body {
+  padding-inline: 12px;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-tool-options-title {
+  min-height: 42px;
+  padding-inline: 14px;
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v7-panel-body .workspace-v7-adjust {
+  color: var(--ins-text);
+}
+:root[data-theme] .workspace-v2 .workspace-v2-tool-options .workspace-v2-custom-color-editor {
+  color: var(--ins-text);
+  background: var(--ins-tile);
+}
