@@ -298,27 +298,73 @@ for (const viewport of [{ width: 820, height: 1180 }, { width: 390, height: 844 
     await page.setViewportSize(viewport);
     await openReader(page);
     await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
-    await expect(page.locator(".workspace-v2-reader")).toHaveClass(/is-vertical-reading/);
-    const stageAndPageClearance = async () => page.evaluate(() => {
+    const pageClearance = async () => page.evaluate(() => {
       const toolbar = document.querySelector(".workspace-v2-reader > .workspace-v2-toolbar");
       const stage = document.querySelector(".workspace-v2-document-stage");
       const firstPage = stage?.querySelector('[data-pdf-page="1"]');
-      if (!toolbar || !stage || !firstPage) return { stage: -999, page: -999 };
-      return {
-        stage: stage.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom,
-        page: firstPage.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom
-      };
+      if (!toolbar || !stage || !firstPage) return -999;
+      return firstPage.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom;
     });
-    // The scroll viewport itself starts after the toolbar, even when its first
-    // page is off-screen; content can never pass underneath the tool rail.
-    await expect.poll(async () => (await stageAndPageClearance()).stage, { timeout: 10_000 }).toBeGreaterThanOrEqual(-1);
-    await expect.poll(async () => (await stageAndPageClearance()).page, { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
+    // Don't merely assert "below the toolbar": a half-viewport blank gap
+    // above the page passes that test. Page one must START near the rail.
+    await expect.poll(pageClearance, { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
+    await expect.poll(pageClearance).toBeLessThanOrEqual(35);
 
-    // Reproduce dragging toward later pages and then pulling back to the
-    // beginning. The old overlaid grid allowed the PDF to travel under tools.
-    await page.locator(".workspace-v2-document-stage").evaluate((stage) => { stage.scrollTop = stage.scrollHeight * 0.25; });
-    await expect.poll(async () => (await stageAndPageClearance()).stage).toBeGreaterThanOrEqual(-1);
-    await page.locator(".workspace-v2-document-stage").evaluate((stage) => { stage.scrollTop = 0; });
-    await expect.poll(async () => (await stageAndPageClearance()).page).toBeGreaterThanOrEqual(6);
+    // A swipe away and return must land at the same physical beginning. The
+    // old document-relative minScrollTop stopped early, hiding the page title
+    // behind the overlay when the reader returned from later pages.
+    const stage = page.locator(".workspace-v2-document-stage");
+    await stage.evaluate((node) => { node.scrollTop = node.scrollHeight * 0.25; });
+    await stage.evaluate((node) => { node.scrollTop = 0; });
+    await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBe(0);
+    await expect.poll(pageClearance).toBeGreaterThanOrEqual(6);
+    await expect.poll(pageClearance).toBeLessThanOrEqual(35);
   });
 }
+
+
+test("finger drag returns vertical page one to the toolbar with no rubber-band gap", async ({ page }) => {
+  await mockReader(page);
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await openReader(page);
+  const stage = page.locator(".workspace-v2-document-stage");
+  const firstPage = stage.locator('[data-pdf-page="1"]');
+  const clearance = async () => page.evaluate(() => {
+    const toolbar = document.querySelector(".workspace-v2-reader > .workspace-v2-toolbar");
+    const pageOne = document.querySelector('.workspace-v2-document-stage [data-pdf-page="1"]');
+    return pageOne.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom;
+  });
+  await expect(firstPage).toBeVisible();
+  await expect.poll(clearance).toBeGreaterThanOrEqual(6);
+  await expect.poll(clearance).toBeLessThanOrEqual(35);
+
+  // Move into the document, then drag down beyond the beginning of the
+  // scrolling range. This uses the same pointer events as iPad touch panning,
+  // rather than assigning scrollTop which bypasses all gesture bounds.
+  await stage.evaluate((node) => { node.scrollTop = 450; });
+  await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(400);
+  const bounds = await stage.boundingBox();
+  const x = bounds.x + bounds.width / 2;
+  const y = bounds.y + Math.min(300, bounds.height / 3);
+  const send = (type, py) => stage.dispatchEvent(type, {
+    pointerId: 91, pointerType: "touch", isPrimary: true,
+    clientX: x, clientY: py, button: 0,
+    buttons: type === "pointerup" ? 0 : 1,
+    pressure: type === "pointerup" ? 0 : .5, width: 9, height: 9,
+    bubbles: true, cancelable: true
+  });
+  await send("pointerdown", y);
+  for (let i = 1; i <= 8; i += 1) await send("pointermove", y + i * 85);
+  await send("pointerup", y + 8 * 85);
+  await expect.poll(async () => stage.evaluate((node) => node.scrollTop), { timeout: 10_000 }).toBe(0);
+  await expect.poll(clearance).toBeGreaterThanOrEqual(6);
+  await expect.poll(clearance).toBeLessThanOrEqual(35);
+  // An edge pull on page one must not shift the PDF with a second elastic
+  // transform or leave it springing back while the page is already at start.
+  await send("pointerdown", y);
+  for (let i = 1; i <= 3; i += 1) await send("pointermove", y + i * 70);
+  await send("pointerup", y + 3 * 70);
+  await expect.poll(async () => firstPage.evaluate((node) => node.closest(".workspace-v2-a4-live-layer")?.style.transform || "")).toBe("");
+  await expect.poll(clearance).toBeGreaterThanOrEqual(6);
+  await expect.poll(clearance).toBeLessThanOrEqual(35);
+});
