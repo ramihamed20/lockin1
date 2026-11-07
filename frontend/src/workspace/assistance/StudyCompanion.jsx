@@ -39,7 +39,7 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
   return <section className="study-companion-panel" role="dialog" aria-modal="false" aria-labelledby={id}>
     <header><span><Sparkles size={17} aria-hidden="true" />{t("studyCompanion.name")}</span><button type="button" ref={closeRef} onClick={onClose} aria-label={t("studyCompanion.close")}><X size={18} /></button></header>
     <div className="study-companion-lesson">
-      {idea.general && <div className="study-companion-ready-note"><p>{readyCopy.general}</p><p role="status">{loadFailed ? readyCopy.failed : readyCopy.empty}</p><button type="button" className="btn btn-soft" onClick={onRetry}>{readyCopy.retry}</button></div>}
+      {idea.general && <div className="study-companion-ready-note"><p className="study-companion-ready-label"><Sparkles size={13} aria-hidden="true" />{readyCopy.general}</p><p role="status">{loadFailed ? readyCopy.failed : readyCopy.empty}</p><button type="button" className="study-companion-retry" onClick={onRetry}>{readyCopy.retry}</button></div>}
       <h2 id={id} dir="auto">{idea.question}</h2>
       {!explaining && <button type="button" className="btn btn-primary study-companion-explain" onClick={() => setExplaining(true)}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.explain")}</button>}
       {explaining && <TypedExplanation text={idea.explanation} animate={motion} onComplete={() => setComplete(true)} />}
@@ -50,9 +50,9 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
       </div>}
       {!idea.general && <div className="study-companion-save"><button type="button" className="btn btn-soft" disabled={busy} aria-busy={busy} aria-pressed={idea.saved} onClick={onSave}><Bookmark size={15} fill={idea.saved ? "currentColor" : "none"} aria-hidden="true" />{t(busy ? "studyCompanion.saving" : idea.saved ? "studyCompanion.saved" : "studyCompanion.save")}</button></div>}
       {error && <p className="study-companion-error" role="alert">{error}</p>}
-      {cardCount > 1 && <nav className="study-companion-card-nav"><button type="button" disabled={busy} onClick={onPrevious}>{t("common.previous")}</button><span dir="ltr">{cardNumber} / {cardCount}</span><button type="button" disabled={busy} onClick={onNext}>{t("common.next")}</button></nav>}
       <span className="study-companion-status" role="status">{explaining ? t(complete ? "studyCompanion.complete" : "studyCompanion.typing") : ""}</span>
     </div>
+    {cardCount > 1 && <nav className="study-companion-card-nav" aria-label={t("studyCompanion.name")}><button type="button" disabled={busy} onClick={onPrevious}>{t("common.previous")}</button><span dir="ltr">{cardNumber} / {cardCount}</span><button type="button" disabled={busy} onClick={onNext}>{t("common.next")}</button></nav>}
   </section>;
 }
 
@@ -139,7 +139,7 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
   if (!enabled) return null;
   const target = portalRoot || document.body;
   if (preferences.hidden) return createPortal(<button type="button" className="study-companion-restore" onClick={() => setPreferences((current) => ({ ...current, hidden: false }))}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.show")}</button>, target);
-  return createPortal(<div ref={rootRef} dir={direction} className={"study-companion" + (motion ? " has-motion" : "")} data-motion-state={motion ? characterMotion.state : "idle"} onPointerDown={(event) => event.stopPropagation()}>
+  return createPortal(<div ref={rootRef} dir={direction} className={"study-companion" + (motion ? " has-motion" : "") + (surface ? " is-expanded" : "")} data-motion-state={motion ? characterMotion.state : "idle"} onPointerDown={(event) => event.stopPropagation()}>
     <button type="button" className="study-companion-pet" ref={petRef} onClick={() => { setError(""); const targetSurface = idea ? "idea" : "saved"; setSurface(surface === targetSurface ? "" : targetSurface); }} aria-label={t(idea ? "studyCompanion.open" : "studyCompanion.savedIdeas")} aria-expanded={surface === "idea" || surface === "saved"}><CompanionCharacter character={preferences.character} state={characterMotion.state} sequenceKey={characterMotion.sequenceKey} motion={motion} /></button>
     <button type="button" className="study-companion-preferences" onClick={() => setSurface(surface === "settings" ? "" : "settings")} aria-label={t("studyCompanion.settings")} aria-expanded={surface === "settings"}><Settings size={15} aria-hidden="true" /></button>
     {!surface && idea && <div className="study-companion-bubble"><button type="button" onClick={() => setSurface("idea")}><Sparkles size={14} aria-hidden="true" /><strong dir="auto">{idea.teaser}</strong></button>{ideas.length > 1 && <button type="button" className="study-companion-next" onClick={() => { setSelected((selected + 1) % ideas.length); setError(""); }}><MoreHorizontal size={15} aria-hidden="true" />{t("studyCompanion.nextIdea")}</button>}</div>}
