@@ -31,6 +31,18 @@ export function loadRecentColors() {
   }
 }
 
+// All mounted sheet readers share the same device palette. The ordinary
+// "storage" event only fires in *other browser tabs*, so broadcast locally too.
+export const WORKSPACE_PALETTE_CHANGE_EVENT = "lock-in:workspace-palette-changed";
+
+export function persistRecentColors(colors, { notify = false } = {}) {
+  const cleaned = addSavedColor(colors, null, MAX_PALETTE_COLORS, COLORS);
+  try { window.localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(cleaned)); }
+  catch { /* Storage unavailable: the chosen colour remains usable this visit. */ }
+  if (notify) window.dispatchEvent?.(new Event(WORKSPACE_PALETTE_CHANGE_EVENT));
+  return cleaned;
+}
+
 export function loadStringList(key, maximum = 8) {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) || "[]");
