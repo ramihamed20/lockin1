@@ -1974,9 +1974,19 @@ html.ix-hover .workspace-tab:not(.is-active):is(:hover, :focus-within) .workspac
   transition: width 160ms var(--fx-spring), height 160ms var(--fx-spring), background-color 160ms ease;
 }
 
-/* Picking an ink swatch briefly makes the active toolbar pen dip and draw a
-   short stroke in the chosen colour. The glyph and dot keep that colour after
-   the motion; nothing grows outside the button's touch target. */
+/* WebKit retained a second painted SVG when an ink selection remounted and
+   transformed the active pen. Keep one stable, untransformed glyph, clipped to
+   its own button; animate the separate ink trace instead. */
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"]) {
+  overflow: hidden;
+  isolation: isolate;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"]) > svg {
+  display: block;
+  flex: none;
+  transform: none;
+  transition: color 180ms ease;
+}
 .workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:has(> .workspace-v3-tool-swatch) > svg {
   color: var(--workspace-tool-color);
 }
@@ -1994,12 +2004,6 @@ html.ix-hover .workspace-tab:not(.is-active):is(:hover, :focus-within) .workspac
   opacity: 0;
   transform-origin: left center;
 }
-@keyframes workspace-v3-pen-reink {
-  0% { transform: translateY(-1px) rotate(0) scale(1.08); }
-  36% { transform: translateY(1px) rotate(-12deg) scale(.97); }
-  68% { transform: translateY(-2px) rotate(5deg) scale(1.13); }
-  100% { transform: translateY(-1px) rotate(0) scale(1.08); }
-}
 @keyframes workspace-v3-ink-swipe {
   0% { opacity: 0; transform: scaleX(.12) translateY(2px); }
   28% { opacity: .92; transform: scaleX(.35) translateY(0); }
@@ -2007,15 +2011,11 @@ html.ix-hover .workspace-tab:not(.is-active):is(:hover, :focus-within) .workspac
   100% { opacity: 0; transform: scaleX(1); }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-color-animated > svg {
-    animation: workspace-v3-pen-reink 440ms cubic-bezier(.2, .8, .2, 1) both;
-  }
   .workspace-v3-tool-button.is-color-animated > .workspace-v3-tool-color-trace {
     animation: workspace-v3-ink-swipe 540ms ease-out both;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .workspace-v3-tool-button.is-color-animated > svg { animation: none !important; }
   .workspace-v3-tool-color-trace { display: none; }
 }
 
