@@ -119,7 +119,7 @@ export default function ReviewCenter({ user = null }) {
 
 function ReviewCenterSkeleton({ inline = false }) {
   const { t } = useI18n();
-  const skeleton = <div className="review-center-skeleton" aria-label={t("review.loadingCenter")} aria-busy="true"><span /><span /><span /></div>;
+  const skeleton = <LoadingPanel variant="review" />;
   return inline ? skeleton : <Page width="reading" title={t("review.center")}>{skeleton}</Page>;
 }
 
