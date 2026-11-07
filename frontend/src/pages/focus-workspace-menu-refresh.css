@@ -1139,3 +1139,10 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-i
     max-height: min(55dvh, 390px);
   }
 }
+
+/* On phones the companion is summoned via the toolbar + menu, never a
+   floating restore chip. Tablet and desktop add menus remain unchanged. */
+.workspace-v2 .workspace-add-phone-companion { display: none; }
+@media (max-width: 600px), (max-height: 500px) and (max-width: 900px) {
+  .workspace-v2 .workspace-add-phone-companion { display: flex; }
+}
