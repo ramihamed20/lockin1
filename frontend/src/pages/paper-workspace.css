@@ -150,21 +150,19 @@
 @keyframes paper-step-in { from { opacity: 0; transform: translateY(6px); } }
 
 /* ---------- Workspace ---------- */
-/* The player is the primary element: it and Status span the full width, with
-   the timer and search beside a compact Notes above them. The player's width
-   is the workspace's width, so cqw sizes it by its own width. */
+/* The player is primary. By default no Notes column takes up reader space. */
 .paper-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-  grid-template-areas:
-    "timer notes"
-    "search notes"
-    "player player"
-    "status status";
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "timer" "player" "status";
   gap: 16px 20px;
   width: min(100%, 1360px);
   margin-inline: auto;
   container-type: inline-size;
+}
+.paper-workspace.has-notes {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-areas: "timer notes" "player player" "status status";
 }
 .paper-timer { grid-area: timer; }
 .paper-search { grid-area: search; }
@@ -240,6 +238,7 @@
   transition: color var(--motion-fast), background var(--motion-fast);
 }
 .paper-round:hover:where(html.ix-hover *):not(:disabled) { color: var(--text); background: color-mix(in srgb, var(--text) 9%, transparent); }
+.paper-round.is-active { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 35%, var(--border)); background: var(--paper-gold-soft); }
 .paper-round.is-accent { border-color: transparent; color: var(--paper-ink); background: var(--gold); }
 .paper-round:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -658,13 +657,15 @@
     grid-template-areas: "label label" "sheet action" "facts facts" "steps steps";
   }
 }
-/* iPad portrait and phones: one column, the player first, Notes last. */
+/* iPad portrait and phones: one column; an optional Notes panel follows Status. */
 @media (max-width: 900px) {
-  .paper-workspace {
+  .paper-workspace,
+  .paper-workspace.has-notes {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "timer" "search" "player" "status" "notes";
+    grid-template-areas: "timer" "player" "status";
     gap: 14px;
   }
+  .paper-workspace.has-notes { grid-template-areas: "timer" "player" "status" "notes"; }
 }
 @media (max-width: 560px) {
   .paper-status { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "sheet" "facts" "steps" "action"; padding: 16px; }
