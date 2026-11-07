@@ -30,8 +30,8 @@ export function workspaceTabIdForPath(pathname) {
   return "";
 }
 
-const clampPercent = (number) => Math.max(20, Math.min(80, number));
-const SIZE_PRESETS = [30, 40, 50, 60, 70];
+// Keep split dividers aligned to five-percent steps while dragging.
+const snapSplitPercent = (number) => Math.max(20, Math.min(80, Math.round(number / 5) * 5));
 /** Each array position is a grid slot (left, top-right, bottom-right, bottom-left). */
 export function nextSplitSlots(slots, primaryId, addedId, side = "end") {
   if (!primaryId || !addedId) return slots;
@@ -51,7 +51,6 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
   const [slots, setSlots] = useState(/** @type {string[]} */ ([]));
   const [splitPercent, setSplitPercent] = useState(50);
   const [splitRowsPercent, setSplitRowsPercent] = useState(50);
-  const [ratioMenu, setRatioMenu] = useState("");
   const [focusedPath, setFocusedPath] = useState(location.pathname);
   const [toolbarHost, setToolbarHost] = useState(/** @type {Element|null} */ (null));
   const previousPrimary = useRef(location.pathname);
@@ -172,7 +171,6 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       setSlots((old) => nextSplitSlots(old, primaryId, id, side));
     }
     if (!isMulti) { setSplitPercent(50); setSplitRowsPercent(50); }
-    setRatioMenu("");
   }
 
   // Removing the URL-owning pane must promote a remaining sheet to the main
@@ -204,7 +202,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     setSlots(remaining);
   }
 
-  function closeSplit() { setSlots([]); setRatioMenu(""); setFocusedPath(location.pathname); }
+  function closeSplit() { setSlots([]); setFocusedPath(location.pathname); }
   function splitAxisIsRows(axis) {
     const stacked = window.matchMedia("(max-width: 640px)").matches;
     return axis === "primary" ? (stacked && liveSlots.length !== 4) : (!stacked || liveSlots.length === 4);
@@ -219,7 +217,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     const current = rows ? event.clientY : event.clientX;
     if (end > start) {
       const set = axis === "primary" ? setSplitPercent : setSplitRowsPercent;
-      set(clampPercent((current - start) * 100 / (end - start)));
+      set(snapSplitPercent((current - start) * 100 / (end - start)));
     }
   }
   function splitDivider(axis) {
@@ -236,29 +234,17 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       aria-valuemin={20} aria-valuemax={80} aria-valuenow={Math.round(percent)}
       tabIndex={0}
       onPointerDown={(event) => {
-        if (event.target instanceof globalThis.Element && event.target.closest("button")) return;
         event.preventDefault();
         event.currentTarget.setPointerCapture(event.pointerId);
-        setRatioMenu("");
         resizeFromPointer(event, axis);
       }}
       onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeFromPointer(event, axis); }}
       onKeyDown={(event) => {
         const delta = ["ArrowRight", "ArrowDown"].includes(event.key) ? 5 : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -5 : 0;
-        if (delta) { event.preventDefault(); set((value) => clampPercent(value + delta)); }
-        if (event.key === "Escape") setRatioMenu("");
+        if (delta) { event.preventDefault(); set((value) => snapSplitPercent(value + delta)); }
       }}
     >
       <span className="workspace-split-grip" aria-hidden="true" />
-      <button type="button" className="workspace-split-ratio-toggle" aria-label={ar ? "اختيار نسبة التقسيم" : "Choose split ratio"}
-        title={ar ? "نسب تقسيم جاهزة" : "Split size presets"}
-        aria-expanded={ratioMenu === axis}
-        onClick={() => setRatioMenu((opened) => opened === axis ? "" : axis)}>{Math.round(percent)}%</button>
-      {ratioMenu === axis && <div className="workspace-split-ratio-presets" role="group" aria-label={ar ? "نسب تقسيم الشيتات" : "Sheet split presets"}>
-        {SIZE_PRESETS.map((value) => <button key={value} type="button" className={Math.round(percent) === value ? "is-selected" : ""}
-          aria-label={`${value}/${100 - value}`} aria-pressed={Math.round(percent) === value}
-          onClick={() => { set(value); setRatioMenu(""); }} >{value}/{100 - value}</button>)}
-      </div>}
     </div>;
   }
 
