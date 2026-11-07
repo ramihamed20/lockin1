@@ -166,6 +166,27 @@ test("split view provides independently mounted visible PDF panes with a draggab
   assert.match(drag, /window\.addEventListener\("pointermove", pointer/);
 });
 
+test("split controls work for the active tab, touch fallback and floating toolbars", async () => {
+  const [bar, drag, css] = await Promise.all([
+    readFile(new URL("../src/workspace/catalog/WorkspaceTabBar.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/WorkspaceTabDrag.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
+  ]);
+  // The student normally opens a second sheet and that sheet becomes active.
+  // Dragging it must start a split rather than silently doing nothing.
+  assert.match(bar, /if \(tabs\.length > 1\) startDrag\(event, tab, label\)/);
+  assert.doesNotMatch(bar, /tabs\.length > 1 && !active/);
+  // Safari/Pencil users have a visible tap target if a drag is cancelled.
+  assert.match(bar, /className="workspace-tab-split"/);
+  assert.match(bar, /dropSplit\(tab\.id, "end"\)/);
+  assert.match(css, /\.workspace-tab-split \{/);
+  // A movable toolbar at the bottom must not make the stage's drop zone empty.
+  assert.match(drag, /dropGeometry\(x, y\)/);
+  assert.match(drag, /workspace-pane\.is-active, \.workspace-pane\.is-secondary/);
+  assert.doesNotMatch(drag, /toolbarBottom/);
+  assert.match(drag, /y >= toolbarRect\.top && y <= toolbarRect\.bottom/);
+});
+
 test("a visible second PDF keeps rendering, while hidden tab buffers stay suspended", async () => {
   const [reader, ink, host, css] = await Promise.all([
     readFile(new URL("../src/workspace/catalog/ContinuousA4Pdf.jsx", import.meta.url), "utf8"),
