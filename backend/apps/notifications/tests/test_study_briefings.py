@@ -124,6 +124,32 @@ def test_due_review_alert_is_owned_and_uses_only_ready_usable_items():
     assert Notification.objects.count() == 1
 
 
+def test_daily_plan_and_review_create_one_combined_inbox_notification():
+    user = create_user()
+    scheduled(user, review_enabled=True)
+    mistake(user)
+    with patch(
+        "apps.study_plans.reminders.daily_plan_briefing",
+        return_value={"count": 3, "minutes": 75},
+    ):
+        assert run()["created"] == 1
+    notifications = list(Notification.objects.filter(recipient=user))
+    assert len(notifications) == 1
+    notice = notifications[0]
+    assert notice.template_key == "study.reminder"
+    assert notice.target_route == "/study-plan"
+    assert "75" in notice.body and "3" in notice.body
+    assert "1" in notice.body
+    # Rescheduling the same user/date must not create duplicate notices.
+    StudyReminder.objects.filter(user=user).update(next_due_at=NOW)
+    with patch(
+        "apps.study_plans.reminders.daily_plan_briefing",
+        return_value={"count": 3, "minutes": 75},
+    ):
+        assert run()["created"] == 0
+    assert Notification.objects.filter(recipient=user).count() == 1
+
+
 def test_review_only_is_silent_without_questions_and_off_days_are_silent():
     user = create_user()
     reminder = scheduled(user, study_enabled=False, review_enabled=True)
