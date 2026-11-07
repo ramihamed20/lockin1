@@ -119,6 +119,7 @@ import {
   lockedGestureDelta,
   lockedGestureVelocity,
   pointerCanDraw,
+  isTouchLikePointer,
   defaultDrawingInput,
   usesTouchStylusTablet,
   pointerSnapshot,
@@ -1518,7 +1519,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const gesture = gestureRef.current;
       const activeTouchSession = gesture.pan
         || gesture.pinch?.active
-        || (gesture.drawingPointerId !== null && gesture.drawingPointerType === "touch");
+        || (gesture.drawingPointerId !== null && isTouchLikePointer(gesture.drawingPointerType));
       if (activeTouchSession) {
         cancelInteractionRef.current?.({ pointerId: null, pointerType: "touch", type: event.type });
         return;
@@ -3830,7 +3831,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       gesture.lastPenAt = Date.now();
       gesture.lastPenPosition = { x: event.clientX, y: event.clientY };
     }
-    if (event.pointerType === "touch") {
+    if (isTouchLikePointer(event.pointerType)) {
       if (suspiciousPalmContact({ event, activePenCount: gesture.penPointers.size, lastPenAt: gesture.lastPenAt, lastPenPosition: gesture.lastPenPosition, activeTouchCount: gesture.touches.size })) {
         gesture.rejectedTouches.add(event.pointerId);
         event.preventDefault();
@@ -3897,8 +3898,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       event.preventDefault();
       return;
     }
-    if (activeTool === "select" && event.pointerType !== "touch" && beginSelectionPointer(event)) return;
-    if (activeTool !== "hand" && event.pointerType !== "touch" && beginDirectObjectMove(event)) return;
+    if (activeTool === "select" && !isTouchLikePointer(event.pointerType) && beginSelectionPointer(event)) return;
+    if (activeTool !== "hand" && !isTouchLikePointer(event.pointerType) && beginDirectObjectMove(event)) return;
     const canDraw = pointerCanDraw(event.pointerType, drawingInput);
     // A stylus or mouse that lands beside the pages (the gutter, the gap
     // between pages, the space above the first one) has nothing to draw on:
@@ -3963,7 +3964,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const point = documentPoint(event.clientX, event.clientY);
     const annotationPage = point.page;
     const onPage = annotationsRef.current.filter((item) => item.page === annotationPage);
-    const tolerance = (event.pointerType === "touch" ? 14 : event.pointerType === "pen" ? 8 : 5) * pageUnitsPerCssPixel(annotationPage);
+    const tolerance = (isTouchLikePointer(event.pointerType) ? 14 : event.pointerType === "pen" ? 8 : 5) * pageUnitsPerCssPixel(annotationPage);
     const aspect = pageAspectFor(annotationPage);
     const selected = new Set(selectedIds);
     const current = onPage.filter((item) => selected.has(item.id));
@@ -3991,7 +3992,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (!ids) {
       // Hiding an area is an explicit rectangle gesture, so a finger can do it
       // even while ink remains restricted to Apple Pencil.
-      if (!coverSelecting && event.pointerType === "touch" && !pointerCanDraw("touch", drawingInput)) {
+      if (!coverSelecting && isTouchLikePointer(event.pointerType) && !pointerCanDraw("touch", drawingInput)) {
         gesture.selectionTapClear = true;
         return false;
       }
@@ -4069,7 +4070,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       gesture.lastPenAt = Date.now();
       gesture.lastPenPosition = { x: event.clientX, y: event.clientY };
     }
-    if (event.pointerType === "touch" && gesture.touches.has(event.pointerId)) {
+    if (isTouchLikePointer(event.pointerType) && gesture.touches.has(event.pointerId)) {
       const touch = gesture.touches.get(event.pointerId);
       touch.currentX = event.clientX;
       touch.currentY = event.clientY;
@@ -4099,7 +4100,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       scheduleLivePinchFrame();
       return;
     }
-    if ((gesture.mode === INTERACTION_STATE.SETTLING || gesture.mode === INTERACTION_STATE.SPRING_BACK) && event.pointerType === "touch") {
+    if ((gesture.mode === INTERACTION_STATE.SETTLING || gesture.mode === INTERACTION_STATE.SPRING_BACK) && isTouchLikePointer(event.pointerType)) {
       event.preventDefault();
       return;
     }
@@ -4200,7 +4201,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function finishWorkspacePointer(event) {
     const gesture = gestureRef.current;
     let suppressMomentum = false;
-    if (event.pointerType === "touch") {
+    if (isTouchLikePointer(event.pointerType)) {
       if (gesture.rejectedTouches.delete(event.pointerId)) return;
       gesture.touches.delete(event.pointerId);
       try { if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* Pointer capture is progressive enhancement. */ }
@@ -4306,7 +4307,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         if (documentRef.current) documentRef.current.style.transform = "";
         // A flick glides on whether it came from a finger or a stylus; a mouse
         // drag stops where it is released, as on a desktop.
-        const momentumStarted = (event.pointerType === "touch" || event.pointerType === "pen") && !suppressMomentum && startScrollMomentum(releaseVelocity);
+        const momentumStarted = (isTouchLikePointer(event.pointerType) || event.pointerType === "pen") && !suppressMomentum && startScrollMomentum(releaseVelocity);
         if (!momentumStarted) endScrollActivity();
       }
       if (event.pointerType !== "mouse") event.preventDefault();
@@ -4422,7 +4423,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   function cancelWorkspacePointer(event) {
     const gesture = gestureRef.current;
-    if (event.pointerType === "touch" && gesture.rejectedTouches.delete(event.pointerId)) {
+    if (isTouchLikePointer(event.pointerType) && gesture.rejectedTouches.delete(event.pointerId)) {
       debugGesture("rejected-touch-cancel", event);
       return;
     }
