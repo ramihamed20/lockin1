@@ -304,102 +304,175 @@
 }
 
 
-/* Five starred pens: always display the complete set without horizontal
-   clipping. Unlike ink colours, presets need to be visible together so
-   students can switch pen with a single tap. */
-.workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+/* Full ink palette + five starred pen presets.
+   This group sits OUTSIDE the horizontally scrolling drawing rail. The old
+   63–106px swatch scroller could only display two ink circles, so adding five
+   distinct pens looked broken even when all five profiles were saved. */
+.workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
+  overflow: visible;
+  justify-self: center;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-v3-quick-colors {
+  display: flex;
+  flex: 0 0 auto;
+  max-width: none;
+  margin: 0;
+  padding: 2px 5px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories .workspace-v3-color-scroll {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 178px; /* five 34px swatches including their spaces */
+  gap: 2px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories .workspace-v3-quick-color {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 40px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories .workspace-v3-color-add {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 40px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-favorite-pens.is-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
   width: max-content;
   min-width: max-content;
   max-width: none;
-  flex: 0 0 auto;
   overflow: visible;
+  padding: 2px 7px;
+  margin: 0;
   gap: 5px;
-  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
   border-radius: 12px;
-  padding: 3px 6px;
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
 }
-.workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen {
-  width: 40px;
+.workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 38px;
+  color: var(--workspace-gold, var(--fx-accent));
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen {
+  width: 42px;
   height: 40px;
   border-radius: 10px;
 }
-.workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i {
+.workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i {
   width: 22px;
   height: 22px;
 }
-.workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen.is-highlighter > i {
+.workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen.is-highlighter > i {
   height: 12px;
 }
 
-/* Tablet portrait: the main rail keeps its familiar one-line rhythm while
-   all five favorite buttons occupy one short, centered row just below it.
-   This avoids a tiny 92px scroll area that used to show only two buttons. */
+/* iPad: preserve the primary one-line tools, then place BOTH color swatches
+   and the full five-pen group in one centred accessories row. More than one
+   open sheet already adds a tabs row above the tool controls. */
 @media (min-width: 700px) and (max-width: 1179px) and (min-height: 600px) {
-  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-favorite-pens.is-toolbar) {
+  .workspace-v2 .workspace-v2-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    row-gap: 3px;
     align-content: start;
-    row-gap: 4px;
   }
-  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
-    grid-row: 2;
-    grid-column: 1 / -1;
-    justify-self: center;
-    margin: 0;
-  }
-  /* Pin the core controls to the first row. Without this, an explicit
-     favorites row could make CSS auto-placement push Undo/Redo and More down
-     to an unintended third row. */
   .workspace-v2 .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
     grid-row: 1;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    max-width: calc(100% - 8px);
   }
   .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
     .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
     grid-row: 2;
   }
-  /* Multiple document tabs already consume the first row. */
   .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
-    .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+    .workspace-v2-toolbar > .workspace-toolbar-accessories {
     grid-row: 3;
-  }
-  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen {
-    width: 42px;
-    height: 38px;
   }
 }
 
-/* Desktop: five compact favorites fit to the right of the drawing rail,
-   before the study/more controls, without adding toolbar height. */
+/* Wide desktop: accessories sit beside the tools rather than adding height. */
 @media (min-width: 1180px) and (min-height: 600px) {
-  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-favorite-pens.is-toolbar) {
+  .workspace-v2 .workspace-v2-toolbar {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
-    column-gap: 6px;
+    column-gap: 5px;
   }
   .workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit { grid-column: 1; }
   .workspace-v2 .workspace-v2-toolbar > .workspace-tool-dock[data-dock-edge="top"] { grid-column: 2; }
-  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories {
     grid-column: 3;
     grid-row: 1;
     justify-self: end;
+    gap: 6px;
   }
   .workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions { grid-column: 4; }
   .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
-    .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
-    grid-row: 2;
+    .workspace-v2-toolbar > .workspace-toolbar-accessories { grid-row: 2; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories .workspace-v3-quick-color {
+    width: 31px; height: 38px; flex-basis: 31px;
   }
-  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen {
-    width: 34px;
-    height: 38px;
-  }
-  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i {
-    width: 20px;
-    height: 20px;
-  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories .workspace-v3-color-scroll { max-width: 163px; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories .workspace-v3-color-add { height: 38px; width: 34px; flex-basis: 34px; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen { width: 34px; height: 38px; }
+  .workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i { width: 20px; height: 20px; }
 }
 
-/* Keep the phone/short-landscape toolbar untouched: presets are available
-   in the pen inspector where all five already wrap into view. */
+/* Phone: the five starred pens get their own visible toolbar row (never
+   hidden in a 2-button swiping window). Colours remain in the pen inspector,
+   saving precious space in the smallest reader. */
 @media (max-width: 699px), (max-height: 599px) and (max-width: 1179px) {
-  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
-    display: none;
+  .workspace-v2 .workspace-v2-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    row-gap: 3px;
+    align-content: start;
   }
+  .workspace-v2 .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
+    grid-row: 1;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    max-width: 100%;
+    justify-self: stretch;
+    justify-content: center;
+    gap: 0;
+  }
+  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
+    .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) { grid-row: 2; }
+  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
+    .workspace-v2-toolbar > .workspace-toolbar-accessories { grid-row: 3; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-v3-quick-colors { display: none; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-favorite-pens.is-toolbar {
+    display: flex;
+    max-width: calc(100% - 8px);
+  }
+  .workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen {
+    width: clamp(35px, 11vw, 44px);
+    height: 40px;
+  }
+  /* A bar without starred pens should keep its original height. */
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories:not(:has(.workspace-favorite-pens)) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories * { transition: none; }
 }
