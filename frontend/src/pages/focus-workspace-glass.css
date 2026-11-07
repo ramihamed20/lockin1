@@ -1692,7 +1692,7 @@ html.ix-hover .workspace-tab:not(.is-active):is(:hover, :focus-within) .workspac
 /* The whiteboard action lives in an unscaled surface slot after the last
    physical page. Its full-size hit target and bottom scroll clearance must
    remain visible above Safari's bottom edge on every zoom and orientation. */
-.workspace-v2-a4-footer-anchor { position: absolute; z-index: 5; display: flex; justify-content: center; min-width: 0; pointer-events: none; }
+.workspace-v2-a4-footer-anchor { position: absolute; z-index: 5; display: block; min-width: 0; pointer-events: none; }
 .workspace-whiteboard-footer { position: sticky; left: 0; display: grid; width: min(100%, var(--workspace-footer-view-width, 100%)); height: 88px; place-items: center; pointer-events: none; }
 .workspace-whiteboard-footer button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1px dashed rgb(120 140 170 / .55); border-radius: 12px; color: #3b4a63; background: rgb(255 255 255 / .97); cursor: pointer; pointer-events: auto; font: inherit; font-size: .82rem; font-weight: 650; box-shadow: 0 5px 18px rgb(0 0 0 / .13); }
 .workspace-whiteboard-footer button:hover { border-style: solid; background: #fff; }
