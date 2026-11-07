@@ -168,7 +168,12 @@ import {
 } from "../workspace/catalog/catalogWorkspaceState.js";
 import { COPY_OFFSET, MOVE_THRESHOLD_PX, clampSelectionDelta, contextToolbarPosition, editableTarget, expandSelectionGroups, hitTestAnnotations, isDoubleTap, reorderSelection } from "../workspace/selection/selectionController.js";
 import { A4_PAGE_WIDTH, ContinuousA4Pdf } from "../workspace/catalog/ContinuousA4Pdf.jsx";
-import { horizontalSwipeTarget } from "../workspace/catalog/horizontalPageLayout.js";
+import {
+  horizontalPageFitsViewport,
+  horizontalSwipeTarget,
+  horizontalZoomPageAnchor,
+  scrollForHorizontalPageAnchor
+} from "../workspace/catalog/horizontalPageLayout.js";
 import { WORKSPACE_PAGE_BACKGROUNDS, addSummaryPages, composeWorkspacePages, createVirtualPageId, insertVirtualPage, isVirtualPageKey, removeSummaryPages, removeVirtualPage, sanitizeVirtualPages } from "../workspace/catalog/virtualPages.js";
 import { canvasesToPdf, renderWorkspacePage } from "../workspace/catalog/workspaceExport.js";
 import { canShareFile, createExportHandle, exportFileNameFor, formatFileSize, isAppleTouchDevice, shareExportFile, triggerDownload } from "../workspace/catalog/exportDelivery.js";
@@ -1483,6 +1488,52 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       stage.removeEventListener("scroll", preserveDrawingPosition);
     };
   }, []);
+
+  /**
+   * Keep a point inside a specific PDF page while changing the horizontal
+   * reader's zoom. Its inter-page gaps are recalculated at every scale, so a
+   * position inside the entire document is NOT a stable zoom anchor.
+   */
+  function captureHorizontalZoomAnchor(clientX, clientY) {
+    if (pageDirection !== "horizontal" || !sheet?.pdfUrl) return null;
+    const root = documentRef.current;
+    if (!root) return null;
+    const pages = Array.from(root.querySelectorAll(".workspace-v2-a4-page"), (element) => ({
+      key: Number(element.getAttribute("data-workspace-page")),
+      rect: element.getBoundingClientRect()
+    }));
+    return horizontalZoomPageAnchor(pages, clientX, clientY, activeVirtualPageIdRef.current ?? pageRef.current);
+  }
+
+  function reconciledZoomScroll(pending, stage, root, documentBounds, finalZoom, focalClientX, focalClientY) {
+    if (pending.horizontalAnchor) {
+      const pageNode = Array.from(root.querySelectorAll(".workspace-v2-a4-page"))
+        .find((element) => Number(element.getAttribute("data-workspace-page")) === pending.horizontalAnchor.pageKey);
+      if (pageNode) {
+        const anchored = scrollForHorizontalPageAnchor({
+          scrollLeft: stage.scrollLeft,
+          scrollTop: stage.scrollTop,
+          pageRect: pageNode.getBoundingClientRect(),
+          anchor: pending.horizontalAnchor,
+          clientX: focalClientX,
+          clientY: focalClientY
+        });
+        if (anchored) return anchored;
+      }
+    }
+    return scrollForDocumentAnchor({
+      currentScrollLeft: stage.scrollLeft,
+      currentScrollTop: stage.scrollTop,
+      documentLeft: documentBounds.left,
+      documentTop: documentBounds.top,
+      documentAnchorX: pending.documentAnchorX,
+      documentAnchorY: pending.documentAnchorY,
+      scale: finalZoom,
+      focalClientX,
+      focalClientY
+    });
+  }
+
   useLayoutEffect(() => {
     const pending = pendingPinchCommitRef.current;
     const root = documentRef.current;
@@ -1492,21 +1543,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const documentElement = root.querySelector(".workspace-v2-a4-document") || root;
     const documentBounds = documentElement.getBoundingClientRect();
     if (documentBounds.width > 0 && documentBounds.height > 0) {
-      const next = scrollForDocumentAnchor({
-        // React's final zoom geometry may already have forced the browser to
-        // clamp scrollTop (especially near the last page while zooming out).
-        // Reconcile from that actual post-layout position, never the stale
-        // gesture-start scroll position.
-        currentScrollLeft: stage.scrollLeft,
-        currentScrollTop: stage.scrollTop,
-        documentLeft: documentBounds.left,
-        documentTop: documentBounds.top,
-        documentAnchorX: pending.documentAnchorX,
-        documentAnchorY: pending.documentAnchorY,
-        scale: zoom,
-        focalClientX: pending.currentFocalX,
-        focalClientY: pending.currentFocalY
-      });
+      // Use the actual post-layout geometry, not the start-of-gesture scroll.
+      const next = reconciledZoomScroll(
+        pending, stage, root, documentBounds, zoom, pending.currentFocalX, pending.currentFocalY
+      );
       const bounds = readerScrollBounds({ preserveCurrent: false });
       stage.scrollLeft = Math.min(bounds.maxScrollLeft, Math.max(bounds.minScrollLeft, next.scrollLeft));
       if (pending.constrainToBounds) {
@@ -1535,17 +1575,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const documentElement = root.querySelector(".workspace-v2-a4-document") || root;
     const documentBounds = documentElement.getBoundingClientRect();
     if (!(documentBounds.width > 0 && documentBounds.height > 0)) return;
-    const next = scrollForDocumentAnchor({
-      currentScrollLeft: stage.scrollLeft,
-      currentScrollTop: stage.scrollTop,
-      documentLeft: documentBounds.left,
-      documentTop: documentBounds.top,
-      documentAnchorX: pending.documentAnchorX,
-      documentAnchorY: pending.documentAnchorY,
-      scale: zoom,
-      focalClientX: pending.focalClientX,
-      focalClientY: pending.focalClientY
-    });
+    const next = reconciledZoomScroll(
+      pending, stage, root, documentBounds, zoom, pending.focalClientX, pending.focalClientY
+    );
     const bounds = readerScrollBounds({ preserveCurrent: false });
     stage.scrollLeft = Math.min(bounds.maxScrollLeft, Math.max(bounds.minScrollLeft, next.scrollLeft));
     stage.scrollTop = Math.min(bounds.maxScrollTop, Math.max(bounds.minScrollTop, next.scrollTop));
@@ -1588,7 +1620,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           documentAnchorX: (stageBounds.left - documentBounds.left) / currentZoom,
           documentAnchorY: (stageBounds.top - documentBounds.top) / currentZoom,
           focalClientX: stageBounds.left,
-          focalClientY: stageBounds.top
+          focalClientY: stageBounds.top,
+          horizontalAnchor: captureHorizontalZoomAnchor(
+            stageBounds.left + stageBounds.width / 2,
+            stageBounds.top + Math.min(stageBounds.height / 2, 180)
+          )
         };
       }
       zoomRef.current = nextZoom;
@@ -3452,6 +3488,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       currentFocalY: center.y,
       documentAnchorX: documentAnchor.x,
       documentAnchorY: documentAnchor.y,
+      horizontalAnchor: captureHorizontalZoomAnchor(center.x, center.y),
       startingScrollLeft: stage.scrollLeft,
       startingScrollTop: stage.scrollTop,
       initialDocumentLeft: rootBounds.left,
@@ -3559,17 +3596,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         root.style.transform = "";
         const documentElement = root.querySelector(".workspace-v2-a4-document") || root;
         const documentBounds = documentElement.getBoundingClientRect();
-        const next = scrollForDocumentAnchor({
-          currentScrollLeft: stage.scrollLeft,
-          currentScrollTop: stage.scrollTop,
-          documentLeft: documentBounds.left,
-          documentTop: documentBounds.top,
-          documentAnchorX: pinch.documentAnchorX,
-          documentAnchorY: pinch.documentAnchorY,
-          scale: finalZoom,
-          focalClientX: pinch.currentFocalX,
-          focalClientY: pinch.currentFocalY
-        });
+        const next = reconciledZoomScroll(
+          pinch, stage, root, documentBounds, finalZoom, pinch.currentFocalX, pinch.currentFocalY
+        );
         const constrainToBounds = finalZoom <= pinch.initialScale + Number.EPSILON;
         const bounds = readerScrollBounds({ preserveCurrent: false });
         stage.scrollLeft = Math.min(bounds.maxScrollLeft, Math.max(bounds.minScrollLeft, next.scrollLeft));
@@ -3596,6 +3625,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       currentFocalY: pinch.currentFocalY,
       documentAnchorX: pinch.documentAnchorX,
       documentAnchorY: pinch.documentAnchorY,
+      horizontalAnchor: pinch.horizontalAnchor,
       startingScrollLeft: pinch.startingScrollLeft,
       startingScrollTop: pinch.startingScrollTop,
       constrainToBounds: finalZoom <= pinch.initialScale + Number.EPSILON,
@@ -4138,8 +4168,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       if (gesture.panRafId !== null) cancelAnimationFrame(gesture.panRafId);
       gesture.panRafId = null;
       if (!pendingDirection) applyPanPosition(completedPan);
+      // Once a page extends past the viewport, swipes pan its contents instead
+      // of unexpectedly turning to the next page near the fit-zoom threshold.
+      const panStartPage = stageRef.current?.querySelector(`[data-workspace-page="${completedPan.startPageKey}"]`);
       const horizontalTarget = pageDirection === "horizontal" && sheet?.pdfUrl
-        && zoomRef.current <= minimumPdfZoom() * 1.12 && gesture.touches.size === 0
+        && horizontalPageFitsViewport(panStartPage?.getBoundingClientRect().width, stageRef.current?.clientWidth)
+        && gesture.touches.size === 0
         ? horizontalSwipeTarget(
           Array.from(stageRef.current?.querySelectorAll(".workspace-v2-a4-page") || [], (element) => Number(element.getAttribute("data-workspace-page"))),
           completedPan.startPageKey,
@@ -4392,6 +4426,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         finalZoom,
         documentAnchorX: anchor.x,
         documentAnchorY: anchor.y,
+        horizontalAnchor: captureHorizontalZoomAnchor(x, y),
         focalClientX: x,
         focalClientY: y
       };
