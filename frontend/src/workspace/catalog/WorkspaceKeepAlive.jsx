@@ -6,6 +6,7 @@ import { FocusVideoPlayer } from "./FocusVideoPlayer.jsx";
 import { WorkspacePaneActiveContext, WorkspacePaneVisibleContext, WorkspaceSplitContext } from "./workspacePane.js";
 import { personalTabId, sheetTabId, useWorkspaceTabs, whiteboardTabId, workspaceTabRoute } from "./workspaceTabs.js";
 import { currentAppLocale } from "../../lib/i18n.js";
+import { snapSplitPercent, splitPercentFromPointer, splitResizeKeyDelta } from "./splitSizing.js";
 import { X } from "lucide-react";
 import "./workspace-split.css";
 
@@ -30,8 +31,6 @@ export function workspaceTabIdForPath(pathname) {
   return "";
 }
 
-// Keep split dividers aligned to five-percent steps while dragging.
-const snapSplitPercent = (number) => Math.max(20, Math.min(80, Math.round(number / 5) * 5));
 /** Each array position is a grid slot (left, top-right, bottom-right, bottom-left). */
 export function nextSplitSlots(slots, primaryId, addedId, side = "end") {
   if (!primaryId || !addedId) return slots;
@@ -207,6 +206,12 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     const stacked = window.matchMedia("(max-width: 640px)").matches;
     return axis === "primary" ? (stacked && liveSlots.length !== 4) : (!stacked || liveSlots.length === 4);
   }
+  function splitIsRtlColumns(rows) {
+    // Grid track 1 grows from the right in RTL, but from the left in LTR.
+    // Read the actual layout direction, not only the selected language.
+    return Boolean(!rows && layoutRef.current
+      && window.getComputedStyle(layoutRef.current).direction === "rtl");
+  }
   function resizeFromPointer(event, axis) {
     const rects = [...(layoutRef.current?.querySelectorAll(".workspace-pane[data-split-slot]") || [])]
       .map((node) => node.getBoundingClientRect());
@@ -215,9 +220,10 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     const start = Math.min(...rects.map((rect) => rows ? rect.top : rect.left));
     const end = Math.max(...rects.map((rect) => rows ? rect.bottom : rect.right));
     const current = rows ? event.clientY : event.clientX;
-    if (end > start) {
+    const nextPercent = splitPercentFromPointer(start, end, current, splitIsRtlColumns(rows));
+    if (nextPercent !== null) {
       const set = axis === "primary" ? setSplitPercent : setSplitRowsPercent;
-      set(snapSplitPercent((current - start) * 100 / (end - start)));
+      set(nextPercent);
     }
   }
   function splitDivider(axis) {
@@ -240,7 +246,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       }}
       onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeFromPointer(event, axis); }}
       onKeyDown={(event) => {
-        const delta = ["ArrowRight", "ArrowDown"].includes(event.key) ? 5 : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -5 : 0;
+        const delta = splitResizeKeyDelta(event.key, splitIsRtlColumns(rows));
         if (delta) { event.preventDefault(); set((value) => snapSplitPercent(value + delta)); }
       }}
     >
