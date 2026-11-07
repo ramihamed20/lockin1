@@ -6316,7 +6316,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   return (
     <main className={`workspace-v2${zoomWindow ? " has-zoom-window" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}${singleTab ? " has-single-tab" : ""}`} ref={rootRef} data-knowledge-open={knowledgeOpen ? "true" : undefined} aria-busy={!workspaceReady} aria-label={t("focus.workspaceLabel", { title: sheet.title })}>
       <div className={`workspace-v2-body${sideOpen ? " has-side" : ""}`}>
-        <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
+        <section ref={readerRef} className={`workspace-v2-reader${sheet.pdfUrl && pageDirection === "vertical" ? " is-vertical-reading" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
           {!isMulti ? toolbarMarkup : paneActive && toolbarHost ? createPortal(toolbarMarkup, toolbarHost) : null}
 
           {marksSet && <button type="button" className="workspace-marks-chip" data-workspace-marks-chip="" onClick={() => setMarksOpen(true)}>
