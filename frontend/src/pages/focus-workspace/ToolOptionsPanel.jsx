@@ -2,6 +2,7 @@ import { useState, useId } from "react";
 import { ChevronDown, Check, Circle, Hash, Minus, PaintBucket, Plus, Ruler, Shapes, Sparkles, Star, Trash2 } from "lucide-react";
 import { ERASER_MODE } from "../../workspace/ink/strokeModel.js";
 import { ERASER_MODE_OPTIONS, LASSO_MODE_OPTIONS, MAX_PALETTE_COLORS, SHAPE_FILL_COLORS, SHAPE_OPTIONS, THICKNESS_STEP, TOOL_PANEL_COPY, formatThickness, roundThickness } from "./constants.js";
+import { MAX_FAVORITE_PENS } from "./favoritePens.js";
 import { IconChoiceGroup, PenProfilePicker, SettingsToggle, ToolRange } from "./controls.jsx";
 import { TRANSIENT_INK_KIND } from "../../workspace/ink/transientInk.js";
 import { ToolPreview } from "../../workspace/catalog/ToolPreview.jsx";
@@ -39,7 +40,7 @@ function ToolExtras({ label, children }) {
 /**
  * The active tool's options: pen type, thickness, opacity, colours and the tool's switches.
  */
-export function ToolOptionsPanel({ favoritesStrip, activeColor, activePenOption, activeTool, activeToolLabel, activeToolOpacity, brushSize, changePenProfile, chooseAnnotationColor, circleToErase, clearPageAnnotations, commitCustomColor, customColorDraft, customColorEditorOpen, customColorSet, deleteCustomColor, displayedToolOptions, drawAndHold, eraserMode, eraserSize, favoriteColors, inkToolActive, lassoMode, pageAnnotations, paletteColors, penProfile, recentColors, selectedAnnotations, setBrushSize, setCircleToErase, setCustomColorDraft, setCustomColorEditorOpen, setDrawAndHold, setEraserMode, setEraserSize, setLassoMode, setShapeAngle, setShapeDashed, setShapeFill, setShapeFillColor, setShapeSnapGrid, setShapeStyle, shapeAngle, shapeDashed, shapeFill, shapeFillColor, shapeSnapGrid, shapeStyle, showColorPalette, t, toggleFavoriteColor, toolOptionsOpen, toolOptionsRef, updateActiveToolOpacity, workspaceReady }) {
+export function ToolOptionsPanel({ favoritesStrip, activeFavoritePen, favoritePenCount, onToggleFavoritePen, activeColor, activePenOption, activeTool, activeToolLabel, activeToolOpacity, brushSize, changePenProfile, chooseAnnotationColor, circleToErase, clearPageAnnotations, commitCustomColor, customColorDraft, customColorEditorOpen, customColorSet, deleteCustomColor, displayedToolOptions, drawAndHold, eraserMode, eraserSize, favoriteColors, inkToolActive, lassoMode, pageAnnotations, paletteColors, penProfile, recentColors, selectedAnnotations, setBrushSize, setCircleToErase, setCustomColorDraft, setCustomColorEditorOpen, setDrawAndHold, setEraserMode, setEraserSize, setLassoMode, setShapeAngle, setShapeDashed, setShapeFill, setShapeFillColor, setShapeSnapGrid, setShapeStyle, shapeAngle, shapeDashed, shapeFill, shapeFillColor, shapeSnapGrid, shapeStyle, showColorPalette, t, toggleFavoriteColor, toolOptionsOpen, toolOptionsRef, updateActiveToolOpacity, workspaceReady }) {
   return <>
     {workspaceReady && displayedToolOptions && <div ref={toolOptionsRef} id={`workspace-${displayedToolOptions}-options`} className={`workspace-v2-tool-options lockin-tool-inspector${["pen", "highlighter"].includes(activeTool) ? " is-compact-ink" : ""}${toolOptionsOpen ? "" : " is-exiting"}`} style={inspectorThemeStyle} data-workspace-tool={toolOptionsOpen ? displayedToolOptions : undefined} role="dialog" aria-label={t("focus.toolOptions", { tool: activeToolLabel })} aria-hidden={!toolOptionsOpen} inert={toolOptionsOpen ? undefined : ""} onPointerDown={(event) => event.stopPropagation()}>
       <div className="workspace-v2-tool-options-title">
@@ -68,7 +69,14 @@ export function ToolOptionsPanel({ favoritesStrip, activeColor, activePenOption,
               {customColorSet.has(color) && <button type="button" className="workspace-v2-color-delete" aria-label={t("focus.deleteColor", { color })} title={t("focus.deleteColor", { color })} onClick={() => deleteCustomColor(color)}><Minus size={11} /></button>}
             </span>)}
             {paletteColors.length < MAX_PALETTE_COLORS && <button type="button" className={`workspace-v2-custom-color${customColorEditorOpen ? " is-active" : ""}`} aria-label={t("focus.addColor")} title={t("focus.addColor")} aria-expanded={customColorEditorOpen} onClick={() => { setCustomColorDraft(activeColor); setCustomColorEditorOpen((current) => !current); }}><Plus size={15} /></button>}
-            <button type="button" className={`workspace-v4-favorite-color${favoriteColors.includes(activeColor) ? " is-active" : ""}`} aria-label={favoriteColors.includes(activeColor) ? t("focus.removeFavoriteColor") : t("focus.favoriteCurrentColor")} aria-pressed={favoriteColors.includes(activeColor)} onClick={toggleFavoriteColor}><Star size={15} fill={favoriteColors.includes(activeColor) ? "currentColor" : "none"} /></button>
+            {["pen", "highlighter"].includes(activeTool)
+              ? <button type="button" className={`workspace-v4-favorite-color is-favorite-pen${activeFavoritePen >= 0 ? " is-active" : ""}`}
+                aria-label={activeFavoritePen >= 0 ? t("focus.removeFavoritePen") : t("focus.saveFavoritePen")}
+                title={activeFavoritePen >= 0 ? t("focus.removeFavoritePen") : t("focus.saveFavoritePen")}
+                aria-pressed={activeFavoritePen >= 0}
+                disabled={activeFavoritePen < 0 && favoritePenCount >= MAX_FAVORITE_PENS}
+                onClick={onToggleFavoritePen}><Star size={17} fill={activeFavoritePen >= 0 ? "currentColor" : "none"} /></button>
+              : <button type="button" className={`workspace-v4-favorite-color${favoriteColors.includes(activeColor) ? " is-active" : ""}`} aria-label={favoriteColors.includes(activeColor) ? t("focus.removeFavoriteColor") : t("focus.favoriteCurrentColor")} aria-pressed={favoriteColors.includes(activeColor)} onClick={toggleFavoriteColor}><Star size={15} fill={favoriteColors.includes(activeColor) ? "currentColor" : "none"} /></button>}
             {customColorEditorOpen && <div className="workspace-v2-custom-color-editor" role="group" aria-label={t("focus.customColorEditor")}>
               <input type="color" aria-label={t("focus.chooseCustomColor")} value={customColorDraft} onChange={(event) => setCustomColorDraft(event.target.value)} />
               <button type="button" aria-label={t("focus.saveCustomColor")} title={t("focus.saveColor")} onClick={commitCustomColor}><Check size={16} /></button>
@@ -91,8 +99,10 @@ export function ToolOptionsPanel({ favoritesStrip, activeColor, activePenOption,
           {shapeAngle > 0 && <label className="workspace-v7-select-row">{t("focus.angleSteps")} <select value={shapeAngle} onChange={(event) => setShapeAngle(Number(event.target.value))}><option value="15">15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option></select></label>}
         </section>}
     
-        {["pen", "highlighter"].includes(activeTool) && <ToolExtras label={t("focus.settingsDrawing")}>
+        {["pen", "highlighter"].includes(activeTool) && <section className="workspace-v5-inspector-section workspace-favorite-pen-section" aria-label={t("focus.favoritePens")}>
           {favoritesStrip}
+        </section>}
+        {["pen", "highlighter"].includes(activeTool) && <ToolExtras label={t("focus.settingsDrawing")}>
         {["pen", "highlighter"].includes(activeTool) && recentColors.length > 0 && <section className="workspace-v5-inspector-section"><h3>{t("focus.recentColors")}</h3><div className="workspace-v6-color-strip">{recentColors.slice(0, 8).map((color) => <button key={color} type="button" aria-label={t("focus.useRecentColor", { color })} className={activeColor === color ? "is-active" : ""} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)} />)}</div></section>}
         {["pen", "highlighter"].includes(activeTool) && favoriteColors.length > 0 && <section className="workspace-v5-inspector-section"><h3>{t("focus.favorites")}</h3><div className="workspace-v6-color-strip">{favoriteColors.map((color) => <button key={color} type="button" aria-label={t("focus.useFavoriteColor", { color })} className={activeColor === color ? "is-active" : ""} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)} />)}</div></section>}
 
