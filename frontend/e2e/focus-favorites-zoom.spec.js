@@ -82,14 +82,14 @@ test("a favorite pen is saved from the pen panel, taken up from the toolbar in o
   await expect(page.locator(".workspace-favorite-pens.is-toolbar")).toHaveCount(0);
 });
 
-test("a phone keeps favorites in the pen panel, where its full toolbar has no room", async ({ page }) => {
+test("a phone shows its favorite pens directly beneath the toolbar as well as in the pen panel", async ({ page }) => {
   await mockWorkspace(page);
   await openWorkspace(page, { width: 390, height: 844 });
   await openPenPanel(page);
   const strip = page.locator("#workspace-pen-options .workspace-favorite-pens");
   await strip.getByRole("button", { name: "Save this pen as a favorite" }).click();
   await expect(strip.getByRole("button", { name: /· 4 pt/ })).toBeVisible();
-  await expect(page.locator(".workspace-favorite-pens.is-toolbar")).toBeHidden();
+  await expect(page.locator(".workspace-toolbar-accessories .workspace-favorite-pens.is-toolbar")).toBeVisible();
   for (const button of await strip.getByRole("button").all()) {
     const box = await button.boundingBox();
     expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
@@ -201,13 +201,25 @@ test("all five favorite pens are visible at once in the iPad toolbar", async ({ 
     ));
   });
   await openWorkspace(page, { width: 834, height: 1194 });
-  for (const viewport of [{ width: 834, height: 1194 }, { width: 1024, height: 768 }, { width: 1280, height: 900 }]) {
+  for (const viewport of [{ width: 320, height: 700 }, { width: 390, height: 844 }, { width: 834, height: 1194 }, { width: 1024, height: 768 }, { width: 1280, height: 900 }]) {
     await page.setViewportSize(viewport);
-    const group = page.locator(".workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar");
+    const group = page.locator(".workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-favorite-pens.is-toolbar");
     await expect(group).toBeVisible();
     const buttons = group.locator(".workspace-favorite-pen-slot > .workspace-favorite-pen");
     await expect(buttons).toHaveCount(5);
     for (const button of await buttons.all()) await expect(button).toBeInViewport();
+    if (viewport.width >= 700) {
+      const palette = page.locator(".workspace-toolbar-accessories .workspace-v3-quick-colors");
+      await expect(palette).toBeVisible();
+      const visibleSwatches = await palette.locator(".workspace-v3-color-scroll").evaluate((strip) => {
+        const view = strip.getBoundingClientRect();
+        return [...strip.querySelectorAll(".workspace-v3-quick-color")].filter((item) => {
+          const box = item.getBoundingClientRect();
+          return box.left >= view.left - 1 && box.right <= view.right + 1;
+        }).length;
+      });
+      expect(visibleSwatches).toBeGreaterThanOrEqual(5);
+    }
     const layout = await group.evaluate((element) => {
       const toolbar = element.closest(".workspace-v2-toolbar").getBoundingClientRect();
       const boxes = [...element.querySelectorAll(".workspace-favorite-pen-slot > button")].map((button) => button.getBoundingClientRect());
