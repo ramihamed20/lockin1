@@ -233,13 +233,9 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
 
   if (!enabled) return null;
   const target = portalRoot || document.body;
-  // On a phone the + tool is the single entry point. Never leave a second
-  // floating "show companion" chip over the page after the student hides it.
-  if (preferences.hidden || (phoneAddFromToolbar && isPhone && !preferences.phoneAdded)) {
-    return phoneAddFromToolbar && isPhone ? null : preferences.hidden
-      ? createPortal(<button type="button" className="study-companion-restore" onClick={() => setPreferences((current) => ({ ...current, hidden: false }))}><Sparkles size={16} aria-hidden="true" />{t("studyCompanion.show")}</button>, target)
-      : null;
-  }
+  // The Focus + menu is the only place to add or restore a hidden companion
+  // on phones, tablets and desktops. Never overlay a separate restore button.
+  if (preferences.hidden || (phoneAddFromToolbar && !preferences.phoneAdded)) return null;
   return createPortal(<div ref={rootRef} dir={direction}
     className={"study-companion" + (motion ? " has-motion" : "") + (surface ? " is-expanded" : "") + (isPhone ? " is-phone-draggable" : "") + (phoneAddFromToolbar ? " is-toolbar-companion" : "") + (position ? " is-positioned" : "") + (dragPosition ? " is-dragging" : "")}
     style={position ? { left: position.left + "px", top: position.top + "px" } : undefined}
