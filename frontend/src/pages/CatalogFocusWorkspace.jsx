@@ -717,7 +717,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [showPageNumber, setShowPageNumber] = useState(storedWorkspaceSettings.showPageNumber !== false);
   // Temporarily disable horizontal page turning for every sheet, including
   // readers whose previous preference still says "horizontal".
-  const pageDirection = "vertical";
+  const [pageDirection] = useState("vertical");
   const [keepScreenAwake, setKeepScreenAwake] = useState(storedWorkspaceSettings.keepScreenAwake === true);
   const [zoomHud, setZoomHud] = useState({ visible: false, label: "" });
   // Whether the student has chosen what draws. Until they do, the device
