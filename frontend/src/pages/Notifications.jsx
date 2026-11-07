@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motivationApi } from "../api/motivation.js";
 import { isApiError } from "../api/client.js";
-import { isKnownNotificationRoute, notificationFallbackRoute } from "../lib/notificationRoutes.js";
+import { isKnownNotificationRoute } from "../lib/notificationRoutes.js";
 import { notificationPresentation } from "../lib/notificationPresentation.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData } from "../hooks/useAsyncData.js";
@@ -32,6 +32,24 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
     setNextCursor(feed.data.nextCursor);
     setVisibleCount(5);
   }, [feed.data]);
+
+  // Keep notifications current when the reader returns to the app.
+  // Existing list rows remain on screen during refreshes.
+  useEffect(() => {
+    const onResume = () => {
+      if (document.visibilityState !== "visible") return;
+      feed.reload();
+      summary.reload();
+    };
+    const interval = window.setInterval(onResume, 60_000);
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("online", onResume);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("online", onResume);
+    };
+  }, [feed.reload, summary.reload, user?.id]);
 
   // Loading and failure keep the page's title and column, so nothing moves
   // when the feed arrives.
@@ -98,7 +116,7 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
         await motivationApi.markNotificationRead(notification.id);
         onNotificationsChanged?.();
         refresh();
-        navigate(notificationFallbackRoute(notification));
+        // A notice without a destination is acknowledged in place.
       }
     } catch (error) {
       if (isApiError(error) && error.status === 410) {
@@ -123,6 +141,16 @@ export default function Notifications({ user = null, onNotificationsChanged }) {
             <Tab value="unread">{summary.data?.unread_count ? t("notifications.unreadCount", { count: formatNumber(summary.data.unread_count) }) : t("notifications.unread")}</Tab>
           </TabList>
           <div className="notifications-toolbar-actions">
+            <button
+              className="notifications-refresh-link"
+              type="button"
+              onClick={refresh}
+              disabled={feed.refreshing || summary.refreshing}
+              aria-label={t("notifications.refresh")}
+              title={t("notifications.refresh")}
+            >
+              <Icon name="refresh-cw" size={16} />
+            </button>
             {summary.data?.unread_count > 0 && (
               <button className="notifications-v2-mark" type="button" onClick={() => { void markAllRead(); }} disabled={Boolean(busyId)}>
                 <Icon name="check" size={16} />
