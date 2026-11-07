@@ -42,7 +42,7 @@ test("motivation and notification requests follow Django server-authoritative co
     if (address.endsWith("/progression/rankings/profile") && options.method === "GET") return response({ included: true, display_mode: "initials", updated_at: "2026-01-01T00:00:00Z" });
     if (address.endsWith("/progression/rankings/profile") && options.method === "PUT") return response({ included: false, display_mode: "anonymous", updated_at: "2026-01-02T00:00:00Z" });
     if (address.startsWith("/api/v1/notifications?") && options.method === "GET") return response({ next: "/api/v1/notifications?cursor=next-cursor", previous: null, results: [{ id: "00000000-0000-4000-8000-000000000010", title: "Ready", body: "Open material", has_target: true, read_at: null }] });
-    if (address.endsWith("/notifications/summary")) return response({ unread_count: 1 });
+    if (address.endsWith("/notifications/summary")) return response({ unread_count: 1, revision: 4 });
     if (address.endsWith("/notifications/00000000-0000-4000-8000-000000000010/read")) return response({ id: "00000000-0000-4000-8000-000000000010", read_at: "2026-01-01T00:00:00Z" });
     if (address.endsWith("/notifications/00000000-0000-4000-8000-000000000010/open")) return response({ route: "/materials" });
     if (address.endsWith("/notifications/read-all")) return response({ updated: 1 });
@@ -59,7 +59,7 @@ test("motivation and notification requests follow Django server-authoritative co
   await motivationApi.rankingProfile();
   await motivationApi.updateRankingProfile({ included: false, displayMode: "anonymous" });
   const notifications = await motivationApi.listNotifications({ unreadOnly: true });
-  await motivationApi.notificationSummary();
+  const notificationSummary = await motivationApi.notificationSummary();
   await motivationApi.markNotificationRead("00000000-0000-4000-8000-000000000010");
   await motivationApi.openNotification("00000000-0000-4000-8000-000000000010");
   await motivationApi.markAllNotificationsRead();
@@ -67,6 +67,7 @@ test("motivation and notification requests follow Django server-authoritative co
   await motivationApi.updateNotificationPreferences([{ category: "learning", channel: "in_app", enabled: false, required: false, available: true }]);
 
   assert.equal(notifications.nextCursor, "next-cursor");
+  assert.deepEqual(notificationSummary, { unread_count: 1, revision: 4 });
   assert.deepEqual(calls.map(({ url, method, body }) => ({ url, method, body })), [
     { url: "/api/v1/progression/xp", method: "GET", body: undefined },
     { url: "/api/v1/progression/xp/ledger?page=2&page_size=10", method: "GET", body: undefined },
@@ -92,6 +93,8 @@ test("Phase 5 routes use server values and keep unsupported client authority dis
   assert.equal(canAccessRoute(student, "/progression"), true);
   assert.equal(canAccessRoute(student, "/community/discussions/00000000-0000-4000-8000-000000000001"), true);
   assert.equal(isKnownNotificationRoute("/progression"), true);
+  assert.equal(isKnownNotificationRoute("/study-plan"), true);
+  assert.equal(isKnownNotificationRoute("/study-plan/today"), false);
   assert.equal(isKnownNotificationRoute("/community/discussions/00000000-0000-4000-8000-000000000001"), true);
   assert.equal(isKnownNotificationRoute("https://untrusted.invalid/"), false);
   assert.equal(isKnownNotificationRoute("/operations/analytics"), true);
@@ -118,6 +121,8 @@ test("Phase 5 routes use server values and keep unsupported client authority dis
   assert.match(layout, /isKnownNotificationRoute/);
   assert.match(layout, /error\.status === 410/);
   assert.match(layout, /motivationApi\.notificationSummary/);
+  assert.match(layout, /notificationRevisionRef/);
+  assert.match(notifications, /notifications-refresh-link/);
   assert.match(layout, /streak\.freezeHint/);
   assert.match(progress, /motivationApi\.xpLedger/);
   assert.match(achievements, /motivationApi\.achievements/);
