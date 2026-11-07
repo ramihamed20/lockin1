@@ -11,7 +11,7 @@ import { Icon } from "../lib/icons.jsx";
 import { getRecentOpenedCatalogSheets } from "../lib/materialCatalog.js";
 import { recentStudyEntries } from "../lib/recentStudy.js";
 import { useAsyncData } from "../hooks/useAsyncData.js";
-import { Page } from "../components/ui/index.jsx";
+import { Page, Skeleton, SkeletonButton, SkeletonText } from "../components/ui/index.jsx";
 import { ResponsiveThemePreview } from "../components/shared/ResponsiveThemePreview.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { formatNumber } from "../lib/i18n.js";
@@ -44,7 +44,7 @@ export default function Dashboard({ user, themeSettings, activeTheme }) {
   return <Page title="Dashboard" showHeading={false}>
     <div className="dashboard">
       <OfflineIndicator userId={user?.id} inline />
-      <ContinueCard sheetEntry={recent[0] || null} user={user} character={themeSettings.character} theme={activeTheme} />
+      <ContinueCard sheetEntry={recent[0] || null} user={user} character={themeSettings.character} theme={activeTheme} loading={recentStudy.loading && !recentStudy.data} />
       {RESCUE_ENABLED && user?.id && <RescueEntry key={user.id} userId={user.id} />}
       <StudyStates learning={learning.data} bank={bank.data} xp={xp.data} streak={streak.data} loading={summaryLoading} />
       {failedSummaries.length > 0 && <div className="dashboard-summary-error">
@@ -87,7 +87,7 @@ function StudyStates({ learning, bank, xp, streak, loading }) {
       <ul className="dash-states-grid">
         <li className="dash-states-item dash-states-item--wide">
           <Link className="dash-state" to="/progress">
-            <strong className="dash-state-value">{shown(level)}</strong>
+            <strong className="dash-state-value">{loading && level === null ? <Skeleton className="skeleton-dash-stat-number" /> : shown(level)}</strong>
             <span className="dash-state-label">{t("dashboard.level")}</span>
             {xp && <span className="dash-state-foot">
               <small className="dash-state-note"><bdi dir={direction}>{t("dashboard.xpProgress", { progress: formatNumber(levelProgress), target: formatNumber(levelTarget) })}</bdi></small>
@@ -97,26 +97,26 @@ function StudyStates({ learning, bank, xp, streak, loading }) {
         </li>
         <li className="dash-states-item">
           <Link className="dash-state" to="/progress">
-            <strong className="dash-state-value">{shown(streakDays)}{streakDays !== null && <small>{t("progress.dayCount", { count: streakDays })}</small>}</strong>
+            <strong className="dash-state-value">{loading && streakDays === null ? <Skeleton className="skeleton-dash-stat-number" /> : shown(streakDays)}{streakDays !== null && <small>{t("progress.dayCount", { count: streakDays })}</small>}</strong>
             <span className="dash-state-label">{t("dashboard.streak")}</span>
             {bestDays !== null && streakDays !== null && bestDays > streakDays && <small className="dash-state-note" dir="auto">{t("dashboard.streakBest", { count: bestDays })}</small>}
           </Link>
         </li>
         <li className="dash-states-item">
           <Link className={`dash-state${reviewCount > 0 ? " dash-state--due" : ""}`} to="/review">
-            <strong className="dash-state-value">{shown(reviewCount)}</strong>
+            <strong className="dash-state-value">{loading && reviewCount === null ? <Skeleton className="skeleton-dash-stat-number" /> : shown(reviewCount)}</strong>
             <span className="dash-state-label">{t("dashboard.stateReview")}</span>
           </Link>
         </li>
         <li className="dash-states-item">
           <Link className="dash-state" to="/materials">
-            <strong className="dash-state-value">{shown(completed)}</strong>
+            <strong className="dash-state-value">{loading && completed === null ? <Skeleton className="skeleton-dash-stat-number" /> : shown(completed)}</strong>
             <span className="dash-state-label">{t("dashboard.stateCompleted")}</span>
           </Link>
         </li>
         <li className="dash-states-item">
           <Link className="dash-state" to="/bookmarks">
-            <strong className="dash-state-value">{shown(saved)}</strong>
+            <strong className="dash-state-value">{loading && saved === null ? <Skeleton className="skeleton-dash-stat-number" /> : shown(saved)}</strong>
             <span className="dash-state-label">{t("dashboard.stateSaved")}</span>
           </Link>
         </li>
@@ -125,12 +125,24 @@ function StudyStates({ learning, bank, xp, streak, loading }) {
   );
 }
 
-function ContinueCard({ sheetEntry, user, character = "none", theme }) {
+function ContinueCard({ sheetEntry, user, character = "none", theme, loading = false }) {
   const { t, direction } = useI18n();
   const { materials } = useCatalogMaterials(user);
   const material = materials.find(item => item.slug === sheetEntry?.material?.slug) || sheetEntry?.material;
   const sheet = material?.sheets?.find(item => item.slug === sheetEntry?.sheet?.slug || item.editions?.some(edition => edition.slug === sheetEntry?.sheet?.slug)) || sheetEntry?.sheet;
   const position = sheetReadingPosition(sheetEntry);
+  if (loading) return <section className="continue-section has-sheet" aria-busy="true">
+    <span className="visually-hidden" role="status">{t("common.loading")}</span>
+    <article className="panel continue-card continue-card--sheet continue-card--loading">
+      <div className="continue-sheet-cover" aria-hidden="true"><Skeleton className="skeleton-continue-cover" /></div>
+      <div className="continue-sheet-content" aria-hidden="true">
+        <Skeleton className="skeleton-continue-eyebrow" />
+        <SkeletonText lines={2} />
+        <Skeleton className="skeleton-continue-meter" />
+        <SkeletonButton />
+      </div>
+    </article>
+  </section>;
   return (
     <section className={`continue-section${sheet ? " has-sheet" : ""}`} aria-label={t("dashboard.pickUp")}>
       {sheet && <header className="continue-section-heading"><Link to="/materials">{t("dashboard.allSheets")}<Icon className="dashboard-forward" name="chevron-right" size={18} aria-hidden="true" /></Link></header>}
@@ -187,7 +199,10 @@ function ReviewQueue({ items, loading, error, onRetry, refreshing = false, empty
       <header className="review-queue-header">
         <div className="review-queue-title"><span><Icon name="target" size={18} /></span><h2>{loading || error || items.length ? t("dashboard.latestMistakes") : t("dashboard.noRecentMistakes")}</h2></div>
       </header>
-      {loading ? <div className="review-queue-empty" role="status"><p>{t("common.loading")}</p></div>
+      {loading ? <div className="dashboard-review-loading" aria-busy="true">
+          <span className="visually-hidden" role="status">{t("common.loading")}</span>
+          {Array.from({ length: 3 }, (_, index) => <div className="dashboard-review-loading-row" key={index} aria-hidden="true"><SkeletonText lines={2} /><Skeleton className="dashboard-review-loading-arrow" /></div>)}
+        </div>
         : error ? <div className="review-queue-empty"><div><p role="status">{t("dashboard.reviewUnavailable")}</p><button className="btn btn-soft compact" type="button" onClick={onRetry} disabled={refreshing}>{t(refreshing ? "common.loading" : "common.tryAgain")}</button></div></div>
           : items.length ? <div className="review-queue-list">
             {visibleItems.map((item) => {
