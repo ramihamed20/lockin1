@@ -7,6 +7,25 @@ import { TRANSIENT_INK_KIND } from "../../workspace/ink/transientInk.js";
 import { ToolPreview } from "../../workspace/catalog/ToolPreview.jsx";
 import { cssVars } from "../../lib/utils.js";
 
+// The inspector must paint one coherent surface even when older workspace
+// stylesheets apply different palette rules to its descendants. Values are
+// semantic, so Night, Day, Dawn and Sunset update without re-mounting.
+const inspectorThemeStyle = {
+  backgroundColor: "var(--surface)",
+  color: "var(--text)",
+  "--fx-text": "var(--text)",
+  "--fx-text-2": "var(--muted)",
+  "--fx-text-3": "var(--soft)",
+  "--fx-fill": "var(--surface-2)",
+  "--fx-fill-strong": "var(--surface-3)",
+  "--fx-solid": "var(--surface)",
+  "--fx-edge": "var(--border)",
+  "--fx-hair": "var(--separator)",
+  "--workspace-panel": "var(--surface)",
+  "--workspace-chrome-text": "var(--text)",
+  "--workspace-chrome-secondary": "var(--muted)",
+};
+
 /** Keep secondary gestures reachable without filling the phone card. */
 function ToolExtras({ label, children }) {
   const [expanded, setExpanded] = useState(false);
@@ -22,7 +41,7 @@ function ToolExtras({ label, children }) {
  */
 export function ToolOptionsPanel({ favoritesStrip, activeColor, activePenOption, activeTool, activeToolLabel, activeToolOpacity, brushSize, changePenProfile, chooseAnnotationColor, circleToErase, clearPageAnnotations, commitCustomColor, customColorDraft, customColorEditorOpen, customColorSet, deleteCustomColor, displayedToolOptions, drawAndHold, eraserMode, eraserSize, favoriteColors, inkToolActive, lassoMode, pageAnnotations, paletteColors, penProfile, recentColors, selectedAnnotations, setBrushSize, setCircleToErase, setCustomColorDraft, setCustomColorEditorOpen, setDrawAndHold, setEraserMode, setEraserSize, setLassoMode, setShapeAngle, setShapeDashed, setShapeFill, setShapeFillColor, setShapeSnapGrid, setShapeStyle, shapeAngle, shapeDashed, shapeFill, shapeFillColor, shapeSnapGrid, shapeStyle, showColorPalette, t, toggleFavoriteColor, toolOptionsOpen, toolOptionsRef, updateActiveToolOpacity, workspaceReady }) {
   return <>
-    {workspaceReady && displayedToolOptions && <div ref={toolOptionsRef} id={`workspace-${displayedToolOptions}-options`} className={`workspace-v2-tool-options${["pen", "highlighter"].includes(activeTool) ? " is-compact-ink" : ""}${toolOptionsOpen ? "" : " is-exiting"}`} data-workspace-tool={toolOptionsOpen ? displayedToolOptions : undefined} role="dialog" aria-label={t("focus.toolOptions", { tool: activeToolLabel })} aria-hidden={!toolOptionsOpen} inert={toolOptionsOpen ? undefined : ""} onPointerDown={(event) => event.stopPropagation()}>
+    {workspaceReady && displayedToolOptions && <div ref={toolOptionsRef} id={`workspace-${displayedToolOptions}-options`} className={`workspace-v2-tool-options lockin-tool-inspector${["pen", "highlighter"].includes(activeTool) ? " is-compact-ink" : ""}${toolOptionsOpen ? "" : " is-exiting"}`} style={inspectorThemeStyle} data-workspace-tool={toolOptionsOpen ? displayedToolOptions : undefined} role="dialog" aria-label={t("focus.toolOptions", { tool: activeToolLabel })} aria-hidden={!toolOptionsOpen} inert={toolOptionsOpen ? undefined : ""} onPointerDown={(event) => event.stopPropagation()}>
       <div className="workspace-v2-tool-options-title">
         <span><strong>{TOOL_PANEL_COPY[activeTool] ? t(TOOL_PANEL_COPY[activeTool][0]) : activeToolLabel}</strong><small className={activeTool === "pen" && penProfile === TRANSIENT_INK_KIND.POINTER ? "is-shown" : undefined}>{activeTool === "pen" && penProfile === TRANSIENT_INK_KIND.POINTER ? t(activePenOption[1]) : TOOL_PANEL_COPY[activeTool] ? t(TOOL_PANEL_COPY[activeTool][1]) : ""}</small></span>
         <span className="workspace-v7-preview-well"><ToolPreview tool={activeTool} color={activeColor} size={activeTool === "eraser" ? eraserSize : brushSize} opacity={activeToolOpacity} shape={shapeStyle} fill={shapeFill ? shapeFillColor : null} dashed={shapeDashed} lassoMode={lassoMode} penProfile={penProfile} /></span>
