@@ -269,9 +269,9 @@ test('phone + adds a draggable companion, keeps its position and restores it wit
  await expect(page.locator('.study-companion-restore')).toHaveCount(0);
 });
 
-test('tablet also adds and restores companion only through the + menu', async ({ page }) => {
+for (const [device, width, height] of [['tablet', 820, 1180], ['desktop', 1280, 800]]) test(`${device} also adds and restores companion only through the + menu`, async ({ page }) => {
  await page.emulateMedia({ reducedMotion: 'reduce' });
- await page.setViewportSize({ width: 820, height: 1180 });
+ await page.setViewportSize({ width, height });
  await page.addInitScript(() => localStorage.setItem('lock-in.locale', 'en'));
  await page.route('**/api/v1/catalog/documents/**', route => route.fulfill({ json: { version_id: 'test-version', results: [] } }));
  await page.goto('/e2e/fixtures/companion-ready/?toolbar');
