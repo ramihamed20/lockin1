@@ -1,8 +1,34 @@
 import { BookOpen, Bookmark, Circle, Download, Eraser, Eye, FileText, Hash, Image as ImageIcon, MessageSquare, PenLine, Power, Ruler, Sparkles, Trash2, Upload, X, ZoomIn } from "lucide-react";
-import { DRAWING_INPUT } from "../../workspace/input/gestureStateMachine.js";
+import { useState } from "react";
+import { DRAWING_INPUT, classifyStylusInput } from "../../workspace/input/gestureStateMachine.js";
 import { PAGE_BACKGROUND_CHOICES, SETTINGS_SECTIONS } from "./constants.js";
 import { SettingsToggle } from "./controls.jsx";
 import { moveWithinRadioGroup } from "./studyDialogs.jsx";
+
+/**
+ * Browser-level input probe. No device name guesses and no persistent
+ * fingerprinting: students touch the test target with their actual pen.
+ */
+function StylusInputCheck({ drawingInput, onChange, t }) {
+  const [expanded, setExpanded] = useState(false);
+  const [sample, setSample] = useState(null);
+  const classified = sample === null ? null : classifyStylusInput(sample);
+  return <div className="workspace-v8-settings-group">
+    <button type="button" className="workspace-v2-settings-action" aria-expanded={expanded} onClick={() => {
+      setExpanded((current) => !current);
+      setSample(null);
+    }}><PenLine size={18} /><span><strong>{t("focus.testStylusInput")}</strong><small>{t("focus.testStylusInputDescription")}</small></span></button>
+    {expanded && <>
+      <button type="button" className="workspace-v2-settings-action" onPointerDown={(event) => {
+        setSample(event.pointerType || "unknown");
+      }}><PenLine size={18} /><span><strong>{t("focus.tapHereWithPen")}</strong></span></button>
+      {classified !== null && <p className="workspace-v2-settings-note" role="status">
+        {t(classified === "pen" ? "focus.stylusDetected" : classified === "touch" ? "focus.touchStylusDetected" : "focus.pointerInputOther")}
+      </p>}
+      {classified === "touch" && drawingInput === DRAWING_INPUT.STYLUS_ONLY && <button type="button" className="workspace-v2-settings-action" onClick={() => onChange(DRAWING_INPUT.STYLUS_AND_FINGER)}><PenLine size={18} /><span><strong>{t("focus.enableTouchStylus")}</strong><small>{t("focus.enableTouchStylusDescription")}</small></span></button>}
+    </>}
+  </div>;
+}
 
 /**
  * Workspace settings: drawing, canvas, view and other sections.
@@ -28,6 +54,7 @@ export function SettingsPopover({ openNotes, activeVirtualPage, activeVirtualPag
           <div className="workspace-v8-settings-group">
             <SettingsToggle icon={PenLine} label={t("focus.applePencilMode")} description={t("focus.onlyThePencilDrawsFingers")} checked={drawingInput === DRAWING_INPUT.STYLUS_ONLY} onChange={(enabled) => changeDrawingInput(enabled ? DRAWING_INPUT.STYLUS_ONLY : DRAWING_INPUT.STYLUS_AND_FINGER)} />
           </div>
+          <StylusInputCheck drawingInput={drawingInput} onChange={changeDrawingInput} t={t} />
           <div className="workspace-v8-settings-group">
             <SettingsToggle icon={Sparkles} label={t("focus.improveNewHandwriting")} description={t("focus.smoothNewPenAndPencil")} checked={autoImproveHandwriting} onChange={setAutoImproveHandwriting} />
             <SettingsToggle icon={Ruler} label={t("focus.straightLinesShapes")} description={t("focus.snapNearStraightLinesAnd")} checked={drawAndHold} onChange={setDrawAndHold} />
