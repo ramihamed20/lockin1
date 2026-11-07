@@ -5224,7 +5224,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const requestedSourcePage = Number(searchParams.get("sourcePage"));
   const requestedSourceVersion = searchParams.get("sourceVersion") || "";
   const openedSourcePage = useRef("");
-  const [summaryPanelOpen, setSummaryPanelOpen] = useState(true);
+  // Never reveal the floating keyboard-summary panel automatically when a sheet loads.
+  // Students may still explicitly continue or create a keyboard summary from My Summary.
+  const [summaryPanelOpen, setSummaryPanelOpen] = useState(false);
+  useEffect(() => {
+    if (!paneActive) setSummaryPanelOpen(false);
+  }, [paneActive]);
   const [summaryReceiveDismissed, setSummaryReceiveDismissed] = useState(false);
   const shownSummaryIds = useMemo(() => new Set(sheetSummaries.summaries.filter((item) => item.visible).map((item) => item.id)), [sheetSummaries.summaries]);
   // Hidden summaries keep their pages and ink; the reader just leaves them out.
@@ -6381,9 +6386,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       {studyMode === "active" && activeStudy?.study_mode === "pomodoro" && activeStudy?.status === "active" && <PomodoroStudy key={`${user?.id}:${activeStudy.id}`} userId={user?.id || ownerKey} run={activeStudy} page={page} virtualPage={activeVirtualPageId !== null} active={paneActive && workspaceReady && !modeDialogOpen && !activeExitOpen} blocked={Boolean(activeQuiz)} deferSetup={knowledgeOpen || marksOpen || sideOpen} busy={activeStudyBusy} onStartTest={openPomodoroQuiz} onOpenTest={openActiveQuiz} onSaveClock={(clock) => focusApi.savePomodoroClock(activeStudy.id, clock)} />}
       {translationOpen && shareDocumentId && paneActive && workspaceReady && !activeQuiz && !modeDialogOpen && <SheetTranslationPanel
         documentId={shareDocumentId} page={page} onClose={() => { setTranslationOpen(false); rootRef.current?.querySelector('[data-workspace-surface="more"]')?.focus(); }} />}
-      {summariesEnabled && paneActive && workspaceReady && !activeQuiz && shownKeyboardSummaries.length > 0 && <SummaryTextPanel
+      {summariesEnabled && paneActive && workspaceReady && !activeQuiz && summaryPanelOpen && shownKeyboardSummaries.length > 0 && <SummaryTextPanel
         summaries={shownKeyboardSummaries} activeId={summaryPanelId} onActive={setSummaryPanelId} page={page}
-        open={summaryPanelOpen} onToggle={() => setSummaryPanelOpen((value) => !value)}
+        open={true} onToggle={() => setSummaryPanelOpen(false)}
         pageText={sheetSummaries.pageText} onWrite={sheetSummaries.writePage} saveState={sheetSummaries.saveState} />}
       {summariesEnabled && paneActive && workspaceReady && !activeQuiz && jumpSummary && jumpTarget !== undefined && <button type="button" className="summary-jump"
         style={/** @type {any} */ ({ "--summary-accent": SUMMARY_COLORS[jumpSummary.color]?.accent })}
