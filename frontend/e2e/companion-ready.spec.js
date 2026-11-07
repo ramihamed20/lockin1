@@ -282,3 +282,22 @@ test('toolbar companion cannot be accidentally added on tablet, which keeps its 
  await menu.locator('header button').click();
  await expect(page.locator('.study-companion-pet')).toBeVisible();
 });
+
+test('prepared page help appears ahead of sheet-wide tips with kind and PDF page',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.setViewportSize({width:390,height:844});
+ await page.addInitScript(()=>localStorage.setItem('lock-in.locale','ar'));
+ const pageIdea={...idea,id:'22222222-2222-4222-8222-222222222222',page:1,kind:'connection',teaser:'ربط مفاهيم',question:'الفرق بين مفهومين',explanation:'شرح مرتبط بهذه الصفحة.'};
+ const generalIdea={...idea,id:'33333333-3333-4333-8333-333333333333',page:null,kind:'organize',teaser:'نصيحة عامة',question:'مراجعة عامة',explanation:'راجع بهدوء.'};
+ await page.route('**/api/v1/catalog/documents/**',route=>route.fulfill({json:{version_id:'test-version',results:[generalIdea,pageIdea]}}));
+ await page.goto('/e2e/fixtures/companion-ready/');
+ await expect(page.locator('.study-companion-bubble')).toContainText('ربط مفاهيم');
+ await page.locator('.study-companion-pet').click();
+ const lesson=page.locator('.study-companion-panel');
+ await expect(lesson.locator('.study-companion-kind')).toContainText('ربط أفكار');
+ await expect(lesson.locator('.study-companion-kind')).toContainText('صفحة 1');
+ await expect(lesson.getByRole('heading',{name:'الفرق بين مفهومين'})).toBeVisible();
+ await lesson.locator('.study-companion-card-nav button').last().click();
+ await expect(lesson.getByRole('heading',{name:'مراجعة عامة'})).toBeVisible();
+ await expect(lesson.locator('.study-companion-kind')).toContainText('تنظيم');
+});
