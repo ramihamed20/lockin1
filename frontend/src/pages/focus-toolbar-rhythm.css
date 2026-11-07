@@ -288,3 +288,17 @@
     gap: 1px;
   }
 }
+
+/* A floating or bottom-docked tablet rail still offers the colour strip and
+   its pinned Add action. Narrow phones use the existing pen-inspector picker. */
+@media (min-width: 700px) and (min-height: 600px) {
+  .workspace-v2 .workspace-v2-toolbar .workspace-tool-dock:is([data-dock-edge="float"], [data-dock-edge="bottom"]) .workspace-v3-quick-colors {
+    display: flex;
+    max-width: 115px;
+    margin-inline: 3px;
+    padding: 2px;
+  }
+  .workspace-v2 .workspace-v2-toolbar .workspace-tool-dock:is([data-dock-edge="float"], [data-dock-edge="bottom"]) .workspace-v3-color-scroll {
+    max-width: 70px;
+  }
+}
