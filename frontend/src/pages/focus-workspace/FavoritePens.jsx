@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { cssVars } from "../../lib/utils.js";
 import { PEN_PROFILE_OPTIONS } from "./constants.js";
@@ -63,6 +63,7 @@ export function FavoritePens({ favorites, activeIndex, canSave, onApply, onSave,
       <button type="button" role="menuitem" className="is-danger" onClick={() => { setMenuIndex(null); onRemove(index); }}><Trash2 size={15} aria-hidden="true" />{t("focus.removeFavoritePen")}</button>
     </span>;
   return <div ref={rootRef} className={`workspace-favorite-pens${className ? ` ${className}` : ""}`} role="group" aria-label={t("focus.favoritePens")} onPointerDown={(event) => event.stopPropagation()}>
+    {className.includes("is-toolbar") && <span className="workspace-favorite-pens-mark" title={t("focus.favoritePens")} aria-hidden="true"><Star size={15} fill="currentColor" /></span>}
     {favorites.map((favorite, index) => {
       const active = index === activeIndex;
       return <span key={`${favorite.tool}-${favorite.profile}-${favorite.color}-${index}`} className="workspace-favorite-pen-slot">
