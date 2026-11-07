@@ -1593,6 +1593,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoom]);
 
+  // The floating toolbar shares the reader grid cell with the PDF stage.
+  // Scroll offsets are measured against the *visible* top edge, not the
+  // scroller's origin hidden underneath that toolbar.
+  const readerVisibleTopInset = useCallback((stage) => {
+    if (!stage) return 0;
+    const stageTop = stage.getBoundingClientRect().top;
+    const cssPadding = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
+    const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? stageTop;
+    return Math.max(cssPadding, toolbarBottom - stageTop + 12);
+  }, []);
+
   useEffect(() => {
     setPageCount(configuredPageCount);
     setPage((current) => Math.min(configuredPageCount, Math.max(1, current)));
@@ -1643,17 +1654,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     observer.observe(stage);
     return () => observer.disconnect();
   }, [clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
-
-  // The floating toolbar shares the reader grid cell with the PDF stage.
-  // Scroll offsets are measured against the *visible* top edge, not the
-  // scroller's origin hidden underneath that toolbar.
-  const readerVisibleTopInset = useCallback((stage) => {
-    if (!stage) return 0;
-    const stageTop = stage.getBoundingClientRect().top;
-    const cssPadding = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
-    const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? stageTop;
-    return Math.max(cssPadding, toolbarBottom - stageTop + 12);
-  }, []);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
