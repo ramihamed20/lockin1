@@ -22,3 +22,13 @@
 .admin-assistance-import-sheets label { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 .admin-assistance-import-preview article { padding: 12px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .admin-assistance-import-preview small { display: block; color: var(--muted); }
+
+.admin-assistance-coverage {
+ display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
+ padding: 12px 14px; border: 1px solid var(--separator);
+ border-radius: var(--radius-md); background: var(--surface-2);
+ font-size: 13px; line-height: 1.6;
+}
+.admin-assistance-coverage strong { font-weight: 650; }
+.admin-assistance-coverage > span { color: var(--muted); }
+.admin-assistance-coverage > small { flex-basis: 100%; font-size: 12px; color: var(--muted); }
