@@ -270,3 +270,39 @@ test("horizontal two-finger pinch keeps the selected PDF page under the fingers"
   expect(Math.abs(final.x - initial.x), "pinch focal drift").toBeLessThan(0.08);
   expect(final.width).toBeGreaterThan(initial.width);
 });
+
+test("horizontal zoom begins at 120 percent, cannot zoom out further, and can zoom in", async ({ page }) => {
+  await mockReader(page, { horizontal: true });
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await openReader(page);
+  await expect(page.locator(".workspace-v2-a4-document")).toHaveClass(/is-horizontal/);
+  const actualScale = () => page.locator(".workspace-v2-a4-zoom-surface").evaluate(
+    (node) => Number.parseFloat(node.style.getPropertyValue("--workspace-a4-zoom"))
+  );
+  await expect.poll(actualScale).toBeCloseTo(1.2, 3);
+  const zoomOut = page.getByRole("button", { name: "Zoom out", exact: true });
+  const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
+  await expect(zoomOut).toBeDisabled();
+  await zoomIn.click();
+  await expect.poll(actualScale).toBeGreaterThan(1.2);
+  await expect(zoomOut).toBeEnabled();
+  await zoomOut.click();
+  await expect.poll(actualScale).toBeCloseTo(1.2, 3);
+  await expect(zoomOut).toBeDisabled();
+});
+
+for (const viewport of [{ width: 820, height: 1180 }, { width: 390, height: 844 }]) {
+  test(`vertical page one starts below the floating toolbar at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await mockReader(page);
+    await page.setViewportSize(viewport);
+    await openReader(page);
+    await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
+    // Positioning and fitted geometry may settle on separate animation frames.
+    await expect.poll(async () => page.evaluate(() => {
+      const toolbar = document.querySelector(".workspace-v2-reader > .workspace-v2-toolbar");
+      const firstPage = document.querySelector('.workspace-v2-document-stage [data-pdf-page="1"]');
+      if (!toolbar || !firstPage) return -999;
+      return firstPage.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom;
+    }), { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
+  });
+}
