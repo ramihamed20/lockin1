@@ -254,7 +254,8 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /data-workspace-tool="text"/);
   assert.match(workspace, /type: "text"/);
   assert.match(workspace, /function addTextAnnotation/);
-  assert.match(workspace, /addSavedColor\(items, normalized, MAX_PALETTE_COLORS, COLORS\)/);
+  assert.match(workspace, /addSavedColor\(recentColors, normalized, MAX_PALETTE_COLORS, COLORS\)/);
+  assert.match(workspace, /persistRecentColors\(next, \{ notify: true \}\)/);
   assert.match(workspace, /removeSavedColor\(recentColors, normalized, MAX_PALETTE_COLORS, COLORS\)/);
   assert.match(workspace, /paletteColors\.length < MAX_PALETTE_COLORS/);
   assert.match(workspace, /label=\{t\("focus\.resumeActiveStudyWhereI"\)\}/);
