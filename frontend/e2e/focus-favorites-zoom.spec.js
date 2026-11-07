@@ -48,6 +48,33 @@ async function savedAnnotations(page) {
   return parseCatalogWorkspace(await page.evaluate((key) => localStorage.getItem(key), key))?.annotations ?? [];
 }
 
+test("choosing an ink colour replays a brief pen animation in the toolbar", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page);
+  await openPenPanel(page);
+  const panel = page.locator("#workspace-pen-options");
+  const pen = page.locator(".workspace-v2-toolbar [data-workspace-tool='pen']");
+  const red = panel.getByRole("button", { name: "Use #e5383b" });
+
+  await red.click();
+  await expect(pen).toHaveAttribute("data-color-motion", "1");
+  await expect(pen.locator(".workspace-v3-tool-color-trace")).toHaveCount(1);
+  await expect.poll(() => pen.locator("svg").evaluate((node) => getComputedStyle(node).color)).toBe("rgb(229, 56, 59)");
+  await expect(pen.locator(".workspace-v3-tool-swatch")).toHaveCSS("background-color", "rgb(229, 56, 59)");
+
+  // Same-colour taps replay the motion rather than relying on a changed CSS
+  // variable (which would leave the animation stuck after the first tap).
+  await red.click();
+  await expect(pen).toHaveAttribute("data-color-motion", "2");
+
+  // Motion-sensitive users retain the new colour without the animation.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await panel.getByRole("button", { name: "Use #2563eb" }).click();
+  await expect(pen).toHaveAttribute("data-color-motion", "3");
+  await expect(pen.locator("svg")).toHaveCSS("animation-name", "none");
+  await expect(pen.locator(".workspace-v3-tool-swatch")).toHaveCSS("background-color", "rgb(37, 99, 235)");
+});
+
 test("a favorite pen is saved from the pen panel, taken up from the toolbar in one tap, and removed", async ({ page }) => {
   await mockWorkspace(page);
   await openWorkspace(page);
