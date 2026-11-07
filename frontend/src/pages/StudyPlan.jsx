@@ -7,7 +7,7 @@ import { useI18n } from "../components/I18nProvider.jsx";
 import { Icon } from "../lib/icons.jsx";
 import { formatDate } from "../lib/i18n.js";
 import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
-import { nextSession, subjectSections, taskDestination } from "../studyPlan/sections.js";
+import { nextSession, rankToday, subjectSections, taskDestination } from "../studyPlan/sections.js";
 import "../studyPlan/sections.css";
 import ReadingProgress from "../studyPlan/ReadingProgress.jsx";
 import DayCapacityEditor from "../studyPlan/DayCapacityEditor.jsx";
@@ -141,10 +141,11 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   }
   const items = plan?.results || [];
   const title = item => item.generated && item.title === "Study session" ? t("plan.sessionTitle") : item.title;
-  const next = nextSession(items, today);
+  const todayItems = rankToday(items.filter(item => item.scheduled_date === today),
+    examPeriods, profile?.subject_readiness, today);
+  const next = nextSession(todayItems, today) || nextSession(items, today);
   const subjects = subjectSections(profile?.subjects || [], items, plan?.overdue || [], materials);
   const selectedSubject = subjects.find(group => group.name === subject);
-  const todayItems = items.filter(item => item.scheduled_date === today);
   const todayDone = todayItems.filter(item => item.status === "completed").length;
   const todayRemaining = todayItems.filter(item => item.status === "planned").reduce((sum, item) => sum + item.duration_minutes, 0);
   const canGenerate = !plan?.offline && profile?.configured && profile.mode !== "custom" && start >= weekOf(today);
@@ -242,7 +243,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
         </section>
         <section className="plan-today-list" aria-labelledby="plan-today-title">
           <h3 id="plan-today-title">{t("plan.flow.todayTasks")}</h3>
-          {loading ? <LoadingPanel variant="list" /> : items.some(item => item.scheduled_date === today) ? tasks(items.filter(item => item.scheduled_date === today)) : <p className="plan-empty-day">{t("plan.emptyDay")}</p>}
+          {loading ? <LoadingPanel variant="list" /> : todayItems.length ? tasks(todayItems) : <p className="plan-empty-day">{t("plan.emptyDay")}</p>}
         </section></section>}
         {activeStage === "subjects" && <section className="plan-stage-panel plan-subjects">
           <p className="plan-note">{t("plan.sections.subjectScope")}</p>

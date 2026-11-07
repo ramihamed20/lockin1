@@ -102,6 +102,24 @@ export default function PlanSettings({ profile, materials = [], onSave, onCancel
           </fieldset>
           {invalidDays && <p role="alert" className="plan-error">{t("plan.noDay")}</p>}
 
+          {draft.mode === "normal" && materials.length > 0 && <details className="plan-advanced">
+            <summary>{t("smart.readiness")}</summary>
+            <p>{t("smart.readinessHint")}</p>
+            {materials.map(material => <label className="field" key={material.slug}>
+              <span dir="auto">{material.title}</span>
+              <select value={draft.subject_readiness[material.slug] || ""} onChange={event => {
+                const values = { ...draft.subject_readiness };
+                if (event.target.value) values[material.slug] = event.target.value;
+                else delete values[material.slug];
+                change("subject_readiness", values);
+              }}>
+                <option value="">{t("smart.readiness.unset")}</option>
+                {["not_started", "started", "needs_practice", "ready_review"].map(level =>
+                  <option key={level} value={level}>{t("smart.readiness." + level)}</option>
+                )}
+              </select>
+            </label>)}
+          </details>}
           <div className="plan-subjects">
             <div className="plan-subjects-heading"><strong>{t("plan.yourSubjects")}</strong><small>{t("plan.subjectCount", { count: chosen.length, limit: MAX_SUBJECTS })}</small></div>
             {materials.length > 6 && <label className="plan-material-search">{t("plan.wizard.findSubject")}
