@@ -163,6 +163,42 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
   async function previewWeek() {
     await action("preview", async () => { const result = await studyPlanApi.previewWeek(start); setPreview({ ...result, start }); });
   }
+  // First-time setup should lead directly to something the student can do.
+  // Weekly modes preview the timetable without silently generating anything;
+  // Custom opens the first session editor. Edits to existing plans stay put.
+  async function savePlanSettings(draft) {
+    await action("profile", async () => {
+      const firstSetup = !profile.configured;
+      await studyPlanApi.saveProfile(draft, profile.revision);
+      const fresh = await load(true);
+      setSettings(false);
+      setPreview(null);
+      if (!firstSetup) {
+        setMessage("plan.saved");
+        return;
+      }
+      const firstDay = fresh?.today || today;
+      setDay(firstDay);
+      if (draft.mode === "custom") {
+        setStage("today");
+        setEditor({ item: null, selectedDay: firstDay, key: globalThis.crypto.randomUUID() });
+        setMessage("plan.setupCustom");
+        return;
+      }
+      const firstWeek = weekOf(firstDay);
+      if (start !== firstWeek) setStart(firstWeek);
+      setMessage("plan.setupReview");
+      try {
+        const result = await studyPlanApi.previewWeek(firstWeek);
+        setPreview({ ...result, start: firstWeek });
+      } catch (previewError) {
+        // The settings did save; losing the first preview must not imply that
+        // the student must repeat the wizard.
+        setActionError(previewError);
+        setMessage("plan.setupReviewFallback");
+      }
+    });
+  }
   function openEditor(item = null, selectedDay = day) { setEditor({ item, selectedDay, key: item?.id || globalThis.crypto.randomUUID() }); setPreview(null); }
   function tasks(values, { overdue = false } = {}) {
     return <ul className="plan-task-list">{[...values].sort((a, b) => Number(a.status === "completed") - Number(b.status === "completed")).map(item => <li key={item.id} className={item.status === "completed" ? "is-complete" : ""}>
@@ -182,9 +218,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
         {message && <div className={`plan-notice ${["plan.stale", "plan.invalid", "plan.saveFailed"].includes(message) ? "plan-error" : ""}`} role="status"><span>{t(message)}</span>{message === "plan.stale" && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { void action("refresh", refreshPlan); }}>{t("plan.refresh")}</button>}</div>}
         {error && <ErrorPanel message={error} onRetry={() => load(true)} />}
         {actionError && <><ErrorPanel message={actionError} />{actionError.code === "plan_changed" && <button className="btn btn-soft" type="button" disabled={Boolean(busy)} onClick={() => { void action("refresh", refreshPlan); }}>{t("plan.refresh")}</button>}</>}
-        {(settings || !profile.configured) && <PlanSettings key={`${profile.configured}-${initialMode}`} profile={profile} materials={materials} initialMode={initialMode} busy={Boolean(busy)} onCancel={() => setSettings(false)} onSave={draft => action("profile", async () => {
-          await studyPlanApi.saveProfile(draft, profile.revision); await load(true); setSettings(false); setPreview(null); setMessage("plan.saved");
-        })} />}
+        {(settings || !profile.configured) && <PlanSettings key={`${profile.configured}-${initialMode}`} profile={profile} materials={materials} initialMode={initialMode} busy={Boolean(busy)} onCancel={() => setSettings(false)} onSave={savePlanSettings} />}
         {profile.configured && !settings && <>
         <nav className="plan-journey plan-section-nav" aria-label={t("plan.sections.navigation")}>
           <div className="plan-journey-steps">{stages.map(name => <button key={name} type="button" disabled={Boolean(busy) || Boolean(editor) || Boolean(progressTask)} className={activeStage === name ? "is-active" : ""} aria-current={activeStage === name ? "page" : undefined} onClick={() => showStage(name)}>
@@ -192,6 +226,10 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           </button>)}</div>
         </nav>
         <h2 className="plan-stage-heading" tabIndex={-1} ref={stageAnchor}>{t("plan.flow." + activeStage)}</h2>
+        {preview && <section className="plan-preview" aria-labelledby="plan-preview-title"><h2 id="plan-preview-title" ref={previewAnchor} tabIndex={-1}>{t("plan.previewTitle")}</h2><p>{t(preview.count ? "plan.previewHint" : "plan.previewEmpty", { count: preview.count, minutes: preview.minutes })}</p>
+          <ul>{weekDays(preview.start).filter(stamp => preview.items.some(item => item.scheduled_date === stamp)).map(stamp => <li key={stamp}><strong>{displayDate(stamp, { weekday: "long", day: "numeric", month: "short" })}</strong><span>{preview.items.filter(item => item.scheduled_date === stamp).map(item => `${item.subject || t("plan.sessionTitle")} (${item.duration_minutes})`).join(" · ")}</span></li>)}</ul>
+          <div className="plan-actions">{preview.count > 0 && <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={() => action("generate", async () => { await studyPlanApi.generateWeek(preview.start, preview.preview_token); setPreview(null); await load(true); setMessage("plan.added"); })}>{t("plan.generate")}</button>}<button type="button" className="btn btn-soft" disabled={Boolean(busy)} onClick={() => setPreview(null)}>{t("plan.cancel")}</button></div>
+        </section>}
         {activeStage === "exam" && examPeriods && <ReadingPlanPanel userId={user.id} key={user.id} exams={examPeriods} profile={profile} disabled={Boolean(busy) && busy !== "exam-apply"} onApplying={value => setBusy(value ? "exam-apply" : "")} onApplied={async receipt => { setDay(receipt.first_date); if (weekOf(receipt.first_date) !== start) setStart(weekOf(receipt.first_date)); else await load(true); }} onRefresh={() => load(true)} onViewWeek={() => setStage("week")} onSetup={() => { setInitialMode("normal"); setSettings(true); }} />}
         {activeStage === "today" && <section className="plan-stage-panel plan-stage-today">
         <div className="plan-daily-summary" role="status"><strong>{t("plan.sections.todayProgress", { done: todayDone, total: todayItems.length })}</strong><span>{t("plan.sections.remainingTime", { minutes: todayRemaining })}</span></div>
@@ -244,10 +282,7 @@ export default function StudyPlan({ user, examPeriods = null, examNotice = null,
           {loading ? <LoadingPanel variant="list" /> : items.some(item => item.scheduled_date === day) ? tasks(items.filter(item => item.scheduled_date === day)) : <p className="plan-empty-day">{t("plan.emptyDay")}</p>}
           {canGenerate && <div className="plan-actions"><button type="button" className="btn btn-soft" disabled={Boolean(busy)} onClick={previewWeek}><Icon name="calendar" size={17} />{t("plan.preview")}</button></div>}
         </section>
-        {preview && <section className="plan-preview" aria-labelledby="plan-preview-title"><h2 id="plan-preview-title" ref={previewAnchor} tabIndex={-1}>{t("plan.previewTitle")}</h2><p>{t(preview.count ? "plan.previewHint" : "plan.previewEmpty", { count: preview.count, minutes: preview.minutes })}</p>
-          <ul>{weekDays(preview.start).filter(stamp => preview.items.some(item => item.scheduled_date === stamp)).map(stamp => <li key={stamp}><strong>{displayDate(stamp, { weekday: "long", day: "numeric", month: "short" })}</strong><span>{preview.items.filter(item => item.scheduled_date === stamp).map(item => `${item.subject || t("plan.sessionTitle")} (${item.duration_minutes})`).join(" · ")}</span></li>)}</ul>
-          <div className="plan-actions">{preview.count > 0 && <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={() => action("generate", async () => { await studyPlanApi.generateWeek(preview.start, preview.preview_token); setPreview(null); await load(true); setMessage("plan.added"); })}>{t("plan.generate")}</button>}<button type="button" className="btn btn-soft" disabled={Boolean(busy)} onClick={() => setPreview(null)}>{t("plan.cancel")}</button></div>
-        </section>}
+
         {profile.mode === "normal" && <DayCapacityEditor key={`${day}:${profile.revision}`} day={day} profile={profile} disabled={Boolean(busy) || plan.offline} onSave={minutes => action("capacity", async () => { const { configured: ignored, revision, ...fields } = profile; void ignored; await studyPlanApi.saveProfile({ ...fields, date_minutes: { ...profile.date_minutes, [day]: minutes } }, revision); await load(true); })} />}
         </section>}
         {progressTask && <ReadingProgress key={progressTask.id} userId={user.id} task={progressTask} onCancel={() => setProgressTask(null)} onSaved={async result => { setProgressTask(null); setMessage(result.pending ? "smart.pending" : "smart.progressSaved"); if (!result.pending) await load(true); }} />}
