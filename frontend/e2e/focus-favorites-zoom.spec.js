@@ -66,6 +66,18 @@ test("choosing an ink colour replays a brief pen animation in the toolbar", asyn
   // variable (which would leave the animation stuck after the first tap).
   await red.click();
   await expect(pen).toHaveAttribute("data-color-motion", "2");
+  // WebKit previously left two painted pen glyphs after a colour choice.
+  // The glyph must stay as one stable SVG, not a keyed/remounted animation.
+  const highlighter = page.locator(".workspace-v2-toolbar [data-workspace-tool='highlighter']");
+  for (const button of [pen, highlighter]) {
+    await expect(button.locator(":scope > svg")).toHaveCount(1);
+    const glyphBounds = await button.locator(":scope > svg").boundingBox();
+    const buttonBounds = await button.boundingBox();
+    expect(glyphBounds.y).toBeGreaterThanOrEqual(buttonBounds.y - 1);
+    expect(glyphBounds.y + glyphBounds.height).toBeLessThanOrEqual(buttonBounds.y + buttonBounds.height + 1);
+    await expect(button.locator(":scope > svg")).toHaveCSS("animation-name", "none");
+    await expect(button.locator(":scope > svg")).toHaveCSS("transform", "none");
+  }
 
   // Motion-sensitive users retain the new colour without the animation.
   await page.emulateMedia({ reducedMotion: "reduce" });
