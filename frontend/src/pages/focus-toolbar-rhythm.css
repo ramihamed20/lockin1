@@ -381,37 +381,39 @@
   height: 12px;
 }
 
-/* iPad: preserve the primary one-line tools, then place BOTH color swatches
-   and the full five-pen group in one centred accessories row. More than one
-   open sheet already adds a tabs row above the tool controls. */
+/* Upper row on iPad: colors + five starred presets sit alongside the tab
+   strip, not underneath Undo / drawing tools. The tab strip dynamically
+   reserves the palette's measured width and retains horizontal scrolling. */
 @media (min-width: 700px) and (max-width: 1179px) and (min-height: 600px) {
-  .workspace-v2 .workspace-v2-toolbar {
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
     row-gap: 3px;
     align-content: start;
   }
-  .workspace-v2 .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
-    grid-row: 1;
-  }
   .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories {
     grid-column: 1 / -1;
-    grid-row: 2;
-    justify-self: center;
+    grid-row: 1;
+    justify-self: end;
+    z-index: 2;
     max-width: calc(100% - 8px);
   }
-  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
-    .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
     grid-row: 2;
   }
-  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
-    .workspace-v2-toolbar > .workspace-toolbar-accessories {
-    grid-row: 3;
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) > .workspace-tabs {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-inline-end: calc(var(--workspace-accessories-reserve, 0px) + 8px);
+  }
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) > .workspace-tabs .workspace-tabs-scroller {
+    min-width: 0;
   }
 }
 
-/* Wide desktop: accessories sit beside the tools rather than adding height. */
+/* Desktop stays on one toolbar row when no tabs exist. If multiple sheets
+   are open, the palettes share the upper tabs row and tools occupy row two. */
 @media (min-width: 1180px) and (min-height: 600px) {
-  .workspace-v2 .workspace-v2-toolbar {
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
     column-gap: 5px;
   }
@@ -424,8 +426,20 @@
     gap: 6px;
   }
   .workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions { grid-column: 4; }
-  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
-    .workspace-v2-toolbar > .workspace-toolbar-accessories { grid-row: 2; }
+  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen) .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) > .workspace-toolbar-accessories {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: end;
+    z-index: 2;
+  }
+  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen) .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) > .workspace-tabs {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    padding-inline-end: calc(var(--workspace-accessories-reserve, 0px) + 8px);
+  }
+  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen) .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
+    grid-row: 2;
+  }
   .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories .workspace-v3-quick-color {
     width: 31px; height: 38px; flex-basis: 31px;
   }
@@ -435,31 +449,32 @@
   .workspace-v2 .workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i { width: 20px; height: 20px; }
 }
 
-/* Phone: the five starred pens get their own visible toolbar row (never
-   hidden in a 2-button swiping window). Colours remain in the pen inspector,
-   saving precious space in the smallest reader. */
+/* Small screens: starred pens take the upper line, the drawing controls
+   remain directly below. Tabs scroll in the remaining upper-line space. */
 @media (max-width: 699px), (max-height: 599px) and (max-width: 1179px) {
-  .workspace-v2 .workspace-v2-toolbar {
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
     row-gap: 3px;
     align-content: start;
   }
-  .workspace-v2 .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
-    grid-row: 1;
-  }
   .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories {
     grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
-    max-width: 100%;
-    justify-self: stretch;
-    justify-content: center;
+    grid-row: 1;
+    width: max-content;
+    max-width: calc(100% - 8px);
+    justify-self: end;
+    z-index: 2;
+    justify-content: flex-end;
     gap: 0;
   }
-  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
-    .workspace-v2-toolbar > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) { grid-row: 2; }
-  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
-    .workspace-v2-toolbar > .workspace-toolbar-accessories { grid-row: 3; }
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) > :is(.workspace-v2-control-group.is-exit, .workspace-tool-dock, .workspace-v2-history.is-docked, .workspace-v2-toolbar-actions) {
+    grid-row: 2;
+  }
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-toolbar-accessories) > .workspace-tabs {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    padding-inline-end: calc(var(--workspace-accessories-reserve, 0px) + 8px);
+  }
   .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-v3-quick-colors { display: none; }
   .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-favorite-pens.is-toolbar {
     display: flex;
@@ -469,9 +484,11 @@
     width: clamp(35px, 11vw, 44px);
     height: 40px;
   }
-  /* A bar without starred pens should keep its original height. */
-  .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories:not(:has(.workspace-favorite-pens)) { display: none; }
 }
+
+/* Color and pen buttons never shrink the tab scroller below a usable width.
+   The tab strip itself remains independently scrollable for many open sheets. */
+.workspace-v2 .workspace-v2-toolbar > .workspace-tabs .workspace-tabs-scroller { flex: 1 1 auto; min-width: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .workspace-v2 .workspace-v2-toolbar > .workspace-toolbar-accessories * { transition: none; }
