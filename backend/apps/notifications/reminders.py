@@ -156,28 +156,44 @@ def _briefing(reminder: StudyReminder, now: datetime) -> dict[str, str] | None:
         }
     if local.weekday() not in reminder.weekdays:
         return None
-    if reminder.review_enabled:
-        count = due_review_count(user=user, now=now)
-        if count:
-            return {
-                "template_key": "study.review",
-                "title": "مراجعة قصيرة تثبّت معلوماتك"
-                if arabic
-                else "A little review helps it stick",
-                "body": f"لديك {count} أسئلة جاهزة في بنك المراجعة. ابدأ ببضعة أسئلة اليوم."
-                if arabic
-                else f"{count} questions are ready in your Review Bank. Try a few today.",
-                "target_route": "/review",
-            }
-    if not reminder.study_enabled:
-        return None
-    if reminder.skip_if_studied and local.date().isoformat() in recent_study_days(
+    count = due_review_count(user=user, now=now) if reminder.review_enabled else 0
+    # One useful daily briefing: a due review must not hide today's plan.
+    # Both projections are account-scoped; no question text enters a push body.
+    already_studied = reminder.skip_if_studied and local.date().isoformat() in recent_study_days(
         user=user, now=now, zone_name=reminder.timezone
-    ):
-        return None
-    from apps.study_plans.reminders import daily_plan_briefing
+    )
+    plan = None
+    if reminder.study_enabled and not already_studied:
+        from apps.study_plans.reminders import daily_plan_briefing
 
-    plan = daily_plan_briefing(user=user, today=local.date())
+        plan = daily_plan_briefing(user=user, today=local.date())
+    if count and plan:
+        return {
+            "template_key": "study.reminder",
+            "title": "خطتك ومراجعتك اليوم" if arabic else "Your plan and review today",
+            "body": (
+                f"لديك {plan['count']} مهام دراسية ({plan['minutes']} دقيقة) و{count} أسئلة للمراجعة. ابدأ بما يناسبك."
+                if arabic
+                else (
+                    f"{plan['count']} study tasks ({plan['minutes']} min) and "
+                    f"{count} review questions are ready. Pick your next step."
+                )
+            ),
+            "target_route": "/study-plan",
+        }
+    if count:
+        return {
+            "template_key": "study.review",
+            "title": "مراجعة قصيرة تثبّت معلوماتك"
+            if arabic
+            else "A little review helps it stick",
+            "body": f"لديك {count} أسئلة جاهزة في بنك المراجعة. ابدأ ببضعة أسئلة اليوم."
+            if arabic
+            else f"{count} questions are ready in your Review Bank. Try a few today.",
+            "target_route": "/review",
+        }
+    if not reminder.study_enabled or already_studied:
+        return None
     if plan:
         return {
             "template_key": "study.reminder",

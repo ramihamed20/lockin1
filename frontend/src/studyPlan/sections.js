@@ -6,6 +6,30 @@ export function taskDestination(item, materials) {
   return material ? `/materials/catalog/${encodeURIComponent(material.slug)}` : "/materials";
 }
 
+export function rankToday(items, exams, readiness, today) {
+  const dates = new Map();
+  for (const exam of exams || []) {
+    for (const schedule of exam.schedules || []) {
+      const previous = dates.get(schedule.subject_id);
+      if (schedule.scheduled_on >= today && (!previous || schedule.scheduled_on < previous)) {
+        dates.set(schedule.subject_id, schedule.scheduled_on);
+      }
+    }
+  }
+  // Keep each subject's saved activity order, including reading prerequisites.
+  const practice = new Set(items.filter(item => item.status === "planned" &&
+    item.priority_reasons?.includes("practice_results")).map(item => item.catalog_subject_id));
+  const urgency = item => {
+    const level = readiness?.[item.material_slug];
+    return Number(level === "not_started" || level === "needs_practice" || practice.has(item.catalog_subject_id));
+  };
+  return [...items].sort((a, b) =>
+    Number(a.status !== "planned") - Number(b.status !== "planned") ||
+    (dates.get(a.catalog_subject_id) || "9999").localeCompare(dates.get(b.catalog_subject_id) || "9999") ||
+    urgency(b) - urgency(a)
+  );
+}
+
 export function nextSession(items, today) {
   return items.filter(item => item.status === "planned" && item.scheduled_date >= today)
     .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))[0] || null;

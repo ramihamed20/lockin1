@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -9,6 +10,7 @@ from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.content.added_subjects import added_subjects, can_add_subjects
 from apps.content.editions import PRIMARY_ROLE_BY_EDITION, UNIVERSITY
 from apps.content.planning import planning_catalog_positions, published_planning_sheets
 from apps.files.services import managed_file_delivery_ready
@@ -16,7 +18,7 @@ from apps.focus.selectors import planning_active_study_evidence, planning_reader
 from apps.progress.selectors import planning_reading_progress
 from apps.review.selectors import planning_review_summary
 
-from .exam_models import ExamPeriod, ExamSchedule
+from .exam_models import ExamPeriod, ExamSchedule, ExamSyllabusScope, valid_carryover_pair
 from .models import StudySheetDifficulty
 from .services import plan_today, profile_for
 
@@ -42,10 +44,90 @@ def student_exam_periods(*, user: User) -> QuerySet[ExamPeriod]:
             )
         )
         .distinct()
+        .select_related(
+            "institution",
+            "cohort__program",
+            "carryover_period__cohort__program",
+            "carryover_period__institution",
+        )
     )
 
 
-def exam_payload(period: ExamPeriod) -> dict[str, Any]:
+def carryover_exam_period(*, user: User, period: ExamPeriod) -> ExamPeriod | None:
+    source = period.carryover_period
+    if (
+        source is None
+        or period.cohort_id != user.cohort_id
+        or not can_add_subjects(user)
+        or not valid_carryover_pair(period, source)
+        or not source.cohort.is_active
+        or not source.cohort.program.is_active
+        or source.status not in ("tentative", "confirmed")
+        or not source.institution.is_discoverable
+    ):
+        return None
+    return source
+
+
+def exam_scopes(*, user: User, period: ExamPeriod) -> list[ExamSyllabusScope]:
+    condition = Q(period=period, subject__cohort_id=user.cohort_id)
+    source = carryover_exam_period(user=user, period=period)
+    if source is not None:
+        condition |= Q(period=source, subject__in=added_subjects(user))
+    return list(
+        ExamSyllabusScope.objects.filter(
+            condition,
+            subject__is_active=True,
+            subject__source_node__is_discoverable=True,
+            subject__source_node__path__startswith=period.institution.path,
+        )
+        .select_related("subject__source_node", "period")
+        .prefetch_related("sheets")
+        .order_by("subject__cohort__position", "subject__position", "subject_id", "id")
+    )
+
+
+def student_exam_schedules(*, user: User, period: ExamPeriod) -> list[ExamSchedule]:
+    return student_exam_schedules_for_periods(user=user, periods=[period])
+
+
+def student_exam_schedules_for_periods(
+    *, user: User, periods: list[ExamPeriod]
+) -> list[ExamSchedule]:
+    own_ids = [period.pk for period in periods if period.cohort_id == user.cohort_id]
+    source_ids = [
+        source.pk
+        for period in periods
+        if (source := carryover_exam_period(user=user, period=period)) is not None
+    ]
+    condition = Q(period_id__in=own_ids, subject__cohort_id=user.cohort_id)
+    if source_ids:
+        condition |= Q(period_id__in=source_ids, subject__in=added_subjects(user))
+    schedules = (
+        ExamSchedule.objects.filter(condition)
+        .select_related("subject__source_node", "period__institution")
+        .order_by("scheduled_on", "starts_at", "id")
+    )
+    return [schedule for schedule in schedules if _valid_schedule(schedule, schedule.period)]
+
+
+def exam_payload(
+    period: ExamPeriod, *, user: User, schedules: list[ExamSchedule] | None = None
+) -> dict[str, Any]:
+    if schedules is None:
+        schedules = student_exam_schedules(user=user, period=period)
+    source = carryover_exam_period(user=user, period=period)
+    carried = (
+        list(
+            added_subjects(user).filter(
+                exam_syllabus_scopes__period=source,
+                source_node__is_discoverable=True,
+                source_node__path__startswith=period.institution.path,
+            )
+        )
+        if source
+        else []
+    )
     return {
         "id": str(period.id),
         "title": period.title,
@@ -55,7 +137,40 @@ def exam_payload(period: ExamPeriod) -> dict[str, Any]:
         "starts_on": period.starts_on.isoformat(),
         "ends_on": period.ends_on.isoformat() if period.ends_on else None,
         "status": period.status,
+        "carryover_enabled": source is not None,
+        "carried_subjects": [
+            {"id": str(subject.id), "title": subject.title} for subject in carried
+        ],
+        "first_exam_on": min([period.starts_on, *[s.scheduled_on for s in schedules]]).isoformat(),
+        "schedules": [
+            {
+                **schedule_payload(schedule),
+                "subject_id": str(schedule.subject_id),
+                "subject_title": schedule.subject.title,
+                "is_carryover": schedule.period_id != period.pk,
+            }
+            for schedule in schedules
+        ],
     }
+
+
+def schedule_payload(schedule: ExamSchedule) -> dict[str, Any]:
+    return {
+        "id": str(schedule.id),
+        "exam_type": schedule.exam_type,
+        "scheduled_on": schedule.scheduled_on.isoformat(),
+        "starts_at": schedule.starts_at.isoformat() if schedule.starts_at else None,
+        "ends_at": schedule.ends_at.isoformat() if schedule.ends_at else None,
+        "timezone": schedule.timezone,
+        "status": schedule.status,
+    }
+
+
+def subject_exam_date(subject: dict[str, Any], period: ExamPeriod) -> date:
+    return min(
+        (date.fromisoformat(row["scheduled_on"]) for row in subject["schedules"]),
+        default=date.fromisoformat(subject.get("exam_period_starts_on", str(period.starts_on))),
+    )
 
 
 def _valid_schedule(schedule: ExamSchedule, period: ExamPeriod) -> bool:
@@ -82,17 +197,7 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
         raise ExamPeriod.DoesNotExist
     now = timezone.now()
     today = plan_today(profile_for(user))
-    scopes = list(
-        period.syllabus_scopes.filter(
-            subject__cohort_id=user.cohort_id,
-            subject__is_active=True,
-            subject__source_node__is_discoverable=True,
-            subject__source_node__path__startswith=period.institution.path,
-        )
-        .select_related("subject__source_node")
-        .prefetch_related("sheets")
-        .order_by("subject__position", "subject_id", "id")
-    )
+    scopes = exam_scopes(user=user, period=period)
     subjects = [scope.subject for scope in scopes]
     grouped = published_planning_sheets(user=user, subjects=subjects)
     explicit_ids = {scope.id: {sheet.pk for sheet in scope.sheets.all()} for scope in scopes}
@@ -119,11 +224,8 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
     for version_id, rows in legacy_positions.items():
         positions.setdefault(version_id, []).extend(rows)
     active = planning_active_study_evidence(user_id=user.pk, sheet_ids=list(sheets))
-    schedules = [
-        schedule
-        for schedule in period.schedules.select_related("subject__source_node")
-        if _valid_schedule(schedule, period)
-    ]
+    schedules = student_exam_schedules(user=user, period=period)
+    period_payload = exam_payload(period, user=user, schedules=schedules)
     result: list[dict[str, Any]] = []
     inventory: list[dict[str, Any]] = []
     for scope in scopes:
@@ -178,16 +280,12 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
             {
                 "subject_id": str(subject.id),
                 "title": subject.title,
+                "material_slug": subject.material_slug,
+                "is_carryover": scope.period_id != period.pk,
+                "exam_period_id": str(scope.period_id),
+                "exam_period_starts_on": scope.period.starts_on.isoformat(),
                 "include_future_sheets": scope.include_future_sheets,
-                "schedules": [
-                    {
-                        "id": str(s.id),
-                        "exam_type": s.exam_type,
-                        "scheduled_on": s.scheduled_on.isoformat(),
-                        "status": s.status,
-                    }
-                    for s in subject_exams
-                ],
+                "schedules": [schedule_payload(s) for s in subject_exams],
                 "deadline_source": "subject_schedule" if subject_exams else "period_start",
                 "sheets": entries,
                 "review": planning_review_summary(
@@ -202,24 +300,19 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
     fingerprint = hashlib.sha256(
         json.dumps(
             {
-                "exam": exam_payload(period),
+                "exam": period_payload,
                 "inventory": inventory,
                 "scopes": [
                     {
                         "subject_id": str(scope.subject_id),
                         "future": scope.include_future_sheets,
+                        "period_id": str(scope.period_id),
+                        "starts_on": scope.period.starts_on.isoformat(),
                     }
                     for scope in scopes
                 ],
                 "schedules": [
-                    {
-                        "id": str(s.id),
-                        "date": str(s.scheduled_on),
-                        "status": s.status,
-                        "type": s.exam_type,
-                        "subject_id": str(s.subject_id),
-                    }
-                    for s in schedules
+                    {**schedule_payload(s), "subject_id": str(s.subject_id)} for s in schedules
                 ],
             },
             sort_keys=True,
@@ -229,7 +322,7 @@ def student_learning_snapshot(*, user: User, period: ExamPeriod) -> dict[str, An
         "schema_version": 1,
         "computed_at": now,
         "today": today,
-        "exam": exam_payload(period),
+        "exam": period_payload,
         "days_until_period_start": (period.starts_on - today).days,
         "syllabus_fingerprint": fingerprint,
         "sheet_count": len(sheets),

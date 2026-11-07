@@ -20,6 +20,7 @@ class WorkUnit:
     requires: tuple[str, ...] = ()
     category: str = ""
     subject: str = ""
+    adaptive_priority: int = 0
 
 
 @dataclass(frozen=True)
@@ -144,6 +145,7 @@ def build_schedule_preview(
                     choices,
                     key=lambda unit: (
                         unit.deadline,
+                        -unit.adaptive_priority,
                         category_load.get(unit.category, 0) / weights.get(unit.category, 1),
                         subject_load.get(unit.subject, 0),
                         -unit.priority,

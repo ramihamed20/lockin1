@@ -282,3 +282,19 @@ Only the i18n.js evidence digest was refreshed. Group study remains withheld
 (publicDocumentable=false); this work does not enable its public launch. The
 private goals are self-reported and provide no XP, accuracy or leaderboard credit.
 The evidence gate remains enabled.
+
+
+## Carried First Year exam priorities — 4 November 2026
+
+Reviewed the Arabic and English public Review requirements. They still describe
+up to 20 due questions from the owned mistake bank and prioritization of repeated
+mistakes; they do not claim general access to another cohort. The planner adapter
+now also resolves a selected First Year subject through the existing addition
+rules and an explicit compatible exam-period link. It never adds future-due items
+or changes the Review schedule. Removed/draft/inactive/foreign-program sources
+stop contributing priorities. The existing pilot and subscription gates remain.
+
+The focused carried-subject tests and three daily Review adaptation tests passed
+with the explicit SQLite fast-test setting. Only the review_priorities.py evidence
+digest and the Review verification date were updated. Public Arabic/English copy
+is unchanged. PostgreSQL and browser/device validation were not run for this change.

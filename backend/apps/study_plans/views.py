@@ -63,12 +63,12 @@ class StudyPlanView(APIView):
                 user=user,
                 scheduled_date__range=(start, end),
                 status__in=("planned", "completed"),
-            ).select_related("catalog_document", "review_item", "planner_run")
+            ).select_related("catalog_document", "review_item", "planner_run", "catalog_subject")
         )
         today = plan_today(profile)
         overdue = StudyPlanItem.objects.filter(
             user=user, status="planned", scheduled_date__lt=today
-        ).select_related("catalog_document", "review_item", "planner_run")
+        ).select_related("catalog_document", "review_item", "planner_run", "catalog_subject")
         completed_count = 0
         planned_minutes = 0
         completed_minutes = 0

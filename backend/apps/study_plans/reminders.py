@@ -6,6 +6,7 @@ from typing import Any
 from django.conf import settings
 
 from apps.accounts.models import User
+from apps.content.added_subjects import student_subjects
 
 from .models import StudyPlanItem
 
@@ -21,7 +22,7 @@ def daily_plan_briefing(*, user: User, today: date) -> dict[str, Any] | None:
             user=user,
             status="planned",
             scheduled_date=today,
-            catalog_subject__cohort_id=user.cohort_id,
+            catalog_subject__in=student_subjects(user),
             planner_run__period__cohort_id=user.cohort_id,
         )
         .order_by("created_at", "id")

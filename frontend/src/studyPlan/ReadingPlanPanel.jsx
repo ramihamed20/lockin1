@@ -39,7 +39,7 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
       if (active) setChanges(data);
     }).catch(() => { if (active) setChanges(null); });
     return () => { active = false; };
-  }, [examId, result]);
+  }, [examId, result, profile.revision]);
   const selected = exams.find(exam => exam.id === examId);
   const preview = state.identity === identity && !disabled ? state.preview : null;
   const blocked = disabled || applying;
@@ -68,9 +68,14 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
   return <section className="plan-exam-panel" aria-labelledby="plan-exam-title">
     <header><div><span className="plan-eyebrow">{t("plan.examPilot")}</span><h2 id="plan-exam-title"><Icon name="calendar" size={21} />{t("plan.examTitle")}</h2></div></header>
     <p className="plan-note">{t("connected.previewHint")}</p>
+    {selected?.carryover_enabled && <div className="plan-note">
+      <p>{t("plan.carryoverHint")}</p>
+      {!!selected.carried_subjects?.length && <p>{t("plan.carryoverIncluded", { subjects: selected.carried_subjects.map(subject => subject.title).join(" · ") })}</p>}
+      <Link to="/materials">{t("plan.carryoverManage")}</Link>
+    </div>}
     {!exams.length ? <p role="status">{t("plan.examNone")}</p> : profile.mode !== "normal" ? <div className="plan-actions"><p>{t("plan.examSetup")}</p><button className="btn btn-soft" type="button" onClick={onSetup} disabled={blocked}>{t("plan.settings")}</button></div> : <>
       {changes?.needs_review && <div className="plan-exam-warning" role="status">
-        <p>{t("smart.planChanged")}</p>
+        <p>{t(changes.reasons?.includes("settings_changed") ? "smart.settingsChanged" : "smart.planChanged")}</p>
         <button className="btn btn-soft" type="button" onClick={() => setReplan(true)} disabled={blocked}>{t("smart.replan")}</button>
       </div>}
       {reportId && <p>{t("connected.reportScope")} <Link to="/study-plan">{t("connected.allReviews")}</Link></p>}
@@ -86,7 +91,14 @@ export default function ReadingPlanPanel({ exams, profile, disabled, onSetup, on
       {includeActiveStudy && <label>{t("smart.difficulty")}<select value={difficulty} disabled={blocked} onChange={event => setDifficulty(event.target.value)}>{["easy", "medium", "hard"].map(value => <option key={value} value={value}>{t(`smart.${value}`)}</option>)}</select></label>}
       <label className="plan-connected-review"><input type="checkbox" checked={replan} disabled={blocked} onChange={event => setReplan(event.target.checked)} />{t("smart.replan")}</label>
       </div></details>
-      {selected && <p className="plan-exam-status">{dateLabel(selected.starts_on)} · {t(selected.status === "confirmed" ? "plan.examConfirmed" : "plan.examTentative")}</p>}
+      {selected && <p className="plan-exam-status">{dateLabel(selected.first_exam_on || selected.starts_on)} · {t(selected.status === "confirmed" ? "plan.examConfirmed" : "plan.examTentative")}</p>}
+      {!!selected?.schedules?.length && <details className="plan-exam-options">
+        <summary>{t("plan.examTimetable")}</summary>
+        <ul className="plan-exam-task-list">{selected.schedules.map(exam => <li key={exam.id}>
+          <strong dir="auto">{exam.subject_title}{exam.is_carryover && <> · {t("plan.carryoverYear")}</>}</strong>
+          <span>{dateLabel(exam.scheduled_on)}{exam.starts_at && exam.ends_at && <> · <bdi dir="ltr">{exam.starts_at.slice(0, 5)}–{exam.ends_at.slice(0, 5)}</bdi> · <bdi>{exam.timezone === "Africa/Tripoli" ? t("plan.examLibyaTime") : exam.timezone}</bdi></>}</span>
+        </li>)}</ul>
+      </details>}
       {result && <div className="plan-exam-complete" role="status"><p className="plan-apply-success">{t("connected.applied", { count: result.created_count })}</p><button type="button" className="btn btn-primary" onClick={onViewWeek}>{t("plan.flow.openWeek")}<Icon name="chevron-right" size={17} /></button></div>}
       {progressNotice && <p role="status">{t(progressNotice)}</p>}
       {applyError && <p role="alert">{t(applyError)}</p>}

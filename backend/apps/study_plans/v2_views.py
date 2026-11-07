@@ -43,7 +43,7 @@ class StudentExamListView(StudyPlanV2View):
             {
                 "enabled": True,
                 "schema_version": 1,
-                "results": [exam_payload(period) for period in periods],
+                "results": [exam_payload(period, user=_user(request)) for period in periods],
             }
         )
 
@@ -176,7 +176,10 @@ class StudentPlanChangesView(StudyPlanV2View):
             ]
             if before.get("question_fingerprint") != published_question_fingerprint(sheet_ids):
                 reasons.append("questions_changed")
-        today = plan_today(profile_for(user))
+        profile = profile_for(user)
+        if before.get("profile_revision", profile.revision) != profile.revision:
+            reasons.append("settings_changed")
+        today = plan_today(profile)
         if StudyPlanItem.objects.filter(
             user=user,
             planner_run__period=period,

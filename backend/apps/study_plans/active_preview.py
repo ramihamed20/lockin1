@@ -10,6 +10,7 @@ from apps.accounts.models import User
 from apps.content.models import CatalogDocument
 
 from .exam_models import ExamPeriod
+from .learning_snapshot import subject_exam_date
 from .models import StudyPlanItem, StudyPlanProfile
 from .scheduling import WorkUnit
 
@@ -46,10 +47,7 @@ def add_active_units(
         ],
     )
     for subject in snapshot["subjects"]:
-        deadline = min(
-            (date.fromisoformat(exam["scheduled_on"]) for exam in subject["schedules"]),
-            default=period.starts_on,
-        ) - timedelta(days=1)
+        deadline = subject_exam_date(subject, period) - timedelta(days=1)
         for sheet in subject["sheets"]:
             pdf = next(
                 (

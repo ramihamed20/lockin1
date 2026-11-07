@@ -79,6 +79,7 @@ export function profileDraft(profile) {
     mode: profile.mode, daily_minutes: profile.daily_minutes, session_minutes: profile.session_minutes,
     weekdays: profile.configured ? [...profile.weekdays] : [...DEFAULT_STUDY_DAYS],
     subjectList: [...profile.subjects], subjects: "",
+    subject_readiness: { ...profile.subject_readiness },
     review_minutes: profile.review_minutes ?? 2,
     habit_baseline_minutes: profile.habit_baseline_minutes ?? "",
     habit_block_minutes: profile.habit_block_minutes ?? "",

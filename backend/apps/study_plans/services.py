@@ -41,6 +41,7 @@ def profile_payload(profile: StudyPlanProfile) -> dict[str, Any]:
         "session_minutes": profile.session_minutes,
         "weekdays": profile.weekdays,
         "subjects": profile.subjects,
+        "subject_readiness": profile.subject_readiness,
         "timezone": profile.timezone,
         "review_minutes": profile.review_minutes,
         "weekly_minutes": profile.weekly_minutes,

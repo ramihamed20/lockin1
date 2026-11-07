@@ -37,6 +37,14 @@ class ExamPeriod(models.Model):
         on_delete=models.PROTECT,
         related_name="exam_periods",
     )
+    carryover_period = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="carryover_for",
+        help_text="First Year exam period for subjects a Second Year student has added.",
+    )
     kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.MIDTERM)
     starts_on = models.DateField()
     ends_on = models.DateField(null=True, blank=True)
@@ -64,6 +72,15 @@ class ExamPeriod(models.Model):
 
     def clean(self) -> None:
         super().clean()
+        if self.carryover_period_id and not valid_carryover_pair(self, self.carryover_period):
+            raise ValidationError(
+                {
+                    "carryover_period": (
+                        "Choose First Year exams from the same dentistry program, "
+                        "institution and exam kind."
+                    )
+                }
+            )
         if self.institution_id and self.institution.kind != EducationNode.Kind.INSTITUTION:
             raise ValidationError({"institution": "Choose an institution."})
         if self.pk and not self._state.adding:
@@ -80,6 +97,20 @@ class ExamPeriod(models.Model):
                 or (self.ends_on and self.schedules.filter(scheduled_on__gt=self.ends_on).exists())
             ):
                 raise ValidationError({"starts_on": "Existing exams must stay inside the period."})
+
+
+def valid_carryover_pair(period: ExamPeriod, source: ExamPeriod) -> bool:
+    return bool(
+        period.pk != source.pk
+        and period.cohort_id
+        and source.cohort_id
+        and period.cohort.code == "year-2"
+        and source.cohort.code == "year-1"
+        and period.cohort.program_id == source.cohort.program_id
+        and period.cohort.program.code.startswith("dentistry")
+        and period.institution_id == source.institution_id
+        and period.kind == source.kind
+    )
 
 
 def validate_exam_subject(period: ExamPeriod, subject: CatalogSubject) -> None:
@@ -110,6 +141,10 @@ class ExamSchedule(models.Model):
     )
     exam_type = models.CharField(max_length=12, choices=ExamType.choices, default=ExamType.THEORY)
     scheduled_on = models.DateField()
+    # Local wall-clock times; legacy schedules may omit both.
+    starts_at = models.TimeField(null=True, blank=True)
+    ends_at = models.TimeField(null=True, blank=True)
+    timezone = models.CharField(max_length=80, default="Africa/Tripoli")
     status = models.CharField(
         max_length=12,
         choices=ExamPeriod.Status.choices,
@@ -120,10 +155,15 @@ class ExamSchedule(models.Model):
     class Meta:
         ordering = ("scheduled_on", "id")
         constraints = [
+            models.CheckConstraint(
+                condition=Q(starts_at__isnull=True, ends_at__isnull=True)
+                | Q(starts_at__isnull=False, ends_at__isnull=False, ends_at__gt=F("starts_at")),
+                name="study_exam_time_order",
+            ),
             models.UniqueConstraint(
                 fields=("period", "subject", "exam_type"),
                 name="study_exam_subject_type_unique",
-            )
+            ),
         ]
 
     def __str__(self) -> str:
@@ -131,6 +171,12 @@ class ExamSchedule(models.Model):
 
     def clean(self) -> None:
         super().clean()
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            ZoneInfo(self.timezone)
+        except (ZoneInfoNotFoundError, ValueError) as error:
+            raise ValidationError({"timezone": "Choose a valid time zone."}) from error
         if self.period_id and self.subject_id:
             validate_exam_subject(self.period, self.subject)
         if (

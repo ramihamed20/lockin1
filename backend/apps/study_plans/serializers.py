@@ -63,6 +63,8 @@ def study_plan_item_payload(item: StudyPlanItem) -> dict[str, object]:
         "id": item.id,
         "title": item.title,
         "subject": item.subject,
+        "material_slug": item.catalog_subject.material_slug if item.catalog_subject_id else None,
+        "catalog_subject_id": item.catalog_subject_id,
         "scheduled_date": item.scheduled_date,
         "duration_minutes": item.duration_minutes,
         "status": item.status,
@@ -98,6 +100,12 @@ class StudyPlanProfileWriteSerializer(StrictSerializer):
     subjects = serializers.ListField(
         child=serializers.CharField(max_length=120, trim_whitespace=True), max_length=12
     )
+    subject_readiness = serializers.DictField(
+        child=serializers.ChoiceField(
+            choices=("not_started", "started", "needs_practice", "ready_review")
+        ),
+        required=False,
+    )
     timezone = serializers.CharField(max_length=80)
 
     review_minutes = serializers.IntegerField(min_value=1, max_value=15, required=False)
@@ -117,6 +125,11 @@ class StudyPlanProfileWriteSerializer(StrictSerializer):
         choices=("mixed", "fragmented", "continuous"), required=False
     )
     gradual_growth = serializers.BooleanField(required=False)
+
+    def validate_subject_readiness(self, value: dict[str, str]) -> dict[str, str]:
+        if len(value) > 100 or any(len(slug) > 240 for slug in value):
+            raise serializers.ValidationError("Too many subjects or an invalid subject key.")
+        return value
 
     def validate_weekly_minutes(self, value: dict[str, int]) -> dict[str, int]:
         if any(key not in {str(i) for i in range(7)} for key in value):

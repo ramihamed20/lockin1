@@ -8,6 +8,18 @@ export default function StudyPlanEntry({ user }) {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "hidden") setAttempt(value => value + 1);
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     setState({ status: "loading", exams: null });
     studyPlanApi.getExams({ signal: controller.signal, user }).then(exams => {
