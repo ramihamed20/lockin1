@@ -2054,31 +2054,3 @@ html.ix-hover .workspace-tab:not(.is-active):is(:hover, :focus-within) .workspac
   .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list:not([data-active-tool="shapes"]) > [data-workspace-tool="shapes"] { display: none; }
   .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list[data-active-tool="shapes"] > [data-workspace-tool="hand"] { display: none; }
 }
-
-
-/* Vertical PDF reading: the page must never slide beneath the tool rail.
-   Older reader styles deliberately overlay the floating toolbar and stage
-   in grid row one. Stage padding alone cannot protect a page after a finger
-   scroll (or iOS rubber-band rebound); reserve a separate real grid row
-   for the toolbar instead. Horizontal page swiping retains its overlay. */
-.workspace-v2 .workspace-v2-reader.is-vertical-reading {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-.workspace-v2 .workspace-v2-reader.is-vertical-reading > .workspace-v2-toolbar {
-  grid-area: 1 / 1;
-  align-self: start;
-}
-.workspace-v2 .workspace-v2-reader.is-vertical-reading > .workspace-v2-document-stage {
-  grid-area: 2 / 1;
-  min-height: 0;
-  padding-top: 12px;
-  scroll-padding-top: 12px;
-  /* Safari must scroll inside the stage, not rubber-band the whole reader. */
-  overscroll-behavior-y: contain;
-}
-@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
-  .workspace-v2 .workspace-v2-reader.is-vertical-reading > .workspace-v2-document-stage {
-    padding-top: 10px;
-    scroll-padding-top: 10px;
-  }
-}
