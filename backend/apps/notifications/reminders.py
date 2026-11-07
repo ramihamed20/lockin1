@@ -172,7 +172,8 @@ def _briefing(reminder: StudyReminder, now: datetime) -> dict[str, str] | None:
             "template_key": "study.reminder",
             "title": "خطتك ومراجعتك اليوم" if arabic else "Your plan and review today",
             "body": (
-                f"لديك {plan['count']} مهام دراسية ({plan['minutes']} دقيقة) و{count} أسئلة للمراجعة. ابدأ بما يناسبك."
+                f"لديك {plan['count']} مهام دراسية ({plan['minutes']} دقيقة) "
+                f"و{count} أسئلة للمراجعة. ابدأ بما يناسبك."
                 if arabic
                 else (
                     f"{plan['count']} study tasks ({plan['minutes']} min) and "
