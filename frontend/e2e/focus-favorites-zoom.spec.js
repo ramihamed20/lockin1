@@ -226,7 +226,7 @@ test("in Arabic the zoom box starts at the right margin", async ({ page }) => {
 });
 
 
-test("all five favorite pens are visible at once in the iPad toolbar", async ({ page }) => {
+test("five favorite pens and colors stay in the writing tool row on phones and tablets", async ({ page }) => {
   await mockWorkspace(page);
   await page.addInitScript(() => {
     localStorage.setItem("lock-in.catalog-workspace.favorite-pens.v1", JSON.stringify(
@@ -240,46 +240,55 @@ test("all five favorite pens are visible at once in the iPad toolbar", async ({ 
     ));
   });
   await openWorkspace(page, { width: 834, height: 1194 });
-  for (const viewport of [{ width: 320, height: 700 }, { width: 390, height: 844 }, { width: 834, height: 1194 }, { width: 1024, height: 768 }, { width: 1280, height: 900 }]) {
+  for (const viewport of [
+    { width: 320, height: 700 },
+    { width: 390, height: 844 },
+    { width: 834, height: 1194 },
+    { width: 1024, height: 768 },
+    { width: 1280, height: 900 }
+  ]) {
     await page.setViewportSize(viewport);
-    const group = page.locator(".workspace-v2-toolbar > .workspace-toolbar-accessories > .workspace-favorite-pens.is-toolbar");
-    await expect(group).toBeVisible();
-    // The favorites never occupy a third row below the drawing tools.
-    // On portrait iPad/mobile they are ABOVE those tools, on desktop beside.
-    await expect.poll(async () => page.locator(".workspace-v2-toolbar").evaluate((bar) => {
-      const accessory = bar.querySelector(".workspace-toolbar-accessories")?.getBoundingClientRect();
-      const tools = bar.querySelector(".workspace-tool-dock")?.getBoundingClientRect();
-      return Boolean(accessory && tools && accessory.top <= tools.top + 2);
-    })).toBe(true);
-    const buttons = group.locator(".workspace-favorite-pen-slot > .workspace-favorite-pen");
+    const toolbar = page.locator(".workspace-v2-toolbar");
+    const rail = toolbar.locator(".workspace-tool-dock[data-dock-edge='top']");
+    const favorites = rail.locator(".workspace-favorite-pens.is-toolbar");
+    const colors = rail.locator(".workspace-v3-quick-colors");
+    await expect(toolbar.locator(".workspace-toolbar-accessories")).toHaveCount(0);
+    await expect(rail.locator("[data-workspace-tool='pen']")).toBeVisible();
+    await expect(favorites).toBeVisible();
+    await expect(colors).toBeVisible();
+    const buttons = favorites.locator(".workspace-favorite-pen-slot > .workspace-favorite-pen");
     await expect(buttons).toHaveCount(5);
-    for (const button of await buttons.all()) await expect(button).toBeInViewport();
-    if (viewport.width >= 700) {
-      const palette = page.locator(".workspace-toolbar-accessories .workspace-v3-quick-colors");
-      await expect(palette).toBeVisible();
-      const visibleSwatches = await palette.locator(".workspace-v3-color-scroll").evaluate((strip) => {
-        const view = strip.getBoundingClientRect();
-        return [...strip.querySelectorAll(".workspace-v3-quick-color")].filter((item) => {
-          const box = item.getBoundingClientRect();
-          return box.left >= view.left - 1 && box.right <= view.right + 1;
-        }).length;
-      });
-      expect(visibleSwatches).toBeGreaterThanOrEqual(5);
-    }
-    const layout = await group.evaluate((element) => {
-      const toolbar = element.closest(".workspace-v2-toolbar").getBoundingClientRect();
-      const boxes = [...element.querySelectorAll(".workspace-favorite-pen-slot > button")].map((button) => button.getBoundingClientRect());
-      const group = element.getBoundingClientRect();
+    const layout = await rail.evaluate((element) => {
+      const pen = element.querySelector("[data-workspace-tool='pen']");
+      const colors = element.querySelector(".workspace-v3-quick-colors");
+      const favorite = element.querySelector(".workspace-favorite-pens.is-toolbar");
+      const buttons = [...favorite.querySelectorAll(".workspace-favorite-pen-slot > button")];
+      const centerY = (node) => { const rect = node.getBoundingClientRect(); return rect.top + rect.height / 2; };
       return {
-        allInsideToolbar: boxes.every((box) => box.left >= toolbar.left - 1 && box.right <= toolbar.right + 1
-          && box.top >= toolbar.top - 1 && box.bottom <= toolbar.bottom + 1),
-        noOverlaps: boxes.every((box, index) => index === 0 || box.left >= boxes[index - 1].right - 1),
-        noStripClipping: element.scrollWidth <= element.clientWidth + 1 && group.width >= boxes.reduce((sum, box) => sum + box.width, 0),
-        touchSize: boxes.every((box) => box.width >= 34 && box.height >= 36)
+        oneRow: Math.abs(centerY(pen) - centerY(colors)) < 8
+          && Math.abs(centerY(pen) - centerY(favorite)) < 8,
+        noShrink: buttons.every((button) => button.getBoundingClientRect().width >= 34),
+        noClippingWithinStrip: favorite.scrollWidth <= favorite.clientWidth + 1,
+        insideRail: element.contains(colors) && element.contains(favorite),
+        horizontalOverflowOnly: element.scrollHeight <= element.clientHeight + 1
       };
     });
-    expect(layout, `all five favorites at ${viewport.width}px`).toEqual({
-      allInsideToolbar: true, noOverlaps: true, noStripClipping: true, touchSize: true
+    expect(layout, `toolbar layout at ${viewport.width}x${viewport.height}`).toEqual({
+      oneRow: true, noShrink: true, noClippingWithinStrip: true,
+      insideRail: true, horizontalOverflowOnly: true
     });
+    // On narrow screens every favorite remains reachable by scrolling the
+    // same tool rail sideways, rather than forcing a second toolbar row.
+    await buttons.last().scrollIntoViewIfNeeded();
+    const isReachable = await rail.evaluate((element) => {
+      const viewport = element.getBoundingClientRect();
+      const last = element.querySelector(".workspace-favorite-pen-slot:last-child > button").getBoundingClientRect();
+      return last.left >= viewport.left - 1 && last.right <= viewport.right + 1;
+    });
+    expect(isReachable, `fifth pen unreachable at ${viewport.width}px`).toBe(true);
   }
+  // A scrolled-to preset must still be usable, not just visually present.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot").last().locator("button").click();
+  await expect(page.locator(".workspace-v2-toolbar [data-workspace-tool='highlighter']")).toHaveAttribute("aria-pressed", "true");
 });
