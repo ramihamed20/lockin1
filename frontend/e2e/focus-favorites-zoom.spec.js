@@ -185,3 +185,43 @@ test("in Arabic the zoom box starts at the right margin", async ({ page }) => {
   await expect(pageBox).toHaveCount(1);
   expect(Number(await pageBox.getAttribute("x")) + Number(await pageBox.getAttribute("width"))).toBe(960);
 });
+
+
+test("all five favorite pens are visible at once in the iPad toolbar", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("lock-in.catalog-workspace.favorite-pens.v1", JSON.stringify(
+      ["#2563eb", "#e5383b", "#f5b700", "#16a34a", "#7c3aed"].map((color, index) => ({
+        tool: index === 4 ? "highlighter" : "pen",
+        profile: index === 4 ? "highlighter" : "ball",
+        color,
+        width: index + 2,
+        opacity: index === 4 ? .34 : 1
+      }))
+    ));
+  });
+  await openWorkspace(page, { width: 834, height: 1194 });
+  for (const viewport of [{ width: 834, height: 1194 }, { width: 1024, height: 768 }, { width: 1280, height: 900 }]) {
+    await page.setViewportSize(viewport);
+    const group = page.locator(".workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar");
+    await expect(group).toBeVisible();
+    const buttons = group.locator(".workspace-favorite-pen-slot > .workspace-favorite-pen");
+    await expect(buttons).toHaveCount(5);
+    for (const button of await buttons.all()) await expect(button).toBeInViewport();
+    const layout = await group.evaluate((element) => {
+      const toolbar = element.closest(".workspace-v2-toolbar").getBoundingClientRect();
+      const boxes = [...element.querySelectorAll(".workspace-favorite-pen-slot > button")].map((button) => button.getBoundingClientRect());
+      const group = element.getBoundingClientRect();
+      return {
+        allInsideToolbar: boxes.every((box) => box.left >= toolbar.left - 1 && box.right <= toolbar.right + 1
+          && box.top >= toolbar.top - 1 && box.bottom <= toolbar.bottom + 1),
+        noOverlaps: boxes.every((box, index) => index === 0 || box.left >= boxes[index - 1].right - 1),
+        noStripClipping: element.scrollWidth <= element.clientWidth + 1 && group.width >= boxes.reduce((sum, box) => sum + box.width, 0),
+        touchSize: boxes.every((box) => box.width >= 34 && box.height >= 36)
+      };
+    });
+    expect(layout, `all five favorites at ${viewport.width}px`).toEqual({
+      allInsideToolbar: true, noOverlaps: true, noStripClipping: true, touchSize: true
+    });
+  }
+});
