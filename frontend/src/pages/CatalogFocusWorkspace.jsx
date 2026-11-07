@@ -244,7 +244,7 @@ import { ToolOptionsPanel } from "./focus-workspace/ToolOptionsPanel.jsx";
 import { QuickColorPicker } from "./focus-workspace/QuickColorPicker.jsx";
 import { AddMenu, CardEditor, ExportMenu, MoreMenu, PageBackgroundMenu, SearchMenu, StudyMenu, TextEditor } from "./focus-workspace/menus.jsx";
 import { FavoritePens } from "./focus-workspace/FavoritePens.jsx";
-import { FAVORITE_PEN_TOOLS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, normalizeFavoritePens, saveFavoritePens } from "./focus-workspace/favoritePens.js";
+import { FAVORITE_PENS_CHANGE_EVENT, FAVORITE_PENS_KEY, FAVORITE_PEN_TOOLS, MAX_FAVORITE_PENS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, normalizeFavoritePens, saveFavoritePens } from "./focus-workspace/favoritePens.js";
 import { ZoomWindow } from "./focus-workspace/ZoomWindow.jsx";
 import { initialZoomRegion } from "./focus-workspace/zoomWindowModel.js";
 import "./catalog-focus-workspace.css";
@@ -641,7 +641,20 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [highlighterOpacity, setHighlighterOpacity] = useState(() => rememberedWritingTool === "highlighter" ? Number(initialToolSettings.opacity) || .34 : .34);
   const [penProfile, setPenProfile] = useState(rememberedPenProfile);
   const [favoritePens, setFavoritePens] = useState(loadFavoritePens);
-  useEffect(() => { saveFavoritePens(favoritePens); }, [favoritePens]);
+  useEffect(() => {
+    // Kept-alive sheets and other tabs all share the same favorite pen set.
+    const sync = (event) => {
+      if (event.type === "storage" && event.key !== FAVORITE_PENS_KEY) return;
+      const saved = loadFavoritePens();
+      setFavoritePens((current) => JSON.stringify(current) === JSON.stringify(saved) ? current : saved);
+    };
+    window.addEventListener(FAVORITE_PENS_CHANGE_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(FAVORITE_PENS_CHANGE_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   // The Zoom Window's box on the page (null while it is closed), and its height.
   const [zoomWindow, setZoomWindow] = useState(null);
   const [zoomWindowHeight, setZoomWindowHeight] = useState(0);
@@ -5027,21 +5040,38 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return normalizeFavoritePen({ tool: activeTool, profile: penProfile, color: activeColor, width: brushSize, opacity: activeToolOpacity });
   }
 
+  function persistFavoritePenSet(next) {
+    const saved = saveFavoritePens(next, { notify: true });
+    setFavoritePens(saved);
+  }
+
   function saveFavoritePen() {
     const favorite = currentFavoritePen();
     if (!favorite) return;
-    setFavoritePens((current) => normalizeFavoritePens([...current, favorite]));
+    if (matchingFavoritePen(favoritePens, favorite) >= 0) return;
+    if (favoritePens.length >= MAX_FAVORITE_PENS) return;
+    persistFavoritePenSet([...favoritePens, favorite]);
     setFocusMessage(t("focus.favoritePenSaved"));
+  }
+
+  function toggleFavoritePen() {
+    if (!FAVORITE_PEN_TOOLS.has(activeTool)) return;
+    const favorite = currentFavoritePen();
+    if (!favorite) return;
+    const index = matchingFavoritePen(favoritePens, favorite);
+    if (index >= 0) removeFavoritePen(index);
+    else saveFavoritePen();
   }
 
   function replaceFavoritePen(index) {
     const favorite = currentFavoritePen();
-    if (!favorite) return;
-    setFavoritePens((current) => normalizeFavoritePens(current.map((item, position) => position === index ? favorite : item)));
+    if (!favorite || index < 0 || index >= favoritePens.length) return;
+    persistFavoritePenSet(favoritePens.map((item, position) => position === index ? favorite : item));
   }
 
   function removeFavoritePen(index) {
-    setFavoritePens((current) => current.filter((_, position) => position !== index));
+    if (index < 0 || index >= favoritePens.length) return;
+    persistFavoritePenSet(favoritePens.filter((_, position) => position !== index));
   }
 
   function openZoomWindow() {
@@ -6393,7 +6423,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           <SearchMenu closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coveredMatchIds={coveredMatchIds} documentSearch={documentSearch} hideSearchMatches={hideSearchMatches} openSurface={openSurface} popover={popover} showSearchMatch={showSearchMatch} t={t} workspaceReady={workspaceReady} />
           {workspaceReady && openSurface !== "search" && <SearchNavigator search={documentSearch} onShowMatch={showSearchMatch} onOpen={() => setOpenSurface("search")} onHideMatch={() => documentSearch.activeMatch && hideSearchMatches([documentSearch.activeMatch], true)} covered={Boolean(documentSearch.activeMatch && coveredMatchIds.has(documentSearch.activeMatch.id))} />}
 
-          <ToolOptionsPanel favoritesStrip={favoritePensStrip("is-panel")} activeColor={activeColor} activePenOption={activePenOption} activeTool={activeTool} activeToolLabel={activeToolLabel} activeToolOpacity={activeToolOpacity} brushSize={brushSize} changePenProfile={changePenProfile} chooseAnnotationColor={chooseAnnotationColor} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} commitCustomColor={commitCustomColor} customColorDraft={customColorDraft} customColorEditorOpen={customColorEditorOpen} customColorSet={customColorSet} deleteCustomColor={deleteCustomColor} displayedToolOptions={displayedToolOptions} drawAndHold={drawAndHold} eraserMode={eraserMode} eraserSize={eraserSize} favoriteColors={favoriteColors} inkToolActive={inkToolActive} lassoMode={lassoMode} pageAnnotations={pageAnnotations} paletteColors={paletteColors} penProfile={penProfile} recentColors={recentColors} selectedAnnotations={selectedAnnotations} setBrushSize={setBrushSize} setCircleToErase={setCircleToErase} setCustomColorDraft={setCustomColorDraft} setCustomColorEditorOpen={setCustomColorEditorOpen} setDrawAndHold={setDrawAndHold} setEraserMode={setEraserMode} setEraserSize={setEraserSize} setLassoMode={setLassoMode} setShapeAngle={setShapeAngle} setShapeDashed={setShapeDashed} setShapeFill={setShapeFill} setShapeFillColor={setShapeFillColor} setShapeSnapGrid={setShapeSnapGrid} setShapeStyle={setShapeStyle} shapeAngle={shapeAngle} shapeDashed={shapeDashed} shapeFill={shapeFill} shapeFillColor={shapeFillColor} shapeSnapGrid={shapeSnapGrid} shapeStyle={shapeStyle} showColorPalette={showColorPalette} t={t} toggleFavoriteColor={toggleFavoriteColor} toolOptionsOpen={toolOptionsOpen} toolOptionsRef={toolOptionsRef} updateActiveToolOpacity={updateActiveToolOpacity} workspaceReady={workspaceReady} />
+          <ToolOptionsPanel favoritesStrip={favoritePensStrip("is-panel")} activeFavoritePen={activeFavoritePen} favoritePenCount={favoritePens.length} onToggleFavoritePen={toggleFavoritePen} activeColor={activeColor} activePenOption={activePenOption} activeTool={activeTool} activeToolLabel={activeToolLabel} activeToolOpacity={activeToolOpacity} brushSize={brushSize} changePenProfile={changePenProfile} chooseAnnotationColor={chooseAnnotationColor} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} commitCustomColor={commitCustomColor} customColorDraft={customColorDraft} customColorEditorOpen={customColorEditorOpen} customColorSet={customColorSet} deleteCustomColor={deleteCustomColor} displayedToolOptions={displayedToolOptions} drawAndHold={drawAndHold} eraserMode={eraserMode} eraserSize={eraserSize} favoriteColors={favoriteColors} inkToolActive={inkToolActive} lassoMode={lassoMode} pageAnnotations={pageAnnotations} paletteColors={paletteColors} penProfile={penProfile} recentColors={recentColors} selectedAnnotations={selectedAnnotations} setBrushSize={setBrushSize} setCircleToErase={setCircleToErase} setCustomColorDraft={setCustomColorDraft} setCustomColorEditorOpen={setCustomColorEditorOpen} setDrawAndHold={setDrawAndHold} setEraserMode={setEraserMode} setEraserSize={setEraserSize} setLassoMode={setLassoMode} setShapeAngle={setShapeAngle} setShapeDashed={setShapeDashed} setShapeFill={setShapeFill} setShapeFillColor={setShapeFillColor} setShapeSnapGrid={setShapeSnapGrid} setShapeStyle={setShapeStyle} shapeAngle={shapeAngle} shapeDashed={shapeDashed} shapeFill={shapeFill} shapeFillColor={shapeFillColor} shapeSnapGrid={shapeSnapGrid} shapeStyle={shapeStyle} showColorPalette={showColorPalette} t={t} toggleFavoriteColor={toggleFavoriteColor} toolOptionsOpen={toolOptionsOpen} toolOptionsRef={toolOptionsRef} updateActiveToolOpacity={updateActiveToolOpacity} workspaceReady={workspaceReady} />
 
           <SettingsPopover openNotes={() => selectTool("note")} pageDirection={pageDirection} changePageDirection={changePageDirection} activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
 
