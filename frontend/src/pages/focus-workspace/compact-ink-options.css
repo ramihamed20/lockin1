@@ -120,3 +120,29 @@
   min-height: 62px;
 }
 .workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v2-range-heading > span { font-weight: 500; line-height: 1.1; }
+
+/* Starred presets sit directly beneath the colour row, not behind the
+   expandable settings drawer. Five 44px favorites fit the inspector width. */
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-favorite-pen-section {
+  order: 2;
+  padding: 7px 0 5px;
+  border: 0;
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-favorite-pen-section .workspace-favorite-pens {
+  padding: 0;
+  gap: 5px;
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-adjust { order: 3; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v7-rows { order: 4; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-tool-extras { order: 5; }
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-favorite-color.is-favorite-pen {
+  color: var(--accent-text);
+  border-radius: 11px;
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-favorite-color.is-favorite-pen.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.workspace-v2 .workspace-v2-tool-options.is-compact-ink .workspace-v4-favorite-color.is-favorite-pen:disabled {
+  opacity: .35;
+}
