@@ -298,12 +298,27 @@ for (const viewport of [{ width: 820, height: 1180 }, { width: 390, height: 844 
     await page.setViewportSize(viewport);
     await openReader(page);
     await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
-    // Positioning and fitted geometry may settle on separate animation frames.
-    await expect.poll(async () => page.evaluate(() => {
+    await expect(page.locator(".workspace-v2-reader")).toHaveClass(/is-vertical-reading/);
+    const stageAndPageClearance = async () => page.evaluate(() => {
       const toolbar = document.querySelector(".workspace-v2-reader > .workspace-v2-toolbar");
-      const firstPage = document.querySelector('.workspace-v2-document-stage [data-pdf-page="1"]');
-      if (!toolbar || !firstPage) return -999;
-      return firstPage.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom;
-    }), { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
+      const stage = document.querySelector(".workspace-v2-document-stage");
+      const firstPage = stage?.querySelector('[data-pdf-page="1"]');
+      if (!toolbar || !stage || !firstPage) return { stage: -999, page: -999 };
+      return {
+        stage: stage.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom,
+        page: firstPage.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom
+      };
+    });
+    // The scroll viewport itself starts after the toolbar, even when its first
+    // page is off-screen; content can never pass underneath the tool rail.
+    await expect.poll(async () => (await stageAndPageClearance()).stage, { timeout: 10_000 }).toBeGreaterThanOrEqual(-1);
+    await expect.poll(async () => (await stageAndPageClearance()).page, { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
+
+    // Reproduce dragging toward later pages and then pulling back to the
+    // beginning. The old overlaid grid allowed the PDF to travel under tools.
+    await page.locator(".workspace-v2-document-stage").evaluate((stage) => { stage.scrollTop = stage.scrollHeight * 0.25; });
+    await expect.poll(async () => (await stageAndPageClearance()).stage).toBeGreaterThanOrEqual(-1);
+    await page.locator(".workspace-v2-document-stage").evaluate((stage) => { stage.scrollTop = 0; });
+    await expect.poll(async () => (await stageAndPageClearance()).page).toBeGreaterThanOrEqual(6);
   });
 }
