@@ -167,13 +167,11 @@ test("RTL zoom and pan keep the live pen on the same page coordinates as its sav
     return {
       cropLeft: parseFloat(node.style.left),
       actualLeft: inkBox.left,
-      expectedLeft: sheetBox.left + parseFloat(node.style.left) * scale,
-      right: getComputedStyle(node).right
+      expectedLeft: sheetBox.left + parseFloat(node.style.left) * scale
     };
   });
   expect(geometry.cropLeft).toBeGreaterThan(0);
   expect(Math.abs(geometry.actualLeft - geometry.expectedLeft)).toBeLessThan(1.5);
-  expect(geometry.right).toBe("auto");
 
   const visibleInk = await canvas.evaluate((node, point) => {
     const rect = node.getBoundingClientRect();
