@@ -384,8 +384,6 @@ html.ix-hover .workspace-v2 .workspace-v8-settings :is(.workspace-v2-settings-to
 .workspace-v2 .workspace-v2-side .workspace-v2-tabs > button.is-active::after,
 :root:is([data-theme="light"], [data-theme="day"], [data-theme="dawn"], [data-theme="sunset"]) .workspace-v2 .workspace-v2-side .workspace-v2-tabs > button.is-active::after {
   inset-inline: 19%;
-  right: auto;
-  left: auto;
   bottom: 0;
   height: 2px;
   border-radius: 99px;
