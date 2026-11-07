@@ -302,3 +302,94 @@
     max-width: 70px;
   }
 }
+
+
+/* Five starred pens: always display the complete set without horizontal
+   clipping. Unlike ink colours, presets need to be visible together so
+   students can switch pen with a single tap. */
+.workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+  display: flex;
+  width: max-content;
+  min-width: max-content;
+  max-width: none;
+  flex: 0 0 auto;
+  overflow: visible;
+  gap: 5px;
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+  border-radius: 12px;
+  padding: 3px 6px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i {
+  width: 22px;
+  height: 22px;
+}
+.workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen.is-highlighter > i {
+  height: 12px;
+}
+
+/* Tablet portrait: the main rail keeps its familiar one-line rhythm while
+   all five favorite buttons occupy one short, centered row just below it.
+   This avoids a tiny 92px scroll area that used to show only two buttons. */
+@media (min-width: 700px) and (max-width: 1179px) and (min-height: 600px) {
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-favorite-pens.is-toolbar) {
+    align-content: start;
+    row-gap: 4px;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-self: center;
+    margin: 0;
+  }
+  /* Multiple document tabs already consume the first row. */
+  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
+    .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+    grid-row: 3;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen {
+    width: 42px;
+    height: 38px;
+  }
+}
+
+/* Desktop: five compact favorites fit to the right of the drawing rail,
+   before the study/more controls, without adding toolbar height. */
+@media (min-width: 1180px) and (min-height: 600px) {
+  .workspace-v2 .workspace-v2-toolbar:has(> .workspace-favorite-pens.is-toolbar) {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    column-gap: 6px;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-control-group.is-exit { grid-column: 1; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-tool-dock[data-dock-edge="top"] { grid-column: 2; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-v2-toolbar-actions { grid-column: 4; }
+  .workspace-v2.has-tabs:not(.has-single-tab):not(.is-document-fullscreen)
+    .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+    grid-row: 2;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen {
+    width: 34px;
+    height: 38px;
+  }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Keep the phone/short-landscape toolbar untouched: presets are available
+   in the pen inspector where all five already wrap into view. */
+@media (max-width: 699px), (max-height: 599px) and (max-width: 1179px) {
+  .workspace-v2 .workspace-v2-toolbar > .workspace-favorite-pens.is-toolbar {
+    display: none;
+  }
+}
