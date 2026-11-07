@@ -37,9 +37,11 @@ export const WORKSPACE_PALETTE_CHANGE_EVENT = "lock-in:workspace-palette-changed
 
 export function persistRecentColors(colors, { notify = false } = {}) {
   const cleaned = addSavedColor(colors, null, MAX_PALETTE_COLORS, COLORS);
-  try { window.localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(cleaned)); }
+  let saved = false;
+  try { window.localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(cleaned)); saved = true; }
   catch { /* Storage unavailable: the chosen colour remains usable this visit. */ }
-  if (notify) window.dispatchEvent?.(new Event(WORKSPACE_PALETTE_CHANGE_EVENT));
+  // Don't tell retained readers to reload from unavailable storage.
+  if (notify && saved) window.dispatchEvent?.(new Event(WORKSPACE_PALETTE_CHANGE_EVENT));
   return cleaned;
 }
 
