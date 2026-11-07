@@ -126,11 +126,11 @@ for (const [locale, width, height] of [
  const closeBounds=await fits(close);
  expect(closeBounds.width).toBeGreaterThanOrEqual(43);
  expect(closeBounds.height).toBeGreaterThanOrEqual(43);
- const motion=settings.locator('> button[aria-pressed]');
+ const motion=settings.locator(':scope > button[aria-pressed]');
  await expect(motion).toHaveAttribute('aria-pressed','true');
  await motion.click();
  await expect(motion).toHaveAttribute('aria-pressed','false');
- await settings.locator('> button').nth(1).click();
+ await settings.locator(':scope > button').nth(1).click();
  const saved=page.locator('.study-companion-saved');
  await expect(saved).toBeVisible();
  await fits(saved);
