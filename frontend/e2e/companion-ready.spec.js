@@ -277,6 +277,8 @@ test('toolbar companion cannot be accidentally added on tablet, which keeps its 
  await page.route('**/api/v1/catalog/documents/**', route => route.fulfill({ json: { version_id: 'test-version', results: [] } }));
  await page.goto('/e2e/fixtures/companion-ready/?toolbar');
  await page.getByRole('button', { name: 'Add', exact: true }).click();
- await expect(page.locator('.workspace-add-phone-companion')).toBeHidden();
+ const menu = page.locator('#workspace-add-popover');
+ await expect(menu.locator('.workspace-add-phone-companion')).toBeHidden();
+ await menu.locator('header button').click();
  await expect(page.locator('.study-companion-pet')).toBeVisible();
 });
