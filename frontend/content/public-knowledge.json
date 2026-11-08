@@ -1898,7 +1898,7 @@
     "frontend/src/api/review.js": "bdcf4916fd54f0ff1ccefabae0ebd2b0c0c53fa9fe662e0dd759a9995219f742",
     "frontend/src/offline/review.js": "f1d6b0d217b8ec7c3a71a6ec8c762225a6aa47624a7a3ed89a591f7bf5931146",
     "frontend/src/review/session.js": "489beac94753b3a57608d2e34ae26b6ed53fa2e732ff96619f67724abc3ad971",
-    "backend/apps/review/daily.py": "f90fe9513ff60229faada5fbe699b3470dd3a47065a538bbdff5ed8de597e565",
+    "backend/apps/review/daily.py": "737b779ce87077d52864536ef8185a0bf7f1625915493d6e32b2961e356d4d83",
     "backend/apps/review/tests/test_daily_adaptation.py": "46eb8ce8b964cfc6191775ee12f96a4282e5b0d31e04a2f3bbbb865adf18578d",
     "frontend/tests/review-session.test.js": "d5c4d3070eb694ddf3c125861769fbc4552ca4eb6c2d9732a445b50569829029",
     "backend/apps/study_plans/review_priorities.py": "2fb5bbc0a9768fd66e1f069f1789f31ffa09eab0ba20ecf5167fb8af9231f5a4",
