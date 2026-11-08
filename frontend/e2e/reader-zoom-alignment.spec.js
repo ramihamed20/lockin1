@@ -185,66 +185,60 @@ test("an Arabic reader zooms centred and can still pan across a zoomed page", as
   await expect.poll(async () => Math.abs((await pageMargins(page)).right)).toBeLessThanOrEqual(1);
 });
 
-/** The page and relative point under the centre of the horizontal reader. */
-async function horizontalFocalPoint(page) {
+/** A distant PDF page and its relative focal point in the vertical reader. */
+async function verticalFocalPoint(page) {
   return page.evaluate(() => {
     const stage = document.querySelector(".workspace-v2-document-stage");
     const view = stage.getBoundingClientRect();
     const x = view.left + view.width / 2;
     const y = view.top + Math.min(180, view.height / 2);
-    const candidates = [...stage.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]")];
+    const candidates = [...stage.querySelectorAll(".workspace-v2-a4-page[data-pdf-page]")];
     let match = null;
     let distance = Infinity;
     for (const node of candidates) {
       const rect = node.getBoundingClientRect();
       const dx = Math.max(rect.left - x, 0, x - rect.right);
       const dy = Math.max(rect.top - y, 0, y - rect.bottom);
-      if (dx + dy * .05 >= distance) continue;
-      distance = dx + dy * .05;
-      match = { key: Number(node.dataset.workspacePage), x: (x - rect.left) / rect.width, y: (y - rect.top) / rect.height, width: rect.width };
+      if (dy + dx * .05 >= distance) continue;
+      distance = dy + dx * .05;
+      match = { key: Number(node.dataset.pdfPage), x: (x - rect.left) / rect.width, y: (y - rect.top) / rect.height, width: rect.width };
     }
     return match;
   });
 }
 
-test("horizontal Zoom In/Out preserves a distant page and its focal position", async ({ page }) => {
-  await mockReader(page, { horizontal: true });
-  await page.setViewportSize({ width: 820, height: 1180 });
-  await openReader(page);
-  await expect(page.locator(".workspace-v2-a4-document")).toHaveClass(/is-horizontal/);
-  // Start on page 7, not near the document origin where a broken global
-  // document anchor can go unnoticed.
-  await page.locator('[data-pdf-page="7"]').evaluate((element) => {
+async function alignVerticalReaderToPage(page, pageNumber) {
+  await page.locator(`[data-pdf-page="${pageNumber}"]`).evaluate((element) => {
     const stage = element.closest(".workspace-v2-document-stage");
     const rect = element.getBoundingClientRect();
     const view = stage.getBoundingClientRect();
-    stage.scrollLeft += rect.left + rect.width / 2 - (view.left + view.width / 2);
-    stage.scrollTop = 0;
+    stage.scrollTop += rect.top + rect.height * .25 - (view.top + Math.min(180, view.height / 2));
   });
-  await expect.poll(async () => (await horizontalFocalPoint(page))?.key).toBe(7);
-  const initial = await horizontalFocalPoint(page);
+  await expect.poll(async () => (await verticalFocalPoint(page))?.key).toBe(pageNumber);
+}
+
+test("vertical Zoom In/Out preserves a distant page and its focal position", async ({ page }) => {
+  await mockReader(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openReader(page);
+  await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
+  await alignVerticalReaderToPage(page, 7);
+  const initial = await verticalFocalPoint(page);
   for (const label of ["Zoom in", "Zoom in", "Zoom out", "Zoom in", "Zoom out", "Zoom out"]) {
     await page.getByRole("button", { name: label, exact: true }).click();
-    await expect.poll(async () => (await horizontalFocalPoint(page))?.key).toBe(7);
-    const current = await horizontalFocalPoint(page);
-    expect(Math.abs(current.x - initial.x), `${label}: horizontal focal drift`).toBeLessThan(0.08);
+    await expect.poll(async () => (await verticalFocalPoint(page))?.key).toBe(7);
+    const current = await verticalFocalPoint(page);
+    expect(Math.abs(current.y - initial.y), `${label}: vertical focal drift`).toBeLessThan(0.08);
   }
 });
 
-test("horizontal two-finger pinch keeps the selected PDF page under the fingers", async ({ page }) => {
-  await mockReader(page, { horizontal: true });
+test("vertical two-finger pinch keeps the selected PDF page under the fingers", async ({ page }) => {
+  await mockReader(page);
   await page.setViewportSize({ width: 1180, height: 820 });
   await openReader(page);
-  await expect(page.locator(".workspace-v2-a4-document")).toHaveClass(/is-horizontal/);
-  await page.locator('[data-pdf-page="5"]').evaluate((element) => {
-    const stage = element.closest(".workspace-v2-document-stage");
-    const rect = element.getBoundingClientRect();
-    const view = stage.getBoundingClientRect();
-    stage.scrollLeft += rect.left + rect.width / 2 - (view.left + view.width / 2);
-    stage.scrollTop = 0;
-  });
-  await expect.poll(async () => (await horizontalFocalPoint(page))?.key).toBe(5);
-  const initial = await horizontalFocalPoint(page);
+  await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
+  await alignVerticalReaderToPage(page, 5);
+  const initial = await verticalFocalPoint(page);
   const stage = page.locator(".workspace-v2-document-stage");
   const bounds = await stage.boundingBox();
   const x = bounds.x + bounds.width / 2;
@@ -265,18 +259,17 @@ test("horizontal two-finger pinch keeps the selected PDF page under the fingers"
   await touch("pointerup", 71, x - 180);
   await touch("pointerup", 72, x + 180);
   await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/, { timeout: 10_000 });
-  await expect.poll(async () => (await horizontalFocalPoint(page))?.key).toBe(5);
-  const final = await horizontalFocalPoint(page);
-  expect(Math.abs(final.x - initial.x), "pinch focal drift").toBeLessThan(0.08);
+  await expect.poll(async () => (await verticalFocalPoint(page))?.key).toBe(5);
+  const final = await verticalFocalPoint(page);
+  expect(Math.abs(final.y - initial.y), "pinch focal drift").toBeLessThan(0.08);
   expect(final.width).toBeGreaterThan(initial.width);
 });
 
-test("horizontal zoom begins at 120 percent, cannot zoom out further, and can zoom in", async ({ page }) => {
-  await mockReader(page, { horizontal: true });
-  // The + / - buttons are intentionally desktop-only. Touchscreens use pinch.
+test("vertical zoom begins at 120 percent, cannot zoom out further, and can zoom in", async ({ page }) => {
+  await mockReader(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await openReader(page);
-  await expect(page.locator(".workspace-v2-a4-document")).toHaveClass(/is-horizontal/);
+  await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
   const actualScale = () => page.locator(".workspace-v2-a4-zoom-surface").evaluate(
     (node) => Number.parseFloat(node.style.getPropertyValue("--workspace-a4-zoom"))
   );
