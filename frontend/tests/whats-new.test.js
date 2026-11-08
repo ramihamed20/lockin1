@@ -29,6 +29,14 @@ test("an existing account sees the panel once, a new account never does", () => 
   assert.equal(whatsNewDecision({ seenId: "", dateJoined: "2026-11-01T09:00:00Z", release }), "skip");
 });
 
+test("updated 0.1.5 notes are shown to accounts that saw the earlier 0.1.5 announcement", () => {
+  assert.equal(WHATS_NEW.version, "0.1.5");
+  assert.notEqual(WHATS_NEW.id, "0.1.5");
+  assert.equal(whatsNewDecision({ seenId: "0.1.5", dateJoined: "2026-10-01T12:00:00Z" }), "show");
+  assert.equal(whatsNewDecision({ seenId: WHATS_NEW.id, dateJoined: "2026-10-01T12:00:00Z" }), "none");
+  assert.equal(whatsNewDecision({ seenId: "", dateJoined: "2026-11-09T12:00:00Z" }), "skip");
+});
+
 test("the seen version is remembered per account", () => {
   const storage = memoryStorage();
   writeSeenRelease("a", "r1", storage);
@@ -56,8 +64,10 @@ test("the dialog links to the official Telegram channel safely", async () => {
 test("the release notes carry the package version", async () => {
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(WHATS_NEW.version, pkg.version);
-  assert.equal(WHATS_NEW.id, WHATS_NEW.version);
+  assert.ok(WHATS_NEW.id === WHATS_NEW.version || WHATS_NEW.id.startsWith(`${WHATS_NEW.version}-`));
   assert.ok(WHATS_NEW.summary.en && WHATS_NEW.summary.ar);
+  assert.ok(WHATS_NEW.items.length <= 8, "the update dialog should stay compact");
+  assert.equal(normalizeRelease(WHATS_NEW)?.items.length, WHATS_NEW.items.length);
 });
 
 test("notes fetched from the server are validated and trimmed", () => {
