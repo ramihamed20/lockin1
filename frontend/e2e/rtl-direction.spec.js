@@ -53,7 +53,7 @@ async function signIn(page, language) {
   await page.goto("/#/materials");
   // The catalogue page is lazily loaded behind the session bootstrap, which is
   // slower to settle than the default expectation window on a cold start.
-  await expect(page.locator(".catalog-tile").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".sheet-library-card").first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator("html")).toHaveAttribute("dir", language === "ar" ? "rtl" : "ltr");
 }
 
@@ -82,7 +82,7 @@ function readGlyphOrder(selector) {
 test("a Latin run keeps its own order inside an Arabic page", async ({ page }) => {
   await signIn(page, "ar");
 
-  const title = await page.evaluate(readGlyphOrder, ".catalog-tile__copy strong");
+  const title = await page.evaluate(readGlyphOrder, ".sheet-library-title");
   expect(title.text).toMatch(/^[A-Za-z]/);
   expect(title.direction, "the Latin run is not isolated from the Arabic page").toBe("ltr");
   expect(title.firstLeft, `"${title.text}" is painted in reverse`).toBeLessThan(title.lastLeft);
@@ -91,10 +91,10 @@ test("a Latin run keeps its own order inside an Arabic page", async ({ page }) =
 test("the same run is unchanged in English", async ({ page }) => {
   await signIn(page, "en");
 
-  const title = await page.evaluate(readGlyphOrder, ".catalog-tile__copy strong");
+  const title = await page.evaluate(readGlyphOrder, ".sheet-library-title");
   expect(title.direction).toBe("ltr");
   expect(title.firstLeft).toBeLessThan(title.lastLeft);
-  const meta = await page.evaluate((selector) => document.querySelector(selector).textContent, ".catalog-tile__copy small");
+  const meta = await page.evaluate((selector) => document.querySelector(selector).textContent, ".sheet-library-detail > span");
   expect(meta).toMatch(/^\d+ sheets?$/);
 });
 
@@ -103,7 +103,7 @@ test("the same run is unchanged in English", async ({ page }) => {
 test("a count is written and numbered the way Arabic writes counts", async ({ page }) => {
   await signIn(page, "ar");
 
-  const counts = await page.evaluate(() => [...document.querySelectorAll(".catalog-tile__copy small")].map((node) => node.textContent));
+  const counts = await page.evaluate(() => [...document.querySelectorAll(".sheet-library-detail > span")].map((node) => node.textContent));
   expect(counts.length).toBeGreaterThan(0);
   for (const count of counts) {
     // Either Latin digits followed by Arabic copy, or the wordy zero form that
@@ -126,9 +126,9 @@ test("directional icons face the reading direction in Arabic", async ({ page }) 
     };
     return {
       // A chevron that means "next".
-      chevron: style(".catalog-tile__end svg[data-mirror-rtl]"),
+      chevron: style(".sheet-library-open svg[data-mirror-rtl]"),
       // An icon that means a thing rather than a direction.
-      book: style(".catalog-tile__icon svg")
+      book: style(".sheet-library-detail svg")
     };
   });
 
@@ -140,7 +140,7 @@ test("directional icons face the reading direction in Arabic", async ({ page }) 
 test("directional icons are left alone in English", async ({ page }) => {
   await signIn(page, "en");
 
-  const chevron = await page.evaluate(() => window.getComputedStyle(document.querySelector(".catalog-tile__end svg[data-mirror-rtl]")).transform);
+  const chevron = await page.evaluate(() => window.getComputedStyle(document.querySelector(".sheet-library-open svg[data-mirror-rtl]")).transform);
   expect(chevron).toBe("none");
 });
 
