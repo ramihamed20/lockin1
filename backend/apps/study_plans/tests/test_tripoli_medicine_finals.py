@@ -1,4 +1,4 @@
-"""Tripoli exam planning fixtures for Medicine batches 60/61."""
+"""Regression tests for the published Tripoli exam planning data."""
 
 from datetime import date
 from importlib import import_module
@@ -11,7 +11,7 @@ from django.db import connection
 from apps.accounts.tests.helpers import create_user
 from apps.education.models import StudentCohort
 
-from ..exam_models import ExamPeriod, ExamSchedule
+from ..exam_models import ExamPeriod
 from .test_api import authenticated_client
 
 pytestmark = pytest.mark.django_db
@@ -32,58 +32,57 @@ EXPECTED = {
 }
 
 
-@pytest.mark.parametrize("batch_code", ["60", "61"])
-def test_medicine_exams_are_separate_cohort_plans_with_tentative_subject_dates(
-    settings, monkeypatch, batch_code
-):
+@pytest.mark.parametrize("batch_code", ("60", "61"))
+def test_finals_match_window_and_own_cohort(settings, monkeypatch, batch_code):
     settings.STUDY_PLAN_V2_ENABLED = True
     settings.STUDY_PLAN_V2_USER_IDS = []
     monkeypatch.setattr(
-        "apps.study_plans.learning_snapshot.plan_today", lambda profile: date(2026, 11, 8)
+        "apps.study_plans.learning_snapshot.plan_today",
+        lambda profile: date(2026, 11, 8),
     )
+
     cohort = StudentCohort.objects.get(program__code="human-medicine", code=batch_code)
-    period = ExamPeriod.objects.get(
-        cohort=cohort, kind="final", starts_on=date(2026, 12, 21)
-    )
+    period = ExamPeriod.objects.get(cohort=cohort, kind="final")
+    assert period.starts_on == date(2026, 12, 21)
     assert period.ends_on == date(2027, 1, 21)
     assert period.status == "confirmed"
     assert "تقديرية" in period.title
+
     schedules = list(period.schedules.select_related("subject").order_by("scheduled_on"))
-    assert [(row.subject.slug, row.scheduled_on) for row in schedules] == list(
-        EXPECTED[batch_code]
-    )
-    assert period.syllabus_scopes.count() == len(EXPECTED[batch_code])
-    for row in schedules:
-        assert row.status == "tentative"
-        assert row.exam_type == "theory"
-        assert row.starts_at is None and row.ends_at is None
-        assert row.timezone == "Africa/Tripoli"
-        assert row.subject.cohort_id == cohort.pk
-        row.full_clean()
+    actual = [(row.subject.slug, row.scheduled_on) for row in schedules]
+    assert actual == list(EXPECTED[batch_code])
+    assert period.syllabus_scopes.count() == len(schedules)
+    for exam in schedules:
+        assert exam.status == "tentative"
+        assert exam.exam_type == "theory"
+        assert exam.starts_at is None
+        assert exam.ends_at is None
+        assert exam.timezone == "Africa/Tripoli"
+        assert exam.subject.cohort_id == cohort.pk
+        exam.full_clean()
 
-    user = create_user(
-        email=f"medicine-{batch_code}@example.test", cohort=cohort, with_trial=True
-    )
-    payload = authenticated_client(user).get("/api/v1/study-plan/v2/exams")
-    assert payload.status_code == 200
-    results = payload.json()["results"]
+    email = f"medicine-{batch_code}@example.test"
+    user = create_user(email=email, cohort=cohort, with_trial=True)
+    response = authenticated_client(user).get("/api/v1/study-plan/v2/exams")
+    assert response.status_code == 200
+    results = response.json()["results"]
     assert len(results) == 1
-    assert results[0]["id"] == str(period.pk)
-    assert results[0]["kind"] == "final"
-    assert results[0]["starts_on"] == "2026-12-21"
-    assert results[0]["ends_on"] == "2027-01-21"
-    assert all(row["status"] == "tentative" for row in results[0]["schedules"])
-    assert all(row["starts_at"] is None for row in results[0]["schedules"])
-    other_cohort = StudentCohort.objects.get(
-        program__code="human-medicine", code="61" if batch_code == "60" else "60"
-    )
-    assert ExamSchedule.objects.filter(
-        period=period, subject__cohort=other_cohort
-    ).count() == 0
+    exam_data = results[0]
+    assert exam_data["id"] == str(period.pk)
+    assert exam_data["kind"] == "final"
+    assert exam_data["starts_on"] == "2026-12-21"
+    assert exam_data["ends_on"] == "2027-01-21"
+    assert all(exam["status"] == "tentative" for exam in exam_data["schedules"])
+    assert all(exam["starts_at"] is None for exam in exam_data["schedules"])
+
+    other_batch = "61" if batch_code == "60" else "60"
+    other = StudentCohort.objects.get(program__code="human-medicine", code=other_batch)
+    assert period.schedules.filter(subject__cohort=other).count() == 0
 
 
-def test_medicine_seed_is_idempotent_and_does_not_reset_explicit_scope():
-    seed = import_module("apps.study_plans.migrations.0017_tripoli_medicine_finals_2027")
+def test_medicine_seed_is_idempotent():
+    module = "apps.study_plans.migrations.0017_tripoli_medicine_finals_2027"
+    seed = import_module(module)
     cohort = StudentCohort.objects.get(program__code="human-medicine", code="60")
     period = ExamPeriod.objects.get(cohort=cohort, kind="final")
     scope = period.syllabus_scopes.first()
@@ -96,16 +95,17 @@ def test_medicine_seed_is_idempotent_and_does_not_reset_explicit_scope():
     assert scope.include_future_sheets is False
 
 
-def test_dentistry_first_and_second_year_midterms_are_unchanged():
+def test_dentistry_january_midterms_remain_unchanged():
     expected = {
-        "year-1": [2, 5, 9, 12, 16, 19],
-        "year-2": [3, 7, 10, 14, 17, 21, 24],
+        "year-1": (2, 5, 9, 12, 16, 19),
+        "year-2": (3, 7, 10, 14, 17, 21, 24),
     }
-    for year, january_days in expected.items():
+    for year, days in expected.items():
         cohort = StudentCohort.objects.get(
-            program__code="dentistry-tripoli", code=year
+            program__code="dentistry-tripoli",
+            code=year,
         )
         period = ExamPeriod.objects.get(cohort=cohort, kind="midterm")
-        assert [
-            exam.scheduled_on for exam in period.schedules.order_by("scheduled_on")
-        ] == [date(2027, 1, day) for day in january_days]
+        schedules = period.schedules.order_by("scheduled_on")
+        actual = list(schedules.values_list("scheduled_on", flat=True))
+        assert actual == [date(2027, 1, day) for day in days]
