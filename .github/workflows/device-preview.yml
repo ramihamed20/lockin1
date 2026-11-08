@@ -35,7 +35,7 @@ jobs:
           - label: focus-horizontal
             ref: codex/lockin0.1.5
             spec: e2e/focus-horizontal-page-preview.spec.js
-            grep: "horizontal PDF real UI preview"
+            grep: "PDF reading stays vertical on"
     steps:
       # Exercise the exact PR commit being proposed for main, not historical
       # feature branches whose public evidence or tests may be stale.
