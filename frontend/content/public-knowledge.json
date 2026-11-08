@@ -1835,10 +1835,10 @@
     }
   ],
   "evidenceDigests": {
-    "frontend/src/App.jsx": "83b21cba3754b589d8b87747682b75df383a9b0015f93ae4f839210cc2a2a195",
+    "frontend/src/App.jsx": "b75846ffa94788ee69fc9d1289f06e7be37f22fc86576e9c2be8c68a1e4bc2f5",
     "frontend/src/lib/materialCatalog.js": "3bf3c59c161ca2952e33bf6086429d5b11c68f6ca13797f047b1914b9ecfe1a4",
     "frontend/tests/materials-catalog.test.js": "4c8442c56372be87afb52079e13ff8ece895ef729c1867592b89c2d840074c83",
-    "frontend/src/lib/i18n.js": "f965f34d5e5ba273d5e44c7c18feb58b8c6b5ab2e46c3440f69eb8e2972f7dbc",
+    "frontend/src/lib/i18n.js": "df19a40a40382be46d568ae43c11b1091b8e5f52c6522aee5d2069da9c76f832",
     "frontend/src/pages/Materials.jsx": "12cf1ecef042e0c680caeda6e67f46d3a38d5061eb75586e33913a06c30fa34c",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "073cb44bcbbf60d613b67a83d7c414d02ac1471bf827e669bba84c2d3ecef7ed",
     "backend/apps/content/tests/test_catalog_workspace.py": "690f59f8d3285dd07edb8b4420fc9d93a7ab3c196350dcbae7a4c3dcb812e6c8",

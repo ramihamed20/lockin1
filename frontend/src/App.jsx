@@ -603,12 +603,12 @@ function App() {
       if (isApiError(error) && (error.status === 401 || (error.status === 403 && error.code === "not_authenticated"))) {
         return finishLocalLogout();
       }
-      setSessionNotice(error.message || "We could not sign you out. Your current session is unchanged.");
+      setSessionNotice(t("auth.logoutFailed"));
     }
     // The session outlived the attempt, so the caller must leave the reader
     // exactly where they were.
     return false;
-  }, [clearAuthenticatedUi, user?.id]);
+  }, [clearAuthenticatedUi, t, user?.id]);
 
   // Signing out ends work in progress, so it is confirmed before it runs. Every
   // entry point (the drawer, the account menu, the onboarding screen) asks the
