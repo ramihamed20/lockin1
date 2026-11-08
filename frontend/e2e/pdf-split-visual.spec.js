@@ -135,6 +135,22 @@ for (const viewport of [
     expect(amount).toBeGreaterThan(.65);
     expect(amount).toBeLessThan(.75);
     await page.screenshot({ path: `output/playwright/pdf-split-${viewport.name}-70-30.png`, fullPage: false });
+    // Drag freely to 63%, then release at 65%. Exercise phone and tablet axes.
+    const edges = await page.locator(".workspace-pane[data-split-slot]").evaluateAll((nodes, rows) => {
+      const bounds = nodes.map((node) => node.getBoundingClientRect());
+      return { start: Math.min(...bounds.map((box) => rows ? box.top : box.left)),
+        end: Math.max(...bounds.map((box) => rows ? box.bottom : box.right)) };
+    }, axisIsRows);
+    const grip = await seam.boundingBox();
+    const target = rtlColumns && !axisIsRows ? edges.end - .632 * (edges.end - edges.start)
+      : edges.start + .632 * (edges.end - edges.start);
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(axisIsRows ? grip.x + grip.width / 2 : target,
+      axisIsRows ? target : grip.y + grip.height / 2, { steps: 6 });
+    await expect.poll(async () => Number(await seam.getAttribute("aria-valuenow"))).toBe(63);
+    await page.mouse.up();
+    await expect(seam).toHaveAttribute("aria-valuenow", "65");
   });
 }
 

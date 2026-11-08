@@ -1,6 +1,11 @@
+/** While dragging, never quantize the pointer to five-percent increments. */
+export function clampSplitPercent(number) {
+  return Number.isFinite(number) ? Math.max(20, Math.min(80, number)) : 50;
+}
+
 /** Snap a split dimension to a 5% step while keeping both sheets readable. */
 export function snapSplitPercent(number) {
-  return Math.max(20, Math.min(80, Math.round(number / 5) * 5));
+  return Math.round(clampSplitPercent(number) / 5) * 5;
 }
 
 /**
@@ -12,7 +17,7 @@ export function snapSplitPercent(number) {
 export function splitPercentFromPointer(start, end, current, rtlColumns = false) {
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
   const distance = rtlColumns ? end - current : current - start;
-  return snapSplitPercent((distance * 100) / (end - start));
+  return clampSplitPercent((distance * 100) / (end - start));
 }
 
 /** Physical arrow keys move the divider in the direction of the key. */

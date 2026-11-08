@@ -226,19 +226,44 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     return Boolean(!rows && layoutRef.current
       && window.getComputedStyle(layoutRef.current).direction === "rtl");
   }
-  function resizeFromPointer(event, axis) {
+  // A resize only changes CSS tracks while the pointer is down, avoiding a
+  // full React re-render of two to four PDF viewers per pointermove.
+  const splitDragRef = useRef(null);
+  function beginSplitDrag(event, axis, value) {
+    if (event.button !== 0 || splitDragRef.current) return;
     const rects = [...(layoutRef.current?.querySelectorAll(".workspace-pane[data-split-slot]") || [])]
       .map((node) => node.getBoundingClientRect());
     if (rects.length < 2) return;
     const rows = splitAxisIsRows(axis);
-    const start = Math.min(...rects.map((rect) => rows ? rect.top : rect.left));
-    const end = Math.max(...rects.map((rect) => rows ? rect.bottom : rect.right));
-    const current = rows ? event.clientY : event.clientX;
-    const nextPercent = splitPercentFromPointer(start, end, current, splitIsRtlColumns(rows));
-    if (nextPercent !== null) {
-      const set = axis === "primary" ? setSplitPercent : setSplitRowsPercent;
-      set(nextPercent);
-    }
+    event.preventDefault();
+    splitDragRef.current = {
+      axis, pointerId: event.pointerId, rows, value,
+      rtl: splitIsRtlColumns(rows),
+      start: Math.min(...rects.map((rect) => rows ? rect.top : rect.left)),
+      end: Math.max(...rects.map((rect) => rows ? rect.bottom : rect.right))
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  function resizeFromPointer(event, axis) {
+    const drag = splitDragRef.current;
+    if (!drag || drag.axis !== axis || drag.pointerId !== event.pointerId) return;
+    const current = drag.rows ? event.clientY : event.clientX;
+    const next = splitPercentFromPointer(drag.start, drag.end, current, drag.rtl);
+    if (next === null) return;
+    drag.value = next;
+    const cssVariable = axis === "primary" ? "--workspace-split-primary" : "--workspace-split-secondary";
+    layoutRef.current?.style.setProperty(cssVariable, `${next}%`);
+    event.currentTarget.setAttribute("aria-valuenow", String(Math.round(next)));
+  }
+  function finishSplitDrag(event, axis) {
+    const drag = splitDragRef.current;
+    if (!drag || drag.axis !== axis || drag.pointerId !== event.pointerId) return;
+    splitDragRef.current = null;
+    const snapped = snapSplitPercent(drag.value);
+    const cssVariable = axis === "primary" ? "--workspace-split-primary" : "--workspace-split-secondary";
+    layoutRef.current?.style.setProperty(cssVariable, `${snapped}%`);
+    (axis === "primary" ? setSplitPercent : setSplitRowsPercent)(snapped);
+    event.currentTarget.setAttribute("aria-valuenow", String(snapped));
   }
   function splitDivider(axis) {
     const primary = axis === "primary";
@@ -253,12 +278,14 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       aria-orientation={rows ? "horizontal" : "vertical"}
       aria-valuemin={20} aria-valuemax={80} aria-valuenow={Math.round(percent)}
       tabIndex={0}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        event.currentTarget.setPointerCapture(event.pointerId);
-        resizeFromPointer(event, axis);
-      }}
+      onPointerDown={(event) => beginSplitDrag(event, axis, percent)}
       onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeFromPointer(event, axis); }}
+      onPointerUp={(event) => {
+        finishSplitDrag(event, axis);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+      onPointerCancel={(event) => finishSplitDrag(event, axis)}
+      onLostPointerCapture={(event) => finishSplitDrag(event, axis)}
       onKeyDown={(event) => {
         const delta = splitResizeKeyDelta(event.key, splitIsRtlColumns(rows));
         if (delta) { event.preventDefault(); set((value) => snapSplitPercent(value + delta)); }

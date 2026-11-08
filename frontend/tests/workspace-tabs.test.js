@@ -173,9 +173,13 @@ test("split divider hides percentage controls and snaps to the nearest five perc
     readFile(new URL("../src/workspace/catalog/workspace-split.css", import.meta.url), "utf8")
   ]);
   assert.match(host, /import \{ snapSplitPercent, splitPercentFromPointer, splitResizeKeyDelta \}/);
-  assert.match(host, /splitPercentFromPointer\(start, end, current, splitIsRtlColumns\(rows\)\)/);
+  assert.match(host, /splitPercentFromPointer\(drag\.start, drag\.end, current, drag\.rtl\)/);
   assert.match(host, /set\(\(value\) => snapSplitPercent\(value \+ delta\)\)/);
   assert.match(host, /aria-valuenow=\{Math\.round\(percent\)\}/);
+  assert.match(host, /onPointerUp=/);
+  assert.match(host, /onPointerCancel=/);
+  assert.match(host, /onLostPointerCapture=/);
+  assert.match(host, /layoutRef\.current\?\.style\.setProperty/);
   assert.doesNotMatch(host, /ratioMenu|SIZE_PRESETS|workspace-split-ratio-toggle|workspace-split-ratio-presets/);
   assert.doesNotMatch(css, /workspace-split-ratio-toggle|workspace-split-ratio-presets/);
   assert.match(host, /workspace-split-grip/);
@@ -203,7 +207,11 @@ test("split pointer resizing follows physical direction in RTL and LTR layouts",
   assert.equal(splitPercentFromPointer(100, 900, 420, false), 40);
   assert.equal(splitPercentFromPointer(100, 900, 580, false), 60);
   // The same direction rules apply to two-, three- and four-sheet dividers.
-  assert.equal(splitPercentFromPointer(0, 1000, 476, true), 50);
+  assert.equal(splitPercentFromPointer(0, 1000, 476, true), 52.4);
+  // Continuous movement keeps the actual value until the pointer is released.
+  assert.equal(splitPercentFromPointer(0, 1000, 623, false), 62.3);
+  assert.equal(splitPercentFromPointer(0, 1000, 377, true), 62.3);
+  assert.equal(snapSplitPercent(splitPercentFromPointer(0, 1000, 632, false)), 65);
   assert.equal(snapSplitPercent(52.9), 55);
   assert.equal(snapSplitPercent(48), 50);
   assert.equal(splitPercentFromPointer(0, 1000, 0, true), 80);
