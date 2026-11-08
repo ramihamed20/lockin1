@@ -1119,9 +1119,18 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-i
   min-width: 0;
   width: min(296px, calc(100% - 16px));
   max-width: min(296px, calc(100% - 16px));
+  /* The complete inspector stays on screen; its contents scroll instead of growing past the page. */
+  max-height: min(368px, calc(100dvh - 88px));
   border-radius: 18px;
 }
 :root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink .workspace-v7-panel-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  max-height: min(310px, calc(100dvh - 152px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
   padding: 2px 12px 8px;
   border-radius: 0 0 18px 18px;
 }
@@ -1138,7 +1147,7 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-i
     max-width: calc(100% - 16px);
   }
   :root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink .workspace-v7-panel-body {
-    max-height: min(55dvh, 390px);
+    max-height: min(310px, calc(100dvh - 152px));
   }
 }
 
