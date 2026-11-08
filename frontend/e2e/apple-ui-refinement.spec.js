@@ -36,7 +36,7 @@ for (const config of [
       await mock(page, config.locale, config.theme);
       for (const route of ["settings", "materials", "questions", "review", "notifications", "progress", "subscription"]) {
         await page.goto(`/#/${route}`);
-        const loaded = { settings: ".settings-search", materials: ".catalog-directory", questions: ".question-directory", review: ".review-v2", notifications: ".notifications-v2", progress: ".progress-page-heading", subscription: ".subscription-v2" };
+        const loaded = { settings: ".settings-search", materials: ".catalog-directory", questions: ".question-directory", review: ".review-v2", notifications: ".notifications-v2", progress: ".progress-stat-grid", subscription: ".subscription-v2" };
         await expect(page.locator(loaded[route])).toBeVisible({ timeout: 20000 });
         const title = page.getByRole("main").getByRole("heading", { level: 1 });
         await expect(title).toHaveCount(1, { timeout: 20000 });
@@ -50,13 +50,14 @@ for (const config of [
     test("settings keeps keyboard navigation, concise controls and optional explanations", async ({ page }) => {
       await mock(page, config.locale, config.theme);
       await page.goto("/#/settings?section=notifications");
-      await expect(page.locator("#settings-reminder").getByRole("switch")).toBeVisible({ timeout: 20000 });
+      await expect(page.locator("#settings-reminder").getByRole("checkbox").first()).toBeVisible({ timeout: 20000 });
       await expect(page.locator(".settings-notification-preview, .settings-detail-description")).toHaveCount(0);
       expect(Number.parseFloat(await page.locator("#settings-notifications-heading").evaluate(node => getComputedStyle(node).fontSize))).toBeLessThanOrEqual(22);
-      const reminder = page.locator("#settings-reminder").getByRole("switch");
+      const reminder = page.locator("#settings-reminder").getByRole("checkbox").first();
+      await expect(reminder).not.toBeChecked();
       await reminder.focus(); await page.keyboard.press("Space");
-      await expect(reminder).toHaveAttribute("aria-checked", "true");
-      expect((await reminder.boundingBox()).height).toBeGreaterThanOrEqual(44);
+      await expect(reminder).toBeChecked();
+      expect((await reminder.locator("..").boundingBox()).height).toBeGreaterThanOrEqual(44);
       await page.goto("/#/settings?section=devices");
       const info = page.locator(".settings-info");
       await expect(info.locator("p")).toBeHidden();

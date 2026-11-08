@@ -97,7 +97,7 @@ for (const config of [{ name: "phone-ar", width: 320, height: 740, locale: "ar" 
       await switches.first().click();
       await expect(switches.first()).toHaveAttribute("aria-checked", "false");
       await expect(page.locator(".settings-notification-category").last().getByRole("switch")).toBeDisabled();
-      await expect(page.locator("#settings-reminder").getByRole("switch")).toHaveAttribute("aria-checked", "false");
+      await expect(page.locator("#settings-reminder").getByRole("checkbox").first()).not.toBeChecked();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `test-results/settings-preview/${config.name}-notifications.png`, fullPage: true });
     });

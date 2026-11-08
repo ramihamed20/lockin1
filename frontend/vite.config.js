@@ -1,6 +1,7 @@
 import { writePublicKnowledge } from "./scripts/build-public-knowledge.mjs";
 import { publicKnowledgeInDevelopment } from "./scripts/public-knowledge-dev.mjs";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
@@ -149,6 +150,20 @@ export default defineConfig(async ({ mode, command }) => {
 
   return {
   base: basePath,
+  // Browser CI serves the built dist, not Vite dev. Compile the fixture entry
+  // pages in E2E-only builds so they exercise the production React bundle.
+  // These pages are never emitted by an ordinary production build.
+  build: process.env.LOCKIN_E2E_CATALOG === "1" ? {
+    rollupOptions: {
+      input: {
+        app: fileURLToPath(new URL("./index.html", import.meta.url)),
+        ...Object.fromEntries(["companion-ready", "companion-import", "profile-companion"].map(name => [
+          `e2e/fixtures/${name}/index`,
+          fileURLToPath(new URL(`./e2e/fixtures/${name}/index.html`, import.meta.url))
+        ]))
+      }
+    }
+  } : undefined,
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
     __APP_SEMVER__: JSON.stringify(appSemver),
