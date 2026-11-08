@@ -742,7 +742,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // Query the real model when available so the Elite 1 bundled touch stylus
   // works without making finger drawing the default on every tablet.
   useEffect(() => {
-    const uaData = window.navigator.userAgentData;
+    const uaData = /** @type {Navigator & { userAgentData?: { getHighEntropyValues: (keys: string[]) => Promise<{model: string}> } }} */ (window.navigator).userAgentData;
     if (drawingInputChosenRef.current || typeof uaData?.getHighEntropyValues !== "function") return undefined;
     let active = true;
     Promise.resolve(uaData.getHighEntropyValues(["model"])).then(({ model }) => {
