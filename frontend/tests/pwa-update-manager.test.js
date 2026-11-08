@@ -295,7 +295,7 @@ test("activation that never takes control fails safely and can be retried", asyn
   manager.stop();
 });
 
-test("the plugin's skip-waiting API is used when the plugin registered the worker", async () => {
+test("the chosen window messages the current waiting worker even when the plugin registered it", async () => {
   const env = fakeEnvironment();
   const manager = createUpdateManager(env);
   const registration = fakeRegistration();
@@ -319,8 +319,8 @@ test("the plugin's skip-waiting API is used when the plugin registered the worke
 
   const applying = manager.applyUpdate();
   await flush();
-  assert.deepEqual(pluginCalls, [true]);
-  assert.deepEqual(waiting.messages, []);
+  assert.deepEqual(pluginCalls, [], "the plugin callback must not race another window's worker");
+  assert.deepEqual(waiting.messages, [{ type: "SKIP_WAITING" }]);
   options.onNeedReload();
   env.fire.controllerchange();
   await applying;

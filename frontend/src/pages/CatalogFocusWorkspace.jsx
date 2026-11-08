@@ -624,6 +624,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
     return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitZoom));
   });
+  // Even when a 5% pinch snaps to the already-rendered zoom, the compositor
+  // must have a new layout pass to release its live transform and touch lock.
+  const [pinchCommitEpoch, setPinchCommitEpoch] = useState(0);
   const [activeTool, setActiveTool] = useState(rememberedWritingTool);
   const [activeColor, setActiveColor] = useState(initialToolSettings.color || COLORS[0]);
   // One-shot toolbar feedback for a deliberately chosen ink colour. A revision
@@ -1671,7 +1674,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // The commit must run exactly once for the newly mounted zoom geometry;
   // gesture helpers intentionally read the latest mutable refs in that frame.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom]);
+  }, [zoom, pinchCommitEpoch]);
   useLayoutEffect(() => {
     const pending = pendingFitAnchorRef.current;
     const stage = stageRef.current;
@@ -3800,6 +3803,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // A deferred commit can leave the compositor-only pinch frame attached for
     // seconds (and make a following Fit action read stale geometry).
     setZoom(finalZoom);
+    setPinchCommitEpoch((current) => current + 1);
     revealZoomHud(finalZoom);
   }
 
@@ -4586,7 +4590,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       window.clearTimeout(wheelZoomEndTimerRef.current);
       wheelZoomEndTimerRef.current = null;
     }
-    if (gesture.pinch?.source === "wheel") {
+    if (gesture.pinch?.source === "wheel" || pendingPinchCommitRef.current) {
+      // Fit width can be pressed while React is reconciling the last wheel
+      // pinch. The live compositor scale is not document geometry: discard it
+      // before measuring the page or the result can stay ~100px too wide.
+      pendingPinchCommitRef.current = null;
       clearLivePinchTransform();
       gesture.pinch = null;
       gesture.mode = INTERACTION_STATE.IDLE;
