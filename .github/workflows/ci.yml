@@ -528,7 +528,7 @@ jobs:
     # `buildcache` tags are build metadata, not runnable images: never deploy
     # them.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime, image-layers]
+    needs: [backend, backend-migrations, frontend, browser-build, browser, containers, container-runtime, edge-runtime, image-layers]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -657,12 +657,14 @@ jobs:
 
   quality-gate:
     if: always()
-    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime, image-layers]
+    needs: [backend, backend-migrations, frontend, browser-build, browser, containers, container-runtime, edge-runtime, image-layers]
     runs-on: ubuntu-latest
     steps:
       - name: Require every production gate
         env:
           BACKEND_RESULT: ${{ needs.backend.result }}
+          BACKEND_MIGRATIONS_RESULT: ${{ needs['backend-migrations'].result }}
+          BROWSER_BUILD_RESULT: ${{ needs['browser-build'].result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           CONTAINER_RESULT: ${{ needs.containers.result }}
@@ -671,6 +673,8 @@ jobs:
           IMAGE_LAYERS_RESULT: ${{ needs['image-layers'].result }}
         run: |
           test "$BACKEND_RESULT" = success
+          test "$BACKEND_MIGRATIONS_RESULT" = success
+          test "$BROWSER_BUILD_RESULT" = success
           test "$FRONTEND_RESULT" = success
           test "$BROWSER_RESULT" = success
           test "$CONTAINER_RESULT" = success
