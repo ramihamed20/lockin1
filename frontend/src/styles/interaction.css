@@ -561,3 +561,14 @@
     background: color-mix(in srgb, var(--sheet-resume-action) 90%, black);
   }
 }
+
+/* Touch-sized segmented filters. The shared interactive layer wins over
+   desktop thumb dimensions even when Chromium emulates a phone viewport
+   without reporting a coarse pointer. */
+@layer interaction {
+  .progress-mobile-nav [role="tab"],
+  .rank-mode .rank-mode-periods [role="tab"] {
+    min-height: 44px;
+    min-block-size: 44px;
+  }
+}
