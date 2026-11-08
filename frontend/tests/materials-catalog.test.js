@@ -109,7 +109,8 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(materials, /if \(edition\?\.deliverable !== false\) rememberLastOpenedCatalogSheet/);
   assert.match(materials, /<ErrorPanel message=\{t\("materials\.sheetNotFoundText"\)\} \/>/);
   const sheetCard = await readFile(new URL("../src/components/learning/CatalogSheetCard.jsx", import.meta.url), "utf8");
-  assert.match(sheetCard, /if \(sheet\.deliverable === false\)/);
+  assert.match(sheetCard, /const unavailable = sheet\.deliverable === false/);
+  assert.match(sheetCard, /return unavailable/);
   assert.match(sheetCard, /data-unavailable="true"/);
   assert.match(materials, /sheets\/\$\{item\.slug\}\/workspace/);
   assert.match(materials, /returnTo: location\.pathname/);
@@ -387,7 +388,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /rail\.style\.setProperty\("--workspace-fade-left"/);
   assert.match(workspace, /rail\.scrollBy\(\{ left: delta/);
   assert.match(styles, /\.workspace-v2-tool-options \{[^}]*position: absolute/);
-  assert.match(styles, /@media \(max-width: 1199px\) \{[\s\S]*width: min\(340px/);
+  assert.match(styles, /@media \(max-width: 1199px\) \{[\s\S]*width: min\(280px/);
   assert.doesNotMatch(styles, /min-height: 100svh/);
 });
 

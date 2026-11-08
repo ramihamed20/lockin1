@@ -301,7 +301,7 @@ test("the dashboard fills its column, keeps the cat small, and lifts mistakes on
   assert.match(styles, /@container dash-states \(min-width: 320px\) and \(max-width: 479px\)[\s\S]*repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(styles, /\.dashboard \.review-queue-item:nth-child\(n\+3\) \{ display: none; \}/);
   // Wide: mistakes take the larger, leading column.
-  assert.match(styles, /@media \(min-width: 900px\)[\s\S]*\.dashboard-secondary \{ grid-template-columns: minmax\(0, 1\.3fr\) minmax\(0, 1fr\); \}/);
+  assert.match(styles, /@media \(min-width: 900px\)[\s\S]*\.dashboard-secondary \{[\s\S]*?grid-template-columns: minmax\(0, 1\.3fr\) minmax\(0, 1fr\);[\s\S]*?align-items: stretch;/);
 });
 
 test("coarse-pointer scrolling avoids live glass sampling and paint-bound pulse effects", async () => {

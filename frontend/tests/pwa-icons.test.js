@@ -108,7 +108,7 @@ test("Vite development replaces a legacy localhost worker without changing the p
   assert.match(config, /self\.registration\.unregister\(\)/);
   assert.doesNotMatch(config, /client\.navigate\(/);
   assert.match(config, /Cache-Control", "no-store/);
-  assert.match(config, /hmr: false/);
+  assert.match(config, /hmr: env\.LOCKIN_STAGING_HMR === "1"[\s\S]*?: false/);
 });
 
 test("manifest and runtime cache include Android installability safeguards", async () => {
