@@ -281,13 +281,43 @@ jobs:
           pnpm run build
           pnpm run check:bundle
 
+  browser-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install exact frontend lockfile
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Build the E2E production bundle once
+        working-directory: frontend
+        run: pnpm run build:e2e
+      # Include generated scanned PDFs alongside the test-only dist output.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lockin-browser-bundle
+          path: |
+            frontend/dist/
+            frontend/e2e/fixtures/pdf/
+          if-no-files-found: error
+          retention-days: 1
+
   browser:
-    name: browser (${{ matrix.shard }}/3)
+    name: browser (${{ matrix.shard }}/6)
+    needs: [browser-build]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5, 6]
     # Chromium and its system dependencies ship inside this image, so the job
     # downloads neither. `playwright install --with-deps chromium` stalled
     # indefinitely right after its 167 MB download reported 100%, twice in a
@@ -313,15 +343,15 @@ jobs:
       - name: Install exact frontend lockfile
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      # build:e2e is the production build plus the fixture catalogue sheets the
-      # reader specs open (frontend/e2e/fixtures/catalog.js). Everything else is
-      # identical production code, and the "frontend" job above still builds and
-      # budget-checks the real production bundle.
-      #
-      # The suite is split across three runners; every spec runs in exactly one.
+      # Shards download one immutable E2E bundle, avoiding repeated builds.
+      # The frontend job separately builds the real production bundle.
+      - uses: actions/download-artifact@v4
+        with:
+          name: lockin-browser-bundle
+          path: frontend/
       - name: Production-bundle browser regression
         working-directory: frontend
-        run: pnpm run build:e2e && pnpm run test:e2e --shard=${{ matrix.shard }}/3
+        run: pnpm run test:e2e --shard=${{ matrix.shard }}/6
       # Ordinary builds define the fixture catalogue as null. Exercise this
       # separately so the reader fixture build cannot hide production errors.
       - name: Ordinary production bootstrap and catalog recovery
