@@ -22,6 +22,7 @@ async function server(context, { locale = "en", signedIn = true } = {}) {
     if (await fulfillAccessContract(route, path)) return;
     if (path === "/api/v1/biweekly/review") return json({ history: [], current_period: { period_start: "2026-10-19", period_end: "2026-11-01", next_report_at: "2026-11-02T00:00:00Z" } });
     if (path === "/api/v1/review-bank") return json({ active_count: 1, mastered_this_week: 0, subjects: [{ subject_key: "histology", subject_label_snapshot: "Histology", question_count: 1 }] });
+    if (path === "/api/v1/review-bank/daily") return json({ count: 1, due_count: 1, seconds_per_question: 30, results: [{ id: "daily-1", subject_key: "histology", subject_label: "Histology", priority_reasons: ["due_review"] }] });
     if (path === "/api/v1/review-queue") return json({ count: 0, results: [] });
     if (path === "/api/v1/weekly-recall") return state.weeklyFails ? json({ detail: "Weekly unavailable" }, 503) : json({ available: false, session: null, eligible_count: 0 });
     if (path === "/api/v1/progression/xp") return json({ total_points: 55, level: 1, level_progress: 55, level_target: 500, transaction_count: 6 });
@@ -77,15 +78,17 @@ for (const config of [{ locale: "en", width: 390, height: 844 }, { locale: "ar",
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  test(`summaries can be found, filtered and opened by identity — ${config.locale}`, async ({ page, context }) => {
+  test(`summaries can be filtered by subject and opened by identity — ${config.locale}`, async ({ page, context }) => {
     await server(context, config);
     await page.setViewportSize({ width: config.width, height: config.height });
     await page.goto("/#/materials/summaries");
     await expect(page.locator(".summary-row")).toHaveCount(2);
-    await page.getByRole("searchbox").fill("Bone");
+    // Filter by subject and status; the newer summaries screen intentionally
+    // no longer contains a free-text search.
+    await page.locator(".summary-filters select").first().selectOption("anatomy");
     await expect(page.locator(".summary-row")).toHaveCount(1);
     await expect(page.locator(".summary-row a")).toHaveAttribute("href", /summary=33333333-3333-4333-8333-333333333333/);
-    await page.getByRole("searchbox").fill("");
+    await page.locator(".summary-filters select").first().selectOption("");
     await page.locator(".summary-filters select").last().selectOption("finished");
     await expect(page.locator(".summary-row")).toHaveCount(1);
     await expect(page.getByText("Cell notes", { exact: true })).toBeVisible();
@@ -158,7 +161,7 @@ test("notification feed is usable even when its unread summary fails", async ({ 
   await server(context);
   await page.goto("/#/notifications");
   await expect(page.getByText("New sheet ready", { exact: true })).toBeVisible();
-  await expect(page.locator(".notification-feed-item")).toHaveCount(1);
+  await expect(page.locator(".notification-feed .notification-row")).toHaveCount(1);
 });
 
 test("first visit reaches sign-in without dismissing an installation screen", async ({ page, context }) => {
