@@ -294,7 +294,7 @@ test("handwriting improvement smooths new ink without replacing its saved points
 test("browser and OS shortcuts never hijack the tool palette", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   const pen = page.locator('[data-workspace-tool="pen"]');
 
   for (const combination of ["Control+s", "Control+p", "Control+e", "Control+l", "Alt+s"]) {
