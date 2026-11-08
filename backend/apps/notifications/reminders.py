@@ -59,11 +59,7 @@ def next_due(
 def _schedule(reminder: StudyReminder, now: datetime) -> datetime | None:
     if not reminder.enabled:
         return None
-    days = (
-        set(reminder.weekdays)
-        if reminder.study_enabled or reminder.review_enabled
-        else set()
-    )
+    days = set(reminder.weekdays) if reminder.study_enabled or reminder.review_enabled else set()
     if reminder.weekly_enabled:
         days.add(reminder.weekly_day)
     anchor = max(now, reminder.paused_until) if reminder.paused_until else now
@@ -77,9 +73,7 @@ def reminder_payload(reminder: StudyReminder) -> dict[str, Any]:
     result.update(
         revision=0 if reminder._state.adding else reminder.revision,
         next_due_at=reminder.next_due_at.isoformat() if reminder.next_due_at else None,
-        paused_until=(
-            reminder.paused_until.isoformat() if reminder.paused_until else None
-        ),
+        paused_until=reminder.paused_until.isoformat() if reminder.paused_until else None,
     )
     return result
 
@@ -109,15 +103,11 @@ def save_reminder(user: User, data: dict[str, Any]) -> dict[str, Any]:
         raise ValidationError({"enabled": "Choose at least one study notification."})
     if reminder.quiet_enabled:
         if reminder.quiet_start == reminder.quiet_end:
-            raise ValidationError(
-                {"quiet_end": "Quiet hours need different start and end times."}
-            )
+            raise ValidationError({"quiet_end": "Quiet hours need different start and end times."})
         if reminder.enabled and in_quiet_hours(
             reminder.time, reminder.quiet_start, reminder.quiet_end
         ):
-            raise ValidationError(
-                {"time": "Choose a reminder time outside quiet hours."}
-            )
+            raise ValidationError({"time": "Choose a reminder time outside quiet hours."})
     now = timezone.now()
     if "pause_hours" in data:
         reminder.paused_until = (
