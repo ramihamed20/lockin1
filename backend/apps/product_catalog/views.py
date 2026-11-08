@@ -6,6 +6,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.policies import USER_POLICY_VERSION, policy_effective_at
+
 from .models import Price, Product
 from .selectors import available_products, price_for_reader
 from .serializers import ProductSerializer
@@ -88,13 +90,23 @@ class ProductCatalogView(APIView):
             results = _prices_for_reader(products=products, results=results, user=request.user)
         else:
             results = _general_prices(results)
+        # Consent can be saved before a policy launch, but a new manual
+        # purchase is intentionally refused until the announced activation.
+        # Do not advertise checkout as available when the payment endpoint
+        # will reject every request for the same deployment configuration.
+        activation = policy_effective_at()
+        policy_pending = settings.ACCOUNT_POLICY_VERSION == USER_POLICY_VERSION and (
+            activation is None or activation > timezone.now()
+        )
         return Response(
             {
                 "results": results,
                 "checkout_available": settings.PAYMENT_PROVIDER != "none",
                 "first_subscription_offer_eligible": not has_used_first_offer,
-                "manual_payment_available": Price.objects.filter(
-                    status=Price.Status.ACTIVE, currency="LYD"
-                ).exists(),
+                "manual_payment_available": not policy_pending
+                and Price.objects.filter(status=Price.Status.ACTIVE, currency="LYD").exists(),
+                "manual_payment_unavailable_reason": (
+                    "policy_activation_pending" if policy_pending else None
+                ),
             }
         )
