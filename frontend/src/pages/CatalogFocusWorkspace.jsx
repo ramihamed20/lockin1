@@ -882,6 +882,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // A desktop reader cannot zoom out beyond its 120% starting scale.
     // Small viewports retain their proportional floor for touch navigation.
     if (window.innerWidth >= 1200 && window.matchMedia?.("(pointer: fine)").matches) return minimumPdfZoom();
+    const stageWidth = stageRef.current?.clientWidth || window.innerWidth;
     const stageFit = Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageWidth, A4_PAGE_WIDTH, 0)));
     return Math.min(minimumPdfZoom(), Math.max(0.3, stageFit * 0.5));
   }, [minimumPdfZoom, pageDirection, sheet?.pdfUrl]);
