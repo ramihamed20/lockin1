@@ -3687,6 +3687,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function renderLivePinchTransform(pinch) {
     const root = documentRef.current;
     if (!pinch || !root) return;
+    // PDF.js page-geometry changes or browser scroll anchoring may nudge the
+    // scroller by a few pixels while a compositor pinch is in progress.
+    // Pointer motion owns the viewport until release; restore its starting
+    // scroll so the page stays exactly under the student's fingertips.
+    const stage = stageRef.current;
+    if (stage) {
+      if (Math.abs(stage.scrollLeft - pinch.startingScrollLeft) > 0.01) stage.scrollLeft = pinch.startingScrollLeft;
+      if (Math.abs(stage.scrollTop - pinch.startingScrollTop) > 0.01) stage.scrollTop = pinch.startingScrollTop;
+    }
     // The compositor follows the resisted display scale so a pinch past a zoom
     // limit still tracks the fingers; only `currentScale` may be committed.
     const displayScale = Number.isFinite(pinch.displayScale) ? pinch.displayScale : pinch.currentScale;
@@ -4277,7 +4286,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       }
       if (gesture.mode === INTERACTION_STATE.SETTLING) {
         gesture.pan = null;
-        if (gesture.touches.size === 0 && !pendingPinchCommitRef.current) gesture.mode = INTERACTION_STATE.IDLE;
+        // Releasing the second finger must not mark the reader idle before the
+        // snap animation has run its completion callback. A subsequent pen
+        // cancellation otherwise discards that callback, leaving the PDF
+        // permanently tagged is-live-pinching with its old transform.
+        if (gesture.touches.size === 0 && !pendingPinchCommitRef.current && !gesture.zoomSettleComplete) {
+          gesture.mode = INTERACTION_STATE.IDLE;
+        }
         event.preventDefault();
         return;
       }
@@ -4496,7 +4511,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // to a two-finger pinch. That stale cancellation does not own the pinch
     // settlement and must not cancel its animation or leave the compositor
     // transform permanently attached to the document.
-    if (gesture.mode === INTERACTION_STATE.SETTLING && event.pointerType === "pen") {
+    if (gesture.mode === INTERACTION_STATE.SETTLING) {
+      // An interrupted settling gesture (touch or stylus) still commits the
+      // last legal zoom; never drop the callback before releasing the layer.
+      gesture.touches.delete(event.pointerId);
       gesture.penPointers.delete(event.pointerId);
       // Finish rather than abandon the touch-owned settlement. This commits
       // its legal zoom and lets the geometry effect remove compositor classes.
