@@ -46,6 +46,7 @@ function catalogPayload(payload) {
     results: source.results,
     checkoutAvailable: source.checkout_available,
     manualPaymentAvailable: source.manual_payment_available === true,
+    manualPaymentUnavailableReason: source.manual_payment_unavailable_reason || null,
     firstSubscriptionOfferEligible: source.first_subscription_offer_eligible === true
   };
 }
