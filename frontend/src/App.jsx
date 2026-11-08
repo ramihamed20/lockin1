@@ -32,7 +32,6 @@ import { synchronizeOffline, refreshAutomaticDownloads } from "./offline/coordin
 import { forgetOfflineUser, rememberOfflineUser, restoreOfflineUser } from "./offline/profile.js";
 import { forgetPushAccount } from "./pwa/devicePush.js";
 import OfflineIndicator from "./offline/OfflineIndicator.jsx";
-import "./pages/dashboard.css";
 import { WeeklyReadyToast } from "./components/biweekly/WeeklyReadyToast.jsx";
 import { WhatsNew } from "./components/WhatsNew.jsx";
 

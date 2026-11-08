@@ -1,3 +1,4 @@
+import "./dashboard.css";
 import { SubjectBanner } from "../components/learning/SubjectBanner.jsx";
 import { Link } from "react-router-dom";
 import RescueEntry from "../rescue/RescueEntry.jsx";
