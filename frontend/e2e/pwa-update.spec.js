@@ -298,6 +298,9 @@ test.describe("PWA updates", () => {
   });
 
   test("updating in one window never reloads another", async ({ page, context }) => {
+    // Two windows and a real service worker can overlap a full navigation.
+    // Allow the browser to settle, but never waive the one-reload assertion.
+    test.setTimeout(90_000);
     await prepare(page);
     await openControlled(page);
     const other = await context.newPage();
@@ -306,9 +309,20 @@ test.describe("PWA updates", () => {
     edge.deploy();
 
     await discoverDeployment(page);
-    const reloaded = page.waitForEvent("load");
+    // A service-worker takeover can navigate between event subscription and
+    // Playwright's load notification under CI load. The actual contract is
+    // exactly one app bootstrap in this window, not an incidental load event.
     await page.locator("#settings-updates").getByRole("button", { name: "Update now" }).click();
-    await reloaded;
+    await expect.poll(async () => {
+      try {
+        return await page.evaluate(() => sessionStorage.getItem("e2e-loads"));
+      } catch (error) {
+        // page.evaluate briefly loses its execution context while the worker
+        // replaces this document. That is progress, not a failed assertion.
+        if (/Execution context was destroyed|Cannot find context with specified id/i.test(String(error))) return null;
+        throw error;
+      }
+    }, { timeout: 45_000 }).toBe("2");
 
     await expect(other.locator(".pwa-update-prompt")).toContainText("Lock-in was updated");
     expect(await other.evaluate(() => sessionStorage.getItem("e2e-loads")), "the other window kept its page").toBe("1");

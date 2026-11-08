@@ -75,7 +75,11 @@ jobs:
       # slowest tests are reported so the next bottleneck is visible in the log.
       - name: PostgreSQL test suite
         working-directory: backend
-        run: python -m pytest -n auto --durations=15
+        run: >-
+          python -m pytest -n auto --durations=15
+          --ignore=apps/focus/tests/test_lofi_scene_migration.py
+          --ignore=apps/study_plans/tests/test_foundation_migration.py
+          --ignore=apps/payments/tests/test_revenue_index_migration.py
       - name: Create least-privilege runtime role
         run: >-
           docker exec "${{ job.services.postgres.id }}"
@@ -190,6 +194,62 @@ jobs:
           # role, database and migration preflight check.
           CONTENT_REQUIRE_CLEAN_SCAN=false python manage.py production_preflight
 
+  backend-migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_DB: lockin_test
+          POSTGRES_USER: lockin_owner
+          POSTGRES_PASSWORD: ci-owner-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lockin_owner -d lockin_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 18
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DJANGO_SECRET_KEY: ci-only-django-secret-key-not-for-production
+      POSTGRES_DB: lockin_test
+      POSTGRES_USER: lockin_owner
+      POSTGRES_PASSWORD: ci-owner-password
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.14"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install backend
+        working-directory: backend
+        run: python -m pip install -e ".[dev]"
+      # This database is thrown away with the runner, so durability buys
+      # nothing; without fsync the 149 migrations each worker replays run far
+      # faster. Production configuration is untouched.
+      - name: Disable durability on the throwaway CI database
+        run: >-
+          docker exec "${{ job.services.postgres.id }}"
+          psql --username lockin_owner --dbname lockin_test --set ON_ERROR_STOP=1
+          --command "ALTER SYSTEM SET fsync = off"
+          --command "ALTER SYSTEM SET synchronous_commit = off"
+          --command "ALTER SYSTEM SET full_page_writes = off"
+          --command "SELECT pg_reload_conf()"
+      # Real historical migration tests run against PostgreSQL in parallel.
+      # Do not duplicate coverage collection; the main backend job enforces 85%.
+      - name: Historical migration regression suite
+        working-directory: backend
+        run: >-
+          python -m pytest --no-cov -n 3 --durations=10
+          apps/focus/tests/test_lofi_scene_migration.py
+          apps/study_plans/tests/test_foundation_migration.py
+          apps/payments/tests/test_revenue_index_migration.py
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -221,13 +281,43 @@ jobs:
           pnpm run build
           pnpm run check:bundle
 
+  browser-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install exact frontend lockfile
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Build the E2E production bundle once
+        working-directory: frontend
+        run: pnpm run build:e2e
+      # Include generated scanned PDFs alongside the test-only dist output.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lockin-browser-bundle
+          path: |
+            frontend/dist/
+            frontend/e2e/fixtures/pdf/
+          if-no-files-found: error
+          retention-days: 1
+
   browser:
-    name: browser (${{ matrix.shard }}/3)
+    name: browser (${{ matrix.shard }}/6)
+    needs: [browser-build]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5, 6]
     # Chromium and its system dependencies ship inside this image, so the job
     # downloads neither. `playwright install --with-deps chromium` stalled
     # indefinitely right after its 167 MB download reported 100%, twice in a
@@ -253,15 +343,15 @@ jobs:
       - name: Install exact frontend lockfile
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      # build:e2e is the production build plus the fixture catalogue sheets the
-      # reader specs open (frontend/e2e/fixtures/catalog.js). Everything else is
-      # identical production code, and the "frontend" job above still builds and
-      # budget-checks the real production bundle.
-      #
-      # The suite is split across three runners; every spec runs in exactly one.
+      # Shards download one immutable E2E bundle, avoiding repeated builds.
+      # The frontend job separately builds the real production bundle.
+      - uses: actions/download-artifact@v4
+        with:
+          name: lockin-browser-bundle
+          path: frontend/
       - name: Production-bundle browser regression
         working-directory: frontend
-        run: pnpm run build:e2e && pnpm run test:e2e --shard=${{ matrix.shard }}/3
+        run: pnpm run test:e2e --shard=${{ matrix.shard }}/6
       # Ordinary builds define the fixture catalogue as null. Exercise this
       # separately so the reader fixture build cannot hide production errors.
       - name: Ordinary production bootstrap and catalog recovery
@@ -438,7 +528,7 @@ jobs:
     # `buildcache` tags are build metadata, not runnable images: never deploy
     # them.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime, image-layers]
+    needs: [backend, backend-migrations, frontend, browser-build, browser, containers, container-runtime, edge-runtime, image-layers]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -567,12 +657,14 @@ jobs:
 
   quality-gate:
     if: always()
-    needs: [backend, frontend, browser, containers, container-runtime, edge-runtime, image-layers]
+    needs: [backend, backend-migrations, frontend, browser-build, browser, containers, container-runtime, edge-runtime, image-layers]
     runs-on: ubuntu-latest
     steps:
       - name: Require every production gate
         env:
           BACKEND_RESULT: ${{ needs.backend.result }}
+          BACKEND_MIGRATIONS_RESULT: ${{ needs['backend-migrations'].result }}
+          BROWSER_BUILD_RESULT: ${{ needs['browser-build'].result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           CONTAINER_RESULT: ${{ needs.containers.result }}
@@ -581,6 +673,8 @@ jobs:
           IMAGE_LAYERS_RESULT: ${{ needs['image-layers'].result }}
         run: |
           test "$BACKEND_RESULT" = success
+          test "$BACKEND_MIGRATIONS_RESULT" = success
+          test "$BROWSER_BUILD_RESULT" = success
           test "$FRONTEND_RESULT" = success
           test "$BROWSER_RESULT" = success
           test "$CONTAINER_RESULT" = success

@@ -86,7 +86,13 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     // A restored reader can be scrolled 30-100px *past* its first page after
     // the grid changes shape. Align those small offsets at split setup, but
     // never override a scroll the student initiated in a visible pane.
-    const markInteraction = () => { studentInteracted = true; };
+    // Resizing a grid divider or dragging a tab is not a reader scroll.
+    // Keep aligning near-top pages while the split layout settles; only actual
+    // gestures inside a document stage stop automatic alignment.
+    const markInteraction = (event) => {
+      if (event.target instanceof globalThis.Element &&
+          event.target.closest(".workspace-v2-document-stage")) studentInteracted = true;
+    };
     host.addEventListener("wheel", markInteraction, { passive: true, capture: true });
     host.addEventListener("touchstart", markInteraction, { passive: true, capture: true });
     host.addEventListener("pointerdown", markInteraction, true);
