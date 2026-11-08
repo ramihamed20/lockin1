@@ -306,9 +306,13 @@ test.describe("PWA updates", () => {
     edge.deploy();
 
     await discoverDeployment(page);
-    const reloaded = page.waitForEvent("load");
+    // A service-worker takeover can navigate between event subscription and
+    // Playwright's load notification under CI load. The actual contract is
+    // exactly one app bootstrap in this window, not an incidental load event.
     await page.locator("#settings-updates").getByRole("button", { name: "Update now" }).click();
-    await reloaded;
+    await expect.poll(async () => page.evaluate(() => sessionStorage.getItem("e2e-loads")), {
+      timeout: 45_000
+    }).toBe("2");
 
     await expect(other.locator(".pwa-update-prompt")).toContainText("Lock-in was updated");
     expect(await other.evaluate(() => sessionStorage.getItem("e2e-loads")), "the other window kept its page").toBe("1");
