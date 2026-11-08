@@ -246,8 +246,9 @@ test('phone + adds a draggable companion, keeps its position and restores it wit
  }
  await pet.dispatchEvent('pointerup', { pointerId: 82, pointerType: 'touch', isPrimary: true, button: 0, buttons: 0, clientX: x - 80, clientY: y - 120 });
  await expect(page.locator('.study-companion-panel')).toHaveCount(0);
- await expect.poll(async () => (await pet.boundingBox()).x).toBeLessThan(original.x - 40);
- await expect.poll(async () => (await pet.boundingBox()).y).toBeLessThan(original.y - 70);
+ // Wait for the final pointer position, not just an intermediate drag frame.
+ await expect.poll(async () => Math.abs((await pet.boundingBox()).x - (original.x - 80))).toBeLessThan(2);
+ await expect.poll(async () => Math.abs((await pet.boundingBox()).y - (original.y - 120))).toBeLessThan(2);
  const moved = await pet.boundingBox();
  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('lock-in.study-companion.v1:test-student')));
  expect(saved.phoneAdded).toBe(true);
