@@ -1115,8 +1115,10 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-i
 
 /* Compact cards stay compact. No huge blocks or loss of touch targets. */
 :root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink {
-  width: min(312px, calc(100% - 16px));
-  max-width: min(312px, calc(100% - 16px));
+  box-sizing: border-box;
+  min-width: 0;
+  width: min(296px, calc(100% - 16px));
+  max-width: min(296px, calc(100% - 16px));
   border-radius: 18px;
 }
 :root[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-inspector.is-compact-ink .workspace-v7-panel-body {
