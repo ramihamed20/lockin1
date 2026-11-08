@@ -6,7 +6,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.policies import USER_POLICY_VERSION, policy_effective_at
+from apps.accounts.policies import policy_effective_at
 
 from .models import Price, Product
 from .selectors import available_products, price_for_reader
@@ -90,14 +90,13 @@ class ProductCatalogView(APIView):
             results = _prices_for_reader(products=products, results=results, user=request.user)
         else:
             results = _general_prices(results)
-        # Consent can be saved before a policy launch, but a new manual
-        # purchase is intentionally refused until the announced activation.
-        # Do not advertise checkout as available when the payment endpoint
-        # will reject every request for the same deployment configuration.
+        # The guided checkout explicitly accepts the published 2026.10 policy
+        # before every purchase. The payment endpoint checks its activation
+        # whenever the user has accepted that policy, even if the deployment
+        # still carries an older ACCOUNT_POLICY_VERSION value. A catalogue
+        # based only on the setting would advertise a checkout it then rejects.
         activation = policy_effective_at()
-        policy_pending = settings.ACCOUNT_POLICY_VERSION == USER_POLICY_VERSION and (
-            activation is None or activation > timezone.now()
-        )
+        policy_pending = activation is None or activation > timezone.now()
         return Response(
             {
                 "results": results,
