@@ -148,6 +148,12 @@ test("whiteboard Add page is fully visible above the bottom edge after three pag
         bubbles: true, cancelable: true, deltaY: 25000
       }));
     });
+    await page.waitForTimeout(300);
+    console.log("WHITEBOARD_GEOMETRY", JSON.stringify(await stage.evaluate((element) => {
+      const rect = node => node?.getBoundingClientRect().toJSON();
+      const page = [...element.querySelectorAll(".workspace-v2-a4-page")].at(-1);
+      return { stage: rect(element), page: rect(page), button: rect(element.querySelector(".workspace-whiteboard-footer button")), anchor: rect(element.querySelector(".workspace-v2-a4-footer-anchor")), scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, surface: rect(element.querySelector(".workspace-v2-a4-zoom-surface")) };
+    })));
     await expect.poll(async () => stage.evaluate((element) => {
       const stageRect = element.getBoundingClientRect();
       const pageRect = [...element.querySelectorAll(".workspace-v2-a4-page")].at(-1).getBoundingClientRect();
