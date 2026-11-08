@@ -287,7 +287,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("8");
   // Percentages move in whole percents.
   await expect(page.getByRole("slider", { name: "Opacity" })).toHaveAttribute("step", "0.01");
-  // The pen keeps its two gestures in view; presets, smoothing and pressure are gone.
+  // Advanced pen gestures live behind the compact Drawing settings section.
+  await page.locator("#workspace-pen-options .workspace-tool-extras-toggle").click();
   await expect(page.getByRole("switch", { name: /Straight lines/ })).toBeVisible();
   await expect(page.getByRole("switch", { name: /Circle erase/ })).toBeVisible();
   await expect(page.getByRole("slider", { name: "Pressure sensitivity" })).toHaveCount(0);
