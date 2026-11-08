@@ -168,18 +168,18 @@ def _briefing(reminder: StudyReminder, now: datetime) -> dict[str, str] | None:
 
         plan = daily_plan_briefing(user=user, today=local.date())
     if count and plan:
+        body_ar = (
+            f"لديك {plan['count']} مهام دراسية ({plan['minutes']} دقيقة) "
+            f"و{count} أسئلة للمراجعة. ابدأ بما يناسبك."
+        )
+        body_en = (
+            f"{plan['count']} study tasks ({plan['minutes']} min) and "
+            f"{count} review questions are ready. Pick your next step."
+        )
         return {
             "template_key": "study.reminder",
             "title": "خطتك ومراجعتك اليوم" if arabic else "Your plan and review today",
-            "body": (
-                f"لديك {plan['count']} مهام دراسية ({plan['minutes']} دقيقة) "
-                f"و{count} أسئلة للمراجعة. ابدأ بما يناسبك."
-                if arabic
-                else (
-                    f"{plan['count']} study tasks ({plan['minutes']} min) and "
-                    f"{count} review questions are ready. Pick your next step."
-                )
-            ),
+            "body": body_ar if arabic else body_en,
             "target_route": "/study-plan",
         }
     if count:
