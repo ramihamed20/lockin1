@@ -8,10 +8,14 @@ test('ordinary build shows a failed directory and a successful retry, without an
     return route.continue();
   });
   await page.goto('/#/materials');
-  await expect(page.getByText('Synthetic catalog unavailable', { exact: true })).toBeVisible();
+  // Production error presentation intentionally replaces untrusted server
+  // messages with safe copy while retaining the failed-list recovery action.
+  const errorPanel = page.locator('.error-panel[role="alert"]');
+  await expect(errorPanel).toBeVisible();
+  await expect(errorPanel.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
   await expect(page.locator('.catalog-directory')).toHaveCount(0);
   fail = false;
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(page.getByRole('link', { name: /Synthetic Subject 1\b/ }).first()).toBeVisible();
-  await expect(page.getByText('Synthetic catalog unavailable', { exact: true })).toHaveCount(0);
+  await expect(errorPanel).toHaveCount(0);
 });

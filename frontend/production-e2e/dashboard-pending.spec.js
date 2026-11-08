@@ -27,7 +27,8 @@ test("study navigation remains usable while dashboard statistics are pending", a
     await expect.poll(held.requested).toBe(true);
     await expect(page.locator(".continue-card").getByRole("link", { name: "Browse materials" })).toBeVisible({ timeout: 5000 });
     await expect(page.locator(".dash-states")).toHaveAttribute("aria-busy", "true");
-    await expect(page.locator(".dash-state-value")).toHaveText(["—", "—", "—", "—", "—"]);
+    // The current loading design uses visually explicit skeletons, not dashes.
+    await expect(page.locator(".dash-state-value .skeleton-dash-stat-number")).toHaveCount(5);
     await expect(page.locator(".dashboard-review-queue")).toHaveAttribute("aria-busy", "true");
     await expect(page.getByText("Nice work.", { exact: true })).toHaveCount(0);
     await expect(page.getByText("No recent mistakes", { exact: true })).toHaveCount(0);
@@ -45,7 +46,8 @@ test("pending statistics become fresh values when the held request resolves", as
     await page.goto("/#/dashboard");
     await expect.poll(held.requested).toBe(true);
     await expect(page.locator(".dash-states")).toHaveAttribute("aria-busy", "true");
-    await expect(page.locator(".dash-state-value")).toHaveText(["—", "—", "—", "—", "—"]);
+    // The current loading design uses visually explicit skeletons, not dashes.
+    await expect(page.locator(".dash-state-value .skeleton-dash-stat-number")).toHaveCount(5);
     held.release();
     await expect(page.locator(".dash-states")).toHaveAttribute("aria-busy", "false");
     await expect(page.locator(".dash-state-value").nth(3)).toHaveText("14");
