@@ -1835,7 +1835,7 @@
     }
   ],
   "evidenceDigests": {
-    "frontend/src/App.jsx": "c23fc3f5a1e3b255eee0761d421868c5d5f9a43710eed48c5b6b5b5b36bad900",
+    "frontend/src/App.jsx": "789f6ca65b921782a7a85d917e4cb13c65c61286247b29d845b8f05492fbbc0b",
     "frontend/src/lib/materialCatalog.js": "3bf3c59c161ca2952e33bf6086429d5b11c68f6ca13797f047b1914b9ecfe1a4",
     "frontend/tests/materials-catalog.test.js": "e50127dd6b75e68cc8b0923a0a2fce55552bb4004b421e48223dc1ca239c4b79",
     "frontend/src/lib/i18n.js": "f965f34d5e5ba273d5e44c7c18feb58b8c6b5ab2e46c3440f69eb8e2972f7dbc",
