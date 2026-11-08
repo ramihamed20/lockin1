@@ -603,7 +603,7 @@ function App() {
       if (isApiError(error) && (error.status === 401 || (error.status === 403 && error.code === "not_authenticated"))) {
         return finishLocalLogout();
       }
-      setSessionNotice(error.message || "We could not sign you out. Your current session is unchanged.");
+      setSessionNotice(`We could not sign you out. ${error?.message ? `${error.message} ` : ""}Your current session is unchanged.`);
     }
     // The session outlived the attempt, so the caller must leave the reader
     // exactly where they were.
