@@ -5073,15 +5073,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     setFocusMessage(t("focus.favoritePenSaved"));
   }
 
-  function toggleFavoritePen() {
-    if (!FAVORITE_PEN_TOOLS.has(activeTool)) return;
-    const favorite = currentFavoritePen();
-    if (!favorite) return;
-    const index = matchingFavoritePen(favoritePens, favorite);
-    if (index >= 0) removeFavoritePen(index);
-    else saveFavoritePen();
-  }
-
   function replaceFavoritePen(index) {
     const favorite = currentFavoritePen();
     if (!favorite || index < 0 || index >= favoritePens.length) return;
