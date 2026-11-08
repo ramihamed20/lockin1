@@ -214,9 +214,10 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /workspace-v2-settings-popover/);
   assert.doesNotMatch(workspace, /workspace-v2-header|workspace-v2-tool-inspector|workspace-v2-mobile-panel/);
   assert.match(workspace, /ContinuousA4Pdf/);
-  // Fit fills the stage below the desktop bar, and a reading width on a wide desktop window.
+  // Touch readers fit the stage; wide desktop readers start at the fixed reading scale.
   assert.match(workspace, /const stageWidth = stage\?\.clientWidth \|\| window\.innerWidth;/);
-  assert.match(workspace, /fitWidthZoom\(\s*readingWidth \? Math\.min\(stageWidth, FIT_READING_WIDTH\) : stageWidth,\s*A4_PAGE_WIDTH,\s*0/);
+  assert.match(workspace, /if \(readingWidth\) return HORIZONTAL_READING_ZOOM_FLOOR;/);
+  assert.match(workspace, /fitWidthZoom\(stageWidth, A4_PAGE_WIDTH, 0\)/);
   assert.doesNotMatch(workspace, /fitPageZoom/);
   assert.doesNotMatch(workspace, /Open original PDF in a new tab/);
   assert.match(workspace, /jumpToPage/);

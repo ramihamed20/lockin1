@@ -26,15 +26,15 @@
 .workspace-dock-preview.is-left { left: 4px; top: 15%; height: 70%; width: 10px; }
 .workspace-dock-preview.is-right { right: 4px; top: 15%; height: 70%; width: 10px; }
 @media (max-width: 560px) {
-  .workspace-v2 .workspace-tool-dock[data-dock-edge="top"] > .workspace-dock-grip { position: absolute; z-index: 3; top: -7px; left: 40%; width: 36px; height: 14px; }
-  .workspace-tool-dock[data-dock-edge="top"] > .workspace-dock-grip svg { transform: rotate(90deg); }
   .workspace-v2 .workspace-tool-dock:is([data-dock-edge="float"], [data-dock-edge="bottom"]) .workspace-v3-quick-colors { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .workspace-tool-dock * { transition: none !important; } }
-/* The attached grip belongs to the header, outside the masked tool scroller. */
-.workspace-v2 .workspace-v2-toolbar > .workspace-dock-grip.is-attached { position: absolute; z-index: 4; top: 0; left: 48%; width: 38px; height: 28px; min-height: 28px; opacity: .7; }
-.workspace-v2 .workspace-dock-grip.is-attached svg { display: none; }
-.workspace-dock-grip.is-attached::after { content: ''; display: block; width: 24px; height: 3px; margin: auto; background: currentColor; border-radius: 4px; }
+/* Reserve a separate sticky touch target in the rail so it cannot cover tools. */
+.workspace-v2 .workspace-tool-dock[data-dock-edge="top"] > .workspace-dock-grip.is-attached {
+  position: sticky; inset-inline-start: 0; z-index: 4; flex: 0 0 44px;
+  width: 44px; min-width: 44px; height: 44px; min-height: 44px;
+  background: var(--workspace-panel); opacity: .7;
+}
 .workspace-v2 .workspace-dock-menu { z-index: 100; }
 .workspace-v2 .workspace-dock-preview { z-index: 90; }
 .workspace-v2 .workspace-tool-dock[data-dragging="true"] { touch-action: none; }

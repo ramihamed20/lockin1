@@ -10,7 +10,6 @@ export function DockableToolRail({ children, railRef, readerRef, userId, arabic,
   const [dock, setDock] = useState(() => {
     try { return readDock(JSON.parse(localStorage.getItem(key))); } catch { return { ...DEFAULT_DOCK }; }
   });
-  const [host, setHost] = useState(null);
   const [menu, setMenu] = useState(false);
   const drag = useRef(null);
   const gripRef = useRef(null);
@@ -33,7 +32,6 @@ export function DockableToolRail({ children, railRef, readerRef, userId, arabic,
     const rail = railRef.current;
     const nav = rail.closest('.workspace-v2-toolbar');
     navRef.current = nav;
-    setHost(nav);
     nav.dataset.toolDock = dock.edge;
     const place = () => {
       if (drag.current) return;
@@ -110,7 +108,7 @@ export function DockableToolRail({ children, railRef, readerRef, userId, arabic,
   const grip = <button type="button" className={`workspace-dock-grip${dock.edge === 'top' ? ' is-attached' : ''}`} ref={gripRef} aria-label={labels.move} title={labels.help} aria-expanded={menu} onPointerDown={start} onPointerMove={move} onPointerUp={(event) => finish(event)} onPointerCancel={(event) => finish(event, true)} onLostPointerCapture={(event) => finish(event, true)} onKeyDown={keyboard} onClick={() => { if (!movedRef.current) setMenu((value) => !value); movedRef.current = false; }}><GripVertical size={16} aria-hidden="true" /></button>;
   const gripBox = menu ? gripRef.current?.getBoundingClientRect() : null;
   return <div {...props} className={`workspace-v3-primary workspace-tool-dock${vertical ? ' is-vertical' : ''}`} ref={railRef} data-dock-edge={dock.edge}>
-    {dock.edge === 'top' ? host && createPortal(grip, host) : grip}
+    {grip}
     {children}
     {menu && createPortal(<div style={{ position: 'fixed', top: Math.max(8, Math.min(window.innerHeight - 248, gripBox?.bottom || 40)), left: Math.max(8, Math.min(window.innerWidth - 156, gripBox?.left || 8)), right: 'auto', bottom: 'auto' }} className="workspace-dock-menu" ref={menuRef} role="group" aria-label={labels.move}>{['top', 'bottom', 'left', 'right', 'float'].map((edge) => <button key={edge} type="button" onKeyDown={keyboard} aria-pressed={dock.edge === edge} onClick={() => { onMove?.(); save(readDock({ ...dock, edge })); setMenu(false); gripRef.current.focus(); }}>{labels[edge]}</button>)}</div>, readerRef.current)}
     {preview && preview !== 'float' && createPortal(<span className={`workspace-dock-preview is-${preview}`} aria-hidden="true" />, readerRef.current)}
