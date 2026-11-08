@@ -48,7 +48,8 @@ def test_finals_match_window_and_own_cohort(settings, monkeypatch, batch_code):
     assert period.status == "confirmed"
     assert "تقديرية" in period.title
 
-    schedules = list(period.schedules.select_related("subject").order_by("scheduled_on"))
+    exam_rows = period.schedules.select_related("subject")
+    schedules = list(exam_rows.order_by("scheduled_on"))
     actual = [(row.subject.slug, row.scheduled_on) for row in schedules]
     assert actual == list(EXPECTED[batch_code])
     assert period.syllabus_scopes.count() == len(schedules)
