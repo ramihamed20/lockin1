@@ -33,8 +33,16 @@ class Command(BaseCommand):
         try:
             student = User.objects.get(email="student@lockin.local")
             institution = EducationNode.objects.get(slug="lockin-demo-university")
-            semester = EducationNode.objects.get(slug="fall-2026")
-            year = EducationNode.objects.get(slug="year-2", kind=EducationNode.Kind.ACADEMIC_YEAR)
+            # Other institutions can also contain a "year-2" node. Stay inside
+            # the isolated Codespaces demo hierarchy, never select by slug alone.
+            year = EducationNode.objects.get(
+                parent__slug="dentistry",
+                parent__parent__slug="health-sciences",
+                parent__parent__parent=institution,
+                slug="year-2",
+                kind=EducationNode.Kind.ACADEMIC_YEAR,
+            )
+            semester = EducationNode.objects.get(parent=year, slug="fall-2026")
         except (User.DoesNotExist, EducationNode.DoesNotExist) as error:
             raise CommandError("Run seed_demo first.") from error
 

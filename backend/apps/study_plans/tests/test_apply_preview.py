@@ -263,6 +263,9 @@ def test_concurrent_identical_applies_create_one_run(monkeypatch):
         ],
         "unscheduled": [],
         "issues": [],
+        "syllabus_fingerprint": "test-syllabus-v1",
+        "profile_revision": 1,
+        "question_inventory": {"fingerprint": "test-questions-v1"},
     }
     monkeypatch.setattr(
         "apps.study_plans.apply_preview.reading_plan_preview", lambda **_kwargs: source

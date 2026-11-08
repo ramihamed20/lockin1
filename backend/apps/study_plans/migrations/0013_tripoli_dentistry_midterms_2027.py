@@ -41,7 +41,16 @@ def seed_exams(apps, schema_editor):  # type: ignore[no-untyped-def]
     Schedule = apps.get_model("study_plans", "ExamSchedule")
     Scope = apps.get_model("study_plans", "ExamSyllabusScope")
     for year, rows in EXAMS.items():
-        cohort = Cohort.objects.using(alias).get(program__code="dentistry-tripoli", code=year)
+        # Migration tests and fresh installations can have no catalog cohorts yet.
+        # Do not fabricate exam periods for absent cohorts; if the cohort exists,
+        # all its published subjects must still pass the strict checks below.
+        cohort = (
+            Cohort.objects.using(alias)
+            .filter(program__code="dentistry-tripoli", code=year)
+            .first()
+        )
+        if cohort is None:
+            continue
         subjects = []
         for slug, *_ in rows:
             subject = (
