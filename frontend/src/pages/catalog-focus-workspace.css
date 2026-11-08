@@ -574,6 +574,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2[data-keyboard="open"] .workspace-v2-side,
   .workspace-v2[data-keyboard="open"] .workspace-v2-body.has-side .workspace-v2-side {
     bottom: var(--workspace-keyboard-inset, 0px);
+    height: min(46dvh, 340px, calc((100dvh - var(--workspace-keyboard-inset, 0px)) * .55));
     padding-bottom: 0;
   }
 }

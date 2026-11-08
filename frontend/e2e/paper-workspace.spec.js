@@ -250,6 +250,8 @@ test("a paper checkpoint saves answers and advances the session", async ({ page 
   // Notes survive leaving and returning.
   await page.getByRole("button", { name: "Change" }).click();
   await page.getByRole("button", { name: /Start Session/ }).click();
+  await expect(page.getByRole("textbox", { name: "Notes" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Notes", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Notes" })).toHaveValue("Basal lamina = lucida + densa");
 });
 
