@@ -1,3 +1,30 @@
+## Unified release source-evidence review — 8 November 2026
+
+This review applies only to the unified release branch. The source evidence gate
+remains enforced; no public marketing capability was added by this change.
+
+- `frontend/src/lib/i18n.js`: reader, account, Active Study and Review strings
+  are still UI text. None is used to grant cohort or content permissions. Public
+  availability statements remain limited by the existing published-content,
+  cohort and subscription conditions.
+- `frontend/src/pages/CatalogFocusWorkspace.jsx`: reviewed focus toolbar,
+  annotations, page navigation and Active Study integration. Reader tools do
+  not replace the underlying PDF, unlock unpublished banks or share a student's
+  private notes by default. Existing conditional Active Study and Pomodoro
+  statements remain qualified in the public knowledge inventory.
+- `frontend/src/pages/Review.jsx`: reviewed use of the account-scoped Review,
+  daily and Weekly Recall API endpoints, the bounded daily question selector,
+  optional Knowledge surfaces and the conditional weekly flow. The public
+  Review/Weekly Recall wording remains conditional, not a guarantee that any
+  specific student has eligible questions.
+
+Only these three changed source-evidence digests were updated following that
+claim review. The gate was **not disabled**. This is a source-level review, not
+proof of live deployment, browser compatibility, PDF rendering, notification
+delivery or completion of backend/CI tests. Required regression tests, image
+builds and staging acceptance still gate any production merge. If these source
+files change again, this review and their digests must be repeated.
+
 # Public knowledge evidence review — 14 October 2026
 
 ## 8 November 2026 — unified-release source evidence review (pre-deployment)
