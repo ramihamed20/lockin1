@@ -30,7 +30,7 @@ for (const locale of ['en','ar']) {
    const links = page.locator(selector).getByRole('link');
    // A sheet directory may also include a Sheet Summary link. Check that
    // every fixture entry is present instead of rejecting a valid extra card.
-   const expectedTitles = path === '/materials/catalog/subject-0'
+   const expectedTitles = path !== '/materials'
      ? Array.from({ length: 7 }, (_, index) => `Sheet ${index}`)
      : materials.map((material) => material.title);
    await expect.poll(async () => {
