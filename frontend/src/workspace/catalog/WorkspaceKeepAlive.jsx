@@ -82,8 +82,17 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     const host = layoutRef.current;
     if (!host) return undefined;
     let frame = 0;
+    let studentInteracted = false;
+    // A restored reader can be scrolled 30-100px *past* its first page after
+    // the grid changes shape. Align those small offsets at split setup, but
+    // never override a scroll the student initiated in a visible pane.
+    const markInteraction = () => { studentInteracted = true; };
+    host.addEventListener("wheel", markInteraction, { passive: true, capture: true });
+    host.addEventListener("touchstart", markInteraction, { passive: true, capture: true });
+    host.addEventListener("pointerdown", markInteraction, true);
     const alignTopEdges = () => {
       frame = 0;
+      if (studentInteracted) return;
       for (const pane of host.querySelectorAll(".workspace-pane[data-split-slot]")) {
         const stage = pane.querySelector(".workspace-v2-document-stage");
         const firstPage = pane.querySelector(".workspace-v2-a4-page");
@@ -91,8 +100,10 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
         const viewport = stage.getBoundingClientRect();
         const pageTop = firstPage.getBoundingClientRect().top;
         const extra = pageTop - viewport.top;
-        if (viewport.height > 0 && Math.abs(extra) > 1 && extra >= -24 &&
-            extra < Math.max(120, viewport.height * .2)) {
+        const threshold = Math.max(120, viewport.height * .2);
+        const nearFirstPage = stage.scrollTop <= threshold + 1;
+        if (viewport.height > 0 && nearFirstPage && Math.abs(extra) > 1 &&
+            extra >= -threshold && extra < threshold) {
           stage.scrollTop = Math.max(0, stage.scrollTop + extra);
         }
       }
@@ -115,6 +126,9 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       mutationObserver.disconnect();
       settling.forEach(globalThis.clearTimeout);
       if (frame) globalThis.cancelAnimationFrame(frame);
+      host.removeEventListener("wheel", markInteraction, true);
+      host.removeEventListener("touchstart", markInteraction, true);
+      host.removeEventListener("pointerdown", markInteraction, true);
     };
   }, [isMulti, slotIdentity]);
 
