@@ -78,8 +78,8 @@ test('study companion stays compact on phone, larger on iPad, and its panels fit
 
  await page.setViewportSize({width:820,height:1180});
  await expect(pet).toBeVisible();
+ await expect.poll(async () => (await bounds(pet)).width).toBeGreaterThan(phone.width);
  const ipad=await bounds(pet);
- expect(ipad.width).toBeGreaterThan(phone.width);
  expect(ipad.width).toBeLessThanOrEqual(130);
  await checkInsideViewport(pet);
  await pet.click();
@@ -151,7 +151,7 @@ for (const [locale, width, height] of [['ar',320,568], ['en',390,844], ['ar',844
   await page.addInitScript(language=>localStorage.setItem('lock-in.locale',language),locale);
   await page.route('**/api/v1/catalog/documents/**',route=>route.fulfill({json:{
    version_id:'test-version',
-   results:[{...idea,explanation:'Long explanation to test scrolling. '.repeat(100)}]
+   results:[{...idea,explanation:'Long explanation to test scrolling. '.repeat(100)},{...idea,id:'22222222-2222-4222-8222-222222222222'}]
   }}));
   await page.goto('/e2e/fixtures/companion-ready/');
   await page.locator('.study-companion-pet').click();
@@ -181,6 +181,7 @@ for (const [locale, width, height] of [['ar',320,568], ['en',390,844], ['ar',844
 
 test("dragging the phone companion moves without opening help and survives reload and viewport resize", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/v1/catalog/documents/**", (route) => route.fulfill({ json: { version_id: "test-version", results: [] } }));
   await page.goto("/e2e/fixtures/companion-ready/");
