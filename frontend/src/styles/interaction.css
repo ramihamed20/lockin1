@@ -615,3 +615,18 @@
     white-space: nowrap;
   }
 }
+
+/* Release: unlayered component rules win over legacy fixed-height tabs. */
+:root .progress-mobile-nav [role="tab"],
+:root .rank-mode .rank-mode-periods [role="tab"] {
+  box-sizing: border-box;
+  height: auto;
+  min-height: 48px;
+  min-block-size: 48px;
+}
+:root .sidebar .nav-btn[aria-current="page"] {
+  background-color: color-mix(in srgb, var(--color-primary, #3b82f6) 14%, var(--surface, #ffffff));
+  background-image: none;
+  box-shadow: none;
+  outline: none;
+}

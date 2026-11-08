@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { sheetSummariesApi } from "../../api/sheetSummaries.js";
 
 const DRAFT_PREFIX = "lock-in.summary.draft.";
-// My Summary is deferred: never load or mutate saved student summaries in this release.
-export const MY_SUMMARY_RELEASED = false;
+// My Summary is available in the website and inside eligible sheet readers.
+export const MY_SUMMARY_RELEASED = true;
 const SAVE_DELAY_MS = 700;
 const RETRY_MS = 5000;
 

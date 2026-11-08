@@ -1,6 +1,9 @@
-import { Navigate } from "react-router-dom";
+import { Page } from "../components/ui/index.jsx";
+import { useI18n } from "../components/I18nProvider.jsx";
+import MySummariesList from "../workspace/summary/MySummariesList.jsx";
 
-// Personal summaries remain saved but are not exposed in this release.
+/** Materials -> My summaries: every summary the student has written in a sheet. */
 export default function MySummaries() {
-  return <Navigate to="/materials" replace />;
+  const { t } = useI18n();
+  return <Page width="reading" title={t("summary.mine")}><MySummariesList /></Page>;
 }
