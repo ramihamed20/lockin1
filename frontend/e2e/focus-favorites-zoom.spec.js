@@ -280,7 +280,7 @@ test("in Arabic the zoom box starts at the right margin", async ({ page }) => {
 });
 
 
-test("five favorite pens and colors stay in the writing tool row on phones and tablets", async ({ page }) => {
+test("five favorite pens stay in the writing row and compact color controls remain accessible", async ({ page }) => {
   await mockWorkspace(page);
   await page.addInitScript(() => {
     localStorage.setItem("lock-in.catalog-workspace.favorite-pens.v1", JSON.stringify(
@@ -309,7 +309,9 @@ test("five favorite pens and colors stay in the writing tool row on phones and t
     await expect(toolbar.locator(".workspace-toolbar-accessories")).toHaveCount(0);
     await expect(rail.locator("[data-workspace-tool='pen']")).toBeVisible();
     await expect(favorites).toBeVisible();
-    await expect(colors).toBeVisible();
+    const compact = viewport.width < 700 || viewport.height < 600;
+    if (compact) await expect(colors).toBeHidden();
+    else await expect(colors).toBeVisible();
     const buttons = favorites.locator(".workspace-favorite-pen-slot > .workspace-favorite-pen");
     await expect(buttons).toHaveCount(5);
     const layout = await rail.evaluate((element) => {
@@ -319,8 +321,8 @@ test("five favorite pens and colors stay in the writing tool row on phones and t
       const buttons = [...favorite.querySelectorAll(".workspace-favorite-pen-slot > button")];
       const centerY = (node) => { const rect = node.getBoundingClientRect(); return rect.top + rect.height / 2; };
       return {
-        oneRow: Math.abs(centerY(pen) - centerY(colors)) < 8
-          && Math.abs(centerY(pen) - centerY(favorite)) < 8,
+        oneRow: Math.abs(centerY(pen) - centerY(favorite)) < 8
+          && (getComputedStyle(colors).display === "none" || Math.abs(centerY(pen) - centerY(colors)) < 8),
         noShrink: buttons.every((button) => button.getBoundingClientRect().width >= 34),
         noClippingWithinStrip: favorite.scrollWidth <= favorite.clientWidth + 1,
         insideRail: element.contains(colors) && element.contains(favorite),
@@ -341,8 +343,14 @@ test("five favorite pens and colors stay in the writing tool row on phones and t
     });
     expect(isReachable, `fifth pen unreachable at ${viewport.width}px`).toBe(true);
   }
-  // A scrolled-to preset must still be usable, not just visually present.
+  // A compact phone hides quick colors to leave room for all five pens,
+  // but the same palette remains usable from the real pen inspector.
   await page.setViewportSize({ width: 390, height: 844 });
+  await openPenPanel(page);
+  await expect(page.locator("#workspace-pen-options .workspace-v2-colors")).toBeVisible();
+  await page.locator(".workspace-v3-primary [data-workspace-tool='pen']").click();
+  await expect(page.locator("#workspace-pen-options")).toBeHidden();
+  // A scrolled-to preset must still be usable, not just visually present.
   await page.locator(".workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot").last().locator("button").click();
   await expect(page.locator(".workspace-v2-toolbar [data-workspace-tool='highlighter']")).toHaveAttribute("aria-pressed", "true");
 });
