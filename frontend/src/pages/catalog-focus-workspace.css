@@ -1537,3 +1537,34 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-list > button:not(
 /* Drawing waits for saved state, while PDF rendering continues independently. */
 .workspace-v2-document-stage[inert] { overflow: hidden; }
 .workspace-v2-hydration-status { position: absolute; z-index: 20; left: 50%; top: 50%; transform: translateX(-50%); margin: 0; padding: 12px 18px; max-width: calc(100% - 32px); border: 1px solid var(--workspace-border); border-radius: 12px; background: #101a2d; color: #f1f5f9; text-align: center; pointer-events: none; }
+
+
+/* On a phone workspace settings is a compact scrollable popover, not an
+   almost full-screen sheet that covers reading and exceeds touch viewport. */
+@media (max-width: 600px) {
+  .workspace-v2 .workspace-v2-settings-popover {
+    top: calc(var(--workspace-toolbar-height, 56px) + 8px);
+    bottom: auto;
+    inset-inline-start: auto;
+    inset-inline-end: 8px;
+    box-sizing: border-box;
+    width: min(296px, calc(100vw - 16px));
+    height: min(420px, 48dvh);
+    max-height: calc(100dvh - var(--workspace-toolbar-height, 56px) - 24px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--settings-border);
+    border-radius: 18px;
+    box-shadow: 0 14px 38px rgb(0 0 0 / .24);
+    overflow: hidden;
+  }
+  .workspace-v2 .workspace-v2-settings-popover > header { flex: 0 0 auto; }
+  .workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-content {
+    min-height: 0;
+    height: auto;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px;
+  }
+}
