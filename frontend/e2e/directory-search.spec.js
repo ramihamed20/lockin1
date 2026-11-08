@@ -27,7 +27,16 @@ for (const locale of ['en','ar']) {
    ['/questions/categories/ai-sheet/subjects/subject-0', '.catalog-material-grid']
   ]) {
    await page.goto('/#'+path);
-   await expect(page.locator(selector).getByRole('link')).toHaveCount(7);
+   const links = page.locator(selector).getByRole('link');
+   // A sheet directory may also include a Sheet Summary link. Check that
+   // every fixture entry is present instead of rejecting a valid extra card.
+   const expectedTitles = path === '/materials/catalog/subject-0'
+     ? Array.from({ length: 7 }, (_, index) => `Sheet ${index}`)
+     : materials.map((material) => material.title);
+   await expect.poll(async () => {
+     const labels = await links.allTextContents();
+     return expectedTitles.every((title) => labels.some((labelText) => labelText.includes(title)));
+   }).toBe(true);
    await expect(page.getByRole('searchbox', { name: label })).toHaveCount(0);
    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   }
