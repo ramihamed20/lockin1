@@ -400,6 +400,12 @@ def test_catalog_does_not_offer_checkout_before_policy_activation(settings):
     assert unavailable.json()["manual_payment_available"] is False
     assert unavailable.json()["manual_payment_unavailable_reason"] == "policy_activation_pending"
 
+    # Checkout accepts 2026.10 explicitly, even if a demo backend advertises
+    # an older account-policy setting. The catalogue must still hide checkout.
+    settings.ACCOUNT_POLICY_VERSION = "legacy-demo-policy"
+    unavailable_legacy = client.get("/api/v1/catalog/products")
+    assert unavailable_legacy.json()["manual_payment_available"] is False
+
     settings.USER_POLICY_EFFECTIVE_AT = (timezone.now() - timedelta(minutes=1)).isoformat()
     available = client.get("/api/v1/catalog/products")
     assert available.status_code == 200
