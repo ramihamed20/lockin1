@@ -4491,10 +4491,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // to a two-finger pinch. That stale cancellation does not own the pinch
     // settlement and must not cancel its animation or leave the compositor
     // transform permanently attached to the document.
-    if (gesture.mode === INTERACTION_STATE.SETTLING
-      && event.pointerType === "pen"
-      && gesture.drawingPointerId !== event.pointerId) {
+    if (gesture.mode === INTERACTION_STATE.SETTLING && event.pointerType === "pen") {
       gesture.penPointers.delete(event.pointerId);
+      // Finish rather than abandon the touch-owned settlement. This commits
+      // its legal zoom and lets the geometry effect remove compositor classes.
+      cancelZoomSettle();
       unlockStageForDrawing(event.pointerId ?? null);
       debugGesture("settling-stale-pointer-cancel", event);
       return;
@@ -4592,7 +4593,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const x = clientX ?? bounds.left + bounds.width / 2;
     const y = clientY ?? bounds.top + bounds.height / 2;
     const finalZoom = clampReaderZoom(nextZoom);
-    if (Math.abs(finalZoom - zoomRef.current) < .001) {
+    // `zoomRef` is updated before React commits the resized PDF. A Fit width
+    // click during that small window must still repair stale document
+    // geometry instead of returning because the numeric target already
+    // matches the ref.
+    const liveWidth = documentRef.current?.getBoundingClientRect().width || 0;
+    const fitGeometryMatches = mode !== "fit" || Math.abs(liveWidth - bounds.width) < 1.5;
+    if (Math.abs(finalZoom - zoomRef.current) < .001 && fitGeometryMatches) {
       revealZoomHud(finalZoom, label || (mode === "fit" ? t("focus.fitWidth") : ""));
       return;
     }

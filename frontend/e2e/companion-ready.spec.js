@@ -198,12 +198,28 @@ test("dragging the phone companion moves without opening help and survives reloa
     const box = await pet.boundingBox();
     return Math.hypot(box.x - initial.x, box.y - initial.y);
   }).toBeGreaterThan(40);
-  const moved = await pet.boundingBox();
   await expect(page.locator(".study-companion-panel")).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => {
     const prefs = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:test-student") || "null");
     return Number.isFinite(prefs?.position?.x) && Number.isFinite(prefs?.position?.y);
   })).toBe(true);
+  // Pointer-up switches from transient pixels to the persisted relative
+  // position. Wait for that committed render before using it as the reload
+  // baseline; sampling the preceding drag frame races React batching.
+  await expect.poll(async () => page.evaluate(() => {
+    const node = document.querySelector(".study-companion-pet");
+    const prefs = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:test-student") || "null");
+    const box = node?.getBoundingClientRect();
+    if (!box || !prefs?.position) return Infinity;
+    const minLeft = 8;
+    const minTop = Math.min(56, Math.max(8, innerHeight - box.height - 8));
+    const maxLeft = Math.max(minLeft, innerWidth - box.width - 8);
+    const maxTop = Math.max(minTop, innerHeight - box.height - 56);
+    const expectedX = minLeft + prefs.position.x * (maxLeft - minLeft);
+    const expectedY = minTop + prefs.position.y * (maxTop - minTop);
+    return Math.hypot(box.x - expectedX, box.y - expectedY);
+  })).toBeLessThan(1);
+  const moved = await pet.boundingBox();
 
   await page.reload();
   await expect(pet).toBeVisible();
