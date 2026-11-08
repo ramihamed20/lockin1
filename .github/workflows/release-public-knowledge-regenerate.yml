@@ -1,0 +1,37 @@
+name: Regenerate reviewed public pages for unified release
+on:
+  push:
+    branches:
+      - release/lockin-unified-2026-11-08
+    paths:
+      - .github/workflows/release-public-knowledge-regenerate.yml
+permissions:
+  contents: write
+jobs:
+  regenerate:
+    if: github.ref == 'refs/heads/release/lockin-unified-2026-11-08'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/lockin-unified-2026-11-08
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+      - name: Generate from evidence-verified registry, without bypassing checks
+        run: |
+          node frontend/scripts/build-public-knowledge.mjs
+          node frontend/scripts/build-public-knowledge.mjs --check
+          git diff --check
+      - name: Commit only generated public and Nginx route artifacts
+        run: |
+          git add frontend/public frontend/nginx/default.conf deploy/container-host/nginx.conf.template
+          if git diff --cached --quiet; then
+            echo "Generated public pages already match"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build(public): sync generated pages with reviewed evidence"
+          git push origin HEAD:refs/heads/release/lockin-unified-2026-11-08
