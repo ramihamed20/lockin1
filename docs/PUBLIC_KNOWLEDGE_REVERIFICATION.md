@@ -377,3 +377,21 @@ The focused carried-subject tests and three daily Review adaptation tests passed
 with the explicit SQLite fast-test setting. Only the review_priorities.py evidence
 digest and the Review verification date were updated. Public Arabic/English copy
 is unchanged. PostgreSQL and browser/device validation were not run for this change.
+
+## Reader zoom floor and navigation verification — 8 November 2026
+
+Compared `CatalogFocusWorkspace.jsx` against the previously reviewed 7f4cf56
+baseline. Its only change reads the stage width in the touch zoom-floor callback;
+reader access, notes, Active Study, and Pomodoro claims and availability are
+unchanged. The materials catalogue test now asserts the current desktop 120%
+baseline instead of the superseded desktop fit formula. The Pomodoro browser test
+measures the page position against the visible edge below the floating toolbar.
+These test-only changes do not alter catalogue or study behavior.
+
+On the verification branch, Chromium passed 54 reader, Active Study, Pomodoro,
+notes, toolbar and split-screen cases on phone, tablet and desktop fixtures, plus
+both desktop zoom-boundary cases (Actions run 42469134185). This is fixture-based
+browser evidence, not a live production or physical Safari-device certification.
+Only the three affected evidence digests are updated; public answers, availability,
+and their previous substantive verification dates remain unchanged. The verifier
+and full release gates remain enabled.
