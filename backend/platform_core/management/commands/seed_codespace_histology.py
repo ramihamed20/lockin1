@@ -401,7 +401,13 @@ class Command(BaseCommand):
                 email="student@lockin.local"
             )
             creator = User.objects.get(email="creator@lockin.local")
-            semester = EducationNode.objects.get(slug="fall-2026", kind=EducationNode.Kind.SEMESTER)
+            # The same semester slug exists in several real colleges; select
+            # only the year node explicitly attached to the demo cohort.
+            semester = EducationNode.objects.get(
+                parent__in=student.cohort.content_nodes.all(),
+                slug="fall-2026",
+                kind=EducationNode.Kind.SEMESTER,
+            )
             exam = ExamPeriod.objects.get(title="Codespace Midterm Preview", cohort=student.cohort)
         except (User.DoesNotExist, EducationNode.DoesNotExist, ExamPeriod.DoesNotExist) as error:
             raise CommandError("Run seed_demo and seed_codespace_exam first.") from error
