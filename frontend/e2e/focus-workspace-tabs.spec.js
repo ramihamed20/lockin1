@@ -399,7 +399,7 @@ test("split screen shows two independent PDF sheets and resizes on iPad and phon
   expect(secondPageBefore).toBeTruthy();
   await expect(page.locator(".workspace-pane.is-secondary")).not.toHaveAttribute("inert", "");
   await expect(page.locator(".workspace-pane.is-active")).not.toHaveAttribute("inert", "");
-  const divider = page.getByRole("separator", { name: "Resize PDF split" });
+  const divider = page.getByRole("separator", { name: "Resize sheet columns" });
   const initial = await page.locator(".workspace-pane.is-active").boundingBox();
   await divider.focus();
   await page.keyboard.press("ArrowRight");
