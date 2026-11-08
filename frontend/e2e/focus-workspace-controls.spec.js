@@ -123,7 +123,7 @@ test("tool settings exit sooner and unmount immediately with reduced motion", as
 test("a study card exports on the current PDF page", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
   await page.getByRole("button", { name: /Add note card/i }).click();
   await page.getByRole("group", { name: "Card style" }).getByRole("button", { name: "Revision" }).click();
   await page.getByRole("textbox", { name: "Card text" }).fill("Review this concept before the exam");
@@ -171,7 +171,7 @@ test("iPad downloads leave the workspace mounted for original PDF and page snaps
 test("study cards move directly and settings open as a compact panel in each theme", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
   await page.getByRole("button", { name: /Add note card/i }).click();
   await page.getByRole("textbox", { name: "Card text" }).fill("Move this note");
   await page.getByRole("button", { name: "Add card" }).click();
@@ -294,7 +294,7 @@ test("handwriting improvement smooths new ink without replacing its saved points
 test("browser and OS shortcuts never hijack the tool palette", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
   const pen = page.locator('[data-workspace-tool="pen"]');
 
   for (const combination of ["Control+s", "Control+p", "Control+e", "Control+l", "Alt+s"]) {
@@ -626,7 +626,7 @@ test("phone adds and restores the study companion from the plus menu", async ({ 
   const companion = page.locator(".study-companion-pet");
   await expect(companion).toHaveCount(0);
   const add = async () => {
-    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
     const action = page.getByRole("button", { name: /Add study companion/ });
     await expect(action).toBeVisible();
     await action.click();
