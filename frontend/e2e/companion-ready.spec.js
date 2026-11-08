@@ -78,8 +78,8 @@ test('study companion stays compact on phone, larger on iPad, and its panels fit
 
  await page.setViewportSize({width:820,height:1180});
  await expect(pet).toBeVisible();
+ await expect.poll(async () => (await bounds(pet)).width).toBeGreaterThan(phone.width);
  const ipad=await bounds(pet);
- expect(ipad.width).toBeGreaterThan(phone.width);
  expect(ipad.width).toBeLessThanOrEqual(130);
  await checkInsideViewport(pet);
  await pet.click();
@@ -151,7 +151,7 @@ for (const [locale, width, height] of [['ar',320,568], ['en',390,844], ['ar',844
   await page.addInitScript(language=>localStorage.setItem('lock-in.locale',language),locale);
   await page.route('**/api/v1/catalog/documents/**',route=>route.fulfill({json:{
    version_id:'test-version',
-   results:[{...idea,explanation:'Long explanation to test scrolling. '.repeat(100)}]
+   results:[{...idea,explanation:'Long explanation to test scrolling. '.repeat(100)},{...idea,id:'22222222-2222-4222-8222-222222222222'}]
   }}));
   await page.goto('/e2e/fixtures/companion-ready/');
   await page.locator('.study-companion-pet').click();
@@ -181,6 +181,7 @@ for (const [locale, width, height] of [['ar',320,568], ['en',390,844], ['ar',844
 
 test("dragging the phone companion moves without opening help and survives reload and viewport resize", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/v1/catalog/documents/**", (route) => route.fulfill({ json: { version_id: "test-version", results: [] } }));
   await page.goto("/e2e/fixtures/companion-ready/");
@@ -191,8 +192,13 @@ test("dragging the phone companion moves without opening help and survives reloa
   await page.mouse.down();
   await page.mouse.move(initial.x + initial.width / 2 - 110, initial.y + initial.height / 2 - 85, { steps: 8 });
   await page.mouse.up();
+  // Pointer release commits the position through React; wait for that render
+  // before measuring rather than sampling the preceding pointer frame.
+  await expect.poll(async () => {
+    const box = await pet.boundingBox();
+    return Math.hypot(box.x - initial.x, box.y - initial.y);
+  }).toBeGreaterThan(40);
   const moved = await pet.boundingBox();
-  expect(Math.hypot(moved.x - initial.x, moved.y - initial.y)).toBeGreaterThan(40);
   await expect(page.locator(".study-companion-panel")).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => {
     const prefs = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:test-student") || "null");
@@ -209,11 +215,10 @@ test("dragging the phone companion moves without opening help and survives reloa
   await page.locator(".study-companion-panel header button").click();
 
   await page.setViewportSize({ width: 320, height: 568 });
-  const narrow = await pet.boundingBox();
-  expect(narrow.x).toBeGreaterThanOrEqual(0);
-  expect(narrow.y).toBeGreaterThanOrEqual(0);
-  expect(narrow.x + narrow.width).toBeLessThanOrEqual(320);
-  expect(narrow.y + narrow.height).toBeLessThanOrEqual(568);
+  await expect.poll(async () => {
+    const narrow = await pet.boundingBox();
+    return narrow.x >= 0 && narrow.y >= 0 && narrow.x + narrow.width <= 320 && narrow.y + narrow.height <= 568;
+  }).toBe(true);
 });
 
 test('phone + adds a draggable companion, keeps its position and restores it without a floating button', async ({ page }) => {

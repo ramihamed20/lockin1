@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { I18nProvider, useI18n } from '../../../src/components/I18nProvider.jsx';
+import { loadLocaleMessages } from '../../../src/lib/i18n.js';
+import { I18nProvider, initialAppLocale, useI18n } from '../../../src/components/I18nProvider.jsx';
 import StudyCompanion from '../../../src/workspace/assistance/StudyCompanion.jsx';
 import { AddMenu } from '../../../src/pages/focus-workspace/menus.jsx';
 import '../../../src/styles.css';
@@ -31,4 +32,7 @@ function Fixture() {
   </>;
 }
 
-createRoot(document.getElementById('root')).render(<I18nProvider><Fixture /></I18nProvider>);
+// Match the production bootstrap: load the selected locale before rendering.
+loadLocaleMessages(initialAppLocale()).catch(() => undefined).then(() => {
+  createRoot(document.getElementById('root')).render(<I18nProvider><Fixture /></I18nProvider>);
+});
