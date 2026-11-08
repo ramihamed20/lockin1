@@ -1572,7 +1572,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // A continuous vertical document contains fixed inter-page gaps, which do
   // not scale with the PDF. Anchor to the actual page rather than multiplying
   // the whole document's position when zoom changes.
-  function captureVerticalZoomAnchor(clientX, clientY) {
+  const captureVerticalZoomAnchor = useCallback((clientX, clientY) => {
     if (pageDirection === "horizontal" || !sheet?.pdfUrl) return null;
     const root = documentRef.current;
     if (!root) return null;
@@ -1590,7 +1590,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       x: Math.max(0, Math.min(1, (clientX - page.rect.left) / page.rect.width)),
       y: Math.max(0, Math.min(1, (clientY - page.rect.top) / page.rect.height))
     };
-  }
+  }, [pageDirection, sheet?.pdfUrl]);
 
   function reconciledZoomScroll(pending, stage, root, documentBounds, finalZoom, focalClientX, focalClientY) {
     if (pending.verticalAnchor) {
@@ -1747,7 +1747,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const observer = new window.ResizeObserver(keepPdfFitted);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [captureHorizontalZoomAnchor, clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
+  }, [captureHorizontalZoomAnchor, captureVerticalZoomAnchor, clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
