@@ -29,7 +29,7 @@ function plan(id, code, amount) {
   };
 }
 
-async function mockStudent(page, { installments = false, failFirst = false, locale = "en" } = {}) {
+async function mockStudent(page, { installments = false, failFirst = false, locale = "en", policyPending = false } = {}) {
   const state = { submitted: null, acceptedPolicy: null, requests: [], subscription: EXPIRED };
   const user = studentSession({ preferred_language: locale, policy_version: POLICY_VERSION, policy_accepted_at: "2026-11-01T12:00:00Z" });
   await page.route("**/api/v1/**", async (route) => {
@@ -48,7 +48,8 @@ async function mockStudent(page, { installments = false, failFirst = false, loca
     if (pathname === "/api/v1/catalog/products") {
       return json({
         checkout_available: false,
-        manual_payment_available: true,
+        manual_payment_available: !policyPending,
+        manual_payment_unavailable_reason: policyPending ? "policy_activation_pending" : null,
         first_subscription_offer_eligible: false,
         results: [{ id: "product", plans: [plan("plan-one", "lockin_first_month", 15000), {
           ...plan("plan-two", "lockin_two_months", 25000),
@@ -151,6 +152,16 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
+
+test("unannounced payment policy prevents a doomed recharge attempt", async ({ page }) => {
+  const state = await mockStudent(page, { policyPending: true });
+  await page.goto("/#/subscription");
+  await expect(page.getByRole("heading", { name: "Subscriptions are temporarily unavailable" })).toBeVisible();
+  await expect(page.locator("#libyana-payment").getByRole("checkbox")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Pay / })).toHaveCount(0);
+  expect(state.requests).toHaveLength(0);
+  expect(state.acceptedPolicy).toBeNull();
+});
 
 test("Arabic stages fit a narrow phone and preserve LTR card entry", async ({ page }) => {
   await mockStudent(page, { locale: "ar" });
