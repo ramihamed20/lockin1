@@ -1569,7 +1569,43 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return horizontalZoomPageAnchor(pages, clientX, clientY, activeVirtualPageIdRef.current ?? pageRef.current);
   }, [pageDirection, sheet?.pdfUrl]);
 
+  // A continuous vertical document contains fixed inter-page gaps, which do
+  // not scale with the PDF. Anchor to the actual page rather than multiplying
+  // the whole document's position when zoom changes.
+  function captureVerticalZoomAnchor(clientX, clientY) {
+    if (pageDirection === "horizontal" || !sheet?.pdfUrl) return null;
+    const root = documentRef.current;
+    if (!root) return null;
+    const pages = Array.from(root.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]"))
+      .map((element) => ({
+        key: Number(element.getAttribute("data-workspace-page")),
+        rect: element.getBoundingClientRect()
+      }))
+      .filter((entry) => Number.isFinite(entry.key) && entry.rect.width > 0 && entry.rect.height > 0);
+    if (!pages.length) return null;
+    const distance = (rect) => clientY < rect.top ? rect.top - clientY : clientY > rect.bottom ? clientY - rect.bottom : 0;
+    const page = pages.reduce((nearest, current) => distance(current.rect) < distance(nearest.rect) ? current : nearest);
+    return {
+      pageKey: page.key,
+      x: Math.max(0, Math.min(1, (clientX - page.rect.left) / page.rect.width)),
+      y: Math.max(0, Math.min(1, (clientY - page.rect.top) / page.rect.height))
+    };
+  }
+
   function reconciledZoomScroll(pending, stage, root, documentBounds, finalZoom, focalClientX, focalClientY) {
+    if (pending.verticalAnchor) {
+      const pageNode = Array.from(root.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]"))
+        .find((element) => Number(element.getAttribute("data-workspace-page")) === pending.verticalAnchor.pageKey);
+      if (pageNode) {
+        const pageRect = pageNode.getBoundingClientRect();
+        if (pageRect.width > 0 && pageRect.height > 0) {
+          return {
+            scrollLeft: stage.scrollLeft + pageRect.left + pageRect.width * pending.verticalAnchor.x - focalClientX,
+            scrollTop: stage.scrollTop + pageRect.top + pageRect.height * pending.verticalAnchor.y - focalClientY
+          };
+        }
+      }
+    }
     if (pending.horizontalAnchor) {
       const pageNode = Array.from(root.querySelectorAll(".workspace-v2-a4-page"))
         .find((element) => Number(element.getAttribute("data-workspace-page")) === pending.horizontalAnchor.pageKey);
@@ -1700,7 +1736,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           documentAnchorY: (focalClientY - documentBounds.top) / currentZoom,
           focalClientX,
           focalClientY,
-          horizontalAnchor: captureHorizontalZoomAnchor(focalClientX, focalClientY)
+          horizontalAnchor: captureHorizontalZoomAnchor(focalClientX, focalClientY),
+          verticalAnchor: captureVerticalZoomAnchor(focalClientX, focalClientY)
         };
       }
       zoomRef.current = nextZoom;
@@ -3595,6 +3632,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       documentAnchorX: documentAnchor.x,
       documentAnchorY: documentAnchor.y,
       horizontalAnchor: captureHorizontalZoomAnchor(center.x, center.y),
+      verticalAnchor: captureVerticalZoomAnchor(center.x, center.y),
       startingScrollLeft: stage.scrollLeft,
       startingScrollTop: stage.scrollTop,
       initialDocumentLeft: rootBounds.left,
@@ -3732,6 +3770,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       documentAnchorX: pinch.documentAnchorX,
       documentAnchorY: pinch.documentAnchorY,
       horizontalAnchor: pinch.horizontalAnchor,
+      verticalAnchor: pinch.verticalAnchor,
       startingScrollLeft: pinch.startingScrollLeft,
       startingScrollTop: pinch.startingScrollTop,
       constrainToBounds: finalZoom <= pinch.initialScale + Number.EPSILON,
@@ -4537,6 +4576,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         documentAnchorX: anchor.x,
         documentAnchorY: anchor.y,
         horizontalAnchor: captureHorizontalZoomAnchor(x, y),
+        verticalAnchor: captureVerticalZoomAnchor(x, y),
         focalClientX: x,
         focalClientY: y
       };
@@ -6419,7 +6459,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             <span dir="auto">{marksSet.author ? t("marks.viewing", { author: marksSet.author }) : t("marks.viewingAnonymous")}</span>
           </button>}
 
-          <AddMenu companionUserId={user?.id} companionAvailable={!whiteboard && !personal && Boolean(catalogDocument?.id) && Boolean(user?.id)} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} page={page} popover={popover} selectTool={selectTool} setActiveTool={setActiveTool} setCardDraft={setCardDraft} setCardKind={setCardKind} setClipSelecting={setClipSelecting} setCoverSelecting={setCoverSelecting} setEditingCardId={setEditingCardId} setEditingTextId={setEditingTextId} setFocusMessage={setFocusMessage} setLassoMode={setLassoMode} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} setTextDraft={setTextDraft} sheet={sheet} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
+          <AddMenu companionUserId={user?.id} companionAvailable={!whiteboard && !personal && Boolean(catalogDocument?.id || sheet?.pdfUrl) && Boolean(user?.id)} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} page={page} popover={popover} selectTool={selectTool} setActiveTool={setActiveTool} setCardDraft={setCardDraft} setCardKind={setCardKind} setClipSelecting={setClipSelecting} setCoverSelecting={setCoverSelecting} setEditingCardId={setEditingCardId} setEditingTextId={setEditingTextId} setFocusMessage={setFocusMessage} setLassoMode={setLassoMode} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} setTextDraft={setTextDraft} sheet={sheet} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
 
           <PageBackgroundMenu addBlankPage={addBlankPage} page={page} popover={popover} setOpenSurface={setOpenSurface} t={t} workspaceReady={workspaceReady} />
 
