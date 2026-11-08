@@ -2997,10 +2997,20 @@
 .account-menu-identity .account-menu-avatar {
   width: 32px;
   height: 32px;
+  min-width: 0;
+  min-height: 0;
+  max-width: 32px;
+  max-height: 32px;
   flex: 0 0 32px;
   object-fit: cover;
   border-radius: 10px;
   background: var(--surface-3);
+}
+
+/* A large intrinsic avatar image must never shrink the identity text to zero. */
+.account-menu-identity > div {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .account-menu-identity > div,
@@ -3252,6 +3262,8 @@
   .account-menu-identity .account-menu-avatar {
     width: 34px;
     height: 34px;
+    max-width: 34px;
+    max-height: 34px;
     flex-basis: 34px;
     border-radius: 10px;
   }

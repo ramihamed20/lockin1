@@ -596,18 +596,8 @@ test("the username chosen at Google onboarding is the only name the product show
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
   const shownName = page.locator("#account-menu-name");
-  // Log actual presentation state if the menu regresses during onboarding.
-  await page.waitForTimeout(250);
-  const menuState = await page.locator("#profile-menu").evaluate((node) => {
-    const style = getComputedStyle(node), rect = node.getBoundingClientRect();
-    return { classes: node.className, popover: node.getAttribute("popover"), display: style.display,
-      visibility: style.visibility, opacity: style.opacity, rect: {x:rect.x,y:rect.y,width:rect.width,height:rect.height},
-      expanded: document.querySelector('[aria-label="Open profile menu"]')?.getAttribute("aria-expanded"),
-      phone: matchMedia("(max-width: 639px), (max-height: 559px)").matches,
-      identity: (()=>{const el=node.querySelector(".account-menu-identity"),r=el?.getBoundingClientRect(),cs=el?getComputedStyle(el):null;return {display:cs?.display,visibility:cs?.visibility,width:r?.width,height:r?.height};})(),
-      name: (()=>{const el=document.getElementById("account-menu-name"),r=el?.getBoundingClientRect(),cs=el?getComputedStyle(el):null;return {display:cs?.display,visibility:cs?.visibility,opacity:cs?.opacity,fontSize:cs?.fontSize,width:r?.width,height:r?.height,parentWidth:el?.parentElement?.getBoundingClientRect().width};})() };
-  });
-  console.info("PROFILE_MENU_DIAGNOSTIC", JSON.stringify(menuState));
+  // The menu avatar has a fixed layout footprint, even for large images.
+  await expect.poll(() => page.locator(".account-menu-avatar").evaluate((avatar) => avatar.getBoundingClientRect().width)).toBeLessThanOrEqual(34);
   await expect(shownName).toBeVisible();
   await expect(shownName).toHaveText("ra33");
   await expect(page.getByText("Rami ha")).toHaveCount(0);

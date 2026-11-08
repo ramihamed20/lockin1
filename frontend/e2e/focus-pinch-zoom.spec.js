@@ -200,7 +200,8 @@ async function expectVerticalFocalOrConstrainedEdge(page, actualY, targetY, live
       topGap: pdf.top - viewportTop,
       bottomGap: viewportTop + viewportHeight - pdf.bottom,
       centerError: Math.abs((pdf.top + pdf.bottom) / 2 - (viewportTop + viewportHeight / 2)),
-      fits: pdf.height <= viewportHeight + 0.5
+      fits: pdf.height <= viewportHeight + 0.5,
+      reservedToolbarInset: Number.parseFloat(getComputedStyle(stage).paddingTop) || 0
     };
   });
   const slack = WORKSPACE_GESTURE.verticalEdgeReveal + (live ? WORKSPACE_GESTURE.pinchElasticLimit : 0);
@@ -212,7 +213,9 @@ async function expectVerticalFocalOrConstrainedEdge(page, actualY, targetY, live
     expect(geometry.centerError).toBeLessThanOrEqual(slack);
     return;
   }
-  expect(geometry.topGap).toBeLessThanOrEqual(slack);
+  // The stage reserves its toolbar clearance in padding. This is not an
+  // illegal empty PDF edge; only any gap beyond that reserved inset is.
+  expect(geometry.topGap - geometry.reservedToolbarInset).toBeLessThanOrEqual(slack);
   expect(geometry.bottomGap).toBeLessThanOrEqual(slack);
 }
 
@@ -342,6 +345,9 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   // property of the final layout instead of a race against it -- and whether
   // the zoom-out below reaches the bottom constraint depends on exactly that.
   const scrollLastPageIntoPosition = async () => {
+    // Start from an actually visible last page before positioning its 4% line.
+    // Native scrolling handles offscreen content-visibility placeholders.
+    await page.locator(".workspace-v2-a4-page[data-pdf-page]").last().scrollIntoViewIfNeeded();
     await stage.evaluate((node) => {
       const lastPage = [...document.querySelectorAll(".workspace-v2-a4-page[data-pdf-page]")].at(-1);
       const viewport = node.getBoundingClientRect();
