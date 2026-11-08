@@ -13,5 +13,9 @@ test('diagnose companion fixture', async ({page})=>{
  await page.locator('.study-companion-preferences').click();
  console.log('SETTINGS_BUTTONS',JSON.stringify(await page.locator('.study-companion-settings button').evaluateAll(ns=>ns.map(n=>({text:n.innerText,aria:n.getAttribute('aria-label'),html:n.outerHTML.slice(0,500)})))));
  const sizes=async()=>page.locator('.study-companion-pet').evaluate(n=>({rect:n.getBoundingClientRect().toJSON(),vw:innerWidth,root:n.parentElement.getBoundingClientRect().toJSON(),css:getComputedStyle(n.parentElement).getPropertyValue('--companion-width')}));
- console.log('PHONE_SIZE',JSON.stringify(await sizes())); await page.setViewportSize({width:820,height:1180}); await page.waitForTimeout(100); console.log('TABLET_SIZE',JSON.stringify(await sizes()));
+ console.log('PHONE_SIZE',JSON.stringify(await sizes()));
+ await page.locator('.study-companion-settings header button').click();
+ await page.evaluate(()=>{window.__dragEvents=[];for(const t of ['pointerdown','pointermove','pointerup','lostpointercapture'])document.addEventListener(t,e=>window.__dragEvents.push({type:e.type,x:e.clientX,y:e.clientY,target:e.target.className,rect:document.querySelector('.study-companion')?.getBoundingClientRect().toJSON()}),true)});
+ const b=await page.locator('.study-companion-pet').boundingBox();await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.mouse.move(b.x+b.width/2-110,b.y+b.height/2-85,{steps:8});await page.mouse.up();await page.waitForTimeout(200);console.log('DRAG_DIAGNOSTIC',JSON.stringify(await page.evaluate(()=>({events:window.__dragEvents,prefs:localStorage.getItem('lock-in.study-companion.v1:test-student'),rect:document.querySelector('.study-companion').getBoundingClientRect().toJSON()}))));
+ await page.setViewportSize({width:820,height:1180}); await page.waitForTimeout(100); console.log('TABLET_SIZE',JSON.stringify(await sizes()));
 });
