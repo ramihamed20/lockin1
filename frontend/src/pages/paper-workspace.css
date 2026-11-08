@@ -154,7 +154,7 @@
 .paper-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "timer" "player" "status";
+  grid-template-areas: "timer" "search" "player" "status";
   gap: 16px 20px;
   width: min(100%, 1360px);
   margin-inline: auto;
@@ -162,7 +162,7 @@
 }
 .paper-workspace.has-notes {
   grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-  grid-template-areas: "timer notes" "player player" "status status";
+  grid-template-areas: "timer notes" "search search" "player player" "status status";
 }
 .paper-timer { grid-area: timer; }
 .paper-search { grid-area: search; }
@@ -662,10 +662,10 @@
   .paper-workspace,
   .paper-workspace.has-notes {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "timer" "player" "status";
+    grid-template-areas: "timer" "search" "player" "status";
     gap: 14px;
   }
-  .paper-workspace.has-notes { grid-template-areas: "timer" "player" "status" "notes"; }
+  .paper-workspace.has-notes { grid-template-areas: "timer" "search" "player" "status" "notes"; }
 }
 @media (max-width: 560px) {
   .paper-status { grid-template-columns: minmax(0, 1fr); grid-template-areas: "label" "sheet" "facts" "steps" "action"; padding: 16px; }
