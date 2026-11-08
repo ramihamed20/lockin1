@@ -865,11 +865,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // it on screen, so with a mouse "fit" is a comfortable reading width,
     // centred.
     const readingWidth = stageWidth >= 1280 && window.matchMedia?.("(pointer: fine)").matches;
-    return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(
-      readingWidth ? Math.min(stageWidth, FIT_READING_WIDTH) : stageWidth,
-      A4_PAGE_WIDTH,
-      0
-    )));
+    // Desktop PDFs start at the requested 120% scale, not 168% or higher
+    // merely because a wide browser has room for a larger rendered page.
+    // On phones and tablets retain responsive fit-to-width so a page remains usable.
+    if (readingWidth) return HORIZONTAL_READING_ZOOM_FLOOR;
+    return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageWidth, A4_PAGE_WIDTH, 0)));
   }, [pageDirection, sheet?.pdfUrl]);
 
   // Fit width is the opening/reset scale, not the lower pinch limit. Keep a
@@ -879,7 +879,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (!sheet?.pdfUrl) return MIN_FOCUS_ZOOM;
     // Applies to both button Zoom Out and two-finger/trackpad pinch.
     if (pageDirection === "horizontal") return HORIZONTAL_READING_ZOOM_FLOOR;
-    const stageFit = Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageRef.current?.clientWidth || window.innerWidth, A4_PAGE_WIDTH, 0)));
+    const stageWidth = stageRef.current?.clientWidth || window.innerWidth;
+    // A desktop reader cannot zoom out beyond its 120% starting scale.
+    // Small viewports retain their proportional floor for touch navigation.
+    if (stageWidth >= 1280 && window.matchMedia?.("(pointer: fine)").matches) return minimumPdfZoom();
+    const stageFit = Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageWidth, A4_PAGE_WIDTH, 0)));
     return Math.min(minimumPdfZoom(), Math.max(0.3, stageFit * 0.5));
   }, [minimumPdfZoom, pageDirection, sheet?.pdfUrl]);
 
