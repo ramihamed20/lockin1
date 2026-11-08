@@ -3855,11 +3855,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       cancelAnimationFrame(gesture.pinchRafId);
       gesture.pinchRafId = null;
     }
-    // Paint the most recent raw pointer sample before reconciling compositor
-    // geometry with layout. The committed scale is the exact distance ratio;
-    // only a rubber-band overshoot is eased, and never past a legal value.
+    // Track every raw finger movement continuously; only settle to the nearest
+    // 5% once the fingers lift. This keeps split-pane and single-PDF gestures
+    // fluid, with a gentle visual transition rather than 5% jumps mid-pinch.
     renderLivePinchTransform(pinch);
-    const finalZoom = pinch.currentScale;
+    const finalZoom = clampReaderZoom(Math.round(pinch.currentScale * 20) / 20);
     gesture.pinch = null;
     const stage = stageRef.current;
     for (const touch of gesture.touches.values()) {

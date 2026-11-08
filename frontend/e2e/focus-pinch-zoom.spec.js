@@ -257,6 +257,11 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
   const livePoint = await anchoredClientPoint(page, anchor);
+  const liveZoomRatio = await page.locator(".workspace-v2-a4-live-layer").evaluate((node) => {
+    const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+    return Math.hypot(transform.a, transform.b);
+  });
+  expect(Math.abs(liveZoomRatio * initialScale - targetScale)).toBeLessThan(.002);
   await expectHorizontalFocalOrPhysicalEdge(page, livePoint.x, targetFocal.x, true);
   // The production branch turns on this exact comparison: zooming in keeps Y
   // focal-exact, zooming out hands Y to the edge constraint.
@@ -268,7 +273,8 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
   await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/);
 
   const committedScale = await readerScale(page);
-  expect(Math.abs(committedScale - targetScale)).toBeLessThan(1e-6);
+  const snappedScale = Math.round(targetScale * 20) / 20;
+  expect(Math.abs(committedScale - snappedScale)).toBeLessThan(1e-6);
   const committedPoint = await anchoredPhysicalPagePoint(page, physicalAnchor);
   await expectHorizontalFocalOrPhysicalEdge(page, committedPoint.x, targetFocal.x);
   // The spring has released by now, so a constrained gesture must have settled
@@ -385,7 +391,7 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").last()).toBeInViewport({ ratio: 0.1 });
 });
 
-test("high zoom keeps exact 247.8% and 487.3% values without snapping", async ({ page }) => {
+test("high zoom follows fractional gestures then settles to 5% increments", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
