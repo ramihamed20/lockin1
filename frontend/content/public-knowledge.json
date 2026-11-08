@@ -1842,7 +1842,7 @@
     "frontend/src/pages/Materials.jsx": "12cf1ecef042e0c680caeda6e67f46d3a38d5061eb75586e33913a06c30fa34c",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "073cb44bcbbf60d613b67a83d7c414d02ac1471bf827e669bba84c2d3ecef7ed",
     "backend/apps/content/tests/test_catalog_workspace.py": "690f59f8d3285dd07edb8b4420fc9d93a7ab3c196350dcbae7a4c3dcb812e6c8",
-    "frontend/src/pages/CatalogFocusWorkspace.jsx": "87af33a305c2d79e2095895658a303f7330825ea4f95fd9e7040629b9f75131c",
+    "frontend/src/pages/CatalogFocusWorkspace.jsx": "054ca05755fbe0251d678230c6beddecafe9cf4e6ef44e91a5f6b6497976bc07",
     "backend/apps/focus/annotation_services.py": "f69372630ac361d91b813f3746df864e0977c77dc4f406d91b46fc852dc840e2",
     "backend/apps/focus/tests/test_annotation_document_scope.py": "f3e6728a5fc81fe587f22ad6f720c7ced9b8ceadbf4d50be8e8219bf5fca2939",
     "frontend/e2e/focus-workspace-persistence.spec.js": "43a37b2ae87954a928f1806f377077d4565a510c226d2114305daba0389dcdaa",
