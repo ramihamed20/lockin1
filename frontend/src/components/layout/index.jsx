@@ -655,7 +655,7 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
     // Popover places this account surface in the browser's top layer. That is
     // stronger than any local z-index and escapes sticky/immersive stacks.
     const show = (element) => {
-      if (element?.showPopover && !element.matches(":popover-open")) element.showPopover();
+      if (element?.hasAttribute?.("popover") && element.showPopover && !element.matches(":popover-open")) element.showPopover();
     };
     try {
       show(backdrop);
@@ -934,7 +934,7 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
       className={`profile-menu account-menu ${isPhone ? "account-menu--sidepanel" : "account-menu--popover"} ${profileMenuState === "closing" ? "is-closing" : ""}`}
       id="profile-menu"
       ref={profilePanelRef}
-      popover="manual"
+      popover={isPhone ? "manual" : undefined}
       role={isPhone ? "dialog" : "menu"}
       aria-modal={isPhone ? "true" : undefined}
       aria-labelledby="account-menu-name"

@@ -5859,18 +5859,31 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (clamped !== page || activeVirtualPageId !== null) jumpToPagePosition(clamped);
   }
 
+  // Button zoom preserves the reader's active line near the top of a
+  // continuous PDF. Centering on the entire viewport moved that reading line
+  // by almost a tenth of a page with each zoom step on a desktop.
+  function toolbarZoomFocalPoint(stage) {
+    const bounds = stage.getBoundingClientRect();
+    return {
+      x: bounds.left + bounds.width / 2,
+      y: pageDirection === "horizontal"
+        ? bounds.top + bounds.height / 2
+        : bounds.top + Math.min(180, bounds.height / 2)
+    };
+  }
+
   function zoomByStep(factor) {
     const stage = stageRef.current;
     if (!stage) return;
-    const bounds = stage.getBoundingClientRect();
-    zoomTo(zoomRef.current * factor, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+    const focal = toolbarZoomFocalPoint(stage);
+    zoomTo(zoomRef.current * factor, focal.x, focal.y);
   }
 
   function zoomToFitMultiple(multiplier) {
     const stage = stageRef.current;
     if (!stage) return;
-    const bounds = stage.getBoundingClientRect();
-    zoomTo(minimumPdfZoom() * multiplier, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2, { mode: multiplier === 1 ? "fit" : "manual", label: multiplier === 1 ? t("focus.fitWidth") : `${multiplier}× fit` });
+    const focal = toolbarZoomFocalPoint(stage);
+    zoomTo(minimumPdfZoom() * multiplier, focal.x, focal.y, { mode: multiplier === 1 ? "fit" : "manual", label: multiplier === 1 ? t("focus.fitWidth") : `${multiplier}× fit` });
   }
 
   function exportWorkspaceBackup() {
