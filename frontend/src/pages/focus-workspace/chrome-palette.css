@@ -53,6 +53,11 @@
 :root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active > svg {
   transform: none;
 }
+/* Active ink glyphs follow the selected ink, rather than the generic
+   blue selected-tool accent. The separate trace keeps the color motion. */
+:root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"]) > svg {
+  color: var(--workspace-tool-color);
+}
 :root[data-theme] .workspace-v2 .workspace-v2-toolbar .workspace-v2-tool-list > .workspace-v3-tool-button.is-active::after {
   content: '';
   display: block;
