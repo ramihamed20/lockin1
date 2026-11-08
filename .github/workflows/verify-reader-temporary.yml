@@ -26,3 +26,5 @@ jobs:
         run: pnpm run build:e2e
       - working-directory: frontend
         run: pnpm exec playwright test e2e/focus-toolbar-dock.spec.js e2e/focus-workspace-keyboard.spec.js e2e/paper-workspace.spec.js e2e/reader-zoom-bar.spec.js e2e/pdf-split-visual.spec.js e2e/focus-pomodoro.spec.js e2e/focus-active-study-customization.spec.js --workers=2
+      - working-directory: frontend
+        run: pnpm exec playwright test e2e/focus-pinch-zoom.spec.js --grep 'desktop 120% minimum|reaches horizontal edges' --workers=1

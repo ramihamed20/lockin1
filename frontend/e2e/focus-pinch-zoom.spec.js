@@ -358,7 +358,7 @@ test("high zoom keeps exact 247.8% and 487.3% values without snapping", async ({
   await exactPinch(page, { ...ratios, targetScale: 4.873, moveX: -37, moveY: 29 });
 });
 
-test("reader navigation stops at physical horizontal edges and a 20px vertical reveal", async ({ page }) => {
+test("reader navigation reaches horizontal edges and keeps page one below the toolbar", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
@@ -368,12 +368,15 @@ test("reader navigation stops at physical horizontal edges and a 20px vertical r
   await stage.dispatchEvent("wheel", { deltaX: -100_000, deltaY: -100_000, bubbles: true, cancelable: true });
   await expect.poll(async () => stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual(expect.objectContaining({ left: expect.any(Number), top: expect.any(Number) }));
   const leading = await page.evaluate(() => {
-    const viewport = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const viewport = stage.getBoundingClientRect();
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
-    return { left: pdf.left - viewport.left, top: pdf.top - viewport.top };
+    const toolbar = document.querySelector(".workspace-v2-toolbar").getBoundingClientRect();
+    return { left: pdf.left - viewport.left, top: pdf.top, toolbarBottom: toolbar.bottom, scrollTop: stage.scrollTop };
   });
   expect(Math.abs(leading.left)).toBeLessThan(1.5);
-  expect(Math.abs(leading.top - 20)).toBeLessThan(1.5);
+  expect(leading.scrollTop).toBeLessThanOrEqual(1);
+  expect(leading.top).toBeGreaterThanOrEqual(leading.toolbarBottom);
 
   await stage.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
   await stage.dispatchEvent("wheel", { deltaX: 100_000, deltaY: 100_000, bubbles: true, cancelable: true });
@@ -435,7 +438,7 @@ test("a horizontal one-finger drag pans a zoomed sheet without changing Y", asyn
   expect(afterMomentum.left).not.toBe(before.left);
 });
 
-test("zoom-out rubber-bands and settles at the half-width limit", async ({ page }) => {
+test("zoom-out rubber-bands and settles at the desktop 120% minimum", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
@@ -476,12 +479,10 @@ test("zoom-out rubber-bands and settles at the half-width limit", async ({ page 
   });
   expect(settled.horizontalCenterError).toBeLessThan(1.5);
   expect(settled.leadingGap).toBeLessThanOrEqual(20.5);
-  const fit = await page.evaluate(() => {
-    const viewportBounds = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
-    const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
-    return { viewportWidth: viewportBounds.width, pdfWidth: pdf.width };
-  });
-  expect(Math.abs(fit.pdfWidth - fit.viewportWidth * .5)).toBeLessThan(1.5);
+  const scale = await page.locator(".workspace-v2-a4-document").evaluate(
+    (node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom"))
+  );
+  expect(scale).toBeCloseTo(1.2, 2);
 });
 
 test("single-finger scrolling and Apple Pencil with palm contact remain intact @chromium-only", async ({ page }) => {
