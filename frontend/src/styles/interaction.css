@@ -625,7 +625,7 @@
   min-block-size: 48px;
 }
 :root .sidebar .nav-btn[aria-current="page"] {
-  background-color: color-mix(in srgb, var(--color-primary, #3b82f6) 14%, var(--surface, #ffffff));
+  background-color: color-mix(in srgb, var(--color-primary, #3b82f6) 14%, var(--surface, #ffffff)) !important;
   background-image: none;
   box-shadow: none;
   outline: none;

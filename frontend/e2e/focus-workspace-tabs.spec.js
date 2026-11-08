@@ -416,7 +416,9 @@ test("split screen shows two independent PDF sheets and resizes on iPad and phon
   const top = await page.locator(".workspace-pane.is-active").boundingBox();
   const bottom = await page.locator(".workspace-pane.is-secondary").boundingBox();
   expect(bottom.y).toBeGreaterThan(top.y);
-  await page.getByRole("button", { name: "Close split view" }).click();
+  // Split view closes by removing one pane; there is no legacy
+  // "Close split view" button in the current multi-reader header.
+  await page.locator(".workspace-pane.is-secondary .workspace-split-pane-remove").click();
   await expect(layout).toHaveCount(0);
   await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(1);
   // Left-side drops should reverse the pane order without changing the open tabs.
