@@ -1837,7 +1837,7 @@
   "evidenceDigests": {
     "frontend/src/App.jsx": "c23fc3f5a1e3b255eee0761d421868c5d5f9a43710eed48c5b6b5b5b36bad900",
     "frontend/src/lib/materialCatalog.js": "3bf3c59c161ca2952e33bf6086429d5b11c68f6ca13797f047b1914b9ecfe1a4",
-    "frontend/tests/materials-catalog.test.js": "65aa509996cee4be92a01a67d1565ebaeb73eb13cf0ba891aed0340e3e6ed811",
+    "frontend/tests/materials-catalog.test.js": "8ad37ddfbc6233072f6a561f119a3a131fb7bd3226953107068b4e78bd649ab2",
     "frontend/src/lib/i18n.js": "f965f34d5e5ba273d5e44c7c18feb58b8c6b5ab2e46c3440f69eb8e2972f7dbc",
     "frontend/src/pages/Materials.jsx": "12cf1ecef042e0c680caeda6e67f46d3a38d5061eb75586e33913a06c30fa34c",
     "frontend/src/components/learning/CatalogSheetCard.jsx": "073cb44bcbbf60d613b67a83d7c414d02ac1471bf827e669bba84c2d3ecef7ed",
@@ -1901,7 +1901,7 @@
     "backend/apps/review/daily.py": "f90fe9513ff60229faada5fbe699b3470dd3a47065a538bbdff5ed8de597e565",
     "backend/apps/review/tests/test_daily_adaptation.py": "46eb8ce8b964cfc6191775ee12f96a4282e5b0d31e04a2f3bbbb865adf18578d",
     "frontend/tests/review-session.test.js": "d5c4d3070eb694ddf3c125861769fbc4552ca4eb6c2d9732a445b50569829029",
-    "backend/apps/study_plans/review_priorities.py": "1b4643c11e9921e999855fa35de0d00ed4cf641ddc94f5334ee63c78959536fa",
+    "backend/apps/study_plans/review_priorities.py": "0a5f559786024817d095f4d95a78707a7709c6b1aef472f69f6db391cdfe3dd2",
     "frontend/src/review/MistakeReflection.jsx": "ec784becdba011cce4a992d88ed724a0f233f81dbe663aa4c4cba4932e03436c",
     "frontend/src/review/RecoveryPass.jsx": "6dd817301f447b99277ec1d833196c51586bd08c4fbc3dc4490b1a9af54c7e53"
   }
