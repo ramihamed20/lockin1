@@ -1,5 +1,7 @@
+import { connectedMessages } from "./connectedMessages.js";
 export const knowledgeMessages = {
   "en": {
+    ...connectedMessages.en,
     "knowledge.tools": "Study tools",
     "knowledge.mcq_unprepared": "No reviewed concept link with a prepared Explain question is available for these mistakes yet.",
     "knowledge.mcq_stale": "These mistakes belong to an earlier question bank. Read their saved feedback; links to the current edition are unavailable.",
@@ -109,6 +111,14 @@ export const knowledgeMessages = {
     "knowledge.moveDrawing": "Move selected stroke right",
     "knowledge.moveStroke": "Move selected stroke {direction}",
     "knowledge.inkHint": "Pen input draws; fingers scroll unless finger drawing is enabled. Select a stroke to move or remove it.",
+    "knowledge.newIdea": "New idea",
+    "knowledge.addBranch": "Add a branch",
+    "knowledge.linkIdea": "Link an idea",
+    "knowledge.editIdea": "Edit",
+    "knowledge.fitMap": "Fit map",
+    "knowledge.mapOptions": "More tools",
+    "knowledge.appearanceMenu": "Appearance",
+    "knowledge.tapToConnect": "Select another idea to link it.",
     "knowledge.newConcept": "New concept",
     "knowledge.addNode": "Add concept",
     "knowledge.copy": "Copy selection",
@@ -172,6 +182,7 @@ export const knowledgeMessages = {
     "knowledge.reviewBank": "Open Review Bank"
   },
   "ar": {
+    ...connectedMessages.ar,
     "knowledge.tools": "أدوات الدراسة",
     "knowledge.mcq_unprepared": "لا يتوفر بعد ربط مفهوم مُراجع مع سؤال اشرح مُحضّر لهذه الأخطاء.",
     "knowledge.mcq_stale": "هذه الأخطاء تخص بنك أسئلة سابق. راجع الشرح المحفوظ؛ الربط بالإصدار الحالي غير متاح.",
@@ -281,6 +292,14 @@ export const knowledgeMessages = {
     "knowledge.moveDrawing": "تحريك الخط المحدد يمينًا",
     "knowledge.moveStroke": "تحريك الخط المحدد {direction}",
     "knowledge.inkHint": "استخدم القلم للرسم والإصبع للتمرير ما لم تفعّل الرسم بالإصبع. حدّد خطًا لتحريكه أو حذفه.",
+    "knowledge.newIdea": "فكرة جديدة",
+    "knowledge.addBranch": "إضافة فرع",
+    "knowledge.linkIdea": "ربط بفكرة",
+    "knowledge.editIdea": "تعديل",
+    "knowledge.fitMap": "عرض الخريطة",
+    "knowledge.mapOptions": "أدوات إضافية",
+    "knowledge.appearanceMenu": "المظهر",
+    "knowledge.tapToConnect": "اختر فكرة أخرى لربطها.",
     "knowledge.newConcept": "مفهوم جديد",
     "knowledge.addNode": "إضافة مفهوم",
     "knowledge.copy": "نسخ التحديد",

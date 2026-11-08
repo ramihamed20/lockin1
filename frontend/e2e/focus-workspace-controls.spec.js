@@ -123,7 +123,7 @@ test("tool settings exit sooner and unmount immediately with reduced motion", as
 test("a study card exports on the current PDF page", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
   await page.getByRole("button", { name: /Add note card/i }).click();
   await page.getByRole("group", { name: "Card style" }).getByRole("button", { name: "Revision" }).click();
   await page.getByRole("textbox", { name: "Card text" }).fill("Review this concept before the exam");
@@ -171,7 +171,7 @@ test("iPad downloads leave the workspace mounted for original PDF and page snaps
 test("study cards move directly and settings open as a compact panel in each theme", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
   await page.getByRole("button", { name: /Add note card/i }).click();
   await page.getByRole("textbox", { name: "Card text" }).fill("Move this note");
   await page.getByRole("button", { name: "Add card" }).click();
@@ -294,7 +294,7 @@ test("handwriting improvement smooths new ink without replacing its saved points
 test("browser and OS shortcuts never hijack the tool palette", async ({ page }) => {
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page);
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
   const pen = page.locator('[data-workspace-tool="pen"]');
 
   for (const combination of ["Control+s", "Control+p", "Control+e", "Control+l", "Alt+s"]) {
@@ -608,4 +608,62 @@ test("the live ink layer paints while the stroke is still down and carries its o
   expect(Number(highlight.opacity)).toBeLessThan(1);
   await dispatchPointer(stage, "pointerup", 52, pageBounds.x + pageBounds.width * .62, highlightY);
   await expect(page.locator(".workspace-v2-annotation-layer [data-annotation-type='highlighter']")).toHaveCount(1);
+});
+
+test("phone adds and restores the study companion from the plus menu", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  // Most Focus UI tests use a local PDF fixture with no catalog document.
+  // This one needs the real companion gate's document id as well.
+  await page.route("**/api/v1/catalog/documents/biochemistry-1/vitamin-1", (route) => route.fulfill({ json: {
+    document: {
+      id: "11111111-1111-4111-8111-111111111111",
+      document_version_id: "22222222-2222-4222-8222-222222222222",
+      file_id: "33333333-3333-4333-8333-333333333333",
+      view_url: "/api/v1/files/33333333-3333-4333-8333-333333333333/view"
+    }
+  } }));
+  await openWorkspace(page, { width: 390, height: 844 });
+  const companion = page.locator(".study-companion-pet");
+  await expect(companion).toHaveCount(0);
+  const add = async () => {
+    await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
+    const action = page.getByRole("button", { name: /Add study companion|Show companion/ });
+    try { await expect(action).toBeVisible(); }
+    catch (failure) {
+      const state = await page.evaluate(() => {
+        const panel=document.querySelector('#workspace-add-popover');
+        return {panel:!!panel,visible:panel?getComputedStyle(panel).display:null,
+          buttons:[...(panel?.querySelectorAll('button')||[])].map(el=>({text:el.textContent,hidden:el.hidden,display:getComputedStyle(el).display})),
+          locale:localStorage.getItem('lock-in.locale'),companion:localStorage.getItem('lock-in.study-companion.v1:controls-student')};
+      });
+      console.info("COMPANION_ADD_DIAGNOSTIC",JSON.stringify(state));
+      throw failure;
+    }
+    await action.click();
+    await expect(companion).toBeVisible();
+  };
+  await add();
+  await expect.poll(() => page.evaluate(() => {
+    const value = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:controls-student") || "null");
+    return value?.phoneAdded === true && value?.hidden === false;
+  })).toBe(true);
+
+  await page.locator(".study-companion-preferences").click();
+  await page.getByRole("button", { name: "Hide companion", exact: true }).click();
+  await expect(companion).toHaveCount(0);
+  await expect(page.locator(".study-companion-restore")).toHaveCount(0);
+  await add();
+
+  const start = await companion.boundingBox();
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(start.x + start.width / 2 - 95, start.y + start.height / 2 - 75, { steps: 8 });
+  await page.mouse.up();
+  const moved = await companion.boundingBox();
+  expect(Math.hypot(moved.x - start.x, moved.y - start.y)).toBeGreaterThan(30);
+  await expect.poll(() => page.evaluate(() => {
+    const value = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:controls-student") || "null");
+    return value?.position?.x >= 0 && value?.position?.x <= 1 && value?.position?.y >= 0 && value?.position?.y <= 1;
+  })).toBe(true);
+  await expect(page.locator(".study-companion-panel")).toHaveCount(0);
 });

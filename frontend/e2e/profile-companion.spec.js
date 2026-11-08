@@ -1,0 +1,45 @@
+import { test, expect } from '@playwright/test';
+for(const [locale,width,height] of [['ar',390,844],['en',1024,768]]) test(`profile companion selection, XP and reader stay connected in ${locale}`,async({page})=>{
+ await page.setViewportSize({width,height});
+ await page.addInitScript(locale=>localStorage.setItem('lock-in.locale',locale),locale);
+ await page.route('**/api/v1/catalog/documents/**',r=>r.fulfill({json:{version_id:'test-version',results:[]}}));
+ await page.goto('/e2e/fixtures/profile-companion/');
+ const card=page.locator('.profile-companion-card');
+ const girl=card.getByRole('button',{name:'Starsea',exact:true});
+ await girl.click();
+ await expect(girl).toHaveAttribute('aria-pressed','true');
+ await expect(card.getByRole('progressbar')).toHaveAttribute('value','125');
+ await expect(card.getByRole('progressbar')).toHaveAttribute('max','300');
+ await page.locator('.study-companion-preferences').click();
+ await expect(page.locator('.study-companion-characters button').last()).toHaveAttribute('aria-pressed','true');
+ await page.locator('.study-companion-characters button').first().click();
+ await expect(card.getByRole('button',{name:'Starmo',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.locator('.study-companion-options header button').click();
+ await girl.click();
+ await card.getByRole('button',{name:locale==='ar'?'احتفال':'Celebrate',exact:true}).click();
+ await expect(card.locator('.study-companion-character')).toHaveAttribute('data-state','saved');
+ await expect(card.getByRole('progressbar')).toHaveAttribute('value','125');
+ await page.reload();
+ await expect(girl).toHaveAttribute('aria-pressed','true');
+ await page.getByRole('button',{name:'Switch account'}).click();
+ await expect(card.getByRole('button',{name:'Starmo',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.getByRole('button',{name:'Switch account'}).click();
+ await expect(girl).toHaveAttribute('aria-pressed','true');
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await expect(card.locator('canvas')).toHaveCount(0);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+ await page.screenshot({path:`/workspace/scratch/a1616768a39f/profile-companion-${locale}.png`});
+});
+
+test('unavailable XP does not appear as zero progress',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.addInitScript(()=>localStorage.setItem('lock-in.locale','en'));
+ await page.route('**/api/v1/catalog/documents/**',r=>r.fulfill({json:{version_id:'test-version',results:[]}}));
+ await page.goto('/e2e/fixtures/profile-companion/?unavailable');
+ const card=page.locator('.profile-companion-card');
+ await expect(card.getByRole('progressbar')).toHaveCount(0);
+ await expect(card.getByRole('status')).toHaveText('XP is unavailable');
+ await card.getByRole('button',{name:'Starsea',exact:true}).focus();
+ await page.keyboard.press('Enter');
+ await expect(card.getByRole('button',{name:'Starsea',exact:true})).toHaveAttribute('aria-pressed','true');
+});

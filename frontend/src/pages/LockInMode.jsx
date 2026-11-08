@@ -1,7 +1,9 @@
+import { acceptsLiveResponse } from "../components/lock-in/liveSession.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Eraser, FileText, Hand, Highlighter, Image as ImageIcon, LockKeyhole, Maximize2, MessageSquare, Minimize2, Minus, MoreHorizontal, MousePointer2, PanelRightOpen, Pause, PenLine, Play, Plus, Redo2, Search, Send, Shapes, Type, Undo2, Users, X } from "lucide-react";
 import { focusApi } from "../api/focus.js";
+import { readLegacyReaderState, writeLegacyReaderState, readLegacyNoteDraft, writeLegacyNoteDraft, acknowledgeLegacyNoteDraft } from "../components/lock-in/legacyDrafts.js";
 import { cssVars, formatDuration } from "../lib/utils.js";
 import { formatTime } from "../lib/i18n.js";
 import { Icon } from "../lib/icons.jsx";
@@ -217,7 +219,7 @@ function ReferenceStatStrip({ payload, material, tasks, busy, onSessionAction })
   );
 }
 
-function ReferencePdfViewer({ material, session, onMore, onNotes, onWorkspaceChange, workspaceSync, sidebarOpen, onSidebarOpenChange, sidebarContent, fullscreenTools, onFullscreenChange }) {
+function ReferencePdfViewer({ material, session, currentUserId, onMore, onNotes, onWorkspaceChange, workspaceSync, sidebarOpen, onSidebarOpenChange, sidebarContent, fullscreenTools, onFullscreenChange }) {
   const workspace = session?.workspace;
   const [page, setPage] = useState(() => Number(workspace?.current_page) || 1);
   const [zoom, setZoom] = useState(() => Number(workspace?.zoom) || 1);
@@ -229,7 +231,8 @@ function ReferencePdfViewer({ material, session, onMore, onNotes, onWorkspaceCha
   const [undoHistory, setUndoHistory] = useState([]);
   const [redoHistory, setRedoHistory] = useState([]);
   const [textEditor, setTextEditor] = useState(null);
-  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarkedPages, setBookmarkedPages] = useState([]);
+  const [localReaderReady, setLocalReaderReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -248,9 +251,11 @@ function ReferencePdfViewer({ material, session, onMore, onNotes, onWorkspaceCha
   const documentVersionId = material?.document_version_id || null;
   const maximumPage = Math.max(page, Number(material?.page_count) || Number(workspace?.page_count) || 1);
   const pdfUrl = typeof material?.view_url === "string" && /^\/api\/v1\/files\/[0-9a-f-]+\/view$/i.test(material.view_url) ? material.view_url : null;
+  const readerStorageId = String(documentVersionId || session?.id || "");
+  const bookmarked = bookmarkedPages.includes(page);
   const annotationMode = ["pen", "highlighter", "eraser", "shapes", "text"].includes(activeTool);
   const currentAnnotations = annotations.filter((annotation) => annotation.page === page);
-  const combinedSync = annotationSync !== "Saved" ? annotationSync : workspaceSync;
+  const combinedSync = annotationSync !== "Saved" ? annotationSync : annotations.some((item) => item.type === "image") ? "Images saved on this device only" : workspaceSync;
   const pagePercent = maximumPage > 1 ? Math.max(2, (page / maximumPage) * 100) : 100;
 
   useEffect(() => {
@@ -267,6 +272,43 @@ function ReferencePdfViewer({ material, session, onMore, onNotes, onWorkspaceCha
 
   useEffect(() => () => {
     if (syncTimerRef.current) window.clearTimeout(syncTimerRef.current);
+  }, []);
+
+  // Legacy images are device-only; bookmarks are per page, never a global toggle.
+  // Both use the same account-fenced IndexedDB storage as the main offline reader.
+  useEffect(() => {
+    let cancelled = false;
+    setLocalReaderReady(false);
+    setBookmarkedPages([]);
+    void readLegacyReaderState(currentUserId, readerStorageId).then((stored) => {
+      if (cancelled) return;
+      setBookmarkedPages(stored?.bookmarks || []);
+      setAnnotations((current) => [
+        ...current.filter((item) => item.type !== "image"),
+        ...(stored?.images || [])
+      ]);
+      setLocalReaderReady(true);
+    }).catch(() => {
+      if (!cancelled) {
+        setLocalReaderReady(true);
+        setAnnotationSync("Local storage unavailable; device images may not survive refresh.");
+      }
+    });
+    return () => { cancelled = true; };
+  }, [currentUserId, readerStorageId]);
+
+  useEffect(() => {
+    if (!localReaderReady || !currentUserId || !readerStorageId) return;
+    const images = annotations.filter((item) => item.type === "image");
+    void writeLegacyReaderState(currentUserId, readerStorageId, {
+      bookmarks: bookmarkedPages, images
+    }).catch(() => setAnnotationSync("Could not save local images or bookmarks."));
+  }, [annotations, bookmarkedPages, currentUserId, localReaderReady, readerStorageId]);
+
+  useEffect(() => {
+    const retry = () => setAnnotationRetry((value) => value + 1);
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
   }, []);
 
   useEffect(() => {
@@ -307,7 +349,7 @@ function ReferencePdfViewer({ material, session, onMore, onNotes, onWorkspaceCha
     });
     if (!changes.length && !deletedIds.length) return undefined;
     if (syncTimerRef.current) window.clearTimeout(syncTimerRef.current);
-    setAnnotationSync(navigator.onLine === false ? "Offline - annotations kept here" : "Saving annotations...");
+    setAnnotationSync(navigator.onLine === false ? "Offline — keep this page open until annotations sync." : "Saving annotations...");
     if (navigator.onLine === false) return undefined;
     syncTimerRef.current = window.setTimeout(async () => {
       try {
@@ -452,10 +494,23 @@ function ReferencePdfViewer({ material, session, onMore, onNotes, onWorkspaceCha
 
   function addImage(event) {
     const file = event.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    commitAnnotations((items) => [...items, { id: uuid(), page, type: "image", src: URL.createObjectURL(file), x: 350, y: 300, width: 300, height: 220 }]);
     event.target.value = "";
-    setAnnotationSync("Image added to this open session");
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 2_000_000) {
+      setAnnotationSync("Choose a PNG, JPEG or WebP image under 2 MB.");
+      return;
+    }
+    const reader = new window.FileReader();
+    reader.onerror = () => setAnnotationSync("Could not read this image.");
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return;
+      commitAnnotations((items) => [...items, {
+        id: uuid(), page, type: "image", src: reader.result,
+        x: 350, y: 300, width: 300, height: 220
+      }]);
+      setAnnotationSync("Image saved on this device only");
+    };
+    reader.readAsDataURL(file);
   }
 
   function beginPan(event) {
@@ -505,7 +560,7 @@ function ReferencePdfViewer({ material, session, onMore, onNotes, onWorkspaceCha
       <header className="lockin-reference-toolbar">
         <div className="lockin-reference-file"><FileText size={25} fill="currentColor" strokeWidth={1.6} /><span>{displayTitle}</span></div>
         <div className="lockin-reference-page-controls" aria-label="Document page controls"><LockInWorkspaceIconButton label="Previous page" onClick={() => changePage(page - 1)} disabled={page <= 1}><ChevronLeft size={19} /></LockInWorkspaceIconButton><span className="lockin-reference-page"><strong>{page}</strong> / {maximumPage}</span><LockInWorkspaceIconButton label="Next page" onClick={() => changePage(page + 1)} disabled={page >= maximumPage}><ChevronRight size={19} /></LockInWorkspaceIconButton></div>
-        <div className="lockin-reference-view-controls"><div className="workspace-v2-control-group" aria-label="Zoom controls"><LockInWorkspaceIconButton label="Zoom out" onClick={() => changeZoom(zoom - 0.1)}><Minus size={18} /></LockInWorkspaceIconButton><span><strong>{Math.round(zoom * 100)}%</strong></span><LockInWorkspaceIconButton label="Zoom in" onClick={() => changeZoom(zoom + 0.1)}><Plus size={18} /></LockInWorkspaceIconButton></div><button className={`lockin-reference-fit${annotationSync !== "Saved" ? " is-attention" : ""}`} type="button" onClick={() => setAnnotationRetry((value) => value + 1)} aria-live="polite" title="Select to retry annotation sync">{combinedSync}</button><LockInWorkspaceIconButton label="Search document" open={searchOpen} aria-expanded={searchOpen} onClick={() => setSearchOpen((value) => !value)}><Search size={18} /></LockInWorkspaceIconButton><LockInWorkspaceIconButton label={bookmarked ? "Remove page bookmark" : "Bookmark page"} active={bookmarked} aria-pressed={bookmarked} onClick={() => setBookmarked((value) => !value)}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /></LockInWorkspaceIconButton><LockInWorkspaceIconButton label="Show document only" onClick={toggleFullscreen}><Maximize2 size={18} /></LockInWorkspaceIconButton><LockInWorkspaceIconButton label={sidebarOpen ? "Hide team sidebar" : "Show team sidebar"} open={sidebarOpen} aria-expanded={sidebarOpen} onClick={() => onSidebarOpenChange?.(!sidebarOpen)}><PanelRightOpen size={19} /></LockInWorkspaceIconButton><LockInWorkspaceIconButton className="lockin-reference-more" label="Open session controls" onClick={onMore}><MoreHorizontal size={19} /></LockInWorkspaceIconButton></div>
+        <div className="lockin-reference-view-controls"><div className="workspace-v2-control-group" aria-label="Zoom controls"><LockInWorkspaceIconButton label="Zoom out" onClick={() => changeZoom(zoom - 0.1)}><Minus size={18} /></LockInWorkspaceIconButton><span><strong>{Math.round(zoom * 100)}%</strong></span><LockInWorkspaceIconButton label="Zoom in" onClick={() => changeZoom(zoom + 0.1)}><Plus size={18} /></LockInWorkspaceIconButton></div><button className={`lockin-reference-fit${annotationSync !== "Saved" ? " is-attention" : ""}`} type="button" onClick={() => setAnnotationRetry((value) => value + 1)} aria-live="polite" title="Select to retry annotation sync">{combinedSync}</button><LockInWorkspaceIconButton label="Search document" open={searchOpen} aria-expanded={searchOpen} onClick={() => setSearchOpen((value) => !value)}><Search size={18} /></LockInWorkspaceIconButton><LockInWorkspaceIconButton label={bookmarked ? "Remove page bookmark" : "Bookmark page"} active={bookmarked} aria-pressed={bookmarked} onClick={() => setBookmarkedPages((current) => bookmarked ? current.filter((value) => value !== page) : [...current, page])}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /></LockInWorkspaceIconButton><LockInWorkspaceIconButton label="Show document only" onClick={toggleFullscreen}><Maximize2 size={18} /></LockInWorkspaceIconButton><LockInWorkspaceIconButton label={sidebarOpen ? "Hide team sidebar" : "Show team sidebar"} open={sidebarOpen} aria-expanded={sidebarOpen} onClick={() => onSidebarOpenChange?.(!sidebarOpen)}><PanelRightOpen size={19} /></LockInWorkspaceIconButton><LockInWorkspaceIconButton className="lockin-reference-more" label="Open session controls" onClick={onMore}><MoreHorizontal size={19} /></LockInWorkspaceIconButton></div>
       </header>
       {searchOpen && <form className="lockin-workspace-search" onSubmit={runSearch}><Search size={17} /><input aria-label="Search this document" placeholder="Search this document..." value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /><button type="submit">Find</button><button type="button" onClick={() => setSearchOpen(false)} aria-label="Close search"><X size={17} /></button></form>}
       <nav className="workspace-v2-toolbar lockin-workspace-tools" aria-label="Document tools">
@@ -628,7 +683,7 @@ function ReferenceActiveSession({ payload, currentUserId, error, busy, noteBody,
         <header className="lockin-reference-top"><div className="lockin-reference-brand"><button className="lockin-reference-back" type="button" onClick={onExit} aria-label="Exit Lock In Mode"><ArrowLeft size={27} /></button><div className="lockin-reference-brand-copy"><h1 id="lock-in-active-title" className="lockin-reference-brand-title">Lock In Mode <LockKeyhole size={20} /></h1><p>Focus. Collaborate. Conquer.</p></div></div><ReferenceStatStrip payload={payload} material={material} tasks={tasks} busy={busy} onSessionAction={onAction} /></header>
         <section className={`lockin-reference-workspace${sidebarOpen && !documentOnly ? "" : " is-side-closed"}`}>
           <div className="li-relative">
-            <ReferencePdfViewer material={material} session={session} onMore={() => { setSidebarOpen(false); setToolsOpen((value) => !value); }} onNotes={openSessionTools} onWorkspaceChange={onWorkspaceChange} workspaceSync={workspaceSync} sidebarOpen={sidebarOpen} onSidebarOpenChange={handleSidebarOpenChange} onFullscreenChange={handleFullscreenChange} sidebarContent={documentOnly ? <LiveTeamPanel team={payload.team} currentUserId={currentUserId} onClose={() => setSidebarOpen(false)} /> : null} fullscreenTools={documentOnly ? sessionTools : null} />
+            <ReferencePdfViewer material={material} session={session} currentUserId={currentUserId} onMore={() => { setSidebarOpen(false); setToolsOpen((value) => !value); }} onNotes={openSessionTools} onWorkspaceChange={onWorkspaceChange} workspaceSync={workspaceSync} sidebarOpen={sidebarOpen} onSidebarOpenChange={handleSidebarOpenChange} onFullscreenChange={handleFullscreenChange} sidebarContent={documentOnly ? <LiveTeamPanel team={payload.team} currentUserId={currentUserId} onClose={() => setSidebarOpen(false)} /> : null} fullscreenTools={documentOnly ? sessionTools : null} />
             {!documentOnly && sessionTools}
             {error && <p className="lockin-reference-error" role="alert">{error}</p>}
           </div>
@@ -684,10 +739,12 @@ export default function LockInMode({ user }) {
   const navigate = useNavigate();
   const [state, setState] = useState({ loading: true, error: "", bootstrap: null, payload: null });
   const [starting, setStarting] = useState(false);
+  const startKeyRef = useRef(uuid());
   const [busy, setBusy] = useState("");
   const [exitOpen, setExitOpen] = useState(false);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [noteBody, setNoteBody] = useState("");
+  const latestNoteBodyRef = useRef("");
   const [noteSync, setNoteSync] = useState("Saved");
   const [noteRetryNonce, setNoteRetryNonce] = useState(0);
   const [workspaceSync, setWorkspaceSync] = useState("Saved");
@@ -699,8 +756,13 @@ export default function LockInMode({ user }) {
   const workspaceSaveTimerRef = useRef(null);
 
   const replacePayload = useCallback((payload, { syncNote = true } = {}) => {
-    setState((current) => ({ ...current, payload: { ...payload, received_at_ms: Date.now() }, error: "", loading: false }));
-    if (syncNote && typeof payload?.note?.body === "string") setNoteBody(payload.note.body);
+    setState((current) => acceptsLiveResponse(current.payload, payload)
+      ? { ...current, payload: { ...payload, received_at_ms: Date.now(), received_at_monotonic_ms: window.performance.now() }, error: "", loading: false }
+      : current);
+    if (syncNote && typeof payload?.note?.body === "string") {
+      latestNoteBodyRef.current = payload.note.body;
+      setNoteBody(payload.note.body);
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -718,6 +780,37 @@ export default function LockInMode({ user }) {
   }, [replacePayload, sessionId, t]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // An interrupted legacy session restores its last device draft before
+  // attempting server sync. A late read must not overwrite newer typing.
+  const activeNoteSessionId = state.payload?.session?.lock_in_live ? "" : state.payload?.session?.id;
+  const serverNoteBody = state.payload?.note?.body || "";
+  useEffect(() => {
+    if (!user?.id || !activeNoteSessionId) return;
+    let cancelled = false;
+    void readLegacyNoteDraft(user.id, activeNoteSessionId).then((stored) => {
+      if (cancelled || stored === null || stored === serverNoteBody || latestNoteBodyRef.current !== serverNoteBody) return;
+      latestNoteBodyRef.current = stored;
+      setNoteBody(stored);
+      setNoteRetryNonce((value) => value + 1);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id, activeNoteSessionId, serverNoteBody]);
+
+  const updateNoteDraft = useCallback((body) => {
+    latestNoteBodyRef.current = body;
+    setNoteBody(body);
+    if (!user?.id || !activeNoteSessionId) return;
+    void writeLegacyNoteDraft(user.id, activeNoteSessionId, body)
+      .then(() => { if (navigator.onLine === false) setNoteSync("Offline — note saved on this device"); })
+      .catch(() => setNoteSync("Local save failed — keep this tab open and retry."));
+  }, [activeNoteSessionId, user?.id]);
+
+  useEffect(() => {
+    const retry = () => setNoteRetryNonce((value) => value + 1);
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, []);
 
   const refreshBootstrap = useCallback(async () => {
     const bootstrap = await focusApi.getLockIn();
@@ -753,17 +846,19 @@ export default function LockInMode({ user }) {
   useEffect(() => {
     if (!state.payload?.session || !isUnfinished(state.payload)) return undefined;
     if (noteBody === (state.payload.note?.body || "")) return undefined;
-    setNoteSync(navigator.onLine === false ? "Offline — changes kept here" : "Saving…");
+    setNoteSync(navigator.onLine === false ? "Offline — saving device draft…" : "Saving…");
     const timeout = window.setTimeout(async () => {
       if (navigator.onLine === false) return;
       try {
         const payload = await focusApi.updateLockInNote(state.payload.session.id, { body: noteBody, expectedRevision: state.payload.note?.revision || null });
-        replacePayload(payload);
-        setNoteSync("Saved");
+        const unchanged = latestNoteBodyRef.current === noteBody;
+        replacePayload(payload, { syncNote: unchanged });
+        if (unchanged) setNoteSync("Saved");
+        if (user?.id) void acknowledgeLegacyNoteDraft(user.id, state.payload.session.id, noteBody).catch(() => {});
       } catch (error) { setNoteSync(error.message || "Sync failed — retry when connected."); }
     }, 700);
     return () => window.clearTimeout(timeout);
-  }, [noteBody, noteRetryNonce, replacePayload, state.payload]);
+  }, [noteBody, noteRetryNonce, replacePayload, state.payload, user?.id]);
 
   useEffect(() => () => {
     if (workspaceSaveTimerRef.current) window.clearTimeout(workspaceSaveTimerRef.current);
@@ -807,8 +902,10 @@ export default function LockInMode({ user }) {
     setStarting(true);
     writeReturnState(user, returnStateRef.current);
     try {
-      const payload = await focusApi.startLockIn({ ...input, clientInstanceId: uuid() });
+      const payload = await focusApi.startLockIn({ ...input, clientInstanceId: startKeyRef.current });
       replacePayload(payload);
+      startKeyRef.current = uuid();
+      setSetupMode("");
       navigate(`/lock-in/${payloadSessionId(payload)}`, { replace: true });
     } catch (error) {
       setState((current) => ({ ...current, error: error.message || t("lockIn.startFailed") }));
@@ -852,6 +949,12 @@ export default function LockInMode({ user }) {
     if (routeSessionRef.current === liveSessionId) replacePayload(payload, { syncNote: false });
   }, [liveSessionId, replacePayload]);
 
+  const liveGoal = useCallback(async (values) => {
+    if (!liveSessionId) return;
+    const payload = await focusApi.updateLockInGoal(liveSessionId, values);
+    if (routeSessionRef.current === liveSessionId) replacePayload(payload, { syncNote: false });
+  }, [liveSessionId, replacePayload]);
+
   async function liveLeave() {
     if (!liveSessionId) return;
     setBusy("leave");
@@ -891,17 +994,17 @@ export default function LockInMode({ user }) {
     finally { setBusy(""); }
   }
 
-  if (state.loading) return <main className="lock-in-screen"><LoadingPanel /></main>;
+  if (state.loading) return <main className="lock-in-screen"><LoadingPanel variant="lock-in" /></main>;
   if (state.error && !state.bootstrap && !state.payload) return <main className="lock-in-screen"><ErrorPanel message={state.error} onRetry={load} /></main>;
   if (!state.payload && !setupMode) return <LockInLobby bootstrap={state.bootstrap} onSolo={() => { setSetupTeamId(null); setSetupMode("solo"); }} onTeamStart={(id) => { setSetupTeamId(id); setSetupMode("team-session"); }} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} onResumeSession={(id) => navigate(`/lock-in/${id}`)} onExit={returnToSource} onRefresh={refreshBootstrap} />;
-  if (!state.payload) return <LockInSetup bootstrap={state.bootstrap} teamId={setupTeamId} preselectedDocumentVersionId={location.state?.preselectedDocumentVersionId} onStart={startSession} onBack={() => setSetupMode("")} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} busy={starting} error={state.error} />;
-  if (state.payload.session?.lock_in_live) return <LockInLive payload={state.payload} busy={busy} error={state.error} onAction={action} onHome={() => navigate("/lock-in")} onPresence={livePresence} onLeave={liveLeave} onTeamAction={liveTeamAction} onRefresh={refreshLive} />;
+  if (!state.payload) return <LockInSetup bootstrap={state.bootstrap} teamId={setupTeamId} preselectedDocumentVersionId={location.state?.preselectedDocumentVersionId} onStart={startSession} onExit={returnToSource} onBack={() => setSetupMode("")} onResume={() => navigate(`/lock-in/${payloadSessionId(state.bootstrap?.active_session)}`, { replace: true })} busy={starting} error={state.error} />;
+  if (state.payload.session?.lock_in_live) return <LockInLive payload={state.payload} busy={busy} error={state.error} onAction={action} onHome={() => navigate("/lock-in")} onPresence={livePresence} onGoal={liveGoal} onExit={returnToSource} onLeave={liveLeave} onTeamAction={liveTeamAction} onRefresh={refreshLive} />;
   if (!isUnfinished(state.payload)) return <Summary payload={state.payload} onReturn={returnToSource} />;
 
   const { session } = state.payload;
   return (
     <>
-      <ReferenceActiveSession payload={state.payload} currentUserId={user?.id} error={state.error} busy={busy} noteBody={noteBody} noteSync={navigator.onLine === false ? "Offline — changes kept on this device" : noteSync} taskDraft={taskDraft} onAction={action} onExit={() => setExitOpen(true)} onWorkspaceChange={queueWorkspaceChange} workspaceSync={workspaceSync} onNoteChange={setNoteBody} onRetryNote={() => setNoteRetryNonce((value) => value + 1)} onTaskDraftChange={setTaskDraft} onAddTask={addTask} onToggleTask={toggleTask} onAbandon={() => setAbandonOpen(true)} />
+      <ReferenceActiveSession payload={state.payload} currentUserId={user?.id} error={state.error} busy={busy} noteBody={noteBody} noteSync={noteSync} taskDraft={taskDraft} onAction={action} onExit={() => setExitOpen(true)} onWorkspaceChange={queueWorkspaceChange} workspaceSync={workspaceSync} onNoteChange={updateNoteDraft} onRetryNote={() => setNoteRetryNonce((value) => value + 1)} onTaskDraftChange={setTaskDraft} onAddTask={addTask} onToggleTask={toggleTask} onAbandon={() => setAbandonOpen(true)} />
       <ExitDialog open={exitOpen} busy={Boolean(busy)} onStay={() => setExitOpen(false)} onPauseExit={() => session.status === "active" ? action("pause", { exitAfter: true }) : returnToSource()} onComplete={() => action("complete", { exitAfter: true })} onAbandon={() => { setExitOpen(false); setAbandonOpen(true); }} />
       <ConfirmDialog open={abandonOpen} title="Abandon this session?" message="Your notes, tasks, and elapsed active focus time will still be saved, but this session will not count as completed." confirmLabel={busy === "abandon" ? "Abandoning…" : "Abandon session"} onCancel={() => setAbandonOpen(false)} onConfirm={() => action("abandon")} />
     </>

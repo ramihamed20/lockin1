@@ -9,7 +9,7 @@ const CONCEPT = "66000000-0000-4000-8000-000000000004";
 const QUESTION = "66000000-0000-4000-8000-000000000005";
 const ROUTE = "/#/materials/catalog/biochemistry-1/sheets/vitamin-1/workspace";
 
-async function prepare(page, arabic = false) {
+async function prepare(page, arabic = false, extraConcepts = []) {
   await withoutServiceWorker(page);
   await page.addInitScript((locale) => localStorage.setItem("lock-in.locale", locale), arabic ? "ar" : "en");
   const artifacts = new Map(), attempts = new Map();
@@ -44,7 +44,7 @@ async function prepare(page, arabic = false) {
       source: { document_id: DOCUMENT, source_version_id: VERSION, source_file_id: FILE, edition: "university" },
       artifacts: [...artifacts.values()].map((record) => ({ ...record, content: null })), attempts: [...attempts.values()],
       questions: [{ id: QUESTION, revision: 1, concept_id: CONCEPT, difficulty: "easy", page_start: 1, page_end: 1, prompt: "Explain nutrient diffusion." }],
-      concepts: [{ id: CONCEPT, title: "Nutrient diffusion", page_start: 1, page_end: 1, status: "not_practiced", verified_events: 0 }],
+      concepts: [{ id: CONCEPT, title: "Nutrient diffusion", page_start: 1, page_end: 1, status: "not_practiced", verified_events: 0 }, ...extraConcepts],
     });
     if (path.includes("/workspace") && method === "GET") return send({ revision: 0, state: null });
     if (path.includes("/workspace") && method === "PATCH") return send({ revision: 1, state: route.request().postDataJSON().state });
@@ -95,6 +95,7 @@ test("summary, map, explanation and reader share a persistent optional workspace
   await expect(panel.locator(".knowledge-map-node")).toHaveCSS("left", "70px");
   await panel.locator(".knowledge-map-node").press("Control+z");
   await expect(panel.locator(".knowledge-map-node")).toHaveCSS("left", "60px");
+  await panel.locator(".map-options > summary").click();
   await panel.getByRole("button", { name: "Recall", exact: true }).click();
   await expect(panel.locator(".knowledge-map-node")).toHaveText("…");
   await panel.getByRole("button", { name: "Reveal", exact: true }).click();
@@ -219,4 +220,89 @@ test("failed Explain draft remains unsaved and its text is included in recovery 
   const { readFile } = await import("node:fs/promises");
   const backup = JSON.parse(await readFile(await download.path(), "utf8"));
   expect(Object.values(backup.workspace_state.ui.explanationDrafts)).toContain("answer quota draft");
+});
+
+
+test("writing recall keeps the original and survives reopening", async ({ page }) => {
+  const { artifacts } = await prepare(page);
+  const panel = await open(page);
+  await panel.getByRole("button", { name: "Start my summary", exact: true }).click();
+  await panel.getByLabel("In your own words").fill("Original nutrient explanation.");
+  await panel.getByRole("button", { name: "Recall in writing", exact: true }).click();
+  await expect(panel.getByText("Original nutrient explanation.", { exact: true })).toHaveCount(0);
+  await panel.getByLabel("What do you remember?").fill("Nutrients diffuse.");
+  await panel.getByRole("button", { name: "Reveal my original", exact: true }).click();
+  await expect(panel.getByText("Original nutrient explanation.", { exact: true })).toBeVisible();
+  await panel.getByLabel("What did you miss or mix up?").fill("I forgot the source.");
+  await panel.getByRole("button", { name: "Back to my work", exact: true }).click();
+  await expect(panel.getByLabel("In your own words")).toHaveValue("Original nutrient explanation.");
+  await expect.poll(() => [...artifacts.values()].some(item => item.content?.recall?.reflection === "I forgot the source.")).toBe(true);
+  const resumed = await open(page, true);
+  await resumed.getByRole("button", { name: "Recall in writing", exact: true }).click();
+  await expect(resumed.getByLabel("What do you remember?")).toHaveValue("Nutrients diffuse.");
+});
+
+test("concept comparison and corrected explanation stay linked to the student's notebook", async ({ page }) => {
+  const second = { id: "66000000-0000-4000-8000-000000000006", title: "Blood supply", page_start: 1, page_end: 1, status: "needs_review" };
+  const { artifacts, attempts } = await prepare(page, false, [second]);
+  const panel = await open(page);
+  await panel.getByRole("button", { name: "My Knowledge", exact: true }).click();
+  await panel.getByText("Compare two concepts", { exact: true }).click();
+  await panel.getByRole("combobox", { name: "First concept", exact: true }).selectOption(CONCEPT);
+  await panel.getByRole("combobox", { name: "Second concept", exact: true }).selectOption(second.id);
+  await panel.getByRole("button", { name: "Create comparison notebook" }).click();
+  await expect(panel.getByLabel("In your own words")).toHaveValue(/Nutrient diffusion ↔ Blood supply/);
+  await expect.poll(() => [...artifacts.values()].some(item => item.content?.concept_ids?.length === 2)).toBe(true);
+  await panel.getByRole("button", { name: "Explain", exact: true }).click();
+  await panel.getByLabel("Your explanation", { exact: true }).fill("My explanation.");
+  await panel.getByRole("combobox", { name: "Confidence before checking (optional)", exact: true }).selectOption("high");
+  await panel.getByRole("button", { name: "Save answer and review criteria", exact: true }).click();
+  await expect.poll(() => [...attempts.values()].some(item => item.confidence === "high")).toBe(true);
+  await panel.getByLabel("After comparing: explain it in your own words").fill("My corrected understanding.");
+  await panel.getByRole("button", { name: "Add my explanation to my summary", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "Add my explanation to my summary" }).getByRole("button", { name: "Add my explanation to my summary", exact: true }).click();
+  await expect(panel.getByLabel("In your own words")).toHaveValue(/My corrected understanding/);
+});
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1180, height: 820 }]) {
+  test(`map creation, linking and persistence at ${viewport.width}`, async ({ page }) => {
+    test.setTimeout(90000); await page.setViewportSize(viewport);
+    const { artifacts } = await prepare(page); const panel = await open(page, false, "map");
+    await panel.getByRole("button", { name: "Start my map", exact: true }).click();
+    const map = panel.locator(".knowledge-map"), input = map.getByRole("textbox", { name: "New idea" });
+    await input.fill("Nutrition"); await input.press("Enter");
+    await map.getByRole("button", { name: "Add a branch", exact: true }).click();
+    await input.fill("Diffusion"); await input.press("Enter");
+    await expect(map.locator(".knowledge-map-node")).toHaveCount(2);
+    await expect(map.locator("path[data-edge]")).toHaveCount(1);
+    await map.locator(".map-simple-actions").getByRole("button", { name: "Add concept" }).click();
+    await input.fill("Oxygen"); await input.press("Enter");
+    await map.getByRole("button", { name: "Link an idea" }).click();
+    await map.locator(".knowledge-map-node").filter({ hasText: "Diffusion" }).click();
+    await expect(map.locator("path[data-edge]")).toHaveCount(2);
+    await expect.poll(() => [...artifacts.values()].find(record => record.kind === "map")?.content?.edges?.length).toBe(2);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await map.locator(".map-options > summary").click();
+    await expect(map.locator(".map-options")).toHaveAttribute("open");
+    await page.keyboard.press("Escape");
+    await expect(map.locator(".map-options")).not.toHaveAttribute("open");
+    await expect(panel).toBeVisible();
+    const resumed = await open(page, true, "map");
+    await expect(resumed.locator(".knowledge-map-node")).toHaveCount(3);
+    await expect(resumed.locator("path[data-edge]")).toHaveCount(2);
+  });
+}
+
+test("Arabic map uses RTL controls without overflowing", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await prepare(page, true);
+  const panel = await open(page, false, "map");
+  await panel.getByRole("button", { name: "ابدأ خريطتي", exact: true }).click();
+  const map = panel.locator(".knowledge-map");
+  const input = map.getByRole("textbox", { name: "فكرة جديدة" });
+  await input.fill("التغذية"); await input.press("Enter");
+  await map.getByRole("button", { name: "إضافة فرع", exact: true }).click();
+  await input.fill("الانتشار"); await input.press("Enter");
+  await expect(map.locator("path[data-edge]")).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

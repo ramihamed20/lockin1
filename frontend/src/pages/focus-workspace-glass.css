@@ -260,6 +260,19 @@ html.ix-hover .workspace-v2 .workspace-v7-panel-body :is(.workspace-v2-icon-choi
 /* Under its own heading a size slider needs no second label. */
 
 .workspace-v2 .workspace-v2-tool-range input { width: 100%; min-width: 0; height: 30px; margin: 0; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer; }
+/* A quick horizontal drag on iOS must belong to the range, not the inspector
+   scroller (which otherwise cancels the gesture). Only the slider hit area
+   disables touch panning; the rest of the options panel still scrolls. */
+.workspace-v2 .workspace-v2-tool-range input[type="range"] {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+@media (pointer: coarse) {
+  .workspace-v2 .workspace-v2-tool-options .workspace-v2-tool-range input[type="range"] {
+    min-height: 44px;
+  }
+}
 .workspace-v2 .workspace-v7-panel-body .workspace-v2-tool-range input::-webkit-slider-runnable-track,
 .workspace-v2 .workspace-v2-settings-popover .workspace-v2-tool-range input::-webkit-slider-runnable-track {
   height: 5px;
@@ -1632,18 +1645,20 @@ html.ix-hover .workspace-search-footer button:hover:not(:disabled) { background:
    keep 44px targets and show Close on the open tab only; a desktop pointer
    gets a compact strip with Close on every tab. */
 .workspace-v2-toolbar > .workspace-tabs { grid-column: 1 / -1; display: flex; min-width: 0; align-items: center; gap: 4px; margin-block-end: 2px; padding-block-end: 3px; border-block-end: 1px solid var(--fx-hair); }
-.workspace-tabs-scroller { display: flex; min-width: 0; flex: 0 1 auto; gap: 3px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-inline: contain; }
-.workspace-tabs-scroller::-webkit-scrollbar { display: none; }
+.workspace-tabs-scroller { display: flex; min-width: 0; flex: 1 1 auto; gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: var(--fx-hair) transparent; overscroll-behavior-inline: contain; touch-action: pan-x; -webkit-overflow-scrolling: touch; }
+.workspace-tabs-scroller::-webkit-scrollbar { height: 3px; }
+.workspace-tabs-scroller::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--fx-text-3); }
 .workspace-tab { position: relative; display: flex; max-width: 200px; flex: 0 0 auto; align-items: center; border-radius: 11px; color: var(--fx-text-3); transition: background-color 180ms var(--fx-spring), color 180ms var(--fx-spring); }
-.workspace-tab > button[role="tab"] { display: flex; min-width: 44px; height: 44px; align-items: center; gap: 6px; padding-inline: 12px 10px; border: 0; color: inherit; background: transparent; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 600; }
+.workspace-tab > button[role="tab"] { display: flex; min-width: 44px; height: 32px; flex: 1 1 auto; align-items: center; gap: 6px; padding-inline: 10px 6px; border: 0; color: inherit; background: transparent; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 500; }
 .workspace-tab > button[role="tab"] > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-tab > button[role="tab"] > svg { flex: 0 0 auto; }
 .workspace-tab.is-active { color: var(--fx-text); background: var(--fx-fill-strong); box-shadow: inset 0 0 0 1px var(--fx-hair); }
 html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); background: var(--fx-fill); }
-.workspace-tab-close { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; padding: 0; border: 0; border-radius: 10px; color: inherit; background: transparent; cursor: pointer; opacity: .7; }
-.workspace-tab:not(.is-active) .workspace-tab-close { display: none; }
+.workspace-tab-close { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; padding: 0; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; opacity: .7; }
+.workspace-tab:not(.is-active) .workspace-tab-close { display: grid; visibility: hidden; pointer-events: none; }
+html.ix-hover .workspace-tab:not(.is-active):is(:hover, :focus-within) .workspace-tab-close { visibility: visible; pointer-events: auto; }
 .workspace-tab-close:hover { color: var(--fx-text); background: var(--fx-fill-strong); opacity: 1; }
-.workspace-tabs-add { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; padding: 0; border: 0; border-radius: 11px; color: var(--fx-text-2); background: transparent; cursor: pointer; }
+.workspace-tabs-add { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; padding: 0; border: 0; border-radius: 8px; color: var(--fx-text-2); background: transparent; cursor: pointer; }
 .workspace-tabs-add:hover, .workspace-tabs-add.is-active { color: var(--fx-text); background: var(--fx-fill-strong); }
 .workspace-tab button:focus-visible, .workspace-tabs-add:focus-visible { outline: 2px solid var(--fx-accent); outline-offset: -2px; }
 
@@ -1653,7 +1668,7 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   .workspace-v2-toolbar > .workspace-tabs { padding-block-end: 4px; }
   .workspace-tab { border-radius: 9px; }
   .workspace-tab > button[role="tab"] { min-width: 0; height: 30px; padding-inline: 10px 8px; font-size: .72rem; }
-  .workspace-tab-close, .workspace-tab:not(.is-active) .workspace-tab-close { display: grid; width: 22px; height: 22px; flex-basis: 22px; margin-inline-end: 4px; border-radius: 6px; }
+  .workspace-tab-close, .workspace-tab:not(.is-active) .workspace-tab-close { display: grid; width: 22px; height: 22px; flex-basis: 22px; margin-inline-end: 4px; border-radius: 6px; visibility: visible; pointer-events: auto; }
   .workspace-tabs-add { width: 30px; height: 30px; flex-basis: 30px; border-radius: 9px; }
 }
 
@@ -1687,15 +1702,18 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
 .workspace-tabs-picker-list button em { padding: 2px 7px; border-radius: 99px; color: var(--fx-text-2); background: var(--fx-fill); font-size: .62rem; font-style: normal; font-weight: 700; }
 .workspace-tabs-empty { margin: 8px; color: var(--fx-text-3); font-size: .78rem; }
 
-/* The whiteboard's "Add page" sits under its last page at a fixed screen
-   size, whatever the zoom of the document around it. */
-.workspace-whiteboard-footer { display: grid; width: 595px; height: 72px; place-items: start center; }
-.workspace-whiteboard-footer button { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; margin-top: 4px; padding: 0 18px; border: 1px dashed rgb(120 140 170 / .55); border-radius: 12px; color: #3b4a63; background: rgb(255 255 255 / .9); cursor: pointer; font: inherit; font-size: .82rem; font-weight: 650; transform: scale(calc(1 / var(--workspace-a4-zoom, 1))); transform-origin: top center; }
+/* The whiteboard action lives in an unscaled surface slot after the last
+   physical page. Its full-size hit target and bottom scroll clearance must
+   remain visible above Safari's bottom edge on every zoom and orientation. */
+.workspace-v2-a4-footer-anchor { position: absolute; z-index: 5; display: block; min-width: 0; pointer-events: none; }
+.workspace-whiteboard-footer { position: sticky; left: 0; display: grid; width: min(100%, var(--workspace-footer-view-width, 100%)); height: 88px; place-items: center; pointer-events: none; }
+.workspace-whiteboard-footer button { display: inline-flex; min-width: 120px; min-height: 48px; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1px dashed rgb(120 140 170 / .55); border-radius: 12px; color: #3b4a63; background: rgb(255 255 255 / .97); cursor: pointer; pointer-events: auto; font: inherit; font-size: .82rem; font-weight: 650; box-shadow: 0 5px 18px rgb(0 0 0 / .13); }
 .workspace-whiteboard-footer button:hover { border-style: solid; background: #fff; }
+.workspace-whiteboard-footer button:focus-visible { outline: 3px solid #7c8ff5; outline-offset: 3px; }
 
 @media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
   .workspace-v2-toolbar > .workspace-tabs { gap: 2px; }
-  .workspace-tab { max-width: 150px; }
+  .workspace-tab { max-width: 180px; }
 }
 .workspace-v2.is-whiteboard .workspace-v3-document-context span { text-transform: none; }
 /* A phone typing into a panel needs every row above the keyboard; the tabs
@@ -1719,8 +1737,8 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   border-radius: 0;
   box-shadow: inset 0 -1px 0 rgb(255 255 255 / .03), 0 10px 24px -18px rgb(0 0 0 / .7);
 }
-/* The tab strip reads like browser tabs: its divider runs edge to edge, and
-   the open tab is a raised, top-rounded tab carrying an accent line. */
+/* Secondary navigation stays shallow; stable close slots prevent names from
+   jumping and a thin blue line identifies the current document. */
 .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar {
   --workspace-bar-inline-start: max(10px, env(safe-area-inset-left));
   --workspace-bar-inline-end: max(10px, env(safe-area-inset-right));
@@ -1728,15 +1746,19 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
 }
 .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar > .workspace-tabs {
   margin-inline: calc(-1 * var(--workspace-bar-inline-start)) calc(-1 * var(--workspace-bar-inline-end));
-  margin-block-end: 4px;
-  padding-block-end: 0;
+  margin-block-end: 1px;
+  padding-block: 1px;
   padding-inline: var(--workspace-bar-inline-start) var(--workspace-bar-inline-end);
-  align-items: flex-end;
+  align-items: center;
+  gap: 6px;
+  background: var(--workspace-panel);
 }
-.workspace-v2 .workspace-tabs-scroller { align-items: flex-end; }
-.workspace-v2 .workspace-tab { border-radius: 10px 10px 0 0; }
-.workspace-v2 .workspace-tab.is-active { background: var(--fx-fill-strong); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
-.workspace-v2 .workspace-tab.is-active::after { position: absolute; inset-inline: 10px; inset-block-end: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--fx-accent); content: ""; }
+.workspace-v2 .workspace-tabs-scroller { align-items: center; }
+.workspace-v2 .workspace-tab { border-radius: 10px; color: var(--fx-text-2); }
+.workspace-v2 .workspace-tab.is-active { color: var(--fx-text); background: var(--fx-fill); box-shadow: none; }
+.workspace-v2 .workspace-tab.is-active > button[role="tab"] { font-weight: 650; }
+.workspace-v2 .workspace-tab.is-active > button[role="tab"] > svg { color: var(--fx-accent); }
+.workspace-v2 .workspace-tab.is-active::after { position: absolute; inset-inline: 12px; inset-block-end: 3px; height: 2px; border-radius: 2px; background: var(--fx-accent); content: ""; pointer-events: none; }
 .workspace-v2 .workspace-tabs-add { align-self: center; }
 @media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
   .workspace-v2 .workspace-v2-reader > .workspace-v2-toolbar {
@@ -1752,30 +1774,26 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
 .workspace-v2.has-tabs .workspace-v3-document-context { display: none; }
 .workspace-v2.has-tabs .workspace-v2-toolbar .workspace-v2-control-group.is-exit { padding-inline-end: 6px; }
 
-/* Wide screens fit the tabs and the tools on one slim row: Back, the open
-   documents, the writing tools centred in the remaining space, then the
-   workspace actions. */
+/* Landscape tablets keep open sheets in a shallow row above the tools. */
 @media (min-width: 1180px) and (min-height: 600px) {
-  .workspace-v2.has-tabs .workspace-v2-reader > .workspace-v2-toolbar {
-    grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr) auto;
+  .workspace-v2.has-tabs:not(.has-single-tab) .workspace-v2-reader > .workspace-v2-toolbar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     gap: 6px;
     min-height: 0;
     padding-block: max(5px, env(safe-area-inset-top)) 5px;
   }
-  .workspace-v2.has-tabs .workspace-v2-toolbar > .workspace-v2-control-group.is-exit { grid-row: 1; grid-column: 1; }
-  .workspace-v2.has-tabs .workspace-v2-reader > .workspace-v2-toolbar > .workspace-tabs {
+  .workspace-v2.has-tabs:not(.has-single-tab) .workspace-v2-toolbar > .workspace-v2-control-group.is-exit { grid-row: 2; grid-column: 1; }
+  .workspace-v2.has-tabs:not(.has-single-tab) .workspace-v2-reader > .workspace-v2-toolbar > .workspace-tabs {
     grid-row: 1;
-    grid-column: 2;
-    max-width: 36vw;
-    margin: 0;
-    padding: 0 8px 0 0;
+    grid-column: 1 / -1;
+    max-width: none;
     align-items: center;
-    border: 0;
+    border-block-end: 1px solid var(--fx-hair);
   }
-  .workspace-v2.has-tabs .workspace-v2-toolbar > .workspace-tabs::after { position: absolute; inset-block: 26%; inset-inline-end: 0; width: 1px; content: ""; background: rgb(255 255 255 / .12); }
-  .workspace-v2.has-tabs .workspace-v2-toolbar > .workspace-tabs { position: relative; padding-inline-end: 8px; }
-  .workspace-v2.has-tabs .workspace-v2-toolbar > .workspace-v3-primary { grid-row: 1; grid-column: 3; justify-self: center; max-width: 100%; }
-  .workspace-v2.has-tabs .workspace-v2-toolbar > .workspace-v2-toolbar-actions { grid-row: 1; grid-column: 4; }
+  .workspace-v2.has-tabs .workspace-v2-toolbar > .workspace-tabs::after { display: none; }
+  .workspace-v2.has-tabs:not(.has-single-tab) .workspace-v2-toolbar > .workspace-v3-primary { grid-row: 2; grid-column: 2; justify-self: stretch; max-width: 100%; }
+  .workspace-v2.has-tabs:not(.has-single-tab) .workspace-v2-toolbar > .workspace-v2-history.is-docked { grid-row: 2; grid-column: 3; }
+  .workspace-v2.has-tabs:not(.has-single-tab) .workspace-v2-toolbar > .workspace-v2-toolbar-actions { grid-row: 2; grid-column: 4; }
   .workspace-v2.has-tabs .workspace-tabs-scroller { align-items: center; }
   .workspace-v2.has-tabs .workspace-tab { border-radius: 9px; }
   .workspace-v2.has-tabs .workspace-tab.is-active::after { inset-inline: 12px; inset-block-end: 3px; height: 2px; border-radius: 2px; }
@@ -1845,8 +1863,7 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
    and a larger target so it can be reached and tapped from the middle of the
    screen. */
 @media (pointer: coarse) {
-  .workspace-whiteboard-footer { height: 160px; }
-  .workspace-whiteboard-footer button { min-height: 56px; margin-top: 8px; padding: 0 26px; font-size: .95rem; }
+  .workspace-whiteboard-footer button { min-height: 56px; padding: 0 26px; font-size: .95rem; }
 }
 
 /* The Study launcher carries its name where the toolbar has room, so a student
@@ -1970,6 +1987,51 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
   transition: width 160ms var(--fx-spring), height 160ms var(--fx-spring), background-color 160ms ease;
 }
 
+/* WebKit retained a second painted SVG when an ink selection remounted and
+   transformed the active pen. Keep one stable, untransformed glyph, clipped to
+   its own button; animate the separate ink trace instead. */
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"]) {
+  overflow: hidden;
+  isolation: isolate;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"]) > svg {
+  display: block;
+  flex: none;
+  transform: none;
+  transition: color 180ms ease;
+}
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:has(> .workspace-v3-tool-swatch) > svg {
+  color: var(--workspace-tool-color);
+}
+.workspace-v3-tool-color-trace {
+  position: absolute;
+  inset-inline-start: calc(50% - 10px);
+  inset-block-end: 4px;
+  z-index: 1;
+  width: 20px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--workspace-tool-color);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--workspace-tool-color) 42%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: left center;
+}
+@keyframes workspace-v3-ink-swipe {
+  0% { opacity: 0; transform: scaleX(.12) translateY(2px); }
+  28% { opacity: .92; transform: scaleX(.35) translateY(0); }
+  70% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-v3-tool-button.is-color-animated > .workspace-v3-tool-color-trace {
+    animation: workspace-v3-ink-swipe 540ms ease-out both;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-v3-tool-color-trace { display: none; }
+}
+
 /* The sliders button sits with the quick colours, so it shows where they do. */
 @media (min-width: 700px) and (min-height: 600px) {
   .workspace-v2 .workspace-v2-toolbar .workspace-v3-quick-colors { padding-inline-end: 0; }
@@ -2030,6 +2092,16 @@ html.ix-hover .workspace-tab:not(.is-active):hover { color: var(--fx-text-2); ba
 }
 .workspace-v2 .workspace-v2-tool-list > .workspace-v2-tool-indicator[data-ready="true"] {
   transition: transform 240ms cubic-bezier(.22, 1, .36, 1), width 240ms cubic-bezier(.22, 1, .36, 1), height 240ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease, background-color 200ms ease, box-shadow 200ms ease;
+}
+
+/* Use available tablet width for the tools instead of centring a narrow group.
+   Fixed button sizes and the existing scrolling rail keep touch usable. */
+@media (min-width: 700px) {
+  .workspace-v2 .workspace-v2-toolbar > .workspace-tool-dock[data-dock-edge="top"] { justify-self: stretch; }
+  .workspace-v2 .workspace-v2-toolbar > .workspace-tool-dock[data-dock-edge="top"] .workspace-v2-tool-list {
+    flex: 1 0 auto;
+    justify-content: space-evenly;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .workspace-v2 .workspace-v2-tool-list > .workspace-v2-tool-indicator[data-ready="true"] { transition: none; }

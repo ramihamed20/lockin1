@@ -29,6 +29,8 @@ function createServer() {
     workspace: { revision: 0, state: {} },
     receipts: new Map(),
     annotationPosts: [],
+    annotationReads: 0,
+    annotationReadGate: null,
     // Set to a number of annotation posts to drop, as a lost connection would.
     dropAnnotationPosts: 0
   };
@@ -63,6 +65,10 @@ async function mockServer(page, server) {
       return route.fulfill({ status: 200, contentType: "application/pdf", body: await pdf });
     }
     if (pathname === `/api/v1/catalog/documents/${DOCUMENT_ID}/workspace`) {
+      if (method === "GET" && url.searchParams.has("probe")) return json({
+        revision: server.workspace.revision, collection_revision: server.collectionRevision,
+        document_version_id: VERSION_ID, checksum_sha256: "fixture"
+      });
       if (method === "GET") return json(server.workspace);
       const body = request.postDataJSON();
       if (server.receipts.has(body.idempotency_key)) return json({ ...server.receipts.get(body.idempotency_key), replayed: true });
@@ -74,6 +80,8 @@ async function mockServer(page, server) {
     }
     if (pathname === `/api/v1/focus/documents/${VERSION_ID}/annotations`) {
       if (method === "GET") {
+        server.annotationReads += 1;
+        if (server.annotationReadGate) await server.annotationReadGate;
         const pages = (url.searchParams.get("pages") || "").split(",").map(Number);
         const results = [...server.annotations.values()].filter((item) => pages.includes(item.page_number));
         return json({ collection_revision: server.collectionRevision, count: results.length, next: null, previous: null, results });
@@ -167,4 +175,28 @@ test("ink drawn while the connection drops is sent once it returns, under its fi
   const [dropped, delivered] = server.annotationPosts;
   expect(delivered.idempotency_key).toBe(dropped.idempotency_key);
   expect(delivered.annotations.map((item) => item.id)).toEqual(dropped.annotations.map((item) => item.id));
+});
+
+test("a focus refresh preserves ink drawn while the other device's marks download", async ({ page }) => {
+  const server = createServer();
+  await mockServer(page, server);
+  await openWorkspace(page);
+  await page.getByRole("button", { name: "Pen", exact: true }).click();
+  await drawStroke(page);
+  await expect.poll(() => server.annotations.size).toBe(1);
+  const first = [...server.annotations.values()][0];
+  const remote = { ...first, id: "b14f7828-2d7e-4c7f-8bd6-d06946752d73" };
+  server.annotations.set(remote.id, remote);
+  server.collectionRevision += 1;
+  const before = server.annotationReads;
+  let release;
+  server.annotationReadGate = new Promise((resolve) => { release = resolve; });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect.poll(() => server.annotationReads).toBeGreaterThan(before);
+  await drawStroke(page);
+  await expect(visibleInk(page)).toHaveCount(2);
+  release();
+  server.annotationReadGate = null;
+  await expect(visibleInk(page)).toHaveCount(3);
+  await expect.poll(() => server.annotations.size, { timeout: 15_000 }).toBe(3);
 });

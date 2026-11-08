@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { useI18n } from "../I18nProvider.jsx";
+import { sheetCoverTone, sheetReadingPosition } from "../../lib/sheetPresentation.js";
 
 /** Shared sheet affordance for Materials and Questions catalogue routes. */
-export function CatalogSheetCard({ material, sheet, to, actionLabel = "", detail = "" }) {
+export function CatalogSheetCard({ material, sheet, to, actionLabel = "", detail = "", readingEntry = null }) {
   const { t } = useI18n();
   const title = sheet.title || `${material.title} Sheet ${sheet.number}`;
-  const action = actionLabel || t("materials.openSheet");
+  const position = sheetReadingPosition(readingEntry);
+  const action = actionLabel || t(position ? "dashboard.resumeSheet" : "materials.openSheet");
   const editions = sheet.editions?.length ? sheet.editions : [sheet];
   const university = editions.find((item) => item.edition === "university") || editions[0];
   const lockin = editions.find((item) => item.edition === "lockin");
@@ -20,20 +22,28 @@ export function CatalogSheetCard({ material, sheet, to, actionLabel = "", detail
         ? t("materials.editionsAvailable.university")
         : t("materials.editionsAvailable.none");
   const meta = detail || availability;
-  if (sheet.deliverable === false) {
-    return (
-      <article className="sheet-card catalog-sheet-card is-unavailable" data-unavailable="true">
-        <span className="catalog-sheet-icon"><Icon name="file" size={20} /></span>
-        <span className="catalog-sheet-copy"><strong dir="auto">{title}</strong><small dir="auto">{t("materials.sheetNotFoundText")}</small></span>
-        <span className="catalog-sheet-end" aria-hidden="true"><Icon name="lock" size={18} /></span>
-      </article>
-    );
-  }
-  return (
-    <Link className="sheet-card catalog-sheet-card" to={to} aria-label={`${action}: ${title}`}>
-      <span className="catalog-sheet-icon"><Icon name="file" size={20} /></span>
-      <span className="catalog-sheet-copy"><strong dir="auto">{title}</strong><small className="catalog-sheet-meta" dir="auto">{meta}</small></span>
-      <span className="catalog-sheet-end" aria-hidden="true"><Icon name="chevron-right" size={18} /></span>
-    </Link>
-  );
+  const unavailable = sheet.deliverable === false;
+  const contents = <>
+    <span className="sheet-library-cover" data-tone={sheetCoverTone(material)}>
+      <span className="sheet-library-file" aria-hidden="true"><Icon name="file" size={25} /></span>
+      {Number.isInteger(sheet.pageCount) && sheet.pageCount > 0 && <span className="sheet-library-pages">{t("materials.coverPages", { count: sheet.pageCount })}</span>}
+    </span>
+    <span className="sheet-library-body">
+      <span className="sheet-library-subject" dir="auto">{material.title}</span>
+      <strong className="sheet-library-title" dir="auto">{title}</strong>
+      <span className="sheet-library-description" dir="auto">{unavailable ? t("materials.sheetNotFoundText") : (sheet.summary || availability)}</span>
+      {!unavailable && position && <span className="sheet-library-reading">
+        <span>{t("dashboard.readingPage", { page: position.page, total: position.total })}</span>
+        <span className="sheet-library-meter" role="progressbar" aria-label={t("dashboard.readingPosition")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={position.percent}><span style={{ width: `${position.percent}%` }} /></span>
+      </span>}
+      <span className="sheet-library-footer">
+        <span className="sheet-library-detail"><Icon name="book-open" size={16} aria-hidden="true" /><span dir="auto">{detail || (sheet.summary ? meta : (sheet.number ? t("materials.coverSheet", { number: sheet.number }) : meta))}</span></span>
+        <span className="sheet-library-open" aria-hidden="true">{!unavailable && <span>{action}</span>}<Icon name={unavailable ? "lock" : "chevron-right"} size={17} /></span>
+      </span>
+    </span>
+  </>;
+  const className = `sheet-card catalog-sheet-card sheet-library-card${unavailable ? " is-unavailable" : ""}`;
+  return unavailable
+    ? <article className={className} data-unavailable="true">{contents}</article>
+    : <Link className={className} to={to} aria-label={`${action}: ${title}`}>{contents}</Link>;
 }

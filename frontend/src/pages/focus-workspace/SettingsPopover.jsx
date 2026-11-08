@@ -1,13 +1,39 @@
-import { BookOpen, Bookmark, Circle, Download, Eraser, Eye, FileText, Hash, Image as ImageIcon, PenLine, Power, Ruler, Sparkles, Trash2, Upload, X, ZoomIn } from "lucide-react";
-import { DRAWING_INPUT } from "../../workspace/input/gestureStateMachine.js";
+import { BookOpen, Bookmark, Circle, Download, Eraser, Eye, FileText, Hash, Image as ImageIcon, MessageSquare, PenLine, Power, Ruler, Sparkles, Trash2, Upload, X, ZoomIn } from "lucide-react";
+import { useState } from "react";
+import { DRAWING_INPUT, classifyStylusInput } from "../../workspace/input/gestureStateMachine.js";
 import { PAGE_BACKGROUND_CHOICES, SETTINGS_SECTIONS } from "./constants.js";
 import { SettingsToggle } from "./controls.jsx";
 import { moveWithinRadioGroup } from "./studyDialogs.jsx";
 
 /**
+ * Browser-level input probe. No device name guesses and no persistent
+ * fingerprinting: students touch the test target with their actual pen.
+ */
+function StylusInputCheck({ drawingInput, onChange, t }) {
+  const [expanded, setExpanded] = useState(false);
+  const [sample, setSample] = useState(null);
+  const classified = sample === null ? null : classifyStylusInput(sample);
+  return <div className="workspace-v8-settings-group">
+    <button type="button" className="workspace-v2-settings-action" aria-expanded={expanded} onClick={() => {
+      setExpanded((current) => !current);
+      setSample(null);
+    }}><PenLine size={18} /><span><strong>{t("focus.testStylusInput")}</strong><small>{t("focus.testStylusInputDescription")}</small></span></button>
+    {expanded && <>
+      <button type="button" className="workspace-v2-settings-action" onPointerDown={(event) => {
+        setSample(event.pointerType || "unknown");
+      }}><PenLine size={18} /><span><strong>{t("focus.tapHereWithPen")}</strong></span></button>
+      {classified !== null && <p className="workspace-v2-settings-note" role="status">
+        {t(classified === "pen" ? "focus.stylusDetected" : classified === "touch" ? "focus.touchStylusDetected" : "focus.pointerInputOther")}
+      </p>}
+      {classified === "touch" && drawingInput === DRAWING_INPUT.STYLUS_ONLY && <button type="button" className="workspace-v2-settings-action" onClick={() => onChange(DRAWING_INPUT.STYLUS_AND_FINGER)}><PenLine size={18} /><span><strong>{t("focus.enableTouchStylus")}</strong><small>{t("focus.enableTouchStylusDescription")}</small></span></button>}
+    </>}
+  </div>;
+}
+
+/**
  * Workspace settings: drawing, canvas, view and other sections.
  */
-export function SettingsPopover({ activeVirtualPage, activeVirtualPageId, addBlankPage, annotationsHidden, applyRestoredBackup, autoImproveHandwriting, backupBusy, backupInputRef, changeDrawingInput, changeVirtualPageBackground, circleToErase, clearPageAnnotations, closeSurfaceAndRestoreFocus, deleteBlankPage, drawAndHold, drawingInput, exportBusy, exportStudyDocument, exportWorkspaceBackup, includeWorkspacePages, keepScreenAwake, page, pageAnnotations, pdfDocumentReady, pendingImport, popover, readWorkspaceBackup, rememberLastPosition, rememberZoomLevel, saveErrorReason, saveState, scribbleToErase, setActiveTool, setAnnotationsHidden, setAutoImproveHandwriting, setCircleToErase, setDrawAndHold, setIncludeWorkspacePages, setKeepScreenAwake, setPendingImport, setRememberLastPosition, setRememberZoomLevel, setScribbleToErase, setSelectedIds, setSettingsTab, setShowPageNumber, settingsTab, sheet, showPageNumber, t, wakeLockSupported, workspaceReady }) {
+export function SettingsPopover({ openNotes, activeVirtualPage, activeVirtualPageId, addBlankPage, annotationsHidden, applyRestoredBackup, autoImproveHandwriting, backupBusy, backupInputRef, changeDrawingInput, changeVirtualPageBackground, circleToErase, clearPageAnnotations, closeSurfaceAndRestoreFocus, deleteBlankPage, drawAndHold, drawingInput, exportBusy, exportStudyDocument, exportWorkspaceBackup, includeWorkspacePages, keepScreenAwake, page, pageAnnotations, pdfDocumentReady, pendingImport, popover, readWorkspaceBackup, rememberLastPosition, rememberZoomLevel, saveErrorReason, saveState, scribbleToErase, setActiveTool, setAnnotationsHidden, setAutoImproveHandwriting, setCircleToErase, setDrawAndHold, setIncludeWorkspacePages, setKeepScreenAwake, setPendingImport, setRememberLastPosition, setRememberZoomLevel, setScribbleToErase, setSelectedIds, setSettingsTab, setShowPageNumber, settingsTab, sheet, showPageNumber, t, wakeLockSupported, workspaceReady }) {
   return <>
     {workspaceReady && popover("settings").shown && <section {...popover("settings").props} id="workspace-settings-popover" className="workspace-v2-settings-popover workspace-v8-settings" role="dialog" aria-label={t("focus.workspaceSettings")} onPointerDown={(event) => event.stopPropagation()}>
       <header className="workspace-v8-settings-head"><strong>{t("focus.settings")}</strong><button type="button" aria-label={t("focus.closeWorkspaceSettings")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
@@ -28,6 +54,7 @@ export function SettingsPopover({ activeVirtualPage, activeVirtualPageId, addBla
           <div className="workspace-v8-settings-group">
             <SettingsToggle icon={PenLine} label={t("focus.applePencilMode")} description={t("focus.onlyThePencilDrawsFingers")} checked={drawingInput === DRAWING_INPUT.STYLUS_ONLY} onChange={(enabled) => changeDrawingInput(enabled ? DRAWING_INPUT.STYLUS_ONLY : DRAWING_INPUT.STYLUS_AND_FINGER)} />
           </div>
+          <StylusInputCheck drawingInput={drawingInput} onChange={changeDrawingInput} t={t} />
           <div className="workspace-v8-settings-group">
             <SettingsToggle icon={Sparkles} label={t("focus.improveNewHandwriting")} description={t("focus.smoothNewPenAndPencil")} checked={autoImproveHandwriting} onChange={setAutoImproveHandwriting} />
             <SettingsToggle icon={Ruler} label={t("focus.straightLinesShapes")} description={t("focus.snapNearStraightLinesAnd")} checked={drawAndHold} onChange={setDrawAndHold} />
@@ -58,6 +85,11 @@ export function SettingsPopover({ activeVirtualPage, activeVirtualPageId, addBla
           </div>
         </>}
         {settingsTab === "view" && <>
+          <div className="workspace-v8-settings-group">
+            <button type="button" className="workspace-v2-settings-action" aria-controls="workspace-notes-panel" onClick={openNotes}>
+              <MessageSquare size={18} aria-hidden="true" /><span><strong>{t("focus.openNotes")}</strong></span>
+            </button>
+          </div>
           <div className="workspace-v8-settings-group">
             <SettingsToggle icon={ZoomIn} label={t("focus.rememberZoomLevel")} description={t("focus.reopenThisSheetAtYour")} checked={rememberZoomLevel} onChange={setRememberZoomLevel} />
             <SettingsToggle icon={Hash} label={t("focus.showPageNumber")} description={t("focus.keepThePageCounterIn")} checked={showPageNumber} onChange={setShowPageNumber} />

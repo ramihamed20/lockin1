@@ -59,15 +59,19 @@ function SummaryRow({ summary }) {
     <span className="summary-card__icon"><ModeIcon size={18} aria-hidden="true" /></span>
     <div className="summary-row__text">
       <strong dir="auto">{summary.title}</strong>
-      <small dir="auto">{summary.document.title}</small>
-      <small>{t(summary.mode === "pen" ? "summary.pen" : "summary.keyboard")} · {t(summary.status === "finished" ? "summary.finished" : "summary.writing")} · {date}</small>
+      <small dir="auto">{summary.document.material_title} · {summary.document.title}</small>
+      <small className="summary-row__meta">
+        <span className="summary-row__status">{t(summary.status === "finished" ? "summary.finished" : "summary.writing")}</span>
+        <span>{t(summary.mode === "pen" ? "summary.pen" : "summary.keyboard")}</span>
+        <bdi>{date}</bdi>
+      </small>
       {error && <small className="summary-row__error" role="alert">{error}</small>}
     </div>
     <div className="summary-row__actions">
-      <button type="button" className="btn btn-primary compact" disabled={busy || (written === 0)} onClick={download}><Download size={15} aria-hidden="true" />{t(busy ? "summary.receiving" : "summary.download")}</button>
       {summary.document.available
-        ? <Link className="btn btn-soft compact" to={to} state={{ studyMode: "normal" }}><ExternalLink size={15} aria-hidden="true" />{t("summary.openSheet")}</Link>
+        ? <Link className="btn btn-primary compact" to={`${to}?summary=${encodeURIComponent(summary.id)}`} state={{ studyMode: "normal" }}><ExternalLink size={15} aria-hidden="true" />{t("summary.openSummary")}</Link>
         : <small>{t("summary.unavailable")}</small>}
+      <button type="button" className="btn btn-soft compact" disabled={busy || written === 0} onClick={download}><Download size={15} aria-hidden="true" />{t(busy ? "summary.receiving" : "summary.download")}</button>
     </div>
   </li>;
 }
@@ -77,6 +81,8 @@ export default function MySummariesList() {
   const { t } = useI18n();
   const [state, setState] = useState(/** @type {{ items: any[] | null, error: string }} */ ({ items: null, error: "" }));
   const [attempt, setAttempt] = useState(0);
+  const [subject, setSubject] = useState("");
+  const [status, setStatus] = useState("");
   useEffect(() => {
     let active = true;
     sheetSummariesApi.list()
@@ -87,5 +93,15 @@ export default function MySummariesList() {
   if (state.error) return <ErrorPanel message={state.error} onRetry={() => setAttempt((value) => value + 1)} />;
   if (!state.items) return <LoadingPanel variant="material-list" />;
   if (!state.items.length) return <EmptyState icon="study" title={t("summary.mine")} text={t("summary.mineEmpty")} />;
-  return <ul className="summary-rows">{state.items.map((summary) => <SummaryRow key={summary.id} summary={summary} />)}</ul>;
+  const subjects = [...new Map(state.items.map(item => [item.document.material_slug, item.document.material_title || item.document.title])).entries()];
+  const items = state.items.filter(item => (!subject || item.document.material_slug === subject)
+    && (!status || item.status === status));
+  return <>
+    <div className="summary-filters">
+      <label className="field"><span>{t("summary.subject")}</span><select value={subject} onChange={event => setSubject(event.target.value)}><option value="">{t("summary.allSubjects")}</option>{subjects.map(([slug, title]) => <option key={slug} value={slug}>{title}</option>)}</select></label>
+      <label className="field"><span>{t("summary.status")}</span><select value={status} onChange={event => setStatus(event.target.value)}><option value="">{t("summary.allStatuses")}</option><option value="writing">{t("summary.writing")}</option><option value="finished">{t("summary.finished")}</option></select></label>
+      <p className="summary-result-count" role="status">{t("summary.resultCount", { count: items.length })}</p>
+    </div>
+    {items.length ? <ul className="summary-rows">{items.map(summary => <SummaryRow key={summary.id} summary={summary} />)}</ul> : <EmptyState title={t("summary.noMatches")} text={t("summary.changeFilters")} />}
+  </>;
 }

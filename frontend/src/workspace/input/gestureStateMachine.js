@@ -133,21 +133,50 @@ export function pointerSnapshot(event) {
  * What draws before the student has chosen. A phone is written on with a
  * finger, so the finger draws there; a tablet is usually written on with a
  * stylus, so fingers keep scrolling and zooming. A stored choice always wins.
- * @param {{ stored?: string | null, coarsePointer?: boolean, shortestScreenSide?: number }} device
+ * @param {{ stored?: string | null, coarsePointer?: boolean, shortestScreenSide?: number, userAgent?: string, deviceModel?: string }} device
  */
-export function defaultDrawingInput({ stored = null, coarsePointer = false, shortestScreenSide = 0 } = {}) {
+/**
+ * Some bundled capacitive tablet pens are indistinguishable from a fingertip
+ * to a browser. On OSCAL Elite 1 the stylus can arrive as touch; when
+ * Android reports this model, prefer touch-compatible ink until overridden.
+ * This is deliberately device-specific to preserve palm-safe finger scrolling
+ * on tablets whose active pens report pointerType="pen".
+ */
+export function usesTouchStylusTablet({ userAgent = "", deviceModel = "" } = {}) {
+  const identity = `${deviceModel} ${userAgent}`;
+  return /\belite[\s_-]*1\b/i.test(identity) && /\b(?:oscal|android)\b/i.test(identity);
+}
+
+export function defaultDrawingInput({ stored = null, coarsePointer = false, shortestScreenSide = 0, userAgent = "", deviceModel = "" } = {}) {
   if (stored === DRAWING_INPUT.STYLUS_ONLY || stored === DRAWING_INPUT.STYLUS_AND_FINGER) return stored;
+  if (usesTouchStylusTablet({ userAgent, deviceModel })) return DRAWING_INPUT.STYLUS_AND_FINGER;
   const phone = coarsePointer && Number(shortestScreenSide) > 0 && Number(shortestScreenSide) < 600;
   return phone ? DRAWING_INPUT.STYLUS_AND_FINGER : DRAWING_INPUT.STYLUS_ONLY;
 }
 
+/**
+ * Trust explicit pen and mouse events. Capacitive pens can be reported as
+ * "touch", and a few browsers report an empty/unknown type, so allow those
+ * only when the student has selected touch-compatible drawing. No browser can
+ * safely infer a passive pen from finger-like touch coordinates.
+ */
+export function isTouchLikePointer(pointerType) {
+  return pointerType === "touch" || pointerType === "" || pointerType == null || pointerType === "unknown";
+}
+
 export function pointerCanDraw(pointerType, drawingInput) {
   if (pointerType === "pen" || pointerType === "mouse") return true;
-  return pointerType === "touch" && drawingInput === DRAWING_INPUT.STYLUS_AND_FINGER;
+  return isTouchLikePointer(pointerType) && drawingInput === DRAWING_INPUT.STYLUS_AND_FINGER;
+}
+
+export function classifyStylusInput(pointerType) {
+  if (pointerType === "pen") return "pen";
+  if (isTouchLikePointer(pointerType)) return "touch";
+  return "other";
 }
 
 export function suspiciousPalmContact({ event, activePenCount, lastPenAt, lastPenPosition, now = Date.now(), activeTouchCount = 0 }) {
-  if (event.pointerType !== "touch" || activeTouchCount > 0) return false;
+  if (!isTouchLikePointer(event.pointerType) || activeTouchCount > 0) return false;
   const contactSize = Math.max(Number(event.width) || 1, Number(event.height) || 1);
   const distanceFromPen = lastPenPosition ? Math.hypot(event.clientX - lastPenPosition.x, event.clientY - lastPenPosition.y) : Number.POSITIVE_INFINITY;
   // A broad or nearby contact while the stylus is down is a palm. Two small,

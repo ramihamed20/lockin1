@@ -1,17 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, ChevronRight, Copy, KeyRound, MoreHorizontal, Timer, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Copy, Camera, Settings2, Focus, LogOut, KeyRound, Timer, UserPlus, Users, X } from "lucide-react";
+import { LockInMenu } from "../components/lock-in/LockInMenu.jsx";
+import LockInFriends from "../components/lock-in/LockInFriends.jsx";
+import LockInTeamFriends from "../components/lock-in/LockInTeamFriends.jsx";
+import LockInFriendPicker from "../components/lock-in/LockInFriendPicker.jsx";
+import { teamInvitesApi } from "../api/social.js";
 import { focusApi } from "../api/focus.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
-import { EmptyState } from "../components/ui/index.jsx";
+import { UserAvatar } from "../components/shared/UserAvatar.jsx";
+import { EmptyState, ErrorPanel, LoadingPanel } from "../components/ui/index.jsx";
 import { RadioGroup, RadioOption, Switch, Tab, TabList } from "../components/ui/interactive.jsx";
 import "./lock-in-lobby.css";
+
+export { LockInMenu };
 
 const DURATIONS = [25, 45, 60, 90];
 
 /** The server names anonymous members "Anonymous 01"; show that in the reader's language. */
 export function lockInMemberName(member, t) {
-  const match = member?.anonymous && /^Anonymous (\d+)$/.exec(String(member.name || ""));
+  const match = member?.anonymous && /^Anonymous ([0-9A-F]+)$/.exec(String(member.name || ""));
   return match ? t("lockIn.anonymousName", { number: match[1] }) : member?.name || "";
 }
 
@@ -24,7 +32,7 @@ function initial(name) {
 export function LockInBar({ onBack, backLabel, backIcon = "back", children = null, end = null }) {
   return <header className="lm-bar">
     <div className="lm-bar-start">
-      <button className="btn btn-soft compact lm-bar-back" type="button" onClick={onBack}>
+      <button className="btn btn-soft compact lm-bar-back" type="button" onClick={onBack} aria-label={backLabel}>
         {backIcon === "close" ? <X size={17} aria-hidden="true" /> : <ArrowLeft className="lm-flip" size={17} aria-hidden="true" />}
         <span>{backLabel}</span>
       </button>
@@ -34,21 +42,49 @@ export function LockInBar({ onBack, backLabel, backIcon = "back", children = nul
   </header>;
 }
 
+function TeamPhotoInput({ imageUrl = null, file = null, onChange, busy = false }) {
+  const { t } = useI18n();
+  const [preview, setPreview] = useState("");
+  useEffect(() => {
+    if (!file) { setPreview(""); return undefined; }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  return <label className={`lm-photo-picker${busy ? " is-busy" : ""}`}>
+    <span className="lm-photo-preview" aria-hidden="true">{preview || imageUrl ? <img src={preview || imageUrl} alt="" /> : <Camera size={27} />}</span>
+    <span><strong>{t("lockIn.teamPhoto")}</strong></span>
+    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} aria-label={t("lockIn.teamPhoto")} onChange={(event) => { const selected = event.currentTarget.files?.[0]; if (selected) onChange(selected); event.currentTarget.value = ""; }} />
+  </label>;
+}
+
+function rankDuration(seconds, t) {
+  if (seconds == null) return "—";
+  const minutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
+  return t("lockIn.rankDuration", { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
+}
+
+function rankScore(row, metric, t) {
+  if (metric === "accuracy") return row.accuracy_percent == null ? "—" : `${row.accuracy_percent}%`;
+  if (metric === "sheets") return String(row.completed_sheets ?? 0);
+  return rankDuration(metric === "continuous" ? row.longest_focus_seconds : row.active_seconds ?? row.weekly_active_seconds, t);
+}
+
 function AnonymousRow({ id, checked, onChange }) {
   const { t } = useI18n();
   return <div className="ui-group-block">
     <div className="ui-group">
       <div className="ui-row">
-        <span className="ui-row-body"><label htmlFor={id}>{t("lockIn.anonymous")}</label><small>{t("lockIn.anonymousHint")}</small></span>
+        <span className="ui-row-body"><label htmlFor={id}>{t("lockIn.anonymous")}</label></span>
         <Switch id={id} checked={checked} onCheckedChange={onChange} />
       </div>
     </div>
   </div>;
 }
 
-function NavRow({ icon: RowIcon, title, hint, onClick, value = null }) {
+function NavRow({ icon: RowIcon, title, hint = null, onClick, value = null, disabled = false }) {
   return <li>
-    <button className="ui-row" type="button" onClick={onClick}>
+    <button className="ui-row" type="button" disabled={disabled} onClick={onClick}>
       {RowIcon && <span className="ui-row-icon" aria-hidden="true"><RowIcon /></span>}
       <span className="ui-row-body"><strong dir="auto">{title}</strong>{hint && <small>{hint}</small>}</span>
       {value && <span className="ui-row-value">{value}</span>}
@@ -57,66 +93,50 @@ function NavRow({ icon: RowIcon, title, hint, onClick, value = null }) {
   </li>;
 }
 
+function TeamMark({ team, large = false }) {
+  return <span className={`lm-team-mark${large ? " is-large" : ""}`} aria-hidden="true">
+    {team.image_url ? <img src={team.image_url} alt="" /> : <Users size={large ? 30 : 22} />}
+  </span>;
+}
+
 function TeamRows({ teams, onOpen }) {
   const { t } = useI18n();
   const open = teams.filter((item) => !item.closed_at);
   if (!open.length) return null;
   return <section className="ui-group-block" aria-labelledby="lm-your-teams">
     <h2 className="ui-group-title" id="lm-your-teams">{t("lockIn.yourTeams")}</h2>
-    <ul className="ui-group">
-      {open.map((item) => <NavRow key={item.id} icon={Users} title={item.name} hint={t("lockIn.membersOf", { count: item.member_count, max: item.max_members })} onClick={() => onOpen(item)} />)}
+    <ul className="ui-group lm-team-list">
+      {open.map((item) => <li key={item.id}>
+        <button className="ui-row" type="button" onClick={() => onOpen(item)}>
+          <TeamMark team={item} />
+          <span className="ui-row-body"><strong dir="auto">{item.name}</strong><small>{t("lockIn.membersOf", { count: item.member_count, max: item.max_members })}</small></span>
+          {item.active_session_id && <span className="lm-team-live"><span className="lm-live-dot is-focused" aria-hidden="true" />{t("lockIn.liveNow")}</span>}
+          <ChevronRight className="ui-row-chevron" size={18} aria-hidden="true" />
+        </button>
+      </li>)}
     </ul>
   </section>;
 }
 
-function TeamCode({ code }) {
+export function TeamCode({ code, compact = false }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   async function copyCode() {
-    try { await navigator.clipboard.writeText(code); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
-    catch { setCopied(false); }
+    try { await navigator.clipboard.writeText(code); setCopyFailed(false); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
+    catch { setCopied(false); setCopyFailed(true); }
   }
-  return <section className="lm-code-card" aria-labelledby="lm-code-label">
+  return <section className={`lm-code-card${compact ? " is-compact" : ""}`} aria-label={t("lockIn.inviteFriends")}>
     <div>
-      <h2 id="lm-code-label">{t("lockIn.code")}</h2>
+      <h2>{t(compact ? "lockIn.inviteFriends" : "lockIn.code")}</h2>
       <strong dir="ltr" translate="no">{code}</strong>
-      <p>{t("lockIn.codeHint")}</p>
+
+      {copyFailed && <><label className="visually-hidden" htmlFor={`lm-copy-${code}`}>{t("lockIn.code")}</label><input id={`lm-copy-${code}`} className="lm-copy-fallback" readOnly value={code} dir="ltr" onFocus={(event) => event.currentTarget.select()} /><p role="status">{t("lockIn.copyManually")}</p></>}
     </div>
     <button className="btn btn-soft compact" type="button" onClick={copyCode} aria-live="polite">
       {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{copied ? t("lockIn.copied") : t("lockIn.copy")}
     </button>
   </section>;
-}
-
-/** A small anchored menu. Opens with focus on its first item, closes on
- *  Escape (returning focus to the button), on a click elsewhere and after a choice. */
-export function LockInMenu({ label, items }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef(null);
-  const buttonRef = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    rootRef.current?.querySelector("[role='menuitem']")?.focus();
-    const onPointer = (event) => { if (!rootRef.current?.contains(event.target)) setOpen(false); };
-    const onKey = (event) => {
-      if (event.key === "Escape") { setOpen(false); buttonRef.current?.focus(); return; }
-      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-      const entries = Array.from(rootRef.current?.querySelectorAll("[role='menuitem']") || []);
-      const index = entries.indexOf(document.activeElement);
-      if (index === -1) return;
-      event.preventDefault();
-      entries[(index + (event.key === "ArrowDown" ? 1 : -1) + entries.length) % entries.length]?.focus();
-    };
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
-  }, [open]);
-  return <div className="lm-menu-anchor" ref={rootRef}>
-    <button ref={buttonRef} className="lm-icon-button" type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((value) => !value)}><MoreHorizontal size={19} aria-hidden="true" /></button>
-    {open && <div className="lm-menu" role="menu" aria-label={label}>
-      {items.map((item) => <button key={item.label} type="button" role="menuitem" className={item.danger ? "is-danger" : undefined} onClick={() => { setOpen(false); item.onSelect(); }}>{item.label}</button>)}
-    </div>}
-  </div>;
 }
 
 function MemberRows({ members, renderEnd }) {
@@ -136,7 +156,7 @@ function MemberRows({ members, renderEnd }) {
   </ul>;
 }
 
-export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, onStart, onBack, onResume, busy, error }) {
+export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, onStart, onBack, onExit, onResume, busy, error }) {
   const { t } = useI18n();
   const materials = Array.isArray(bootstrap?.materials) ? bootstrap.materials : [];
   const initialMaterial = materials.some((item) => item.document_version_id === preselectedDocumentVersionId)
@@ -144,6 +164,10 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
   const [materialId, setMaterialId] = useState(initialMaterial);
   const [duration, setDuration] = useState("25");
   const [anonymous, setAnonymous] = useState(false);
+  const [goal, setGoal] = useState("");
+  const [pageStart, setPageStart] = useState("1");
+  const [pageEnd, setPageEnd] = useState("");
+  const selectedMaterial = materials.find((item) => item.document_version_id === materialId);
   function submit(event) {
     event.preventDefault();
     onStart({
@@ -153,33 +177,58 @@ export function LockInSetup({ bootstrap, teamId, preselectedDocumentVersionId, o
       breakDurationSeconds: null,
       teamId: teamId || null,
       anonymous: !teamId && anonymous,
-      goal: "", topic: "", note: "", tasks: []
+      experienceVersion: 2, goal: goal.trim(),
+      pageStart: Number(pageStart), pageEnd: pageEnd ? Number(pageEnd) : null,
+      topic: "", note: "", tasks: []
     });
   }
-  return <main className="lm-shell" aria-label={t("lockIn.title")}>
+  return <main className="lm-shell lm-setup-shell" aria-label={t("lockIn.title")}>
+    <header className="lm-entry-bar"><h1><span className="lm-brand-mark" aria-hidden="true"><Focus size={21} /></span>{t("lockIn.title")}</h1><button className="btn btn-soft lm-end" type="button" onClick={onExit}><LogOut size={17} aria-hidden="true" /><span lang="en" dir="ltr">End Lockin</span></button></header>
     <LockInBar onBack={onBack} backLabel={t("lockIn.back")} />
     <div className="lm-page">
       <header className="lm-heading"><h1>{teamId ? t("lockIn.teamSession") : t("lockIn.soloSession")}</h1></header>
       {bootstrap?.active_session && <ResumeCard active={bootstrap.active_session} onResume={onResume} />}
-      <form className="lm-form" onSubmit={submit}>
-        {!teamId && preselectedDocumentVersionId && <div className="ui-group-block">
-          <div className="ui-group"><div className="ui-row">
-            <label className="ui-row-body" htmlFor="lm-material"><span>{t("lockIn.material")}</span></label>
-            <select id="lm-material" className="ui-row-input lm-select" value={materialId} onChange={(event) => setMaterialId(event.target.value)}>
-              <option value="">{t("lockIn.independent")}</option>
-              {materials.map((item) => <option key={item.document_version_id} value={item.document_version_id}>{item.title}</option>)}
-            </select>
-          </div></div>
-        </div>}
+      <form className="lm-form lm-setup-form" onSubmit={submit}>
+        <section className="lm-setup-timing" aria-labelledby="lm-duration-title">
+          <span className="lm-focus-symbol" aria-hidden="true"><Timer size={22} /></span>
+          <output className="lm-duration-preview" aria-label={t("lockIn.duration")}><strong>{duration || "—"}</strong><span>{t("lockIn.minuteUnit")}</span></output>
         <div className="ui-group-block">
           <h2 className="ui-group-title" id="lm-duration-title">{t("lockIn.duration")}</h2>
           <RadioGroup className="lm-durations" value={duration} onChange={setDuration} label={t("lockIn.duration")}>
             {DURATIONS.map((value) => <RadioOption key={value} value={String(value)} className="lm-duration"><strong>{value}</strong><small>{t("lockIn.minuteUnit")}</small></RadioOption>)}
           </RadioGroup>
         </div>
+        <details className="lm-custom-duration"><summary>{t("lockIn.customize")}</summary>
+          <label htmlFor="lm-custom-minutes">{t("lockIn.duration")}</label>
+          <input id="lm-custom-minutes" type="number" min="1" max="480" value={duration} onChange={(event) => setDuration(event.target.value)} required />
+        </details>
+        </section>
+        <section className="lm-setup-details" aria-label={t("lockIn.material")}>
+        <div className="ui-group">
+          <div className="ui-row">
+            <label className="ui-row-body" htmlFor="lm-goal">{t("lockIn.goal")}</label>
+            <input id="lm-goal" className="ui-row-input lm-row-input-wide" maxLength={280} value={goal} onChange={(event) => setGoal(event.target.value)} placeholder={t("lockIn.goalPlaceholder")} />
+          </div>
+        </div>
+        {<div className="ui-group-block">
+          <div className="ui-group"><div className="ui-row">
+            <label className="ui-row-body" htmlFor="lm-material"><span>{t("lockIn.material")}</span></label>
+            <select id="lm-material" className="ui-row-input lm-select" value={materialId} onChange={(event) => { setMaterialId(event.target.value); setPageStart("1"); setPageEnd(""); }}>
+              <option value="">{t("lockIn.independent")}</option>
+              {materials.map((item) => <option key={item.document_version_id} value={item.document_version_id}>{item.title}</option>)}
+            </select>
+          </div></div>
+        </div>}
+        {materialId && <div className="ui-group lm-page-range">
+          <div className="ui-row"><label className="ui-row-body" htmlFor="lm-page-start">{t("lockIn.fromPage")}</label>
+            <input id="lm-page-start" className="ui-row-input lm-row-input-number" type="number" min="1" max={selectedMaterial?.page_count || undefined} required value={pageStart} onChange={(event) => setPageStart(event.target.value)} /></div>
+          <div className="ui-row"><label className="ui-row-body" htmlFor="lm-page-end">{t("lockIn.toPage")}</label>
+            <input id="lm-page-end" className="ui-row-input lm-row-input-number" type="number" min={Number(pageStart)} max={selectedMaterial?.page_count || undefined} value={pageEnd} onChange={(event) => setPageEnd(event.target.value)} /></div>
+        </div>}
         {!teamId && <AnonymousRow id="lm-solo-anonymous" checked={anonymous} onChange={setAnonymous} />}
+        </section>
         {error && <p className="lm-error" role="alert">{error}</p>}
-        <button className="btn btn-primary lm-submit" type="submit" disabled={busy}>{t("lockIn.start")}</button>
+        <div className="lm-form-submit"><button className="btn btn-primary lm-submit" type="submit" disabled={busy}><Timer size={18} aria-hidden="true" />{t("lockIn.start")}</button></div>
       </form>
     </div>
   </main>;
@@ -197,22 +246,26 @@ function ResumeCard({ active, onResume }) {
   </section>;
 }
 
-function TeamLobby({ team, onAction, onStart, onJoinLive, busy, error }) {
+function TeamLobby({ team, onAction, onStart, onJoinLive, onImageUpload, busy, error }) {
   const { t } = useI18n();
   const [name, setName] = useState(team.name);
   const [maximum, setMaximum] = useState(String(team.max_members));
   const [confirm, setConfirm] = useState(null);
+  const [friendsOpen, setFriendsOpen] = useState(false);
   const host = team.role === "owner" && !team.closed_at;
   useEffect(() => { setName(team.name); setMaximum(String(team.max_members)); }, [team.name, team.max_members]);
   const act = async (action, body = {}) => { setConfirm(null); await onAction(action, body); };
   const settingsChanged = name.trim() !== team.name || maximum !== String(team.max_members);
   const others = team.members.filter((member) => member.member_id !== team.self_member_id);
 
-  return <div className="lm-page" aria-labelledby="lm-team-title">
+  return <div className="lm-page lm-team-page" aria-labelledby="lm-team-title">
     <header className="lm-heading lm-team-heading">
-      <div>
-        <h1 id="lm-team-title" dir="auto">{team.name}</h1>
-        <p>{team.closed_at ? t("lockIn.ended") : t("lockIn.membersOf", { count: team.member_count, max: team.max_members })}</p>
+      <div className="lm-team-identity">
+        <TeamMark team={team} large />
+        <div><h1 id="lm-team-title" dir="auto">{team.name}</h1>
+          <p>{t("lockIn.membersOf", { count: team.member_count, max: team.max_members })}</p>
+          <span className={`lm-team-state${team.closed_at || team.joining_locked ? "" : " is-open"}`}><i aria-hidden="true" />{t(team.closed_at ? "lockIn.ended" : team.joining_locked ? "lockIn.invitesLocked" : "lockIn.teamOpen")}</span>
+        </div>
       </div>
       {!team.closed_at && (team.active_session_id
         ? <button className="btn btn-primary" type="button" disabled={busy} onClick={() => onJoinLive(team.id)}>{t("lockIn.joinSession")}</button>
@@ -221,6 +274,10 @@ function TeamLobby({ team, onAction, onStart, onJoinLive, busy, error }) {
           : <p className="lm-waiting" role="status"><span className="lm-live-dot is-waiting" aria-hidden="true" />{t("lockIn.waitingForHost")}</p>)}
     </header>
 
+    {host && <section className="lm-team-invite-section">
+      <button className="btn btn-soft" type="button" aria-expanded={friendsOpen} aria-controls="lm-team-invite-panel" onClick={() => setFriendsOpen(value => !value)}><UserPlus size={17} aria-hidden="true" />{t("lockIn.inviteFriends")}</button>
+      {friendsOpen && <div id="lm-team-invite-panel"><LockInTeamFriends key={team.id} team={team} disabled={busy} /></div>}
+    </section>}
     {!team.closed_at && <TeamCode code={team.invite_code} />}
 
     <section className="ui-group-block" aria-labelledby="lm-members-title">
@@ -233,8 +290,10 @@ function TeamLobby({ team, onAction, onStart, onJoinLive, busy, error }) {
         : null} />
     </section>
 
-    {host && <section className="ui-group-block" aria-labelledby="lm-settings-title">
-      <h2 className="ui-group-title" id="lm-settings-title">{t("lockIn.teamSettings")}</h2>
+    {host && <details className="lm-team-settings">
+      <summary><Settings2 size={19} aria-hidden="true" /><span>{t("lockIn.teamSettings")}</span><ChevronRight size={17} className="lm-disclosure-arrow" aria-hidden="true" /></summary>
+      <div className="lm-settings-content">
+      <TeamPhotoInput imageUrl={team.image_url} onChange={onImageUpload} busy={busy} />
       <form className="ui-group" onSubmit={(event) => { event.preventDefault(); if (settingsChanged) void act("update", { name: name.trim(), ...(maximum !== String(team.max_members) ? { max_members: Number(maximum) } : {}) }); }}>
         <div className="ui-row">
           <label className="ui-row-body" htmlFor="lm-team-name"><span>{t("lockIn.teamName")}</span></label>
@@ -258,7 +317,8 @@ function TeamLobby({ team, onAction, onStart, onJoinLive, busy, error }) {
           <span className="ui-row-body"><strong>{t("lockIn.endTeam")}</strong></span>
         </button>
       </div>
-    </section>}
+      </div>
+    </details>}
 
     <div className="ui-group">
       <button className="ui-row is-danger" type="button" disabled={busy} onClick={() => setConfirm({ action: "leave", title: t("lockIn.leaveTeamConfirm"), message: host && others.length ? t("lockIn.leaveTeamHostMessage") : t("lockIn.leaveTeamMessage"), label: t("lockIn.leaveTeam") })}>
@@ -282,50 +342,103 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [rankTab, setRankTab] = useState("teams");
+  const [rankMetric, setRankMetric] = useState("time");
+  const [rankLoading, setRankLoading] = useState(false);
+  const [rankError, setRankError] = useState("");
+  const [rankRetry, setRankRetry] = useState(0);
+  const [imageFile, setImageFile] = useState(null);
+  const [selectedFriends, setSelectedFriends] = useState([]);
+  const [inviteDelivery, setInviteDelivery] = useState(null);
+  const creatingRef = useRef(false);
+  const teamMutationRef = useRef(0);
   const [period, setPeriod] = useState("weekly");
-  const [rankings, setRankings] = useState({ solo: [], teams: bootstrap.team_rankings || [] });
+  const [rankings, setRankings] = useState({ solo: [], teams: bootstrap.team_rankings || [], minAnswers: 20 });
   const teams = Array.isArray(bootstrap.teams) ? bootstrap.teams : [];
+  const teamLimitReached = teams.filter(item => !item.closed_at).length >= 3;
   const active = bootstrap.active_session;
   const removedMessage = t("lockIn.removedFromTeam");
 
   const loadTeam = useCallback(async (id) => {
-    try { const result = await focusApi.getLockInTeam(id); const nextTeam = /** @type {any} */ (result.team); setTeam(nextTeam); setError(""); if (nextTeam.active_session_id && nextTeam.can_resume_session) onResumeSession(nextTeam.active_session_id); }
-    catch { setTeam(null); setTeamId(null); setScreen("home"); setError(removedMessage); await onRefresh(); }
-  }, [removedMessage, onRefresh, onResumeSession]);
+    const mutation = teamMutationRef.current;
+    try { const result = await focusApi.getLockInTeam(id); if (mutation !== teamMutationRef.current) return; const nextTeam = /** @type {any} */ (result.team); setTeam(nextTeam); setError((current) => current === t("lockIn.reconnecting") ? "" : current); if (nextTeam.active_session_id && nextTeam.can_resume_session) onResumeSession(nextTeam.active_session_id); }
+    catch (failure) {
+      if (mutation !== teamMutationRef.current) return;
+      if ([400, 403, 404].includes(failure.status)) { setTeam(null); setTeamId(null); setScreen("home"); setError(removedMessage); await onRefresh(); }
+      else setError(t("lockIn.reconnecting"));
+    }
+  }, [removedMessage, onRefresh, onResumeSession, t]);
 
   useEffect(() => {
     if (!teamId || screen !== "lobby") return undefined;
     void loadTeam(teamId);
-    const interval = window.setInterval(() => { void loadTeam(teamId); }, 10000);
-    return () => window.clearInterval(interval);
+    const refresh = () => { if (!document.hidden) void loadTeam(teamId); };
+    const interval = window.setInterval(refresh, 10000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
   }, [teamId, screen, loadTeam]);
 
   useEffect(() => {
     if (screen !== "leaderboard") return undefined;
     let cancelled = false;
-    focusApi.getLockInLeaderboard(period).then((result) => {
+    setRankLoading(true);
+    setRankError("");
+    focusApi.getLockInLeaderboard(period, rankMetric).then((result) => {
+      if (rankMetric !== "time" && result.metric !== rankMetric) throw new Error(t("lockIn.rankUnavailable"));
       if (!cancelled) setRankings({
         solo: Array.isArray(result.solo) ? result.solo : [],
-        teams: Array.isArray(result.teams) ? result.teams : []
+        teams: Array.isArray(result.teams) ? result.teams : [],
+        minAnswers: Number(result.accuracy_min_answers) || 20
       });
-    }).catch(() => { if (!cancelled) setRankings({ solo: [], teams: bootstrap.team_rankings || [] }); });
+    }).catch((failure) => { if (!cancelled) setRankError(failure.message || t("lockIn.rankFailed")); })
+      .finally(() => { if (!cancelled) setRankLoading(false); });
     return () => { cancelled = true; };
-  }, [screen, period, bootstrap.team_rankings]);
+  }, [screen, period, rankMetric, rankRetry, t]);
+
 
   function go(next) { setError(""); setScreen(next); window.scrollTo(0, 0); }
   function openTeam(selected) { setTeamId(selected.id); setTeam(selected); go("lobby"); }
-  async function create(event) {
-    event.preventDefault(); setBusy(true); setError("");
-    try { const result = await focusApi.createLockInTeam({ name: name.trim(), max_members: Number(maximum), anonymous }); openTeam(result.team); await onRefresh(); }
-    catch (failure) { setError(failure.message || t("lockIn.error")); }
+  async function deliverInvites(id, people, alreadySent = 0) {
+    // Retrying targets only failures; successful invitations are never resent.
+    const results = await Promise.allSettled(people.map(person => teamInvitesApi.send(id, person.id)));
+    const failed = people.filter((_, index) => results[index].status === "rejected");
+    setInviteDelivery({ teamId: id, failed, sent: alreadySent + people.length - failed.length });
+  }
+  async function retryInvites() {
+    if (busy || !inviteDelivery) return;
+    setBusy(true);
+    try { await deliverInvites(inviteDelivery.teamId, inviteDelivery.failed, inviteDelivery.sent); }
     finally { setBusy(false); }
+  }
+  async function create(event) {
+    event.preventDefault();
+    if (teamLimitReached) { setError(t("lockIn.teamLimit")); return; }
+    if (creatingRef.current || selectedFriends.length > Number(maximum) - 1) return;
+    creatingRef.current = true;
+    setBusy(true); setError(""); setInviteDelivery(null);
+    try {
+      const result = await focusApi.createLockInTeam({ name: name.trim(), max_members: Number(maximum), anonymous });
+      const createdTeam = /** @type {any} */ (result.team);
+      const people = selectedFriends;
+      setSelectedFriends([]);
+      openTeam(createdTeam);
+      // Photo failure must not prevent already-selected friends receiving invites.
+      const tasks = [deliverInvites(createdTeam.id, people)];
+      if (imageFile) tasks.push(focusApi.uploadLockInTeamImage(createdTeam.id, imageFile).then(uploaded => {
+        teamMutationRef.current++; setTeam(uploaded.team); setImageFile(null);
+      }).catch(failure => setError(failure.message || t("lockIn.photoFailed"))));
+      await Promise.all(tasks);
+      await onRefresh();
+    }
+    catch (failure) { setError(failure.message || t("lockIn.error")); }
+    finally { creatingRef.current = false; setBusy(false); }
   }
   async function join(event) {
     event.preventDefault();
+    if (teamLimitReached) { setError(t("lockIn.teamLimit")); return; }
     if (!/^[0-9]{6}$/.test(code)) { setError(t("lockIn.codeInvalid")); return; }
     setBusy(true); setError("");
     try { const result = await focusApi.joinLockInTeam(code, anonymous); openTeam(result.team); await onRefresh(); }
-    catch (failure) { setError(failure.message || t("lockIn.error")); }
+    catch (failure) { setError(failure.code === "not_found" ? t("lockIn.teamNotFound") : failure.message || t("lockIn.error")); }
     finally { setBusy(false); }
   }
   async function action(kind, body = {}) {
@@ -340,6 +453,15 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
     finally { setBusy(false); }
   }
 
+  async function uploadTeamImage(file) {
+    if (!team || busy) return;
+    setBusy(true); setError("");
+    teamMutationRef.current++;
+    try { const result = await focusApi.uploadLockInTeamImage(team.id, file); teamMutationRef.current++; setTeam(result.team); await onRefresh(); }
+    catch (failure) { setError(failure.message || t("lockIn.photoFailed")); }
+    finally { setBusy(false); }
+  }
+
   async function joinLive(id) {
     setBusy(true); setError("");
     try { const result = await focusApi.joinLockInTeamSession(id); onResumeSession(/** @type {any} */ (result.session).id); }
@@ -350,28 +472,28 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
   const topLevel = screen === "home" || screen === "leaderboard";
   const back = screen === "create" || screen === "join" ? "team" : "home";
   const rankRows = rankTab === "solo" ? rankings.solo || [] : rankings.teams || [];
-  return <main className="lm-shell" aria-label={t("lockIn.title")}>
-    <LockInBar
-      onBack={topLevel ? onExit : () => go(back)}
-      backLabel={topLevel ? t("lockIn.exit") : t("lockIn.back")}
-      backIcon={topLevel ? "close" : "back"}
-    >
-      {topLevel && <TabList className="ui-segmented lm-sections" label={t("lockIn.sections")} value={screen} onChange={go}>
+  return <main className="lm-shell lm-standalone" aria-label={t("lockIn.title")}>
+    <header className="lm-entry-bar">
+      <h1><span className="lm-brand-mark" aria-hidden="true"><Focus size={21} /></span>{t("lockIn.title")}</h1>
+      <button type="button" className="btn btn-soft lm-end" onClick={onExit}><LogOut size={17} aria-hidden="true" /><span lang="en" dir="ltr">End Lockin</span></button>
+    </header>
+    {topLevel ? <div className="lm-entry-tabs">
+      <TabList className="ui-segmented lm-sections" label={t("lockIn.sections")} value={screen} onChange={go}>
         <Tab value="home">{t("lockIn.home")}</Tab>
         <Tab value="leaderboard">{t("lockIn.leaderboard")}</Tab>
-      </TabList>}
-    </LockInBar>
+      </TabList>
+    </div> : <LockInBar onBack={() => go(back)} backLabel={t("lockIn.back")} />}
 
-    {screen === "home" && <div className="lm-page">
-      <header className="lm-heading"><h1 id="lm-title">{t("lockIn.title")}</h1><p>{t("lockIn.intro")}</p></header>
+    {screen === "home" && <div className="lm-page lm-home-page">
       {active && <ResumeCard active={active} onResume={onResume} />}
       <section className="ui-group-block" aria-labelledby="lm-start-title">
-        <h2 className="ui-group-title" id="lm-start-title">{t("lockIn.startGroup")}</h2>
-        <ul className="ui-group">
-          <NavRow icon={Timer} title={t("lockIn.solo")} hint={t("lockIn.soloHint")} onClick={() => onSolo()} />
-          <NavRow icon={Users} title={t("lockIn.team")} hint={t("lockIn.teamHint")} onClick={() => go("team")} />
+        <h2 className="visually-hidden" id="lm-start-title">{t("lockIn.startGroup")}</h2>
+        <ul className="ui-group lm-mode-choices">
+          <NavRow icon={Timer} title={t("lockIn.solo")} onClick={() => onSolo()} />
+          <NavRow icon={Users} title={t("lockIn.team")} onClick={() => go("team")} />
         </ul>
       </section>
+      <LockInFriends teams={teams} onCreateTeam={() => go("create")} onOpenTeam={async (nextTeam) => { await onRefresh(); openTeam(nextTeam); }} />
       <TeamRows teams={teams} onOpen={openTeam} />
       {error && <p className="lm-error" role="alert">{error}</p>}
     </div>}
@@ -379,15 +501,17 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
     {screen === "team" && <div className="lm-page">
       <header className="lm-heading"><h1>{t("lockIn.team")}</h1></header>
       <ul className="ui-group">
-        <NavRow icon={UserPlus} title={t("lockIn.createTeam")} hint={t("lockIn.createTeamHint")} onClick={() => go("create")} />
-        <NavRow icon={KeyRound} title={t("lockIn.joinTeam")} hint={t("lockIn.joinTeamHint")} onClick={() => go("join")} />
+        <NavRow icon={UserPlus} title={t("lockIn.createTeam")} disabled={teamLimitReached} onClick={() => go("create")} />
+        <NavRow icon={KeyRound} title={t("lockIn.joinTeam")} disabled={teamLimitReached} onClick={() => go("join")} />
       </ul>
+      {teamLimitReached && <p className="lm-social-empty" role="status">{t("lockIn.teamLimit")}</p>}
       <TeamRows teams={teams} onOpen={openTeam} />
     </div>}
 
     {screen === "create" && <div className="lm-page">
       <header className="lm-heading"><h1>{t("lockIn.createTeam")}</h1></header>
       <form className="lm-form" onSubmit={create}>
+        <TeamPhotoInput file={imageFile} onChange={setImageFile} busy={busy} />
         <div className="ui-group">
           <div className="ui-row">
             <label className="ui-row-body" htmlFor="lm-create-name"><span>{t("lockIn.teamName")}</span></label>
@@ -398,43 +522,58 @@ export default function LockInLobby({ bootstrap, onExit, onSolo, onTeamStart, on
             <input id="lm-create-max" className="ui-row-input lm-row-input-number" type="number" inputMode="numeric" min="2" max="20" value={maximum} onChange={(event) => setMaximum(event.target.value)} required />
           </div>
         </div>
+        <LockInFriendPicker selected={selectedFriends} onChange={setSelectedFriends} maximum={maximum} disabled={busy} />
         <AnonymousRow id="lm-create-anonymous" checked={anonymous} onChange={setAnonymous} />
         {error && <p className="lm-error" role="alert">{error}</p>}
-        <button className="btn btn-primary lm-submit" type="submit" disabled={busy || !name.trim()}>{t("lockIn.create")}</button>
+        <button className="btn btn-primary lm-submit" type="submit" disabled={busy || teamLimitReached || !name.trim() || selectedFriends.length > Number(maximum) - 1}>{t("lockIn.create")}</button>
       </form>
     </div>}
 
     {screen === "join" && <div className="lm-page">
-      <header className="lm-heading"><h1>{t("lockIn.joinTeam")}</h1><p>{t("lockIn.joinTeamHint")}</p></header>
+      <header className="lm-heading"><h1>{t("lockIn.joinTeam")}</h1></header>
       <form className="lm-form" onSubmit={join}>
         <label className="visually-hidden" htmlFor="lm-join-code">{t("lockIn.code")}</label>
         <input id="lm-join-code" className="lm-code-input" dir="ltr" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} required />
         <AnonymousRow id="lm-join-anonymous" checked={anonymous} onChange={setAnonymous} />
         {error && <p className="lm-error" role="alert">{error}</p>}
-        <button className="btn btn-primary lm-submit" type="submit" disabled={busy || code.length !== 6}>{t("lockIn.join")}</button>
+        <button className="btn btn-primary lm-submit" type="submit" disabled={busy || teamLimitReached || code.length !== 6}>{t("lockIn.join")}</button>
       </form>
     </div>}
 
-    {screen === "lobby" && team && <TeamLobby team={team} onAction={action} onStart={onTeamStart} onJoinLive={joinLive} busy={busy} error={error} />}
+    {screen === "lobby" && team && inviteDelivery?.teamId === team.id && (inviteDelivery.sent > 0 || inviteDelivery.failed.length > 0) && <div className="lm-page lm-invite-delivery" role="status" aria-live="polite">
+      {inviteDelivery.sent > 0 && <p>{t("lockIn.invitesSent", { count: inviteDelivery.sent })}</p>}
+      {inviteDelivery.failed.length > 0 && <><p>{t("lockIn.invitesFailed", { names: inviteDelivery.failed.map(person => person.name).join(", ") })}</p><button className="btn btn-soft compact" type="button" disabled={busy} onClick={() => void retryInvites()}>{t("lockIn.friendsRetry")}</button></>}
+    </div>}
+    {screen === "lobby" && team && <TeamLobby team={team} onAction={action} onStart={onTeamStart} onJoinLive={joinLive} onImageUpload={uploadTeamImage} busy={busy} error={error} />}
 
-    {screen === "leaderboard" && <div className="lm-page">
-      <header className="lm-heading"><h1>{t("lockIn.leaderboard")}</h1></header>
+    {screen === "leaderboard" && <div className="lm-page lm-leaderboard-page">
       <div className="lm-rank-controls">
-        <TabList className="ui-segmented" label={t("lockIn.ranking")} value={rankTab} onChange={setRankTab}>
+        <TabList className="ui-segmented" label={t("lockIn.ranking")} value={rankTab} onChange={(value) => { setRankTab(value); setRankMetric("time"); }}>
           <Tab value="teams">{t("lockIn.teams")}</Tab>
           <Tab value="solo">{t("lockIn.solo")}</Tab>
         </TabList>
-        <TabList className="ui-segmented" label={t("lockIn.period")} value={period} onChange={setPeriod}>
-          <Tab value="weekly">{t("lockIn.thisWeek")}</Tab>
-          <Tab value="all_time">{t("lockIn.allTime")}</Tab>
-        </TabList>
+        <select className="lm-period-select" aria-label={t("lockIn.period")} value={period} onChange={(event) => setPeriod(event.target.value)}>
+          <option value="weekly">{t("lockIn.thisWeek")}</option>
+          <option value="all_time">{t("lockIn.allTime")}</option>
+        </select>
       </div>
-      {rankRows.length
-        ? <ol className="ui-group lm-rank-list">{rankRows.map((row, index) => <li key={row.id || index}>
-          <div className="ui-row">
-            <span className="lm-rank" aria-hidden="true">{index + 1}</span>
-            <span className="ui-row-body"><strong dir="auto">{lockInMemberName(row, t)}</strong></span>
-            <span className="ui-row-value">{t("lockIn.minutes", { count: Math.round((row.active_seconds ?? row.weekly_active_seconds ?? 0) / 60) })}</span>
+      <TabList className="ui-segmented lm-rank-metrics" label={t("lockIn.rankCategory")} value={rankMetric} onChange={setRankMetric}>
+        <Tab value="time">{t("lockIn.rankBest")}</Tab>
+        {rankTab === "teams" && <Tab value="sheets">{t("lockIn.rankSheets")}</Tab>}
+        <Tab value="accuracy">{t("lockIn.rankAccuracy")}</Tab>
+        {rankTab === "solo" && <Tab value="continuous">{t("lockIn.rankContinuous")}</Tab>}
+      </TabList>
+      {rankLoading ? <LoadingPanel variant="list" /> : rankError ? <ErrorPanel message={rankError} onRetry={() => setRankRetry((value) => value + 1)} /> : rankRows.length
+        ? <ol className="lm-ranking-list">{rankRows.map((row, index) => <li key={row.id || index} className={index < 3 ? `lm-place-${index + 1}` : undefined}>
+          <div className="lm-ranking-row">
+            <span className="lm-rank" aria-label={t("lockIn.rankPosition", { rank: index + 1 })}>{index + 1}</span>
+            {rankTab === "solo" && row.avatar && !row.anonymous
+              ? <UserAvatar avatar={row.avatar} className="lm-rank-avatar" />
+              : <span className="lm-rank-avatar" aria-hidden="true">{initial(lockInMemberName(row, t))}{row.image_url && <img src={row.image_url} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} />}</span>}
+            <div className="lm-rank-identity"><strong dir="auto">{lockInMemberName(row, t)}</strong>
+              {rankMetric !== "time" && <small className="lm-rank-time"><bdi>{rankDuration(row.active_seconds ?? row.weekly_active_seconds, t)}</bdi></small>}
+            </div>
+            <div className="lm-rank-score"><strong dir={rankMetric === "accuracy" || rankMetric === "sheets" ? "ltr" : "auto"}>{rankScore(row, rankMetric, t)}</strong></div>
           </div>
         </li>)}</ol>
         : <EmptyState title={t("lockIn.noRanks")} text={t("lockIn.noRanksHint")} />}

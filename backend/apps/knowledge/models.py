@@ -138,6 +138,8 @@ class ExplainAttempt(models.Model):
     feedback = models.JSONField()
     evaluation_status = models.CharField(max_length=24, default="self_review")
     self_rating = models.CharField(max_length=16, blank=True)
+    confidence = models.CharField(max_length=12, blank=True)
+    error_reason = models.CharField(max_length=20, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:

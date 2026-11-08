@@ -71,7 +71,7 @@ export default function CreatorContent() {
   }
 
   if (data.loading) return <LoadingPanel />;
-  if (data.error) return <ErrorPanel message={data.error} onRetry={data.reload} />;
+  if (data.error) return <ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} />;
   return <Page title="Creator studio" subtitle="Draft, review, publish, archive and transfer learning content through its scoped workflow.">
     <CreatorTabs />
     <CreatorNotice error={error} message={message} onRetry={data.reload} />

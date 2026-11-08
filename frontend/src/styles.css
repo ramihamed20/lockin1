@@ -5783,7 +5783,7 @@ a.streak-card:hover:where(html.ix-hover *) {
   justify-self: start;
 }
 
-/* One screen: plan, how to pay, card, pay. */
+/* Recharge entry, shared by the guided checkout payment stage. */
 .subscription-pay-box {
   display: grid;
   gap: var(--space-3);
@@ -6522,7 +6522,7 @@ a.streak-card:hover:where(html.ix-hover *) {
   font-weight: 700;
 }
 
-.subscription-order-plan h2 {
+.subscription-order-plan h3 {
   margin: var(--space-1) 0;
   font-size: var(--text-xl);
 }
@@ -6581,6 +6581,44 @@ a.streak-card:hover:where(html.ix-hover *) {
 .subscription-step-actions .btn {
   min-width: 180px;
   min-height: 48px;
+}
+
+.subscription-guided-checkout {
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+.subscription-stage-heading {
+  scroll-margin-top: calc(90px + var(--safe-top, 0px));
+}
+
+.subscription-stage-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.subscription-payment-fields {
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.subscription-policy-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding-block: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.subscription-policy-consent input {
+  flex: 0 0 auto;
+  margin-block-start: 4px;
 }
 
 /* iPad portrait and landscape: two plan columns keep every price visible
@@ -15297,6 +15335,10 @@ html {
 .policy-link { color: var(--accent-text); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .policy-link:hover:where(html.ix-hover *) { text-decoration-thickness: 2px; }
 .policy-notice form { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+@media (pointer: coarse) {
+  .policy-notice .policy-link { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding-inline: 4px; }
+  .policy-notice form label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+}
 .policy-requests { padding: 20px; margin-block: 24px; overflow-wrap: anywhere; }
 .policy-requests form { display: grid; gap: 12px; margin-block: 16px; }
 .policy-requests input, .policy-requests select, .policy-requests textarea { max-inline-size: 100%; }

@@ -22,9 +22,13 @@ pytestmark = pytest.mark.django_db
 
 
 def _grant(user: User) -> None:
+    # Transactional tests flush migration-seeded rows between cases.
+    definition, _ = EntitlementDefinition.objects.get_or_create(
+        code="focus.workspace", defaults={"title": "Focus workspace"}
+    )
     EntitlementGrant.objects.create(
         user=user,
-        entitlement=EntitlementDefinition.objects.get(code="focus.workspace"),
+        entitlement=definition,
         source_type=EntitlementGrant.SourceType.MANUAL,
         source_id=uuid4(),
         starts_at=timezone.now() - timedelta(minutes=1),

@@ -1,0 +1,46 @@
+/* Chrome only: preserve existing inspectors and all drawing state. */
+.workspace-tool-dock { position: relative; }
+.workspace-v2 .workspace-dock-grip { flex: 0 0 18px; width: 18px; height: 40px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--workspace-chrome-text); opacity: .55; cursor: grab; touch-action: none; user-select: none; }
+.workspace-v2 .workspace-dock-grip:is(:hover, :focus-visible) { opacity: 1; background: var(--workspace-control-hover); }
+.workspace-v2 .workspace-dock-grip:active { cursor: grabbing; }
+.workspace-v2 .workspace-tool-dock .workspace-v3-tool-button > svg { width: 22px; height: 22px; }
+.workspace-v2 .workspace-v2-toolbar[data-tool-dock]:not([data-tool-dock="top"]) { overflow: visible; animation: none; transform: none; }
+.workspace-v2 .workspace-v2-toolbar[data-tool-dock]:not([data-tool-dock="top"]) > .workspace-tool-dock { position: absolute; z-index: 50; display: flex; justify-content: flex-start; width: max-content; max-width: min(calc(100vw - 16px), calc(100cqw - 16px)); padding: 6px; gap: 2px; border: 1px solid var(--workspace-border); border-radius: 14px; background: var(--workspace-panel); box-shadow: 0 12px 36px rgb(0 0 0 / .20); overflow: visible; isolation: isolate; }
+.workspace-v2 .workspace-v2-toolbar[data-tool-dock]:not([data-tool-dock="top"]) > .workspace-v2-history.is-docked { display: none; }
+.workspace-v2 .workspace-v2-toolbar[data-tool-dock]:not([data-tool-dock="top"]) .workspace-tool-dock > .workspace-v2-history { display: flex; flex-shrink: 0; }
+.workspace-v2 .workspace-tool-dock[data-dock-edge]:not([data-dock-edge="top"]) .workspace-v2-tool-list { flex-shrink: 1; min-width: 0; overflow: auto; scrollbar-width: none; }
+.workspace-v2 .workspace-v2-toolbar .workspace-tool-dock.is-vertical { flex-direction: column; max-height: calc(100dvh - var(--workspace-toolbar-height, 56px) - 20px); max-width: 60px; }
+.workspace-v2 .workspace-tool-dock.is-vertical :is(.workspace-v2-tool-list, .workspace-v2-history, .workspace-v3-quick-colors) { display: flex; flex-direction: column; padding: 0; border: 0; gap: 2px; }
+.workspace-v2 .workspace-tool-dock.is-vertical .workspace-v2-tool-list { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; }
+.workspace-v2 .workspace-tool-dock.is-vertical .workspace-v2-tool-indicator { display: none; }
+.workspace-v2 .workspace-tool-dock.is-vertical .workspace-v2-tool-list > .workspace-v3-tool-button.is-active { background: color-mix(in srgb, var(--workspace-violet) 24%, transparent) !important; border-radius: 10px; }
+.workspace-v2 .workspace-tool-dock.is-vertical .workspace-dock-grip { flex-basis: 20px; width: 40px; height: 20px; }
+.workspace-tool-dock.is-vertical .workspace-dock-grip svg { transform: rotate(90deg); }
+.workspace-v2 .workspace-tool-dock.is-vertical :is(.workspace-v3-quick-colors, .workspace-favorite-pens) { display: none; }
+.workspace-v2 .workspace-dock-menu { position: absolute; top: calc(100% + 6px); inset-inline-start: 0; z-index: 80; display: grid; min-width: 140px; padding: 6px; border: 1px solid var(--workspace-border); border-radius: 12px; background: var(--workspace-panel); box-shadow: 0 8px 28px rgb(0 0 0 / .22); }
+.workspace-v2 .workspace-dock-menu button { min-height: 44px; border: 0; border-radius: 7px; padding: 8px 14px; background: transparent; color: var(--workspace-chrome-text); text-align: start; cursor: pointer; }
+.workspace-v2 .workspace-dock-menu button[aria-pressed="true"] { background: var(--workspace-control-hover); }
+.workspace-dock-preview { position: fixed; pointer-events: none; background: color-mix(in srgb, var(--workspace-violet) 15%, transparent); border: 1px dashed var(--workspace-violet); border-radius: 8px; }
+.workspace-dock-preview.is-top { top: 4px; left: 10%; width: 80%; height: 10px; }
+.workspace-dock-preview.is-bottom { bottom: 8px; left: 10%; width: 80%; height: 10px; }
+.workspace-dock-preview.is-left { left: 4px; top: 15%; height: 70%; width: 10px; }
+.workspace-dock-preview.is-right { right: 4px; top: 15%; height: 70%; width: 10px; }
+@media (max-width: 560px) {
+  .workspace-v2 .workspace-tool-dock:is([data-dock-edge="float"], [data-dock-edge="bottom"]) .workspace-v3-quick-colors { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .workspace-tool-dock * { transition: none !important; } }
+/* Reserve a separate sticky touch target in the rail so it cannot cover tools. */
+.workspace-v2 .workspace-tool-dock[data-dock-edge="top"] > .workspace-dock-grip.is-attached {
+  position: sticky; inset-inline-start: 0; z-index: 4; flex: 0 0 44px;
+  width: 44px; min-width: 44px; height: 44px; min-height: 44px;
+  background: var(--workspace-panel); opacity: .7;
+}
+.workspace-v2 .workspace-dock-menu { z-index: 100; }
+.workspace-v2 .workspace-dock-preview { z-index: 90; }
+.workspace-v2 .workspace-tool-dock[data-dragging="true"] { touch-action: none; }
+.workspace-v2 .workspace-tool-dock[data-dock-edge]:not([data-dock-edge="top"]) { mask-image: none; }
+/* Absolute grid children must use the header's padding box, not column 2/3. */
+.workspace-v2 .workspace-v2-toolbar[data-tool-dock]:not([data-tool-dock="top"]) > .workspace-tool-dock { grid-area: auto !important; justify-self: start; align-self: start; margin: 0; right: auto; bottom: auto; }
+/* Keep pen/highlighter glyphs clear of the former ink-colour badge. */
+.workspace-v2 .workspace-tool-dock .workspace-v3-tool-button:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"]) > .workspace-v3-tool-swatch { display: none; }
+.workspace-v2 .workspace-v2-toolbar .workspace-v3-tool-button.is-active:is([data-workspace-tool="pen"], [data-workspace-tool="highlighter"])::after { display: none; }

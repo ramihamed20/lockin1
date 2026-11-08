@@ -227,7 +227,7 @@ for (const { viewport, name } of [
  * fields live behind the Account tab.
  */
 async function focusAccountPassword(page) {
-  const tab = page.getByRole("button", { name: "Account", exact: true });
+  const tab = page.getByRole("button", { name: "Sign-in & security", exact: true });
   // The shell can become geometrically stable while the lazy Settings route is
   // still resolving under CI load.  Wait for the real navigation affordance
   // instead of sampling it once and then looking for a field in the hidden
@@ -280,9 +280,7 @@ for (const { name, viewport, route } of REAL_FIELDS) {
         keyboardFlag: after.keyboardFlag,
         keyboardInset: after.keyboardInset,
         appViewport: after.appViewport,
-        shellTop: after.shellTop,
         shellHeight: after.shellHeight,
-        scrollY: after.scrollY,
         navBottomDelta: after.navBottomDelta,
         horizontalOverflow: after.horizontalOverflow
       };
@@ -290,12 +288,16 @@ for (const { name, viewport, route } of REAL_FIELDS) {
       keyboardFlag: "closed",
       keyboardInset: "0px",
       appViewport: before.appViewport,
-      shellTop: before.shellTop,
       shellHeight: before.shellHeight,
-      scrollY: before.scrollY,
       navBottomDelta: before.navBottomDelta,
       horizontalOverflow: 0
     });
+    // Native browsers can change document scroll while a focused field is
+    // visible; ensure the shell itself is aligned, not locked to an old scrollY.
+    await expect.poll(async () => {
+      const after = await shellGeometry(page);
+      return Math.abs(after.shellTop + after.scrollY);
+    }).toBeLessThanOrEqual(1);
   });
 }
 

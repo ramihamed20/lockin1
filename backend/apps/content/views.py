@@ -816,6 +816,58 @@ class CatalogSheetQuestionRetryView(APIView):
         )
 
 
+class RecentCatalogWorkspacesView(APIView):
+    """Only metadata for this reader's recent, still-accessible catalog sources."""
+
+    def get(self, request: Request) -> Response:
+        user = _user(request)
+        require_entitlement(user=user, entitlement_code="focus.workspace")
+        candidates = (
+            CatalogWorkspaceSnapshot.objects.filter(
+                user=user, revision__gt=0, document__is_active=True
+            )
+            .select_related("document")
+            .only("id", "updated_at", "state", "document__material_slug", "document__sheet_slug")
+            .order_by("-updated_at", "id")[:12]
+        )
+        results = []
+        for snapshot in candidates:
+            try:
+                document = _catalog_document(
+                    user=user,
+                    material_slug=snapshot.document.material_slug,
+                    sheet_slug=snapshot.document.sheet_slug,
+                )
+            except (PermissionDenied, NotFound, CatalogFileUnavailable):
+                continue
+            # Only the saved PDF position leaves the workspace, never notes or
+            # annotations. Virtual pages do not count toward PDF progress.
+            view = snapshot.state.get("view", {}) if isinstance(snapshot.state, dict) else {}
+            page = view.get("page") if isinstance(view, dict) else None
+            page = page if type(page) is int and page > 0 else None
+            page_count = (
+                document.version.page_count
+                if document.edition == UNIVERSITY
+                else document.managed_file.pdf_page_count
+            )
+            results.append(
+                {
+                    "material_slug": document.material_slug,
+                    "material_title": document.version.academic_node.title,
+                    "sheet_slug": document.sheet_slug,
+                    "sheet_title": document.version.title,
+                    "edition": document.edition,
+                    "document_version_id": str(document.version_id),
+                    "current_page": min(page, page_count) if page and page_count else page,
+                    "page_count": page_count,
+                    "updated_at": snapshot.updated_at.isoformat(),
+                }
+            )
+            if len(results) == 4:
+                break
+        return Response({"results": results})
+
+
 class CatalogWorkspaceView(APIView):
     def get(self, request: Request, document_id: UUID) -> Response:
         user = _user(request)

@@ -57,3 +57,12 @@ test("a summary starter adds a heading with an empty bullet, and words count in 
   assert.equal(notebookWordCount("# Main idea\n- Vitamin A's role, 2 forms"), 7);
   assert.equal(notebookWordCount("فيتامين A مهم للرؤية."), 4);
 });
+
+
+test("Map Builder is available in production when allowed by the sheet", async () => {
+  const { availableStudyTools, COMING_SOON_STUDY_TOOLS, STUDY_TOOLS_ENABLED } = await import("../src/workspace/knowledge/model.js");
+  assert.equal(STUDY_TOOLS_ENABLED, true);
+  assert.equal(availableStudyTools({ map: true }).map, true);
+  assert.equal(availableStudyTools({ map: false }).map, false);
+  assert.equal(COMING_SOON_STUDY_TOOLS.includes("explain"), true);
+});

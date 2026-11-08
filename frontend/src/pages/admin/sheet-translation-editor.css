@@ -1,0 +1,13 @@
+.translation-editor { display: grid; gap: 16px; min-width: 0; }
+.translation-editor header h3, .translation-editor h4 { margin: 0; }
+.translation-editor p { line-height: 1.7; }
+.translation-editor label { display: grid; gap: 8px; }
+.translation-editor textarea { width: 100%; min-height: 300px; padding: 14px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; font: inherit; line-height: 1.9; resize: vertical; }
+.translation-editor__navigation, .translation-editor__actions { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.translation-editor__navigation select { min-width: 90px; min-height: 44px; }
+.translation-editor__hint { margin: 0; font-size: .85rem; color: var(--text-muted); }
+.translation-editor__import { border-top: 1px solid var(--border); padding-top: 18px; }
+.translation-editor__preview { margin-top: 16px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; overflow-wrap: anywhere; }
+.translation-editor__preview ul { max-height: 280px; overflow: auto; padding-inline-start: 20px; }
+.translation-editor__preview li p { white-space: pre-wrap; }
+@media (max-width: 600px) { .translation-editor__actions > * { flex: 1 1 auto; } }

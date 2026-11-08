@@ -1,0 +1,310 @@
+/* Lock-in loading surfaces — quiet, content-first placeholders.
+   One palette, one motion model, and real layout footprints across screens.
+   Kept in the system layer so lazily imported page CSS cannot override it. */
+@layer system {
+  :root {
+    --loading-fill: color-mix(in srgb, var(--text) 8%, var(--surface));
+    --loading-fill-strong: color-mix(in srgb, var(--text) 12%, var(--surface));
+    --loading-fill-soft: color-mix(in srgb, var(--text) 5%, var(--surface));
+    --loading-hairline: var(--separator);
+    --loading-radius: 8px;
+  }
+
+  /* Native-style placeholders gently breathe rather than sweeping a bright
+     diagonal shimmer across a page. Shape and position stay constant. */
+  :where(.skeleton, .biweekly-skeleton, .mg-skeleton-icon, .mg-skeleton-line, .rank-mode-skeleton i, .rank-mode-skeleton-row i,
+    .review-center-skeleton > span, .ops-skeleton-rows .skeleton) {
+    display: block;
+    min-inline-size: 0;
+    background: var(--loading-fill);
+    background-image: none;
+    border: 0;
+    border-radius: var(--loading-radius);
+    box-shadow: none;
+    animation: lockin-skeleton-breathe 2.2s ease-in-out infinite;
+    will-change: auto;
+  }
+
+  .skeleton {
+    display: block;
+    flex-shrink: 0;
+    background: var(--loading-fill);
+    background-image: none;
+    border: 0;
+    border-radius: var(--loading-radius);
+    box-shadow: none;
+    animation: lockin-skeleton-breathe 2.2s ease-in-out infinite;
+  }
+  .skeleton--circle, .skeleton-avatar, .skeleton-radio { border-radius: 50%; }
+  .skeleton--pill, .skeleton-button, .skeleton-chip { border-radius: 999px; }
+  .skeleton-text {
+    display: grid;
+    align-content: center;
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .skeleton-text > .skeleton { display: block; width: 90%; height: 11px; }
+  .skeleton-text > .skeleton:nth-child(2) { width: 64%; animation-delay: -.32s; }
+  .skeleton-text > .skeleton:nth-child(3) { width: 75%; animation-delay: -.64s; }
+  .skeleton-text > .skeleton:nth-child(4n) { width: 55%; animation-delay: -.94s; }
+  .skeleton-text > .skeleton:nth-child(5n) { width: 80%; }
+  .skeleton-avatar { width: 42px; height: 42px; flex: 0 0 auto; }
+  .skeleton-button { width: 106px; height: 34px; }
+  .skeleton-card, .loading-panel .skeleton-card {
+    border: 1px solid var(--card-edge);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: none;
+  }
+  .skeleton-card :where(.skeleton, .skeleton-text) { pointer-events: none; }
+  .skeleton-card-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .skeleton-card-heading > .skeleton-text { flex: 1; }
+  .skeleton-card-meta { width: 42%; height: 11px; }
+  .skeleton-page { display: grid; min-width: 0; gap: 16px; }
+  .skeleton-page-heading { display: grid; gap: 9px; max-width: 440px; }
+  .skeleton-title { width: 62%; height: 22px; }
+  .skeleton-kicker { width: 24%; height: 9px; }
+  .skeleton-subtitle { width: 82%; height: 12px; }
+  .skeleton-list-row { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .skeleton-list-row .skeleton-text { flex: 1 1 auto; }
+  .skeleton-list-card { display: grid; padding: 16px; gap: 15px; }
+  .skeleton-list-card .skeleton-list-row + .skeleton-list-row {
+    padding-block-start: 13px;
+    border-top: 1px solid var(--loading-hairline);
+  }
+  .skeleton-page--grid .skeleton-card-grid, .skeleton-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 236px), 1fr));
+    gap: 12px;
+  }
+  .skeleton-card-grid .skeleton-card {
+    display: grid;
+    align-content: start;
+    gap: 18px;
+    min-height: 132px;
+    padding: 16px;
+  }
+  .skeleton-card-grid--row { grid-template-columns: 1fr; }
+  .skeleton-card-grid--row .skeleton-card { min-height: 75px; }
+
+  /* Grouped lists: a single table-like surface with iOS-style hairlines. */
+  .skeleton-page--grouped-list { gap: 0; }
+  .loading-panel .skeleton-grouped-card {
+    display: grid;
+    gap: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 4px 16px;
+    border-radius: 18px;
+  }
+  .skeleton-grouped-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 17px 0 12px;
+    gap: 12px;
+  }
+  .skeleton-section-heading { width: min(180px, 48%); height: 16px; }
+  .skeleton-grouped-chip { width: 52px; height: 21px; border-radius: 999px; }
+  .skeleton-grouped-row {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 44px;
+    gap: 12px;
+    align-items: center;
+    min-height: 74px;
+    min-width: 0;
+    border-top: 1px solid var(--loading-hairline);
+  }
+  .skeleton-grouped-row .skeleton-text { gap: 7px; }
+  .skeleton-grouped-avatar { width: 38px; height: 38px; }
+  .skeleton-grouped-trailing { justify-self: end; width: 35px; height: 12px; }
+
+  /* Review mirrors its action-first home, without a giant blank spinner. */
+  .skeleton-page--review { gap: 15px; }
+  .loading-panel .skeleton-review-primary, .loading-panel .skeleton-review-secondary {
+    min-height: 0;
+    padding: clamp(16px, 3vw, 22px);
+    display: grid;
+    gap: 16px;
+  }
+  .skeleton-review-primary { min-height: 164px; }
+  .skeleton-review-secondary { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .skeleton-review-secondary .skeleton-review-heading { min-width: 0; }
+  .skeleton-review-description { width: min(310px, 75%); height: 11px; }
+  .skeleton-review-heading { display: flex; align-items: center; gap: 13px; }
+  .skeleton-review-heading > .skeleton-text { flex: 1; }
+  .skeleton-review-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .skeleton-review-actions .skeleton-button:first-child { width: 152px; }
+  .skeleton-page--review > .skeleton-section-heading { margin-block-start: 7px; }
+  .skeleton-page--review .skeleton-grouped-heading { display: none; }
+  .skeleton-page--review .skeleton-grouped-row:first-of-type { border-top: none; }
+
+  /* Calendar + today's tasks in Study Plan. */
+  .skeleton-page--study-plan { gap: 18px; width: 100%; }
+  .skeleton-plan-heading, .skeleton-plan-summary {
+    display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 12px;
+  }
+  .skeleton-plan-heading > .skeleton-text { max-width: 300px; }
+  .loading-panel .skeleton-plan-week {
+    min-height: 95px;
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+    align-items: center; gap: 5px; padding: 12px;
+  }
+  .skeleton-plan-day { display: grid; justify-items: center; gap: 10px; min-width: 0; }
+  .skeleton-plan-day-label { width: 26px; max-width: 78%; height: 9px; }
+  .skeleton-plan-day-date { width: 33px; height: 33px; }
+  .skeleton-plan-day:nth-child(4) .skeleton-plan-day-date { background: var(--loading-fill-strong); }
+  .skeleton-plan-progress { width: 94px; height: 8px; border-radius: 999px; }
+  .loading-panel .skeleton-plan-tasks { padding: 0 17px; }
+  .skeleton-plan-tasks .skeleton-grouped-row:first-child { border: 0; }
+  .skeleton-plan-checkbox { width: 25px; height: 25px; }
+
+  .skeleton-notification-filters { display: flex; gap: 8px; }
+  .skeleton-notification-filters .skeleton-button { width: 94px; height: 30px; }
+  .skeleton-notification-filters .skeleton-button:nth-child(2) { width: 76px; }
+
+  .skeleton-page--lock-in {
+    width: 100%;
+    max-width: 880px;
+    margin-inline: auto;
+    gap: 16px;
+  }
+  .loading-panel .skeleton-lockin-hero {
+    min-height: 190px; padding: 24px;
+    display: grid; gap: 14px; align-content: center; position: relative; overflow: hidden;
+  }
+  .skeleton-lockin-title { width: min(220px, 63%); height: 26px; }
+  .skeleton-lockin-hero .skeleton-text { max-width: 300px; }
+  .skeleton-lockin-orbit { position: absolute; width: 108px; height: 108px; border-radius: 50%; inset-inline-end: 8%; top: 30px; opacity: .65; }
+  .skeleton-lockin-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .loading-panel .skeleton-lockin-mode {
+    display: grid; gap: 18px; justify-items: start; min-height: 184px; padding: 20px;
+  }
+  .skeleton-lockin-mode .skeleton-text { width: 85%; }
+
+  /* Dashboard sections load independently: show unknown content as
+     placeholders, never as zero values or a fake empty-state action. */
+  .dashboard .continue-card--loading {
+    min-height: 188px;
+    overflow: hidden;
+  }
+  .dashboard .continue-card--loading .continue-sheet-cover {
+    overflow: hidden;
+    background: var(--surface-2);
+  }
+  .dashboard .skeleton-continue-cover {
+    width: 100%;
+    height: 100%;
+    min-height: 144px;
+    border-radius: 0;
+    background: var(--loading-fill-strong);
+  }
+  .dashboard .continue-card--loading .continue-sheet-content {
+    display: grid;
+    align-content: center;
+    gap: 14px;
+  }
+  .dashboard .continue-card--loading .continue-sheet-content .skeleton-text { max-width: 360px; }
+  .dashboard .skeleton-continue-eyebrow { width: 84px; height: 10px; }
+  .dashboard .skeleton-continue-meter { width: min(290px, 92%); height: 6px; border-radius: 999px; }
+  .dashboard .skeleton-dash-stat-number {
+    display: inline-block;
+    width: 50px;
+    height: .8em;
+    vertical-align: middle;
+    border-radius: 9px;
+  }
+  .dashboard .dashboard-review-loading {
+    display: grid;
+    padding: 0 16px 10px;
+  }
+  .dashboard .dashboard-review-loading-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 16px;
+    min-height: 64px;
+  }
+  .dashboard .dashboard-review-loading-row + .dashboard-review-loading-row {
+    border-top: 1px solid var(--loading-hairline);
+  }
+  .dashboard .dashboard-review-loading-arrow { width: 12px; height: 12px; border-radius: 4px; }
+  .loading-panel .skeleton-review-primary { min-height: 164px; }
+  .loading-panel .skeleton-review-secondary { min-height: 96px; }
+
+  /* Existing custom skeletons inherit the same matte material + animation. */
+  :where(.mg-card--loading, .biweekly-current.is-loading, .ops-queue-skeleton) {
+    background: var(--surface); border-color: var(--card-edge);
+  }
+  .biweekly-skeleton, .mg-skeleton-icon, .mg-skeleton-line {
+    background: var(--loading-fill);
+    background-image: none;
+    animation: lockin-skeleton-breathe 2.2s ease-in-out infinite;
+  }
+  .biweekly-skeleton { border-radius: 7px; }
+  .mg-skeleton-icon { border-radius: 12px; }
+  .ops-queue-skeleton .ops-skeleton-row {
+    border-color: var(--loading-hairline);
+  }
+  /* Leaderboards: a standing panel, followed by reserved row silhouettes. */
+  .rank-mode-skeleton-standing {
+    background: var(--surface);
+    border: 1px solid var(--card-edge);
+    border-radius: 20px;
+  }
+  .rank-mode-skeleton-row {
+    background: var(--surface);
+    border-block-end: 1px solid var(--loading-hairline);
+  }
+  .rank-mode-skeleton-row i {
+    background: var(--loading-fill);
+    background-image: none;
+    animation: lockin-skeleton-breathe 2.2s ease-in-out infinite;
+  }
+
+  .loading-panel {
+    min-width: 0;
+    isolation: isolate;
+    animation: lockin-loading-appear 180ms ease-out 110ms both;
+  }
+  .loading-panel .skeleton-page > :nth-child(even) .skeleton,
+  .skeleton-grouped-row:nth-child(2n) .skeleton {
+    animation-delay: -.45s;
+  }
+  @keyframes lockin-skeleton-breathe {
+    0%, 100% { opacity: .64; }
+    50% { opacity: 1; }
+  }
+  @keyframes lockin-loading-appear {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @media (max-width: 639px) {
+    .dashboard .continue-card--loading .continue-sheet-cover { min-height: 105px; }
+    .dashboard .skeleton-continue-cover { min-height: 105px; }
+    .dashboard .dashboard-review-loading { padding-inline: 12px; }
+    .skeleton-page { gap: 12px; }
+    .skeleton-card-grid { gap: 10px; }
+    .skeleton-card-grid .skeleton-card { padding: 14px; }
+    .loading-panel .skeleton-grouped-card { border-radius: 15px; padding-inline: 13px; }
+    .skeleton-grouped-row { min-height: 66px; grid-template-columns: 36px minmax(0, 1fr) 28px; gap: 10px; }
+    .skeleton-grouped-avatar { width: 36px; height: 36px; }
+    .skeleton-grouped-trailing { width: 24px; }
+    .skeleton-review-secondary { grid-template-columns: minmax(0, 1fr); }
+    .skeleton-review-secondary > .skeleton-button { justify-self: start; }
+    .skeleton-lockin-modes { grid-template-columns: 1fr; }
+    .loading-panel .skeleton-lockin-mode { min-height: 112px; }
+    .skeleton-lockin-orbit { width: 66px; height: 66px; top: 50px; }
+    .skeleton-plan-day-date { width: 26px; height: 26px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .loading-panel { animation: none; }
+    :where(.skeleton, .biweekly-skeleton, .mg-skeleton-icon, .mg-skeleton-line, .rank-mode-skeleton i, .rank-mode-skeleton-row i, .review-center-skeleton > span, .ops-skeleton-rows .skeleton) {
+      animation: none;
+      opacity: 1;
+    }
+  }
+}

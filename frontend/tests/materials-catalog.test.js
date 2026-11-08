@@ -109,7 +109,8 @@ test("Catalog sheet prioritizes Focus Workspace and keeps only the page count", 
   assert.match(materials, /if \(edition\?\.deliverable !== false\) rememberLastOpenedCatalogSheet/);
   assert.match(materials, /<ErrorPanel message=\{t\("materials\.sheetNotFoundText"\)\} \/>/);
   const sheetCard = await readFile(new URL("../src/components/learning/CatalogSheetCard.jsx", import.meta.url), "utf8");
-  assert.match(sheetCard, /if \(sheet\.deliverable === false\)/);
+  assert.match(sheetCard, /const unavailable = sheet\.deliverable === false/);
+  assert.match(sheetCard, /return unavailable/);
   assert.match(sheetCard, /data-unavailable="true"/);
   assert.match(materials, /sheets\/\$\{item\.slug\}\/workspace/);
   assert.match(materials, /returnTo: location\.pathname/);
@@ -213,9 +214,10 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /workspace-v2-settings-popover/);
   assert.doesNotMatch(workspace, /workspace-v2-header|workspace-v2-tool-inspector|workspace-v2-mobile-panel/);
   assert.match(workspace, /ContinuousA4Pdf/);
-  // Fit fills the stage below the desktop bar, and a reading width on a wide desktop window.
+  // Touch readers fit the stage; wide desktop readers start at the fixed reading scale.
   assert.match(workspace, /const stageWidth = stage\?\.clientWidth \|\| window\.innerWidth;/);
-  assert.match(workspace, /fitWidthZoom\(\s*readingWidth \? Math\.min\(stageWidth, FIT_READING_WIDTH\) : stageWidth,\s*A4_PAGE_WIDTH,\s*0/);
+  assert.match(workspace, /if \(readingWidth\) return HORIZONTAL_READING_ZOOM_FLOOR;/);
+  assert.match(workspace, /fitWidthZoom\(stageWidth, A4_PAGE_WIDTH, 0\)/);
   assert.doesNotMatch(workspace, /fitPageZoom/);
   assert.doesNotMatch(workspace, /Open original PDF in a new tab/);
   assert.match(workspace, /jumpToPage/);
@@ -254,7 +256,8 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /data-workspace-tool="text"/);
   assert.match(workspace, /type: "text"/);
   assert.match(workspace, /function addTextAnnotation/);
-  assert.match(workspace, /addSavedColor\(items, normalized, MAX_PALETTE_COLORS, COLORS\)/);
+  assert.match(workspace, /addSavedColor\(recentColors, normalized, MAX_PALETTE_COLORS, COLORS\)/);
+  assert.match(workspace, /persistRecentColors\(next, \{ notify: true \}\)/);
   assert.match(workspace, /removeSavedColor\(recentColors, normalized, MAX_PALETTE_COLORS, COLORS\)/);
   assert.match(workspace, /paletteColors\.length < MAX_PALETTE_COLORS/);
   assert.match(workspace, /label=\{t\("focus\.resumeActiveStudyWhereI"\)\}/);
@@ -306,7 +309,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.doesNotMatch(continuousPdf, /key=\{[^}\n]*zoom/);
   assert.match(continuousPdf, /PdfRenderQueue/);
   assert.match(continuousPdf, /SCROLL_SETTLE_MS/);
-  assert.match(continuousPdf, /rootMargin: "160% 0px"/);
+  assert.match(continuousPdf, /rootMargin: isHorizontal \? "0px 160%" : "160% 0px"/);
   assert.doesNotMatch(workspace, /button type="button" disabled aria-describedby="workspace-quick-actions-status"/);
   assert.match(styles, /inset: 0/);
   assert.match(styles, /height: var\(--app-viewport-height, 100dvh\)/);
@@ -386,7 +389,7 @@ test("Catalog Focus Workspace uses a compact contextual toolbar and persistent c
   assert.match(workspace, /rail\.style\.setProperty\("--workspace-fade-left"/);
   assert.match(workspace, /rail\.scrollBy\(\{ left: delta/);
   assert.match(styles, /\.workspace-v2-tool-options \{[^}]*position: absolute/);
-  assert.match(styles, /@media \(max-width: 1199px\) \{[\s\S]*width: min\(340px/);
+  assert.match(styles, /@media \(max-width: 1199px\) \{[\s\S]*width: min\(280px/);
   assert.doesNotMatch(styles, /min-height: 100svh/);
 });
 

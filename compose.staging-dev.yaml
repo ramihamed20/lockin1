@@ -1,0 +1,41 @@
+# Optional live frontend, behind the same isolated and authenticated edge.
+services:
+  frontend-dev:
+    image: node:24.16.0-bookworm-slim
+    working_dir: /app
+    command:
+      - sh
+      - -ec
+      - |
+        npm install --global pnpm@11.19.0 --loglevel=error
+        cp /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /deps/
+        pnpm --dir /deps install --frozen-lockfile --reporter=append-only
+        exec node /app/node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5050
+    mem_limit: 768m
+    environment:
+      LOCKIN_STAGING_HMR: "1"
+      VITE_API_BASE_URL: /api/v1
+      VITE_OFFLINE_LEASE_PUBLIC_KEY: ${LOCKIN_OFFLINE_LEASE_PUBLIC_KEY:?Set staging public key}
+      VITE_SUPPORT_EMAIL: preview@staging.lockin.ly
+      VITE_LEGAL_ENTITY: Lock-in Staging
+      VITE_LEGAL_JURISDICTION: Libya
+      VITE_POLICY_VERSION: "2026.10"
+    volumes:
+      - ./frontend:/app:ro
+      - dev_node_modules:/app/node_modules
+      - dev_node_modules:/deps/node_modules
+    networks: [application]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5050').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 90
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: "2"}
+  edge:
+    volumes:
+      - ./deploy/staging/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+volumes:
+  dev_node_modules:

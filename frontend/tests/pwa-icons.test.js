@@ -12,15 +12,16 @@ function pngDimensions(bytes) {
   };
 }
 
-test("PWA app icons use the supplied three icon families at every required size", async () => {
+test("PWA app icons export the new vector artwork in three icon families at every required size", async () => {
   for (const family of iconFamilies) {
     for (const size of iconSizes) {
-      const file = new URL(`../public/icons/lockin-${family}-${size}-v2.png`, import.meta.url);
+      const file = new URL(`../public/icons/lockin-${family}-${size}-v3.png`, import.meta.url);
       const bytes = await readFile(file);
       assert.deepEqual(pngDimensions(bytes), { width: size, height: size });
-      assert.ok((await stat(file)).size > 500, `${family} ${size}px icon must not be empty`);
+      // Vector exports compress better than the former raster artwork, especially at 16px.
+      assert.ok((await stat(file)).size > 100, `${family} ${size}px icon must not be empty`);
     }
-    const maskable = await readFile(new URL(`../public/icons/lockin-${family}-maskable-512-v2.png`, import.meta.url));
+    const maskable = await readFile(new URL(`../public/icons/lockin-${family}-maskable-512-v3.png`, import.meta.url));
     assert.deepEqual(pngDimensions(maskable), { width: 512, height: 512 });
   }
 });
@@ -32,9 +33,9 @@ test("PWA, Apple touch, and browser icon metadata use the versioned primary icon
     readFile(new URL("../src/service-worker.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(config, /icons\/lockin-light-192-v2\.png/);
-  assert.match(config, /icons\/lockin-light-512-v2\.png/);
-  assert.match(config, /icons\/lockin-light-maskable-512-v2\.png/);
+  assert.match(config, /icons\/lockin-light-192-v3\.png/);
+  assert.match(config, /icons\/lockin-light-512-v3\.png/);
+  assert.match(config, /icons\/lockin-light-maskable-512-v3\.png/);
   assert.match(config, /purpose: "maskable"/);
   assert.doesNotMatch(config, /pwa-192x192|pwa-512x512|maskable-icon\.png|assets\/favicon\.svg|apple-touch-icon\.png/);
   assert.match(html, /id="app-apple-touch-icon"/);
@@ -107,7 +108,7 @@ test("Vite development replaces a legacy localhost worker without changing the p
   assert.match(config, /self\.registration\.unregister\(\)/);
   assert.doesNotMatch(config, /client\.navigate\(/);
   assert.match(config, /Cache-Control", "no-store/);
-  assert.match(config, /hmr: false/);
+  assert.match(config, /hmr: env\.LOCKIN_STAGING_HMR === "1"[\s\S]*?: false/);
 });
 
 test("manifest and runtime cache include Android installability safeguards", async () => {
@@ -144,7 +145,7 @@ test("startup shell continues the Android splash frame before React mounts", asy
   assert.match(config, /"startup\.css"/);
   assert.match(html, /rel="stylesheet" href="%BASE_URL%startup\.css"/);
   assert.match(html, /<main class="startup-shell"/);
-  assert.match(html, /lockin-light-192-v2\.png/);
+  assert.match(html, /lockin-logo\.svg/);
   assert.match(startupStyles, /--startup-bg: #070b16/);
   assert.match(startupStyles, /\.startup-shell--continuation/);
   assert.match(startupStyles, /prefers-reduced-motion: reduce/);

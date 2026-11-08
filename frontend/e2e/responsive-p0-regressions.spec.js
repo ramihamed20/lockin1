@@ -191,10 +191,9 @@ for (const viewport of LANDSCAPE_TABLETS) {
   });
 }
 
-// P0: the phone toolbar stays one fixed row. It carries the iPad tool set:
-// the tool rail between Exit and the workspace actions scrolls sideways, so a
-// tool parked past its edge is reachable by scrolling the rail rather than
-// hidden or dropped. Everything outside the rail stays on screen.
+// P0: phone toolbar favorites deliberately occupy the upper row; writing
+// tools and pinned Undo/Redo occupy the lower row. The rail scrolls sideways
+// so every tool remains reachable without overflowing the viewport.
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
   test(`every workspace control is reachable at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     test.setTimeout(60_000);
@@ -225,6 +224,12 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
         // With one document open there is no tab row; on a phone undo/redo are
         // pinned in the tool row, beside the rail, so they never scroll away.
         rows: new Set(controls.filter((control) => !control.closest(".workspace-tabs")).map((control) => Math.round(control.getBoundingClientRect().top))).size,
+        favoritesRow: (() => {
+          const group = nav.querySelector(".workspace-toolbar-accessories");
+          const actualButtons = [...(group?.querySelectorAll("button") || [])].filter((control) => control.getBoundingClientRect().height > 0);
+          if (!actualButtons.length) return { visible: false, aboveTools: true };
+          return { visible: true, aboveTools: group.getBoundingClientRect().bottom <= nav.querySelector(".workspace-tool-dock").getBoundingClientRect().top + 2 };
+        })(),
         dockedOutsideToolRow: (() => {
           const pen = nav.querySelector('[data-workspace-tool="pen"]').getBoundingClientRect();
           const docked = controls.filter((control) => control.closest(".workspace-v2-history.is-docked"));
@@ -255,7 +260,11 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     expect(toolbar.offScreen, "workspace controls are off screen").toEqual([]);
     expect(toolbar.underTouchSize, "workspace controls are under the touch minimum").toEqual([]);
     expect(toolbar.total).toBeGreaterThanOrEqual(6);
-    expect(toolbar.rows, "the toolbar wrapped to a second row").toBe(1);
+    expect(toolbar.rows, "the toolbar produced an unexpected extra row").toBeLessThanOrEqual(2);
+    if (toolbar.favoritesRow.visible) {
+      expect(toolbar.rows, "the favorites and writing tools should occupy separate planned rows").toBe(2);
+      expect(toolbar.favoritesRow.aboveTools, "the favorites row overlaps the writing tools").toBe(true);
+    }
     expect(toolbar.dockedOutsideToolRow, "undo/redo are not pinned in the tool row").toEqual([]);
     expect(toolbar.horizontalOverflow, "the toolbar itself scrolls sideways instead of its tool rail").toBeLessThanOrEqual(1);
     expect(toolbar.publishedHeight).toBe(toolbar.actualHeight);

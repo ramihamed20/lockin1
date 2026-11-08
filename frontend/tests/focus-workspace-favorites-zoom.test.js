@@ -15,6 +15,24 @@ test("a favorite pen keeps only what can be trusted", () => {
   assert.equal(normalizeFavoritePens(many).length, MAX_FAVORITE_PENS);
 });
 
+test("five separate complete pen presets can be stored and a sixth is excluded", () => {
+  assert.equal(MAX_FAVORITE_PENS, 5);
+  const favorites = Array.from({ length: 6 }, (_, index) => ({
+    tool: index === 4 ? "highlighter" : "pen",
+    profile: index === 4 ? "highlighter" : "ball",
+    color: `#${(0x102030 + index).toString(16).padStart(6, "0")}`,
+    width: 2 + index,
+    opacity: index === 4 ? .34 : .8
+  }));
+  const saved = normalizeFavoritePens(favorites);
+  assert.equal(saved.length, 5);
+  assert.deepEqual(saved.map((favorite) => favorite.color), favorites.slice(0, 5).map((favorite) => favorite.color));
+  assert.equal(saved[4].tool, "highlighter");
+  assert.equal(saved[4].opacity, .34);
+  assert.equal(matchingFavoritePen(saved, saved[4]), 4);
+  assert.equal(matchingFavoritePen(saved, favorites[5]), -1);
+});
+
 test("the pen in use is recognised as the favorite it matches", () => {
   const favorites = normalizeFavoritePens([
     { tool: "pen", profile: "fountain", color: "#2563eb", width: 4, opacity: 1 },

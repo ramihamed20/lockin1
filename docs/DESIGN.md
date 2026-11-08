@@ -395,8 +395,9 @@ Add V2 rules to `v2.css` or `system.css`. Never fix a V2 screen by editing legac
 
 ### Tokens
 
-- **Night surfaces:** `--bg #080a10` → `--surface #10141c` → `--surface-2 #171b26` → `--surface-3 #1f2431`.
+- **Night surfaces:** `--bg #080a10` → `--surface #15171d` → `--surface-2 #202229` → `--surface-3 #2c2f37`.
   Panels step up one level; a control inside a panel steps up again.
+- **Light surfaces:** grouped page `#f2f2f7`, white surfaces, flat cards without a drop shadow.
 - **Lines:** `--separator` (hairline between rows), `--card-edge` (the faint outline of a surface).
   Use `--border-strong` only for inputs that need an edge to be found.
 - **Accent:** `--accent`, `--accent-soft` (tinted fill), `--accent-text` (accent on dark),
@@ -404,7 +405,7 @@ Add V2 rules to `v2.css` or `system.css`. Never fix a V2 screen by editing legac
 - **Status:** `--success`/`--success-soft`, `--danger`/`--danger-soft`, `--warning`.
 - **Radii:** `--radius-card` 20 px for surfaces, `--radius-lg` 16 px for grouped lists,
   `--radius-md` 12 px for fields and rows, `--radius-full` for every button and pill.
-- **Type:** weights 400/510/600/700; `--title-large` 1.875 rem (1.625 rem on phones) with
+- **Type:** weights 400/510/600/700; `--title-large` 1.375 rem (1.25 rem on phones) with
   `--tracking-title`; body `--text-base` 15 px; secondary `--text-sm` 13 px. Text inputs are 16 px so
   iOS never zooms.
 - **Material:** `--material` / `--material-filter` for floating chrome (top bar, bottom nav,
@@ -453,9 +454,17 @@ press scale is the only movement.
 
 ### Typography hierarchy
 
-Large title (page `h1`, `showHeading` or the directory header) → group title (13 px, muted, sentence
-case) → row label (15 px, 510) → secondary line (13 px, muted). **No uppercase or tracked labels**
-in student screens; the rendered-style audit in this pass found none left.
+The top bar names the main student route. Its page `h1` remains visually hidden for assistive
+navigation; do not add another hero title or an introductory paragraph above the controls.
+Nested material and sheet pages retain their specific content name and back navigation.
+Section title (20–22 px, 600) → group title (13 px, muted, sentence case) → row label (15 px, 510)
+→ secondary line (13 px, muted). **No uppercase or tracked labels** in student screens.
+This compact hierarchy (2026-10-27) supersedes the earlier large-title convention for Settings,
+Materials and Questions roots, Review, Notifications, Progress and Subscription. Loading states
+keep their semantic title and status without drawing a second skeleton heading.
+Dashboard continuation names the current sheet or the start action, without a welcome paragraph.
+Keep security, payment, permission and save consequences visible; optional device explanations
+belong in an accessible disclosure.
 
 ### Motion
 
@@ -527,3 +536,98 @@ in student screens; the rendered-style audit in this pass found none left.
 - Hard-code colours outside `tokens.css` (Focus glass values are the one scoped exception).
 - Show internal terms (lease, manifest, sync queue) or raw codes (program slugs) to students.
 - Use `window.confirm`; use `ConfirmDialog`.
+
+## Daily Review (2026-11-03)
+
+Review opens with one short daily action before subject selection, Weekly Recall and the
+biweekly archive. Students choose a budget of approximately five or ten minutes (10 or 20
+questions at an initial estimate of 30 seconds per question). This estimate is not yet
+personalised to their answering speed.
+
+`GET /api/v1/review-bank/daily` reads at most 20 owned, answerable, active items whose existing
+`next_review_at` is due. Repeated mistakes, failed reviews and then due time determine order;
+the read does not write a new schedule or create another mistake bank. The bank overview adds
+compatible `due_count` totals for the dashboard and subject rows. Normal review remains
+available for choosing a specific subject. Weekly Recall and archived biweekly reports keep
+their existing behaviour.
+
+The daily player reuses the existing answer endpoint and idempotency keys. Progress counts
+submitted answers. Completion reports actual correct answers, repeated mistakes corrected,
+and items needing another review; it does not label a single correction as durable mastery.
+Offline answers use the existing leased snapshot and sync queue, and results disclose pending
+sync. Correct offline answers leave both the daily queue and its due counters.
+
+The first implementation does not add confidence-based scheduling, exam-weighted priority,
+a personalised time estimate or a separate persistent daily-session model. Study Plan continues
+to consume the existing Review schedule. Those extensions need evidence from the short daily
+flow before changing scheduling policy.
+
+Validation: 30 focused Node tests (including offline and catalogue parity), seven Review API/domain
+tests with the explicit SQLite fast-test setting, and five Chromium browser scenarios passed.
+Browser coverage includes a complete daily session, bounded results, retry, the dashboard shortcut,
+weekly recall regression and Arabic reflow at 320, 820 and 1180 pixels. Frontend typecheck, targeted
+ESLint/Ruff and the E2E bundle build passed. PostgreSQL and real iOS/WebKit were not exercised here.
+
+### Daily Review, phase two
+
+The existing answer log now accepts optional confidence and active answer seconds. The browser
+pauses timing when hidden, during requests and after feedback; this is a client-reported estimate,
+not verified study time. The daily budget uses the median of up to 40 recent owned samples after
+five usable answers (5–300 seconds each, within 60 days), bounded to 15–120 seconds per question.
+Until then, the initial 30-second estimate remains. No additional answer is required to record
+uncertainty: the optional “Not sure” toggle accompanies the normal answer.
+
+An unsure answer keeps the same correctness, XP and next-review interval. Its latest confidence
+adds priority in future recall selection; correct-but-unsure answers are shown separately in the
+session summary. Legacy clients can omit both fields. Replay uses the same idempotency key and
+preserves the original metadata, including offline sync. Migration `review.0004` adds nullable
+answer time, blank-by-default confidence, and validation constraints; it does not rewrite mastery.
+
+Daily selection reads exam priorities through a Study Plan adapter, limited to visible schedules
+for the student's active cohort and the same pilot-access settings as Study Plan. A linked exam
+within 14 days raises the subject's due questions before the usual mistake ordering. It never
+pulls future-due questions forward or changes the schedule. Offline sessions retain saved priority
+context and timing estimates while deriving membership from the updated owned snapshot.
+
+Phase-two validation: 32 focused Node tests, 11 Review/offline backend tests with the explicit
+SQLite setting, and six Chromium browser scenarios passed. Frontend typecheck, targeted ESLint
+and Ruff, migration-drift check and the E2E build passed. The migration and database constraints
+were exercised by those backend tests; PostgreSQL and physical iOS devices were not run here.
+
+### Mistake reflection and end-of-session practice
+
+After an incorrect answer, an optional session-local reflection offers Forgot, Mixed up facts,
+and Did not understand. It guides recall, compares the actual chosen/correct options, or opens
+the existing explanation/source control. These selections are temporary guidance, not a stored
+learner diagnosis or a new scheduling signal.
+
+A completed daily or subject-bank session can offer up to three earlier mistakes for an extra
+practice pass. Eligibility requires two other submitted questions since the original answer,
+and valid answer keys already revealed by that answer. Unanswered questions, correct answers,
+and very recent mistakes cannot enter this immediate practice pass. Multi-answer questions
+retain exact-set grading. The practice outcome is separate from the original session score.
+
+Practice makes no answer request, creates no attempt, grants no XP and does not mutate Review
+state or next-review dates. The original mistake remains available to the normal later review.
+One pass is offered per open session; returning to results preserves both the original score
+and the separate practice receipt. No new API, database field or browser persistence is added.
+
+Validation: ten focused Node tests and nine Chromium scenarios passed, including actual label
+clicks in Arabic at 320px, reflection guidance, spacing eligibility, exact multi-answer grading,
+unchanged original scores and absence of further graded answer requests during practice.
+Frontend typecheck, targeted ESLint, E2E build and public-knowledge evidence checks passed.
+
+### Shared team page goals (2026-11-03)
+
+The standalone live team screen starts with a single neutral progress strip:
+member name, completed/target pages, one thin theme-accent bar. No percentages,
+colored completion states or presence totals. Unset goals show a dash; the own
+entry offers Set goal and a small pencil. Editing opens a compact native dialog
+with two labeled numbers and a short shared-visibility notice. Goals are explicitly
+self-reported, scoped to a session, and never affect XP or leaderboards.
+
+Keep the running timer visually quiet; its time label and personal timing remain
+accessible to assistive technology. Break/end actions are neutral rectangles.
+The member tab retains presence, host controls and invitations. Preserve the
+room-folding behavior and unsent chat drafts. End Lockin returns to the source
+site; it does not complete the team's session.

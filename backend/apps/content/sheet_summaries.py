@@ -85,7 +85,7 @@ def owned_summaries(
     *, user: User, document: CatalogDocument | None = None
 ) -> QuerySet[SheetSummary]:
     rows = SheetSummary.objects.filter(user=user).select_related(
-        "document__version", "document__version__learning_object"
+        "document__version__academic_node", "document__version__learning_object"
     )
     return rows.filter(document=document) if document is not None else rows
 
@@ -198,6 +198,7 @@ def summary_payload(summary: SheetSummary) -> dict[str, Any]:
         "document": {
             "id": str(document.id),
             "material_slug": document.material_slug,
+            "material_title": version.academic_node.title,
             "sheet_slug": document.sheet_slug,
             "edition": document.edition,
             "title": version.title,

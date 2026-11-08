@@ -1,0 +1,69 @@
+name: Staging Study Plan end-to-end UX
+
+on:
+  push:
+    branches: ["staging/lockin-preview"]
+    paths:
+      - ".github/workflows/staging-study-plan-ux.yml"
+      - "frontend/src/pages/StudyPlan.jsx"
+      - "frontend/src/studyPlan/**"
+      - "frontend/src/lib/studyPlanMessages.js"
+      - "frontend/e2e/study-plan*.spec.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-study-plan-ux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  study-plan-browser:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Run planner unit checks
+        working-directory: frontend
+        run: node --test tests/study-plan.test.js
+      # Production builds remain protected by the public-knowledge evidence
+      # gate. This staging-only test uses the real Vite app in development
+      # without bypassing/changing the release gate or touching live data.
+      - name: Exercise real app in Chromium using isolated API fixtures
+        working-directory: frontend
+        run: |
+          pnpm run fixtures:pdf
+          LOCKIN_E2E_CATALOG=1 pnpm exec vite --host 127.0.0.1 --port 5050 >/tmp/lockin-study-plan-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:5050 >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then cat /tmp/lockin-study-plan-vite.log; exit 1; fi
+          PLAYWRIGHT_EXTERNAL_SERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5050 pnpm exec playwright test e2e/study-plan.spec.js e2e/study-plan-adaptive.spec.js e2e/study-plan-pilot.spec.js --workers=1 --retries=1
+      - name: Upload journey screenshots and traces
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-study-plan-ux
+          path: |
+            frontend/output/study-plan/**/*.png
+            frontend/test-results/**/*
+          if-no-files-found: warn
+          retention-days: 7

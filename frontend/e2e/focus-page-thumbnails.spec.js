@@ -43,6 +43,26 @@ async function openThumbnails(page) {
 
 const readyCount = (panel) => panel.locator('[data-thumb-state="ready"]').count();
 
+test("changing thumbnail columns keeps the focused page reachable", async ({ page }) => {
+  await mockWorkspace(page);
+  await openReader(page, LONG_ROUTE);
+  const panel = await openThumbnails(page);
+  await page.keyboard.press("End");
+  const last = panel.locator('[data-thumb-page="240"]');
+  await expect(last).toBeFocused();
+  const scroller = panel.locator("[data-thumb-columns]");
+  for (const width of [190, 310, 190]) {
+    await scroller.evaluate((el, width) => { el.style.width = `${width}px`; }, width);
+    await expect(scroller).toHaveAttribute("data-thumb-columns", width === 190 ? "1" : "3");
+    await expect(last).toBeVisible();
+    await expect.poll(() => last.evaluate((el) => {
+      const cell = el.getBoundingClientRect();
+      const frame = el.closest(".workspace-page-thumbs-scroller").getBoundingClientRect();
+      return cell.top >= frame.top - 1 && cell.bottom <= frame.bottom + 1;
+    })).toBe(true);
+  }
+});
+
 test("the page dock opens thumbnails, marks the current page and jumps on click", async ({ page }) => {
   await mockWorkspace(page);
   await openReader(page, SHEET_ROUTE);

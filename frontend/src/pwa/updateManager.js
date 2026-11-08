@@ -112,8 +112,6 @@ export function createUpdateManager(overrides = {}) {
 
   /** @type {ServiceWorkerRegistration | null} */
   let registration = null;
-  /** @type {null | ((reloadPage?: boolean) => Promise<void>)} */
-  let pluginUpdate = null;
   let started = false;
   let triggersInstalled = false;
   /** @type {Promise<void> | null} */
@@ -321,8 +319,12 @@ export function createUpdateManager(overrides = {}) {
         finish(waiting.state === "activated" || waiting.state === "activating");
       }, ACTIVATION_TIMEOUT_MS);
       nav.serviceWorker?.addEventListener?.("controllerchange", onControllerChange);
+      // Talk to this registration's actual waiting worker. The plugin's
+      // updateSW callback can target an old Workbox instance when another
+      // window also has the app open, leaving this window waiting forever.
+      // Only the window that clicked Update now reloads on controllerchange.
       Promise.resolve()
-        .then(() => (pluginUpdate ? pluginUpdate(true) : waiting.postMessage({ type: "SKIP_WAITING" })))
+        .then(() => waiting.postMessage({ type: "SKIP_WAITING" }))
         .catch(() => finish(false));
     });
     return applying;
@@ -410,7 +412,7 @@ export function createUpdateManager(overrides = {}) {
       set({ status: UPDATE_STATUS.UNSUPPORTED, serviceWorker: "unsupported" });
       return;
     }
-    pluginUpdate = registerSW({
+    registerSW({
       immediate: true,
       onNeedRefresh: syncFromRegistration,
       // Passing this replaces the plugin's own unconditional reload of every

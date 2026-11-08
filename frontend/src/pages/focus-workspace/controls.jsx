@@ -1,4 +1,6 @@
 /** The small controls the Focus workspace builds its toolbar and panels from. */
+import { useEffect, useRef, useState } from "react";
+import { PenNibIcon } from "./PenNibIcon.jsx";
 import { cssVars } from "../../lib/utils.js";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { PEN_PROFILE_OPTIONS } from "./constants.js";
@@ -15,7 +17,50 @@ export function WorkspaceIconButton({ label, active = false, children, className
  */
 export function ToolRange({ label, caption = label, value, displayValue = value, min, max, step, keyStep = step, onChange, preview = "stroke", color = "#8b5cf6" }) {
   const { t } = useI18n();
+  const draggingPointer = useRef(null);
   const ratio = Math.min(1, Math.max(0, (value - min) / Math.max(step, max - min)));
+  // iOS WebKit can hand a fast range swipe to the scrollable inspector instead
+  // of continuing the native range drag. Hold the pointer on the input and
+  // calculate each touch/pen position, even a little beyond the slider ends.
+  // Mouse and keyboard retain their native range behaviour.
+  const readPointerValue = (input, clientX) => {
+    const bounds = input.getBoundingClientRect();
+    const thumbInset = 11; // 22px iOS thumb at the largest inspector size.
+    const travel = Math.max(1, bounds.width - thumbInset * 2);
+    const position = Math.max(0, Math.min(1, (clientX - bounds.left - thumbInset) / travel));
+    const portion = window.getComputedStyle(input).direction === "rtl" ? 1 - position : position;
+    const snapped = min + Math.round((portion * (max - min)) / step) * step;
+    return Math.max(min, Math.min(max, Number(snapped.toFixed(5))));
+  };
+  const beginPointerDrag = (event) => {
+    if ((event.pointerType !== "touch" && event.pointerType !== "pen") || !event.isPrimary) return;
+    draggingPointer.current = { id: event.pointerId, lastValue: Number(value) };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Synthetic pointers do not have native capture. */ }
+    const next = readPointerValue(event.currentTarget, event.clientX);
+    if (next !== draggingPointer.current.lastValue) {
+      draggingPointer.current.lastValue = next;
+      onChange(next);
+    }
+  };
+  const movePointerDrag = (event) => {
+    const drag = draggingPointer.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    const next = readPointerValue(event.currentTarget, event.clientX);
+    if (next === drag.lastValue) return;
+    drag.lastValue = next;
+    onChange(next);
+  };
+  const endPointerDrag = (event) => {
+    const drag = draggingPointer.current;
+    if (!drag || drag.id !== event.pointerId) return;
+    if (event.type === "pointerup") movePointerDrag(event);
+    draggingPointer.current = null;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch { /* The pointer was already released by the browser. */ }
+  };
   // Unrounded, so the preview grows smoothly with a continuous slider.
   const previewSize = preview === "opacity" ? 16 : preview === "eraser" ? Math.round(5 + ratio * 13) : 2 + ratio * 10;
   return (
@@ -23,7 +68,14 @@ export function ToolRange({ label, caption = label, value, displayValue = value,
       <span className="workspace-v2-range-heading"><span>{caption}</span><output dir="ltr" aria-label={t("focus.currentValue", { name: label.toLowerCase() })}>{displayValue}</output></span>
       <span className="workspace-v2-range-control">
         <span className="workspace-v2-range-preview" aria-hidden="true" style={cssVars({ "--workspace-range-size": `${previewSize}px`, "--workspace-range-color": color, "--workspace-range-opacity": preview === "opacity" ? value : 1 })} />
-        <input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={(event) => onChange(Number(event.target.value))} onKeyDown={keyStep === step ? undefined : (event) => {
+        <input type="range" min={min} max={max} step={step} value={value} aria-label={label}
+          onChange={(event) => onChange(Number(event.target.value))}
+          onPointerDown={beginPointerDrag}
+          onPointerMove={movePointerDrag}
+          onPointerUp={endPointerDrag}
+          onPointerCancel={endPointerDrag}
+          onLostPointerCapture={endPointerDrag}
+          onKeyDown={keyStep === step ? undefined : (event) => {
           const rtl = window.getComputedStyle(event.currentTarget).direction === "rtl";
           const direction = { ArrowUp: 1, ArrowDown: -1, ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1 }[event.key];
           if (!direction) return;
@@ -50,12 +102,24 @@ export function IconChoiceGroup({ label, value, options, onChange }) {
   </div>;
 }
 
+function PenProfileChoice({ profile, label, active, color, onChoose }) {
+  const [hint, setHint] = useState(false);
+  const hold = useRef(null);
+  const cancelHold = () => window.clearTimeout(hold.current);
+  useEffect(() => () => window.clearTimeout(hold.current), []);
+  return <button type="button" className={active ? "is-active" : ""} aria-label={label} title={label} aria-pressed={active}
+    onPointerDown={() => { cancelHold(); hold.current = window.setTimeout(() => setHint(true), 450); }}
+    onPointerUp={cancelHold} onPointerCancel={() => { cancelHold(); setHint(false); }}
+    onPointerLeave={() => { cancelHold(); setHint(false); }} onBlur={() => setHint(false)} onClick={onChoose}>
+    <span className={`workspace-v4-nib is-${profile}`} style={cssVars({ "--workspace-tool-color": color })}><PenNibIcon profile={profile} /></span>
+    {hint && <span className="workspace-pen-hint" role="tooltip">{label}</span>}
+  </button>;
+}
+
 export function PenProfilePicker({ value, onChange, color }) {
   const { t } = useI18n();
   return <div className="workspace-v4-pen-profiles" role="group" aria-label={t("focus.penType")}>
-    {PEN_PROFILE_OPTIONS.map(([optionValue, optionKey, OptionIcon, shortKey]) => <button key={optionValue} type="button" className={value === optionValue ? "is-active" : ""} aria-label={t(optionKey)} aria-pressed={value === optionValue} onClick={() => onChange(optionValue)}>
-      <span className={`workspace-v4-nib is-${optionValue}`} style={cssVars({ "--workspace-tool-color": color })}><OptionIcon size={15} /><i /></span><strong>{t(shortKey)}</strong>
-    </button>)}
+    {PEN_PROFILE_OPTIONS.map(([optionValue, optionKey]) => <PenProfileChoice key={optionValue} profile={optionValue} label={t(optionKey)} active={value === optionValue} color={color} onChoose={() => onChange(optionValue)} />)}
   </div>;
 }
 

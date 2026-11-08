@@ -596,6 +596,8 @@ test("the username chosen at Google onboarding is the only name the product show
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
   const shownName = page.locator("#account-menu-name");
+  // The menu avatar has a fixed layout footprint, even for large images.
+  await expect.poll(() => page.locator(".account-menu-avatar").evaluate((avatar) => avatar.getBoundingClientRect().width)).toBeLessThanOrEqual(34);
   await expect(shownName).toBeVisible();
   await expect(shownName).toHaveText("ra33");
   await expect(page.getByText("Rami ha")).toHaveCount(0);

@@ -246,7 +246,9 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   const toolbar = page.locator(".workspace-v2-toolbar");
   await expect(toolbar).toHaveCSS("border-radius", "0px");
   expect(await toolbar.boundingBox()).toMatchObject({ x: 0, y: 0, width: 834 });
-  await expect(toolbar.locator(".workspace-v3-quick-color")).toHaveCount(3);
+  // Every default ink stays in the swipeable strip; Add stays visible beside it.
+  await expect(toolbar.locator(".workspace-v3-quick-color")).toHaveCount(8);
+  await expect(toolbar.locator(".workspace-v3-color-add")).toBeVisible();
   const sizing = await toolbar.evaluate((node) => {
     // Rendered buttons only: a hidden group (the docked Undo/Redo, a single-tab strip) hides its children too.
     const boxes = [...node.querySelectorAll("button")].filter((button) => button.getClientRects().length > 0).map((button) => ({ label: button.getAttribute("aria-label"), box: button.getBoundingClientRect() }));
@@ -254,7 +256,15 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
     return {
       // The tablet bar is compact by design: 40px tools and 34px tabs.
       tooSmall: boxes.filter(({ box }) => box.width < 34 || box.height < 34).map(({ label }) => label),
-      clipped: boxes.filter(({ box, label }) => label && box.left >= rail.left && box.left < rail.right && box.right > rail.right + 3).map(({ label }) => label),
+      // A scrollable colour strip intentionally clips its off-screen swatches;
+      // only controls outside their *own* scroll viewport are layout errors.
+      clipped: boxes.filter(({ box, label }) => {
+        if (!label) return false;
+        const colorStrip = [...node.querySelectorAll(".workspace-v3-color-scroll .workspace-v3-quick-color")]
+          .some((color) => color.getAttribute("aria-label") === label);
+        if (colorStrip) return false;
+        return box.left >= rail.left && box.left < rail.right && box.right > rail.right + 3;
+      }).map(({ label }) => label),
       toolbarOverflow: node.scrollWidth - node.clientWidth
     };
   });
@@ -277,7 +287,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("8");
   // Percentages move in whole percents.
   await expect(page.getByRole("slider", { name: "Opacity" })).toHaveAttribute("step", "0.01");
-  // The pen keeps its two gestures in view; presets, smoothing and pressure are gone.
+  // Advanced pen gestures live behind the compact Drawing settings section.
+  await page.locator("#workspace-pen-options .workspace-tool-extras-toggle").click();
   await expect(page.getByRole("switch", { name: /Straight lines/ })).toBeVisible();
   await expect(page.getByRole("switch", { name: /Circle erase/ })).toBeVisible();
   await expect(page.getByRole("slider", { name: "Pressure sensitivity" })).toHaveCount(0);
@@ -384,12 +395,10 @@ test("touch iPad uses pinch zoom without visible zoom controls", async ({ browse
   const page = await context.newPage();
   await mockAuthenticatedWorkspace(page);
   await page.goto(ROUTE);
-  const continueInBrowser = page.getByRole("button", { name: "Continue in browser" });
-  // A cold touch context must finish the PWA launch gate. A one-time
-  // isVisible check can run before the asynchronously mounted gate appears.
-  await expect(continueInBrowser).toBeVisible();
-  await continueInBrowser.click();
-  await expect(page.locator(".pwa-launch-screen")).toBeHidden();
+  // A cold touch context reaches the reader directly; installation is an
+  // explicit Settings action and must not cover the study-mode choice.
+  await expect(page.getByRole("button", { name: /Normal Study/ })).toBeVisible();
+  await expect(page.locator(".pwa-launch-screen")).toHaveCount(0);
   await page.getByRole("button", { name: /Normal Study/ }).click();
   await expect(page.locator(".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   await expect.poll(() => page.evaluate(() => matchMedia("(any-pointer: coarse)").matches)).toBe(true);

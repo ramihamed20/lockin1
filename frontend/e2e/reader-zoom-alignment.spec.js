@@ -23,14 +23,15 @@ const DOCUMENT_ID = "5e0f1a2b-3c4d-4e5f-9a61-8293a4b5c6d7";
 const FILE_ID = "6f1a2b3c-4d5e-4f60-8b72-93a4b5c6d7e8";
 const pdf = readFile(new URL("./fixtures/pdf/sheet-17.pdf", import.meta.url));
 
-async function mockReader(page, { language = "en" } = {}) {
+async function mockReader(page, { language = "en", horizontal = false } = {}) {
   await withoutServiceWorker(page);
-  await page.addInitScript((locale) => {
+  await page.addInitScript(({ locale, horizontalPages }) => {
     try {
       window.localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now()));
       window.localStorage.setItem("lock-in.locale", locale);
+      if (horizontalPages) window.localStorage.setItem("lock-in.catalog-workspace.settings.v1", JSON.stringify({ pageDirection: "horizontal" }));
     } catch { /* private mode */ }
-  }, language);
+  }, { locale: language, horizontalPages: horizontal });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -171,15 +172,194 @@ test("an Arabic reader zooms centred and can still pan across a zoomed page", as
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   // V2 translates the Focus controls, so the Arabic reader names them in Arabic.
   for (const label of ["تكبير", "تكبير", "تصغير"]) await zoomWithButton(page, label);
-  // One step above the desktop reading width can still fit the stage.
-  // Request overflow explicitly before testing horizontal panning.
-  await zoomWithButton(page, "تكبير");
-  // A horizontal pan reaches both edges of the zoomed page.
+  // Increase until the page actually overflows; 120% starts narrower than
+  // a desktop viewport, so a fixed number of clicks may still fit the page.
   const stage = page.locator(".workspace-v2-document-stage");
+  for (let i = 0; i < 6 && (await pageMargins(page)).scrollLeft <= 0; i += 1) {
+    await zoomWithButton(page, "تكبير");
+  }
+  // A horizontal pan reaches both edges of the zoomed page.
   const centred = (await pageMargins(page)).scrollLeft;
   expect(centred).toBeGreaterThan(0);
   await stage.evaluate((node) => { node.scrollLeft = 0; });
   await expect.poll(async () => Math.abs((await pageMargins(page)).left)).toBeLessThanOrEqual(1);
   await stage.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
   await expect.poll(async () => Math.abs((await pageMargins(page)).right)).toBeLessThanOrEqual(1);
+});
+
+/** A distant PDF page and its relative focal point in the vertical reader. */
+async function verticalFocalPoint(page) {
+  return page.evaluate(() => {
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const view = stage.getBoundingClientRect();
+    const x = view.left + view.width / 2;
+    const y = view.top + Math.min(180, view.height / 2);
+    const candidates = [...stage.querySelectorAll(".workspace-v2-a4-page[data-pdf-page]")];
+    let match = null;
+    let distance = Infinity;
+    for (const node of candidates) {
+      const rect = node.getBoundingClientRect();
+      const dx = Math.max(rect.left - x, 0, x - rect.right);
+      const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+      if (dy + dx * .05 >= distance) continue;
+      distance = dy + dx * .05;
+      match = { key: Number(node.dataset.pdfPage), x: (x - rect.left) / rect.width, y: (y - rect.top) / rect.height, width: rect.width };
+    }
+    return match;
+  });
+}
+
+async function alignVerticalReaderToPage(page, pageNumber) {
+  await page.locator(`[data-pdf-page="${pageNumber}"]`).evaluate((element) => {
+    const stage = element.closest(".workspace-v2-document-stage");
+    const rect = element.getBoundingClientRect();
+    const view = stage.getBoundingClientRect();
+    stage.scrollTop += rect.top + rect.height * .25 - (view.top + Math.min(180, view.height / 2));
+  });
+  await expect.poll(async () => (await verticalFocalPoint(page))?.key).toBe(pageNumber);
+}
+
+test("vertical Zoom In/Out preserves a distant page and its focal position", async ({ page }) => {
+  await mockReader(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openReader(page);
+  await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
+  await alignVerticalReaderToPage(page, 7);
+  const initial = await verticalFocalPoint(page);
+  for (const label of ["Zoom in", "Zoom in", "Zoom out", "Zoom in", "Zoom out", "Zoom out"]) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect.poll(async () => (await verticalFocalPoint(page))?.key).toBe(7);
+    const current = await verticalFocalPoint(page);
+    expect(Math.abs(current.y - initial.y), `${label}: vertical focal drift`).toBeLessThan(0.08);
+  }
+});
+
+test("vertical two-finger pinch keeps the selected PDF page under the fingers", async ({ page }) => {
+  await mockReader(page);
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await openReader(page);
+  await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
+  await alignVerticalReaderToPage(page, 5);
+  const initial = await verticalFocalPoint(page);
+  const stage = page.locator(".workspace-v2-document-stage");
+  const bounds = await stage.boundingBox();
+  const x = bounds.x + bounds.width / 2;
+  const y = bounds.y + Math.min(180, bounds.height / 2);
+  const touch = (type, id, px) => stage.dispatchEvent(type, {
+    pointerId: id, pointerType: "touch", isPrimary: id === 71,
+    clientX: px, clientY: y, button: 0, buttons: type === "pointerup" ? 0 : 1,
+    pressure: type === "pointerup" ? 0 : .5, width: 9, height: 9,
+    bubbles: true, cancelable: true
+  });
+  await touch("pointerdown", 71, x - 80);
+  await touch("pointerdown", 72, x + 80);
+  for (let step = 1; step <= 5; step += 1) {
+    const distance = 80 + step * 20;
+    await touch("pointermove", 71, x - distance);
+    await touch("pointermove", 72, x + distance);
+  }
+  await touch("pointerup", 71, x - 180);
+  await touch("pointerup", 72, x + 180);
+  await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/, { timeout: 10_000 });
+  await expect.poll(async () => (await verticalFocalPoint(page))?.key).toBe(5);
+  const final = await verticalFocalPoint(page);
+  expect(Math.abs(final.y - initial.y), "pinch focal drift").toBeLessThan(0.08);
+  expect(final.width).toBeGreaterThan(initial.width);
+});
+
+test("vertical zoom begins at 120 percent, cannot zoom out further, and can zoom in", async ({ page }) => {
+  await mockReader(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openReader(page);
+  await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
+  const actualScale = () => page.locator(".workspace-v2-a4-zoom-surface").evaluate(
+    (node) => Number.parseFloat(node.style.getPropertyValue("--workspace-a4-zoom"))
+  );
+  await expect.poll(actualScale).toBeCloseTo(1.2, 3);
+  const zoomOut = page.getByRole("button", { name: "Zoom out", exact: true });
+  const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
+  await expect(zoomOut).toBeDisabled();
+  await zoomIn.click();
+  await expect.poll(actualScale).toBeGreaterThan(1.2);
+  await expect(zoomOut).toBeEnabled();
+  await zoomOut.click();
+  await expect.poll(actualScale).toBeCloseTo(1.2, 3);
+  await expect(zoomOut).toBeDisabled();
+});
+
+for (const viewport of [{ width: 820, height: 1180 }, { width: 390, height: 844 }]) {
+  test(`vertical page one starts below the floating toolbar at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await mockReader(page);
+    await page.setViewportSize(viewport);
+    await openReader(page);
+    await expect(page.locator(".workspace-v2-a4-document")).not.toHaveClass(/is-horizontal/);
+    const pageClearance = async () => page.evaluate(() => {
+      const toolbar = document.querySelector(".workspace-v2-reader > .workspace-v2-toolbar");
+      const stage = document.querySelector(".workspace-v2-document-stage");
+      const firstPage = stage?.querySelector('[data-pdf-page="1"]');
+      if (!toolbar || !stage || !firstPage) return -999;
+      return firstPage.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom;
+    });
+    // Don't merely assert "below the toolbar": a half-viewport blank gap
+    // above the page passes that test. Page one must START near the rail.
+    await expect.poll(pageClearance, { timeout: 10_000 }).toBeGreaterThanOrEqual(6);
+    await expect.poll(pageClearance).toBeLessThanOrEqual(35);
+
+    // A swipe away and return must land at the same physical beginning. The
+    // old document-relative minScrollTop stopped early, hiding the page title
+    // behind the overlay when the reader returned from later pages.
+    const stage = page.locator(".workspace-v2-document-stage");
+    await stage.evaluate((node) => { node.scrollTop = node.scrollHeight * 0.25; });
+    await stage.evaluate((node) => { node.scrollTop = 0; });
+    await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBe(0);
+    await expect.poll(pageClearance).toBeGreaterThanOrEqual(6);
+    await expect.poll(pageClearance).toBeLessThanOrEqual(35);
+  });
+}
+
+
+test("finger drag returns vertical page one to the toolbar with no rubber-band gap", async ({ page }) => {
+  await mockReader(page);
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await openReader(page);
+  const stage = page.locator(".workspace-v2-document-stage");
+  const firstPage = stage.locator('[data-pdf-page="1"]');
+  const clearance = async () => page.evaluate(() => {
+    const toolbar = document.querySelector(".workspace-v2-reader > .workspace-v2-toolbar");
+    const pageOne = document.querySelector('.workspace-v2-document-stage [data-pdf-page="1"]');
+    return pageOne.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom;
+  });
+  await expect(firstPage).toBeVisible();
+  await expect.poll(clearance).toBeGreaterThanOrEqual(6);
+  await expect.poll(clearance).toBeLessThanOrEqual(35);
+
+  // Move into the document, then drag down beyond the beginning of the
+  // scrolling range. This uses the same pointer events as iPad touch panning,
+  // rather than assigning scrollTop which bypasses all gesture bounds.
+  await stage.evaluate((node) => { node.scrollTop = 450; });
+  await expect.poll(async () => stage.evaluate((node) => node.scrollTop)).toBeGreaterThan(400);
+  const bounds = await stage.boundingBox();
+  const x = bounds.x + bounds.width / 2;
+  const y = bounds.y + Math.min(300, bounds.height / 3);
+  const send = (type, py) => stage.dispatchEvent(type, {
+    pointerId: 91, pointerType: "touch", isPrimary: true,
+    clientX: x, clientY: py, button: 0,
+    buttons: type === "pointerup" ? 0 : 1,
+    pressure: type === "pointerup" ? 0 : .5, width: 9, height: 9,
+    bubbles: true, cancelable: true
+  });
+  await send("pointerdown", y);
+  for (let i = 1; i <= 8; i += 1) await send("pointermove", y + i * 85);
+  await send("pointerup", y + 8 * 85);
+  await expect.poll(async () => stage.evaluate((node) => node.scrollTop), { timeout: 10_000 }).toBe(0);
+  await expect.poll(clearance).toBeGreaterThanOrEqual(6);
+  await expect.poll(clearance).toBeLessThanOrEqual(35);
+  // An edge pull on page one must not shift the PDF with a second elastic
+  // transform or leave it springing back while the page is already at start.
+  await send("pointerdown", y);
+  for (let i = 1; i <= 3; i += 1) await send("pointermove", y + i * 70);
+  await send("pointerup", y + 3 * 70);
+  await expect.poll(async () => firstPage.evaluate((node) => node.closest(".workspace-v2-a4-live-layer")?.style.transform || "")).toBe("");
+  await expect.poll(clearance).toBeGreaterThanOrEqual(6);
+  await expect.poll(clearance).toBeLessThanOrEqual(35);
 });

@@ -362,7 +362,7 @@ export function createCatalogServerSync({
   }
 
   /** Check revisions cheaply, downloading full state only when they moved. */
-  async function refresh({ pageCount, local }) {
+  async function refresh({ pageCount, local, getLocal }) {
     if (disabled || workspaceRevision === null) return { changed: false, unavailable: true };
     if (!hasWorkspace) {
       // One page is enough to read the collection's revision, which is the only
@@ -371,7 +371,7 @@ export function createCatalogServerSync({
       if (typeof probe?.collection_revision !== "number") throw unavailable("The Focus annotation response was incomplete.");
       if (probe.collection_revision === collectionRevision) return { changed: false };
       await load({ pageCount });
-      return { changed: true, ...reconcile(local) };
+      return { changed: true, ...reconcile(getLocal ? getLocal() : local) };
     }
     const result = await catalog.probe(workspaceDocumentId);
     if (
@@ -387,7 +387,9 @@ export function createCatalogServerSync({
       && result.collection_revision === collectionRevision
     ) return { changed: false };
     await load({ pageCount });
-    return { changed: true, ...reconcile(local) };
+    // Read the editing state after the last await: a stroke, deletion or note
+    // made during the download must participate in the three-way merge.
+    return { changed: true, ...reconcile(getLocal ? getLocal() : local) };
   }
 
   return {

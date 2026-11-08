@@ -123,14 +123,43 @@ async function anchoredClientPoint(page, anchor) {
   }, anchor);
 }
 
+
+/** After a pinch commits, page boxes reflow but the fixed gaps do not scale.
+ * Check the student's real physical page position instead of scaling the
+ * entire continuous document height as though all gaps were ink. */
+async function physicalPageAnchor(page, point) {
+  return page.evaluate(({x,y}) => {
+    const pages = [...document.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]")];
+    const nearest = pages.reduce((best, node) => {
+      const r = node.getBoundingClientRect();
+      const d = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+      return !best || d < best.distance ? {node, r, distance:d} : best;
+    }, null);
+    if (!nearest) throw new Error("No PDF pages mounted for pinch");
+    const {r,node} = nearest;
+    const ny = Math.max(0, Math.min(1, (y-r.top)/r.height));
+    return {key:node.dataset.workspacePage,x:(x-r.left)/r.width,y:ny,gapOffsetY:y-(r.top+r.height*ny)};
+  },point);
+}
+async function anchoredPhysicalPagePoint(page, anchor) {
+  return page.evaluate(({key,x,y,gapOffsetY}) => {
+    const node=[...document.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]")].find(el=>el.dataset.workspacePage===key);
+    if(!node)throw new Error("Pinch anchor page disappeared");
+    const r=node.getBoundingClientRect();
+    return {x:r.left+r.width*x,y:r.top+r.height*y+gapOffsetY};
+  },anchor);
+}
+
 async function expectHorizontalFocalOrPhysicalEdge(page, actualX, targetX, live = false) {
   if (Math.abs(actualX - targetX) < 1.25) return;
   const geometry = await page.evaluate(() => {
     const viewport = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
     return {
-      leftEdge: Math.abs(pdf.left - viewport.left),
-      rightEdge: Math.abs(viewport.right - pdf.right),
+      // Positive means a real uncovered strip; negative means the PDF
+      // correctly overflows the corresponding physical viewport edge.
+      leftGap: pdf.left - viewport.left,
+      rightGap: viewport.right - pdf.right,
       centerError: Math.abs((pdf.left + pdf.right) / 2 - (viewport.left + viewport.right) / 2),
       fits: pdf.width <= viewport.width + 0.5,
       viewportWidth: viewport.width,
@@ -142,7 +171,7 @@ async function expectHorizontalFocalOrPhysicalEdge(page, actualX, targetX, live 
   const tolerance = live ? 29 : 1.5;
   const diagnostic = JSON.stringify({ actualX, targetX, live, ...geometry });
   if (geometry.fits) expect(geometry.centerError, diagnostic).toBeLessThan(tolerance);
-  else expect(Math.min(geometry.leftEdge, geometry.rightEdge), diagnostic).toBeLessThan(tolerance);
+  else expect(Math.max(geometry.leftGap, geometry.rightGap), diagnostic).toBeLessThan(tolerance);
 }
 
 /**
@@ -173,7 +202,8 @@ async function expectVerticalFocalOrConstrainedEdge(page, actualY, targetY, live
       topGap: pdf.top - viewportTop,
       bottomGap: viewportTop + viewportHeight - pdf.bottom,
       centerError: Math.abs((pdf.top + pdf.bottom) / 2 - (viewportTop + viewportHeight / 2)),
-      fits: pdf.height <= viewportHeight + 0.5
+      fits: pdf.height <= viewportHeight + 0.5,
+      reservedToolbarInset: Number.parseFloat(getComputedStyle(stage).paddingTop) || 0
     };
   });
   const slack = WORKSPACE_GESTURE.verticalEdgeReveal + (live ? WORKSPACE_GESTURE.pinchElasticLimit : 0);
@@ -185,7 +215,9 @@ async function expectVerticalFocalOrConstrainedEdge(page, actualY, targetY, live
     expect(geometry.centerError).toBeLessThanOrEqual(slack);
     return;
   }
-  expect(geometry.topGap).toBeLessThanOrEqual(slack);
+  // The stage reserves its toolbar clearance in padding. This is not an
+  // illegal empty PDF edge; only any gap beyond that reserved inset is.
+  expect(geometry.topGap - geometry.reservedToolbarInset).toBeLessThanOrEqual(slack);
   expect(geometry.bottomGap).toBeLessThanOrEqual(slack);
 }
 
@@ -207,6 +239,7 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
   const stage = page.locator(".workspace-v2-document-stage");
   const initialScale = await readerScale(page);
   const initialPoint = await documentPoint(page, xRatio, yRatio);
+  const physicalAnchor = await physicalPageAnchor(page, initialPoint);
   const documentBounds = await page.locator(".workspace-v2-a4-document").boundingBox();
   const anchor = {
     x: (initialPoint.x - documentBounds.x) / initialScale,
@@ -224,6 +257,11 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
   const livePoint = await anchoredClientPoint(page, anchor);
+  const liveZoomRatio = await page.locator(".workspace-v2-a4-live-layer").evaluate((node) => {
+    const transform = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+    return Math.hypot(transform.a, transform.b);
+  });
+  expect(Math.abs(liveZoomRatio * initialScale - targetScale)).toBeLessThan(.002);
   await expectHorizontalFocalOrPhysicalEdge(page, livePoint.x, targetFocal.x, true);
   // The production branch turns on this exact comparison: zooming in keeps Y
   // focal-exact, zooming out hands Y to the edge constraint.
@@ -235,17 +273,24 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
   await expect(page.locator(".workspace-v2-a4-live-layer")).not.toHaveClass(/is-live-pinching|is-zoom-settling|is-springing-back/);
 
   const committedScale = await readerScale(page);
-  expect(Math.abs(committedScale - targetScale)).toBeLessThan(1e-6);
-  const committedPoint = await anchoredClientPoint(page, anchor);
+  const snappedScale = Math.round(targetScale * 20) / 20;
+  expect(Math.abs(committedScale - snappedScale)).toBeLessThan(1e-6);
+  const committedPoint = await anchoredPhysicalPagePoint(page, physicalAnchor);
   await expectHorizontalFocalOrPhysicalEdge(page, committedPoint.x, targetFocal.x);
   // The spring has released by now, so a constrained gesture must have settled
   // onto the legal bound itself rather than anywhere inside the elastic band.
-  if (targetScale > initialScale) expect(Math.abs(committedPoint.y - targetFocal.y)).toBeLessThan(1.25);
-  else await expectVerticalFocalOrConstrainedEdge(page, committedPoint.y, targetFocal.y);
+  if (targetScale > initialScale) {
+    const drift = Math.abs(committedPoint.y - targetFocal.y);
+    // At the physical start of a PDF, negative scrollTop is impossible.
+    // Only a constrained top edge may stop short of the gesture's Y target.
+    const atPhysicalTop = await stage.evaluate((node) => node.scrollTop <= 1);
+    if (atPhysicalTop && drift >= 1.25) await expectVerticalFocalOrConstrainedEdge(page, committedPoint.y, targetFocal.y);
+    else expect(drift).toBeLessThan(1.25);
+  } else await expectVerticalFocalOrConstrainedEdge(page, committedPoint.y, targetFocal.y);
 
   await page.waitForTimeout(250);
   const settledScale = await readerScale(page);
-  const settledPoint = await anchoredClientPoint(page, anchor);
+  const settledPoint = await anchoredPhysicalPagePoint(page, physicalAnchor);
   expect(settledScale).toBe(committedScale);
   expect(Math.abs(settledPoint.x - committedPoint.x)).toBeLessThan(0.25);
   expect(Math.abs(settledPoint.y - committedPoint.y)).toBeLessThan(0.25);
@@ -308,8 +353,11 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   // property of the final layout instead of a race against it -- and whether
   // the zoom-out below reaches the bottom constraint depends on exactly that.
   const scrollLastPageIntoPosition = async () => {
+    // Start from an actually visible last page before positioning its 4% line.
+    // Native scrolling handles offscreen content-visibility placeholders.
+    await page.locator(".workspace-v2-a4-page[data-pdf-page]").last().scrollIntoViewIfNeeded();
     await stage.evaluate((node) => {
-      const lastPage = document.querySelector(".workspace-v2-a4-page:last-child");
+      const lastPage = [...document.querySelectorAll(".workspace-v2-a4-page[data-pdf-page]")].at(-1);
       const viewport = node.getBoundingClientRect();
       const pageBounds = lastPage.getBoundingClientRect();
       const anchorClientY = pageBounds.top + pageBounds.height * 0.04;
@@ -320,13 +368,14 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   };
 
   await scrollLastPageIntoPosition();
-  await expect.poll(async () => page.locator(".workspace-v2-a4-page:last-child .workspace-v2-a4-canvas.is-visible").evaluate((canvas) => canvas.width > 0), { timeout: 20_000 }).toBe(true);
+  // Test geometry, not PDF.js bitmap completion, which is lazy off-screen.
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").last()).toBeInViewport({ ratio: 0.01 });
   await waitForStableDocumentGeometry(page);
 
   await scrollLastPageIntoPosition();
   await waitForStableDocumentGeometry(page);
 
-  const ratios = await page.locator(".workspace-v2-a4-page:last-child").evaluate((lastPage) => {
+  const ratios = await page.locator(".workspace-v2-a4-page[data-pdf-page]").last().evaluate((lastPage) => {
     const pageBounds = lastPage.getBoundingClientRect();
     const documentBounds = lastPage.closest(".workspace-v2-a4-document").getBoundingClientRect();
     return {
@@ -339,10 +388,10 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   await exactPinch(page, { ...ratios, targetScale: 1.55, moveX: -11, moveY: -9 });
   await exactPinch(page, { ...ratios, targetScale: 2.123, moveX: 9, moveY: 7 });
   await exactPinch(page, { ...ratios, targetScale: 1.55, moveX: -7, moveY: -5 });
-  await expect(page.locator(".workspace-v2-a4-page:last-child")).toBeInViewport({ ratio: 0.1 });
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").last()).toBeInViewport({ ratio: 0.1 });
 });
 
-test("high zoom keeps exact 247.8% and 487.3% values without snapping", async ({ page }) => {
+test("high zoom follows fractional gestures then settles to 5% increments", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
@@ -358,7 +407,7 @@ test("high zoom keeps exact 247.8% and 487.3% values without snapping", async ({
   await exactPinch(page, { ...ratios, targetScale: 4.873, moveX: -37, moveY: 29 });
 });
 
-test("reader navigation stops at physical horizontal edges and a 20px vertical reveal", async ({ page }) => {
+test("reader navigation reaches horizontal edges and keeps page one below the toolbar", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
@@ -368,12 +417,15 @@ test("reader navigation stops at physical horizontal edges and a 20px vertical r
   await stage.dispatchEvent("wheel", { deltaX: -100_000, deltaY: -100_000, bubbles: true, cancelable: true });
   await expect.poll(async () => stage.evaluate((node) => ({ left: node.scrollLeft, top: node.scrollTop }))).toEqual(expect.objectContaining({ left: expect.any(Number), top: expect.any(Number) }));
   const leading = await page.evaluate(() => {
-    const viewport = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
+    const stage = document.querySelector(".workspace-v2-document-stage");
+    const viewport = stage.getBoundingClientRect();
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
-    return { left: pdf.left - viewport.left, top: pdf.top - viewport.top };
+    const toolbar = document.querySelector(".workspace-v2-toolbar").getBoundingClientRect();
+    return { left: pdf.left - viewport.left, top: pdf.top, toolbarBottom: toolbar.bottom, scrollTop: stage.scrollTop };
   });
   expect(Math.abs(leading.left)).toBeLessThan(1.5);
-  expect(Math.abs(leading.top - 20)).toBeLessThan(1.5);
+  expect(leading.scrollTop).toBeLessThanOrEqual(1);
+  expect(leading.top).toBeGreaterThanOrEqual(leading.toolbarBottom);
 
   await stage.evaluate((node) => { node.scrollLeft = node.scrollWidth; });
   await stage.dispatchEvent("wheel", { deltaX: 100_000, deltaY: 100_000, bubbles: true, cancelable: true });
@@ -435,7 +487,7 @@ test("a horizontal one-finger drag pans a zoomed sheet without changing Y", asyn
   expect(afterMomentum.left).not.toBe(before.left);
 });
 
-test("zoom-out rubber-bands and settles at the half-width limit", async ({ page }) => {
+test("zoom-out rubber-bands and settles at the desktop 120% minimum", async ({ page }) => {
   test.setTimeout(60_000);
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 1280, height: 800 });
@@ -476,12 +528,10 @@ test("zoom-out rubber-bands and settles at the half-width limit", async ({ page 
   });
   expect(settled.horizontalCenterError).toBeLessThan(1.5);
   expect(settled.leadingGap).toBeLessThanOrEqual(20.5);
-  const fit = await page.evaluate(() => {
-    const viewportBounds = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
-    const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
-    return { viewportWidth: viewportBounds.width, pdfWidth: pdf.width };
-  });
-  expect(Math.abs(fit.pdfWidth - fit.viewportWidth * .5)).toBeLessThan(1.5);
+  const scale = await page.locator(".workspace-v2-a4-document").evaluate(
+    (node) => Number(getComputedStyle(node).getPropertyValue("--workspace-a4-zoom"))
+  );
+  expect(scale).toBeCloseTo(1.2, 2);
 });
 
 test("single-finger scrolling and Apple Pencil with palm contact remain intact @chromium-only", async ({ page }) => {
@@ -549,7 +599,7 @@ test("opaque Ball Pen stays color-stable and Precision Eraser masks only touched
   await keepRawInk(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
-  await page.getByRole("button", { name: "Use #db2777" }).click();
+  await page.locator("#workspace-pen-options").getByRole("button", { name: "Use #db2777" }).click();
   await page.locator('.workspace-v2-toolbar [data-workspace-tool="pen"]').click();
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
@@ -716,6 +766,8 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
+  // Pen gestures now live in the collapsible Drawing section.
+  await page.locator("#workspace-pen-options .workspace-tool-extras-toggle").click();
   await page.getByRole("switch", { name: /Circle erase/ }).click();
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
@@ -748,6 +800,8 @@ test("circle erase can finish after a pause during its incomplete loop", async (
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
+  // Pen gestures now live in the collapsible Drawing section.
+  await page.locator("#workspace-pen-options .workspace-tool-extras-toggle").click();
   await page.getByRole("switch", { name: /Circle erase/ }).click();
   const stage = page.locator(".workspace-v2-document-stage");
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();

@@ -1,0 +1,57 @@
+name: PDF split screen actual preview
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/pdf-split-preview.yml"
+      - "frontend/e2e/pdf-split-visual.spec.js"
+      - "frontend/src/workspace/catalog/WorkspaceKeepAlive.jsx"
+      - "frontend/src/workspace/catalog/WorkspaceTabDrag.jsx"
+      - "frontend/src/workspace/catalog/workspace-split.css"
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Run real Focus PDF in browser, capture iPad and phone
+        working-directory: frontend
+        run: |
+          pnpm run fixtures:pdf
+          LOCKIN_E2E_CATALOG=1 pnpm exec vite --host 127.0.0.1 --port 5050 > /tmp/pdf-split-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:5050 >/dev/null; then break; fi
+            sleep 1
+          done
+          PLAYWRIGHT_EXTERNAL_SERVER=1 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5050 pnpm exec playwright test e2e/pdf-split-visual.spec.js --workers=1 --retries=0
+      - name: Focus tab and video isolation unit tests
+        if: always()
+        working-directory: frontend
+        run: node --test tests/workspace-tabs.test.js tests/focus-video.test.js
+      - name: Upload real screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-split-actual-screenshots
+          path: |
+            frontend/output/playwright/pdf-split-*.png
+            frontend/output/playwright/pdf-grid-*.png
+            frontend/test-results/**/*.png
+          if-no-files-found: warn
+          retention-days: 7

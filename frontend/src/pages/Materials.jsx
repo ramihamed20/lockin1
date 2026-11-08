@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useAsyncData } from "../hooks/useAsyncData.js";
+import { progressApi } from "../api/progress.js";
 import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { Icon } from "../lib/icons.jsx";
@@ -7,7 +9,8 @@ import { useCatalogMaterials } from "../hooks/useCatalogMaterials.js";
 import { preloadCatalogDocument } from "../hooks/useCatalogDocument.js";
 import { EmptyState, ErrorPanel, LoadingPanel, Page } from "../components/ui/index.jsx";
 import { CatalogSheetCard } from "../components/learning/CatalogSheetCard.jsx";
-import { CatalogTile } from "../components/learning/CatalogTile.jsx";
+import { SubjectBanner } from "../components/learning/SubjectBanner.jsx";
+import { sheetCoverTone } from "../lib/sheetPresentation.js";
 import { useI18n } from "../components/I18nProvider.jsx";
 import OfflineSheetAction from "../offline/OfflineSheetAction.jsx";
 import { PersonalSheetsBranch } from "../components/learning/PersonalSheets.jsx";
@@ -22,17 +25,17 @@ export default function Materials({ user = null }) {
   // A directory that has not arrived is not a directory that is empty. Telling a
   // student "you have no subjects" while the request is still in flight -- or
   // because it failed -- is how a transient error reads as lost content.
-  if (loading) return <Page width="reading" title="Materials"><LoadingPanel variant="material-list" /></Page>;
+  if (loading) return <Page width="sheets" title="Materials"><LoadingPanel variant="sheet-library" /></Page>;
   if (error) return <Page width="reading" title="Materials"><ErrorPanel message={error} onRetry={reload} /></Page>;
 
   return (
-    <Page width="reading" title="Materials" headingHandled>
-      <section className="catalog-directory" aria-labelledby="cohort-materials-heading">
+    <Page width="sheets" title="Materials" headingHandled>
+      <section className="catalog-directory catalog-sheet-directory" aria-labelledby="cohort-materials-heading">
         <CatalogDirectoryHeader id="cohort-materials-heading" title={t("route.materials")} />
         {materials.length === 0
           ? <EmptyState icon="study" title={t("materials.noCohortMaterialsTitle")} text={t("materials.noCohortMaterialsText")} />
           : (
-            <section className="material-grid catalog-material-grid" aria-label={t("materials.catalogLabel")}>
+            <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.catalogLabel")}>
               {materials.map((material) => <CatalogMaterialCard key={material.slug} material={material} />)}
             </section>
           )}
@@ -46,7 +49,20 @@ function CatalogMaterialCard({ material }) {
   const { t } = useI18n();
   const count = t("materials.sheetCount", { count: material.sheets.length });
   const meta = material.added ? `${t("materials.addedFromFirstYear")} · ${count}` : count;
-  return <CatalogTile title={material.title} meta={meta} icon="book-open" to={`/materials/catalog/${material.slug}`} />;
+  return (
+    <Link className="sheet-card catalog-sheet-card sheet-library-card" to={`/materials/catalog/${material.slug}`}>
+      <span className="sheet-library-cover subject-banner" data-tone={sheetCoverTone(material)} aria-hidden="true">
+        <SubjectBanner material={material} />
+      </span>
+      <span className="sheet-library-body">
+        <strong className="sheet-library-title" dir="auto">{material.title}</strong>
+        <span className="sheet-library-footer">
+          <span className="sheet-library-detail"><Icon name="layers" size={16} aria-hidden="true" /><span dir="auto">{meta}</span></span>
+          <span className="sheet-library-open" aria-hidden="true"><span>{t("materials.openMaterial")}</span><Icon name="chevron-right" size={17} /></span>
+        </span>
+      </span>
+    </Link>
+  );
 }
 
 /** The "+" under a Second Year student's subjects: add up to two First Year subjects. */
@@ -137,10 +153,10 @@ function AddFirstYearSubject({ onChange }) {
 
 function CatalogDirectoryHeader({ id, title, subtitle = "", backTo = "", backLabel = "", breadcrumb = null }) {
   return (
-    <header className="catalog-directory-header">
+    <header className={!backTo && !breadcrumb ? "visually-hidden" : "catalog-directory-header"}>
       {backTo && <Link className="catalog-back-link" to={backTo}><Icon name="arrow-left" size={18} aria-hidden="true" /><span dir="auto">{backLabel}</span></Link>}
       {breadcrumb}
-      <div className="catalog-directory-title"><h1 id={id} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
+      <div className="catalog-directory-title"><h1 id={id} className={!backTo && !breadcrumb ? "visually-hidden" : undefined} dir="auto">{title}</h1>{subtitle && <p dir="auto">{subtitle}</p>}</div>
     </header>
   );
 }
@@ -150,14 +166,18 @@ export function CatalogMaterialSheets({ user = null }) {
   const { t } = useI18n();
   const { materials, loading, error, reload } = useCatalogMaterials(user);
   const material = materials.find((item) => item.slug === materialSlug) || null;
+  const recentStudy = useAsyncData(signal => progressApi.recentCatalogStudy({ signal }), [user?.id], { cacheKey: `dashboard-recent:${user?.id || ""}` });
+  const history = Array.isArray(recentStudy.data?.results) ? recentStudy.data.results : [];
+  const readingFor = sheet => history.find(entry => entry.material_slug === materialSlug && (entry.sheet_slug === sheet.slug || sheet.editions?.some(edition => edition.slug === entry.sheet_slug)));
 
-  if (loading) return <Page width="reading" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="card-list" /></Page>;
+
+  if (loading) return <Page width="sheets" title={t("materials.coreCatalogTitle")}><LoadingPanel variant="sheet-library" /></Page>;
   if (error) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={error} onRetry={reload} /></Page>;
   if (!material) return <Page width="reading" title={t("materials.notFoundTitle")}><ErrorPanel message={t("materials.notFoundText")} /></Page>;
 
   return (
-    <Page width="reading" title={material.title} headingHandled>
-      <section className="catalog-directory" aria-labelledby="catalog-subject-heading">
+    <Page width="sheets" title={material.title} headingHandled>
+      <section className="catalog-directory catalog-sheet-directory" aria-labelledby="catalog-subject-heading">
         <CatalogDirectoryHeader id="catalog-subject-heading" title={material.title} backTo="/materials" backLabel={t("route.materials")} />
         {/* The student's own sheets are a branch of every subject, so the
             subject is never a dead end even before anything is published. */}
@@ -165,9 +185,10 @@ export function CatalogMaterialSheets({ user = null }) {
         {material.sheets.length
           ? (
             <section className="sheet-grid catalog-sheet-grid" aria-label={t("materials.sheetsOf", { name: material.title })}>
-              {material.sheets.map((sheet) => (
-                <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />
-              ))}
+              {material.sheets.map((sheet) => {
+                const entry = readingFor(sheet);
+                return <CatalogSheetCard key={sheet.slug} material={material} sheet={sheet} readingEntry={entry ? { currentPage: entry.current_page, pageCount: entry.page_count } : null} to={`/materials/catalog/${material.slug}/sheets/${sheet.slug}`} />;
+              })}
             </section>
           )
           : <EmptyState icon="study" title={t("materials.noSheetsTitle")} text={t("materials.noSheetsText")} />}

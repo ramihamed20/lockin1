@@ -1,0 +1,15 @@
+.study-alert-fields { border: 0; padding: 0; margin: 0; min-inline-size: 0; display: grid; gap: 16px; }
+.study-alert-types, .study-alert-days { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; margin: 0; min-inline-size: 0; }
+.study-alert-types legend, .study-alert-days legend { padding-inline: 6px; font-weight: 600; }
+.study-alert-toggle { cursor: pointer; min-block-size: 48px; gap: 12px; justify-content: flex-start; }
+.study-alert-toggle input { flex: 0 0 auto; }
+.study-alert-days > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.study-alert-days button { min-block-size: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); color: var(--text); }
+.study-alert-days button[aria-pressed="true"] { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 18%, var(--surface-2)); }
+.study-alert-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 16px; }
+.study-alert-grid .field { min-inline-size: 0; }
+.study-alert-grid :is(input, select) { min-block-size: 44px; inline-size: 100%; min-inline-size: 0; }
+.study-alert-grid > p { grid-column: 1 / -1; }
+.study-alert-actions { flex-wrap: wrap; }
+.study-alert-actions .btn { min-block-size: 44px; }
+.study-alert-schedule { border-inline-start: 3px solid var(--color-primary); padding-inline-start: 12px; }

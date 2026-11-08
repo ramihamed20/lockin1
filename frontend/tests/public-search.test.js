@@ -1,3 +1,4 @@
+import { SETTINGS_SECTIONS } from "../src/lib/settingsNavigation.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmdirSync } from "node:fs";
@@ -89,7 +90,8 @@ test("app remains noindex and About/Support are reachable through settings",asyn
   ]);
   assert.match(shell,/name="robots" content="noindex, nofollow, noarchive"/);
   assert.doesNotMatch(shell,/rel="canonical"/);
-  assert.match(settings,/id: "about"/);assert.match(settings,/id: "support"/);
+  assert.match(settings,/const SECTIONS = SETTINGS_SECTIONS/);
+  for (const id of ["about", "support"]) assert.ok(SETTINGS_SECTIONS.some(section => section.id === id));
   assert.match(links,/"\/about\/"/);assert.match(links,/"\/help\/"/);
   assert.match(auth,/"\/about\/"/);assert.match(auth,/"\/en\/about\/"/);
 });

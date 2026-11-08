@@ -1,0 +1,264 @@
+/* Multi-sheet Focus: exactly one existing toolbar, above up to four PDF cells. */
+.workspace-split-layout:not(.is-split) { display: contents; }
+.workspace-split-layout:not(.is-split) > .workspace-pane.is-kept {
+  position: fixed; inset: 0; visibility: hidden; pointer-events: none;
+}
+.workspace-split-layout.is-split {
+  --split-toolbar-space: clamp(88px, 12vh, 118px);
+  position: fixed; inset: 0; z-index: var(--z-immersive, 130);
+  display: grid; gap: 5px;
+  padding: calc(var(--split-toolbar-space) + env(safe-area-inset-top)) 5px 5px;
+  overflow: hidden;
+  background: var(--workspace-stage-bg, #0d111a);
+}
+.workspace-split-layout.is-split[data-pane-count="2"] {
+  grid-template-columns: minmax(0, calc(var(--workspace-split-primary, 50%) - 3px)) minmax(0,1fr);
+  grid-template-rows: minmax(0,1fr);
+}
+.workspace-split-layout.is-split[data-pane-count="3"],
+.workspace-split-layout.is-split[data-pane-count="4"] {
+  grid-template-columns: minmax(0, calc(var(--workspace-split-primary, 50%) - 3px)) minmax(0,1fr);
+  grid-template-rows: minmax(0, calc(var(--workspace-split-secondary, 50%) - 3px)) minmax(0,1fr);
+}
+.workspace-split-layout.is-split > .workspace-pane {
+  display: block; position: relative; min-width: 0; min-height: 0; overflow: hidden;
+  border: 1px solid var(--separator, #303945);
+  border-radius: 12px; background: var(--workspace-bg, #080d19);
+  transform: translateZ(0); /* Keep the original reader fixed to its own cell. */
+}
+.workspace-split-layout.is-split > .workspace-pane.is-kept {
+  position: absolute; inset: 0; visibility: hidden; pointer-events: none;
+  height: 0; width: 0; border: 0;
+}
+.workspace-split-layout.is-split > .workspace-pane[data-split-slot="0"] { grid-column: 1; grid-row: 1; }
+.workspace-split-layout.is-split > .workspace-pane[data-split-slot="1"] { grid-column: 2; grid-row: 1; }
+.workspace-split-layout.is-split > .workspace-pane[data-split-slot="2"] { grid-column: 2; grid-row: 2; }
+.workspace-split-layout.is-split > .workspace-pane[data-split-slot="3"] { grid-column: 1; grid-row: 2; }
+.workspace-split-layout.is-split[data-pane-count="3"] > .workspace-pane[data-split-slot="0"] { grid-row: 1 / 3; }
+.workspace-split-layout.is-split > .workspace-pane > .workspace-v2 {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+}
+.workspace-split-layout.is-split .workspace-pane .workspace-v2-reader > .workspace-v2-document-stage {
+  /* No duplicate per-pane toolbar or title bar: return this space to the PDF. */
+  padding-top: 0 !important;
+  scroll-padding-top: 6px !important;
+}
+/* Original, fully functional Focus toolbar is portaled from the selected sheet,
+   not reimplemented. Other readers never draw a second toolbar. */
+.workspace-split-layout.is-split > .workspace-split-shared-chrome.workspace-v2 {
+  position: absolute !important; z-index: 10; inset: 0 0 auto !important;
+  display: block; width: 100%; height: var(--split-toolbar-space);
+  background: transparent !important; overflow: visible; pointer-events: none;
+  animation: none !important;
+}
+.workspace-split-shared-chrome .workspace-v2-body,
+.workspace-split-shared-chrome .workspace-v2-reader {
+  position: relative; width: 100%; height: 100%; overflow: visible; pointer-events: none;
+}
+.workspace-split-shared-chrome .workspace-v2-reader > .workspace-v2-toolbar {
+  pointer-events: auto; max-width: 100%;
+}
+.workspace-split-layout.is-split .workspace-v2-toolbar { min-width: 0; }
+.workspace-split-layout.is-split .workspace-v3-document-context { max-width: 160px; }
+.workspace-split-layout.is-split .workspace-tabs-scroller { max-width: 100%; }
+.workspace-split-layout.is-split .workspace-v3-quick-colors { gap: 1px; padding-inline: 3px; }
+.workspace-split-pane-remove {
+  /* One minimal X per sheet; no permanent title/header strip. */
+  position: absolute; z-index: 200; top: 8px; right: 8px;
+  display: grid; place-items: center; width: 24px; height: 24px;
+  padding: 0; border-radius: 8px;
+  border: 0; color: #6d778a; background: transparent;
+  opacity: .68; cursor: pointer;
+  transition: opacity 130ms ease, background 130ms ease, transform 130ms ease;
+}
+.workspace-split-pane-remove:hover,
+.workspace-split-pane-remove:focus-visible {
+  opacity: 1; color: var(--text, #fff);
+  background: color-mix(in srgb, var(--surface, #202938) 90%, transparent);
+}
+.workspace-split-pane-remove:focus-visible { outline: 2px solid var(--accent, #8e61ff); outline-offset: 2px; }
+.workspace-split-pane-remove:active { transform: scale(.94); }
+/* Grid-owned resize rails follow actual row/column tracks and support 20–80%.
+   They float on the seam without adding an implicit grid column or row. */
+.workspace-split-divider {
+  position: relative; z-index: 210;
+  display: flex; justify-content: center; align-items: center;
+  min-width: 0; min-height: 0;
+  touch-action: none; user-select: none;
+  color: var(--text, #f4f6ff);
+}
+.workspace-split-divider[data-axis="primary"] {
+  grid-column: 1; grid-row: 1; justify-self: end; align-self: stretch;
+  margin-right: -8px; width: 12px; cursor: col-resize;
+}
+.workspace-split-layout.is-split[data-pane-count="3"] > .workspace-split-divider[data-axis="primary"],
+.workspace-split-layout.is-split[data-pane-count="4"] > .workspace-split-divider[data-axis="primary"] { grid-row: 1 / 3; }
+.workspace-split-divider[data-axis="secondary"] {
+  grid-column: 2; grid-row: 1; justify-self: stretch; align-self: end;
+  margin-bottom: -8px; height: 12px; cursor: row-resize;
+}
+.workspace-split-layout.is-split[data-pane-count="4"] > .workspace-split-divider[data-axis="secondary"] { grid-column: 1 / 3; }
+.workspace-split-grip {
+  width: 4px; height: 45px; border-radius: 9px;
+  background: color-mix(in srgb, var(--muted, #98a5bc) 75%, transparent);
+  pointer-events: none;
+}
+.workspace-split-divider[data-axis="secondary"] > .workspace-split-grip { width: 45px; height: 4px; }
+.workspace-split-divider:hover > .workspace-split-grip,
+.workspace-split-divider:focus-within > .workspace-split-grip { background: var(--accent, #8e61ff); }
+@media (max-width:640px) {
+  .workspace-split-layout.is-split { --split-toolbar-space: 114px; padding-inline: 4px; }
+  .workspace-split-layout.is-split[data-pane-count="2"] {
+    grid-template-columns: minmax(0,1fr);
+    grid-template-rows: minmax(0,calc(var(--workspace-split-primary,50%) - 3px)) minmax(0,1fr);
+  }
+  .workspace-split-layout.is-split[data-pane-count="2"] > .workspace-pane[data-split-slot="0"] { grid-column:1; grid-row:1; }
+  .workspace-split-layout.is-split[data-pane-count="2"] > .workspace-pane[data-split-slot="1"] { grid-column:1; grid-row:2; }
+  .workspace-split-layout.is-split[data-pane-count="3"] {
+    grid-template-columns: minmax(0,calc(var(--workspace-split-secondary,50%) - 3px)) minmax(0,1fr);
+    grid-template-rows: minmax(0,calc(var(--workspace-split-primary,50%) - 3px)) minmax(0,1fr);
+  }
+  .workspace-split-layout.is-split[data-pane-count="3"] > .workspace-pane[data-split-slot="0"] { grid-column:1/3; grid-row:1; }
+  .workspace-split-layout.is-split[data-pane-count="3"] > .workspace-pane[data-split-slot="1"] { grid-column:1; grid-row:2; }
+  .workspace-split-layout.is-split[data-pane-count="3"] > .workspace-pane[data-split-slot="2"] { grid-column:2; grid-row:2; }
+  .workspace-split-layout.is-split .workspace-v2-toolbar { min-height: 44px; }
+  .workspace-split-layout.is-split[data-pane-count="2"] > .workspace-split-divider[data-axis="primary"],
+  .workspace-split-layout.is-split[data-pane-count="3"] > .workspace-split-divider[data-axis="primary"] {
+    grid-column: 1 / -1; grid-row: 1; justify-self: stretch; align-self: end;
+    margin-right: 0; margin-bottom: -8px; height: 12px; width: auto; cursor: row-resize;
+  }
+  .workspace-split-layout.is-split[data-pane-count="3"] > .workspace-split-divider[data-axis="secondary"] {
+    grid-column: 1; grid-row: 2; justify-self: end; align-self: stretch;
+    margin-bottom: 0; margin-right: -8px; height: auto; width: 12px; cursor: col-resize;
+  }
+  .workspace-split-divider[data-axis="primary"] > .workspace-split-grip { width: 4px; height: 45px; }
+  .workspace-split-layout.is-split[data-pane-count="2"] > .workspace-split-divider[data-axis="primary"] > .workspace-split-grip,
+  .workspace-split-layout.is-split[data-pane-count="3"] > .workspace-split-divider[data-axis="primary"] > .workspace-split-grip {
+    width: 45px; height: 4px;
+  }
+  .workspace-split-layout.is-split[data-pane-count="3"] > .workspace-split-divider[data-axis="secondary"] > .workspace-split-grip {
+    width: 4px; height: 45px;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .workspace-split-layout.is-split > .workspace-pane { animation:none!important; }
+}
+
+/* A one-tap alternative to dragging, always visible on touch screens.
+   Splitting must not depend on hover or on native Safari drag gestures. */
+.workspace-tab-split {
+  display: grid;
+  width: 28px;
+  height: 32px;
+  flex: 0 0 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--fx-text-2, #b7c0cf);
+  background: transparent;
+  cursor: pointer;
+}
+.workspace-tab-split:hover, .workspace-tab-split:focus-visible {
+  color: var(--fx-accent, #8e61ff);
+  background: var(--fx-fill-strong, rgba(140, 140, 160, .15));
+}
+.workspace-tab-split:focus-visible {
+  outline: 2px solid var(--fx-accent, #8e61ff);
+  outline-offset: -2px;
+}
+@media (max-width: 640px) {
+  .workspace-tab-split { width: 24px; height: 30px; flex-basis: 24px; }
+}
+
+/* A tab behaves like a draggable document, but still remains a normal
+   clickable/keyboard-accessible tab unless the pointer actually moves. */
+.workspace-tab > button[role="tab"] { cursor: grab; touch-action: pan-x; }
+.workspace-tab > button[role="tab"]:active, .workspace-tab.is-dragging > button[role="tab"] { cursor: grabbing; }
+.workspace-tab.is-dragging { opacity: .5; }
+.workspace-tab-drag-overlay { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; overflow: hidden; }
+.workspace-tab-drag-ghost {
+  position: fixed; display: flex; align-items: center; gap: 9px;
+  max-width: min(260px, 68vw); min-height: 46px; padding: 10px 15px;
+  border: 1px solid color-mix(in srgb, var(--fx-accent, #8e61ff) 35%, #fff);
+  border-radius: 15px; color: var(--fx-text, #182239);
+  background: var(--fx-panel, #fff);
+  box-shadow: 0 14px 46px rgba(0,0,0,.24);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  transform: translate3d(-35%, -120%, 0) rotate(-2deg);
+  animation: workspace-tab-ghost-enter 160ms cubic-bezier(.2,.9,.25,1) both;
+}
+.workspace-tab-drag-ghost span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 600 13px/1.25 system-ui, sans-serif; }
+.workspace-tab-drop-highlight {
+  position: fixed; top: 5%; bottom: 3%; width: calc(50% - 13px);
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--fx-accent, #8e61ff);
+  border-radius: 21px; color: var(--fx-accent, #8e61ff);
+  background: color-mix(in srgb, var(--fx-accent, #8e61ff) 12%, transparent);
+  box-shadow: inset 0 0 40px rgba(100,80,200,.06);
+  animation: workspace-tab-drop-enter 190ms cubic-bezier(.2,.85,.2,1) both;
+}
+.workspace-tab-drop-highlight.is-start { left: 7px; }
+.workspace-tab-drop-highlight.is-end { right: 7px; }
+.workspace-tab-drop-highlight span {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 16px; border-radius: 999px; background: var(--fx-panel, #fff);
+  font: 600 13px/1.25 system-ui, sans-serif;
+}
+.workspace-split-layout.is-split > .workspace-pane.is-secondary {
+  animation: workspace-split-pane-reveal 260ms cubic-bezier(.2,.8,.2,1) both;
+}
+.workspace-split-layout.is-split > .workspace-split-divider {
+  animation: workspace-split-divider-reveal 230ms ease-out both;
+}
+@keyframes workspace-tab-ghost-enter {
+  from { opacity: .55; transform: translate3d(-35%, -105%, 0) scale(.92) rotate(0); }
+  to { opacity: 1; transform: translate3d(-35%, -120%, 0) scale(1) rotate(-2deg); }
+}
+@keyframes workspace-tab-drop-enter {
+  from { opacity: .3; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes workspace-split-pane-reveal {
+  from { opacity: .3; transform: scale(.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes workspace-split-divider-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (max-width: 640px) {
+  .workspace-tab-drop-highlight {
+    left: 7px !important; right: 7px !important; width: auto;
+    height: calc(50% - 14px); top: auto; bottom: auto;
+  }
+  .workspace-tab-drop-highlight.is-start { top: 7px; }
+  .workspace-tab-drop-highlight.is-end { bottom: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-tab-drag-ghost, .workspace-tab-drop-highlight,
+  .workspace-split-layout.is-split > .workspace-pane.is-secondary,
+  .workspace-split-layout.is-split > .workspace-split-divider { animation: none; }
+}
+
+/* Drop feedback uses the actual document stage, not the entire browser area. */
+.workspace-tab-drop-highlight {
+  top: var(--drop-top, 6%) !important;
+  bottom: auto;
+  height: var(--drop-height, 90%);
+  width: calc(var(--drop-width, 100%) / 2 - 7px);
+}
+.workspace-tab-drop-highlight.is-start { left: var(--drop-left, 7px); }
+.workspace-tab-drop-highlight.is-end { left: calc(var(--drop-left, 7px) + var(--drop-width, 100%) / 2 + 3px); right: auto; }
+.workspace-tab-drop-highlight.is-stacked {
+  left: var(--drop-left, 7px) !important;
+  width: var(--drop-width, 100%);
+  height: calc(var(--drop-height, 90%) / 2 - 7px);
+}
+.workspace-tab-drop-highlight.is-stacked.is-start { top: var(--drop-top, 6%) !important; }
+.workspace-tab-drop-highlight.is-stacked.is-end { top: calc(var(--drop-top, 6%) + var(--drop-height, 90%) / 2 + 3px) !important; }
+/* The entire split panel may animate in, but never animate page canvases. */
+@media (prefers-reduced-motion: reduce) {
+  .workspace-tab-drag-overlay, .workspace-split-layout.is-split > .workspace-pane { transition: none !important; }
+}

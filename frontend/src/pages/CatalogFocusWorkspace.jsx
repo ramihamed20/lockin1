@@ -1,3 +1,8 @@
+import { currentAppLocale } from "../lib/i18n.js";
+import { createPortal } from "react-dom";
+import { localSaveError } from "../lib/userErrors.js";
+import { StudyDock } from "../components/lock-in/StudyDock.jsx";
+import { SheetTranslationPanel } from "../workspace/catalog/SheetTranslationPanel.jsx";
 import { lazy, Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -60,6 +65,7 @@ import { marksStorageSlug, snapshotFromReader } from "../workspace/catalog/annot
 import { useMarksSet } from "../workspace/catalog/useMarksSet.js";
 import { noteCardHeight, NOTE_CARD_WIDTH } from "../workspace/catalog/noteCardLayout.js";
 import { AnnotationSharePanel } from "../workspace/catalog/AnnotationSharePanel.jsx";
+import { usePlannedSourceNavigation } from "../workspace/knowledge/usePlannedSourceNavigation.js";
 import StartRescue from "../rescue/StartRescue.jsx";
 import { RESCUE_ENABLED } from "../rescue/model.js";
 import { KNOWLEDGE_FIXTURE_TOOLS, STUDY_TOOLS_ENABLED, COMING_SOON_STUDY_TOOLS, availableStudyTools } from "../workspace/knowledge/model.js";
@@ -67,6 +73,7 @@ import { useMcqExplainLinks } from "../workspace/knowledge/useMcqExplainLinks.js
 import { createKnowledgeStore } from "../workspace/knowledge/storage.js";
 import { knowledgeApi } from "../api/knowledge.js";
 const KnowledgeWorkspace = lazy(() => import("../workspace/knowledge/KnowledgeWorkspace.jsx"));
+const StudyCompanion = lazy(() => import("../workspace/assistance/StudyCompanion.jsx"));
 import { MySummaryDialog, SummaryReceiveCard, SummaryTextPanel } from "../workspace/summary/MySummary.jsx";
 import { useSheetSummaries } from "../workspace/summary/useSheetSummaries.js";
 import { sheetSummariesApi } from "../api/sheetSummaries.js";
@@ -79,7 +86,7 @@ import { coverRectangle, coveredSearchMatchIds, MAX_COVERS_PER_ACTION, searchCov
 import { assetPath, cssVars } from "../lib/utils.js";
 import { subscribeViewport } from "../lib/viewport.js";
 import { usePageTitle } from "../hooks/usePageTitle.js";
-import { useWorkspacePaneActive } from "../workspace/catalog/workspacePane.js";
+import { useWorkspacePaneActive, useWorkspaceSplit } from "../workspace/catalog/workspacePane.js";
 import {
   centeredScrollLeft,
   continuousPinchScale,
@@ -112,7 +119,9 @@ import {
   lockedGestureDelta,
   lockedGestureVelocity,
   pointerCanDraw,
+  isTouchLikePointer,
   defaultDrawingInput,
+  usesTouchStylusTablet,
   pointerSnapshot,
   suspiciousPalmContact
 } from "../workspace/input/gestureStateMachine.js";
@@ -161,6 +170,12 @@ import {
 } from "../workspace/catalog/catalogWorkspaceState.js";
 import { COPY_OFFSET, MOVE_THRESHOLD_PX, clampSelectionDelta, contextToolbarPosition, editableTarget, expandSelectionGroups, hitTestAnnotations, isDoubleTap, reorderSelection } from "../workspace/selection/selectionController.js";
 import { A4_PAGE_WIDTH, ContinuousA4Pdf } from "../workspace/catalog/ContinuousA4Pdf.jsx";
+import {
+  horizontalPageFitsViewport,
+  horizontalSwipeTarget,
+  horizontalZoomPageAnchor,
+  scrollForHorizontalPageAnchor
+} from "../workspace/catalog/horizontalPageLayout.js";
 import { WORKSPACE_PAGE_BACKGROUNDS, addSummaryPages, composeWorkspacePages, createVirtualPageId, insertVirtualPage, isVirtualPageKey, removeSummaryPages, removeVirtualPage, sanitizeVirtualPages } from "../workspace/catalog/virtualPages.js";
 import { canvasesToPdf, renderWorkspacePage } from "../workspace/catalog/workspaceExport.js";
 import { canShareFile, createExportHandle, exportFileNameFor, formatFileSize, isAppleTouchDevice, shareExportFile, triggerDownload } from "../workspace/catalog/exportDelivery.js";
@@ -215,26 +230,32 @@ import { ActiveStudyExitDialog } from "../components/shared/CheckpointExitDialog
 import { acknowledgeFocusDocument, markFocusDocumentDirty, registerOpenFocusDocument } from "../offline/focusSync.js";
 import { readActiveStudyRun } from "../offline/activeStudy.js";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
-import { AUTOSAVE_IDLE_MS, COLORS, CONFIGURABLE_TOOLS, DRAWING_TOOLS, ERASER_MODES, FAVORITE_COLORS_KEY, FINGER_SCROLL_HINT_KEY, FIT_READING_WIDTH, HOLD_ENDPOINT_TOLERANCE_PX, HOLD_RECOGNITION_MS, MAX_FOCUS_ZOOM, MAX_PALETTE_COLORS, MIN_FOCUS_ZOOM, NO_ANNOTATIONS, PAGE_BACKGROUND_CHOICES, PAGE_COUNT, PAGE_SPACE, PAGE_WIDTH, PEN_PROFILE_OPTIONS, POPOVER_SURFACES, PRIMARY_WRITE_TOOLS, RECENT_COLORS_KEY, SERVER_SYNC_DELAY_MS, SPRING_DEADLINE_MS, STATUS_MESSAGE_MS, SWATCH_TOOLS, TOOL_ITEMS, TOOL_MEMORY_KEY, WORKSPACE_SETTINGS_KEY, ZOOM_OVERSHOOT_RATIO, ZOOM_SETTLE_MS, isStageControl, isUnfinished } from "./focus-workspace/constants.js";
+import { AUTOSAVE_IDLE_MS, COLORS, CONFIGURABLE_TOOLS, DRAWING_TOOLS, ERASER_MODES, FAVORITE_COLORS_KEY, FINGER_SCROLL_HINT_KEY, HOLD_ENDPOINT_TOLERANCE_PX, HOLD_RECOGNITION_MS, HORIZONTAL_READING_ZOOM_FLOOR, MAX_FOCUS_ZOOM, MAX_PALETTE_COLORS, MIN_FOCUS_ZOOM, NO_ANNOTATIONS, PAGE_BACKGROUND_CHOICES, PAGE_COUNT, PAGE_SPACE, PAGE_WIDTH, PEN_PROFILE_OPTIONS, POPOVER_SURFACES, PRIMARY_WRITE_TOOLS, RECENT_COLORS_KEY, SERVER_SYNC_DELAY_MS, SPRING_DEADLINE_MS, STATUS_MESSAGE_MS, SWATCH_TOOLS, TOOL_ITEMS, TOOL_MEMORY_KEY, WORKSPACE_SETTINGS_KEY, ZOOM_OVERSHOOT_RATIO, ZOOM_SETTLE_MS, isStageControl, isUnfinished } from "./focus-workspace/constants.js";
 import { StudyModeDialog } from "./focus-workspace/studyDialogs.jsx";
 import { ACTIVE_RESULT_STAGES, clearActiveStudyDraft, clearActiveStudyEntry, clearActiveStudyResume, readActiveStudyDraft, readActiveStudyEntry, readActiveStudyResume, writeActiveStudyEntry, writeActiveStudyResume } from "./focus-workspace/activeStudyStorage.js";
 import { ActiveStudyQuiz } from "./focus-workspace/ActiveStudyQuiz.jsx";
-import { cloneAnnotation, copiedAnnotations, loadRecentColors, loadStoredWorkspace, loadStringList, loadToolMemory, loadWorkspaceSettings } from "./focus-workspace/preferences.js";
+import { cloneAnnotation, copiedAnnotations, loadRecentColors, loadStoredWorkspace, loadStringList, loadToolMemory, loadWorkspaceSettings, persistRecentColors, WORKSPACE_PALETTE_CHANGE_EVENT } from "./focus-workspace/preferences.js";
 import { AnnotationVisuals, COVER_COLOR, DraftAnnotationLayer } from "./focus-workspace/annotationVisuals.jsx";
+import { DockableToolRail } from "./focus-workspace/DockableToolRail.jsx";
+import { WorkspaceToolIcon } from "./focus-workspace/WorkspaceToolIcon.jsx";
 import { WorkspaceIconButton } from "./focus-workspace/controls.jsx";
 import { useToolRail } from "./focus-workspace/useToolRail.js";
 import { PageNavigator, ZoomBar } from "./focus-workspace/pageControls.jsx";
 import { SettingsPopover } from "./focus-workspace/SettingsPopover.jsx";
 import { ToolOptionsPanel } from "./focus-workspace/ToolOptionsPanel.jsx";
+import { QuickColorPicker } from "./focus-workspace/QuickColorPicker.jsx";
 import { AddMenu, CardEditor, ExportMenu, MoreMenu, PageBackgroundMenu, SearchMenu, StudyMenu, TextEditor } from "./focus-workspace/menus.jsx";
 import { FavoritePens } from "./focus-workspace/FavoritePens.jsx";
-import { FAVORITE_PEN_TOOLS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, normalizeFavoritePens, saveFavoritePens } from "./focus-workspace/favoritePens.js";
+import { FAVORITE_PENS_CHANGE_EVENT, FAVORITE_PENS_KEY, FAVORITE_PEN_TOOLS, MAX_FAVORITE_PENS, loadFavoritePens, matchingFavoritePen, normalizeFavoritePen, saveFavoritePens } from "./focus-workspace/favoritePens.js";
 import { ZoomWindow } from "./focus-workspace/ZoomWindow.jsx";
 import { initialZoomRegion } from "./focus-workspace/zoomWindowModel.js";
 import "./catalog-focus-workspace.css";
 import "./focus-workspace-glass.css";
 import "./focus-tool-panel-compact.css";
 import "./focus-phone.css";
+import "./focus-workspace/compact-ink-options.css";
+import "./focus-workspace-menu-refresh.css";
+import "./focus-toolbar-rhythm.css";
 
 /**
  * The workspace mounts a large annotation and PDF stack, so the sheet is
@@ -405,6 +426,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // A catalog sheet shares under its own document; a copy of someone's marks
   // shares under the catalog document it was copied from.
   const shareDocumentId = whiteboard || summaryMode || personal ? "" : (catalogDocument?.id || "");
+  const [translationOpen, setTranslationOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [knowledgeVisited, setKnowledgeVisited] = useState(false);
   const [knowledgeSaveStatus, setKnowledgeSaveStatus] = useState("");
@@ -415,6 +437,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const { t } = useI18n();
   // False while this reader is a tab kept open behind the one on screen.
   const paneActive = useWorkspacePaneActive();
+  const { isMulti, toolbarHost } = useWorkspaceSplit();
   // Effects that report status read the current language through a ref, so a
   // language change never re-runs them (their dependencies stay as they were).
   const translateRef = useRef(t);
@@ -444,7 +467,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const stageRef = useRef(null);
   const documentRef = useRef(null);
   const imageInputRef = useRef(null);
-  const noteRef = useRef(null);
   const textInputRef = useRef(null);
   const sideCloseRef = useRef(null);
   const annotationsRef = useRef([]);
@@ -598,22 +620,47 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const activePageKey = activeVirtualPageId ?? page;
   const [zoom, setZoom] = useState(() => {
     if (!sheet?.pdfUrl) return 1.3;
+    // Only vertical page flow is exposed; ignore a previously saved sideways mode.
     const fitZoom = fitWidthZoom(window.innerWidth, A4_PAGE_WIDTH, window.innerWidth < 1200 ? 16 : 360);
     return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitZoom));
   });
+  // Even when a 5% pinch snaps to the already-rendered zoom, the compositor
+  // must have a new layout pass to release its live transform and touch lock.
+  const [pinchCommitEpoch, setPinchCommitEpoch] = useState(0);
   const [activeTool, setActiveTool] = useState(rememberedWritingTool);
   const [activeColor, setActiveColor] = useState(initialToolSettings.color || COLORS[0]);
+  // One-shot toolbar feedback for a deliberately chosen ink colour. A revision
+  // key replays the motion even when the same swatch is tapped twice.
+  const [colorAnimation, setColorAnimation] = useState({ tool: null, revision: 0 });
   const [bookmarked, setBookmarked] = useState(false);
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
   const [sideTab, setSideTab] = useState("notes");
   const [openSurface, setOpenSurface] = useState(null);
+  // KeepAlive retains reader instances between tabs. Do not restore an open
+  // Notes drawer when the student returns to this sheet; reopen only on tap.
+  useEffect(() => {
+    if (!paneActive) setOpenSurface((current) => current === "notes" ? null : current);
+  }, [paneActive]);
   const [brushSize, setBrushSize] = useState(() => Number(initialToolSettings.size) || 4);
   const [brushOpacity, setBrushOpacity] = useState(() => rememberedWritingTool === "pen" ? Number(initialToolSettings.opacity) || 1 : 1);
   const [pencilOpacity, setPencilOpacity] = useState(() => rememberedWritingTool === "pencil" ? Number(initialToolSettings.opacity) || .78 : .78);
   const [highlighterOpacity, setHighlighterOpacity] = useState(() => rememberedWritingTool === "highlighter" ? Number(initialToolSettings.opacity) || .34 : .34);
   const [penProfile, setPenProfile] = useState(rememberedPenProfile);
   const [favoritePens, setFavoritePens] = useState(loadFavoritePens);
-  useEffect(() => { saveFavoritePens(favoritePens); }, [favoritePens]);
+  useEffect(() => {
+    // Kept-alive sheets and other tabs all share the same favorite pen set.
+    const sync = (event) => {
+      if (event.type === "storage" && event.key !== FAVORITE_PENS_KEY) return;
+      const saved = loadFavoritePens();
+      setFavoritePens((current) => JSON.stringify(current) === JSON.stringify(saved) ? current : saved);
+    };
+    window.addEventListener(FAVORITE_PENS_CHANGE_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(FAVORITE_PENS_CHANGE_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   // The Zoom Window's box on the page (null while it is closed), and its height.
   const [zoomWindow, setZoomWindow] = useState(null);
   const [zoomWindowHeight, setZoomWindowHeight] = useState(0);
@@ -653,9 +700,29 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [favoriteColors, setFavoriteColors] = useState(() => loadStringList(FAVORITE_COLORS_KEY, 5));
   const [customColorDraft, setCustomColorDraft] = useState(COLORS[0]);
   const [customColorEditorOpen, setCustomColorEditorOpen] = useState(false);
+  // An already-open sheet must see colours saved from another retained reader.
+  useEffect(() => {
+    const same = (left, right) => left.length === right.length && left.every((color, i) => color === right[i]);
+    const sync = (event) => {
+      if (event.type === "storage" && event.key !== RECENT_COLORS_KEY && event.key !== FAVORITE_COLORS_KEY) return;
+      const saved = loadRecentColors();
+      const favorites = loadStringList(FAVORITE_COLORS_KEY, 5);
+      setRecentColors((current) => same(current, saved) ? current : saved);
+      setFavoriteColors((current) => same(current, favorites) ? current : favorites);
+    };
+    window.addEventListener(WORKSPACE_PALETTE_CHANGE_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(WORKSPACE_PALETTE_CHANGE_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   const [rememberLastPosition, setRememberLastPosition] = useState(initialRememberLastPosition);
   const [rememberZoomLevel, setRememberZoomLevel] = useState(initialRememberZoomLevel);
   const [showPageNumber, setShowPageNumber] = useState(storedWorkspaceSettings.showPageNumber !== false);
+  // Temporarily disable horizontal page turning for every sheet, including
+  // readers whose previous preference still says "horizontal".
+  const [pageDirection] = useState("vertical");
   const [keepScreenAwake, setKeepScreenAwake] = useState(storedWorkspaceSettings.keepScreenAwake === true);
   const [zoomHud, setZoomHud] = useState({ visible: false, label: "" });
   // Whether the student has chosen what draws. Until they do, the device
@@ -670,9 +737,25 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return defaultDrawingInput({
       stored,
       coarsePointer: Boolean(window.matchMedia?.("(pointer: coarse)").matches),
-      shortestScreenSide: Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight)
+      shortestScreenSide: Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight),
+      userAgent: window.navigator.userAgent || ""
     });
   });
+  // Android Chrome often hides the device model in its reduced user agent.
+  // Query the real model when available so the Elite 1 bundled touch stylus
+  // works without making finger drawing the default on every tablet.
+  useEffect(() => {
+    const uaData = /** @type {Navigator & { userAgentData?: { getHighEntropyValues: (keys: string[]) => Promise<{model: string}> } }} */ (window.navigator).userAgentData;
+    if (drawingInputChosenRef.current || typeof uaData?.getHighEntropyValues !== "function") return undefined;
+    let active = true;
+    Promise.resolve(uaData.getHighEntropyValues(["model"])).then(({ model }) => {
+      if (active && !drawingInputChosenRef.current && usesTouchStylusTablet({
+        deviceModel: model,
+        userAgent: window.navigator.userAgent || ""
+      })) setDrawingInput(DRAWING_INPUT.STYLUS_AND_FINGER);
+    }).catch(() => { /* The student can still choose touch drawing in Settings. */ });
+    return () => { active = false; };
+  }, []);
   const [annotations, setAnnotations] = useState([]);
   const [notes, setNotes] = useState([]);
   const [annotationsHidden, setAnnotationsHidden] = useState(false);
@@ -776,28 +859,40 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   const minimumPdfZoom = useCallback(() => {
     if (!sheet?.pdfUrl) return MIN_FOCUS_ZOOM;
+    // "Fit" in horizontal mode means the requested 120% baseline.
+    if (pageDirection === "horizontal") return HORIZONTAL_READING_ZOOM_FLOOR;
     const stage = stageRef.current;
+    // Use the painted viewport width. In responsive transitions the grid can
+    // finish laying out before `clientWidth` catches up, which made an
+    // explicit Fit width action retain the preceding narrower scale.
     const stageWidth = stage?.clientWidth || window.innerWidth;
+    const paintedStageWidth = stage?.getBoundingClientRect().width || stageWidth;
     // Phones and tablets (an iPad Pro in landscape too) fit the page edge to
     // edge. A wide desktop window would make that a 240% page with a third of
     // it on screen, so with a mouse "fit" is a comfortable reading width,
     // centred.
-    const readingWidth = stageWidth >= 1280 && window.matchMedia?.("(pointer: fine)").matches;
-    return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(
-      readingWidth ? Math.min(stageWidth, FIT_READING_WIDTH) : stageWidth,
-      A4_PAGE_WIDTH,
-      0
-    )));
-  }, [sheet?.pdfUrl]);
+    const readingWidth = window.innerWidth >= 1200 && window.matchMedia?.("(pointer: fine)").matches;
+    // Desktop PDFs start at the requested 120% scale, not 168% or higher
+    // merely because a wide browser has room for a larger rendered page.
+    // On phones and tablets retain responsive fit-to-width so a page remains usable.
+    if (readingWidth) return HORIZONTAL_READING_ZOOM_FLOOR;
+    return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(paintedStageWidth, A4_PAGE_WIDTH, 0)));
+  }, [pageDirection, sheet?.pdfUrl]);
 
   // Fit width is the opening/reset scale, not the lower pinch limit. Keep a
   // half-width view available on tablets while retaining a readable floor.
   // The floor is half the stage's width even where fit is a reading width.
   const minimumAllowedZoom = useCallback(() => {
     if (!sheet?.pdfUrl) return MIN_FOCUS_ZOOM;
-    const stageFit = Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageRef.current?.clientWidth || window.innerWidth, A4_PAGE_WIDTH, 0)));
+    // Applies to both button Zoom Out and two-finger/trackpad pinch.
+    if (pageDirection === "horizontal") return HORIZONTAL_READING_ZOOM_FLOOR;
+    // A desktop reader cannot zoom out beyond its 120% starting scale.
+    // Small viewports retain their proportional floor for touch navigation.
+    if (window.innerWidth >= 1200 && window.matchMedia?.("(pointer: fine)").matches) return minimumPdfZoom();
+    const stageWidth = stageRef.current?.clientWidth || window.innerWidth;
+    const stageFit = Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageWidth, A4_PAGE_WIDTH, 0)));
     return Math.min(minimumPdfZoom(), Math.max(0.3, stageFit * 0.5));
-  }, [minimumPdfZoom, sheet?.pdfUrl]);
+  }, [minimumPdfZoom, pageDirection, sheet?.pdfUrl]);
 
   const clampReaderZoom = useCallback((value) => {
     return Math.min(MAX_FOCUS_ZOOM, Math.max(minimumAllowedZoom(), Number.isFinite(Number(value)) ? Number(value) : 1));
@@ -855,7 +950,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // marks; a PDF the student uploaded themselves has nothing to share it with.
   const [marksOpen, setMarksOpen] = useState(false);
   const [entryModePreference, setEntryModePreference] = useState(preferredMode);
-  const [activeDifficulty, setActiveDifficulty] = useState("medium");
+  const [activeDifficulty, setActiveDifficulty] = useState(["easy", "medium", "hard"].includes(searchParams.get("studyDifficulty")) ? searchParams.get("studyDifficulty") : "medium");
   const [activeCustomization, setActiveCustomization] = useState({ studyMode: "standard", pagesPerCheckpoint: 3, questionsPerCheckpoint: 5 });
   const [deletePageConfirmOpen, setDeletePageConfirmOpen] = useState(false);
   const [activeStudy, setActiveStudy] = useState(null);
@@ -1078,7 +1173,37 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (!panel || !reader || !source) return undefined;
     panel.scrollTop = 0;
     const resetScroll = window.requestAnimationFrame(() => { panel.scrollTop = 0; });
+    const pointNotch = (side) => {
+      const box = panel.getBoundingClientRect();
+      const button = source.getBoundingClientRect();
+      const verticalEdge = side === "left" || side === "right";
+      const size = verticalEdge ? box.height : box.width;
+      const target = verticalEdge ? button.top + button.height / 2 - box.top : button.left + button.width / 2 - box.left;
+      panel.dataset.notchSide = side;
+      panel.style.setProperty("--workspace-notch-offset", `${Math.max(16, Math.min(size - 16, target))}px`);
+    };
     const position = () => {
+      const dock = source.closest(".workspace-tool-dock");
+      if (dock && dock.dataset.dockEdge !== "top") {
+        const sourceBounds = source.getBoundingClientRect();
+        const dockBounds = dock.getBoundingClientRect();
+        const gap = 20;
+        const panelBounds = panel.getBoundingClientRect();
+        const width = panelBounds.width;
+        const height = Math.min(panelBounds.height, window.innerHeight - 16);
+        const vertical = dock.classList.contains("is-vertical");
+        const desiredLeft = vertical
+          ? (dockBounds.right + gap + width <= window.innerWidth - 8 ? dockBounds.right + gap : dockBounds.left - width - gap)
+          : sourceBounds.left + sourceBounds.width / 2 - width / 2;
+        const desiredTop = vertical ? sourceBounds.top : (dockBounds.bottom + gap + height <= window.innerHeight - 8 ? dockBounds.bottom + gap : dockBounds.top - height - gap);
+        panel.style.position = "fixed";
+        panel.style.transform = "none";
+        panel.style.maxHeight = `${window.innerHeight - 16}px`;
+        panel.style.left = `${Math.max(8, Math.min(window.innerWidth - width - 8, desiredLeft))}px`;
+        panel.style.top = `${Math.max(8, Math.min(window.innerHeight - height - 8, desiredTop))}px`;
+        pointNotch(vertical ? (desiredLeft > sourceBounds.left ? "left" : "right") : (desiredTop > sourceBounds.top ? "top" : "bottom"));
+        return;
+      }
       if (window.innerWidth <= 560 || window.innerHeight < 600) {
         panel.style.removeProperty("left");
         // The full-width phone panel still points its caret at the tool.
@@ -1086,6 +1211,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         const sourceBounds = source.getBoundingClientRect();
         const toolCentre = sourceBounds.left + sourceBounds.width / 2 - panelBounds.left;
         panel.style.setProperty("--workspace-popover-origin", `${Math.max(18, Math.min(panelBounds.width - 18, toolCentre))}px`);
+        pointNotch("top");
         return;
       }
       const readerBounds = reader.getBoundingClientRect();
@@ -1096,10 +1222,20 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const center = Math.max(half + 8, Math.min(readerBounds.width - half - 8, desired));
       panel.style.left = `${center}px`;
       panel.style.setProperty("--workspace-popover-origin", `${Math.max(0, Math.min(width, desired - center + width / 2))}px`);
+      pointNotch("top");
     };
     position();
+    const notchObserver = new window.ResizeObserver(position);
+    notchObserver.observe(panel);
     window.addEventListener("resize", position, { passive: true });
-    return () => { window.cancelAnimationFrame(resetScroll); window.removeEventListener("resize", position); };
+    return () => {
+      window.cancelAnimationFrame(resetScroll);
+      notchObserver.disconnect();
+      window.removeEventListener("resize", position);
+      delete panel.dataset.notchSide;
+      panel.style.removeProperty("--workspace-notch-offset");
+      for (const property of ["position", "transform", "max-height", "top", "left"]) panel.style.removeProperty(property);
+    };
   }, [toolOptionsOpen]);
   // The inspector stays mounted while switching writing tools. Interpolate its
   // own height after content changes; it is absolutely positioned and does not
@@ -1229,7 +1365,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (openSurface === "text") window.setTimeout(() => textInputRef.current?.focus(), 0);
   }, [openSurface]);
   useEffect(() => {
-    try { window.localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(recentColors)); } catch { /* Recent colors are an optional local preference. */ }
+    persistRecentColors(recentColors);
   }, [recentColors]);
   useEffect(() => {
     try { window.localStorage.setItem(FAVORITE_COLORS_KEY, JSON.stringify(favoriteColors)); } catch { /* Favorites are an optional local preference. */ }
@@ -1250,8 +1386,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     try { window.localStorage.setItem(TOOL_MEMORY_KEY, JSON.stringify(toolMemoryRef.current)); } catch { /* Tool memory is a best-effort local preference. */ }
   }, [activeColor, activeTool, brushOpacity, brushSize, highlighterOpacity, penProfile, pencilOpacity, pressureSensitivity, shapeStyle, strokeSmoothing]);
   useEffect(() => {
-    try { window.localStorage.setItem(WORKSPACE_SETTINGS_KEY, JSON.stringify({ autoImproveHandwriting, scribbleToErase, drawAndHold, eraserSize, eraserMode, circleToErase, rememberLastPosition, rememberZoomLevel, showPageNumber, keepScreenAwake, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages })); } catch { /* Workspace preferences remain available in memory. */ }
-  }, [autoImproveHandwriting, circleToErase, drawAndHold, eraserMode, eraserSize, keepScreenAwake, rememberLastPosition, rememberZoomLevel, scribbleToErase, showPageNumber, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages]);
+    try { window.localStorage.setItem(WORKSPACE_SETTINGS_KEY, JSON.stringify({ autoImproveHandwriting, scribbleToErase, drawAndHold, eraserSize, eraserMode, circleToErase, rememberLastPosition, rememberZoomLevel, showPageNumber, pageDirection, keepScreenAwake, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages })); } catch { /* Workspace preferences remain available in memory. */ }
+  }, [autoImproveHandwriting, circleToErase, drawAndHold, eraserMode, eraserSize, keepScreenAwake, rememberLastPosition, rememberZoomLevel, scribbleToErase, showPageNumber, pageDirection, shapeFill, shapeFillColor, shapeDashed, shapeSnapGrid, shapeAngle, includeWorkspacePages]);
   useEffect(() => () => {
     const gesture = gestureRef.current;
     if (gesture.pinchRafId !== null) cancelAnimationFrame(gesture.pinchRafId);
@@ -1337,7 +1473,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return () => window.removeEventListener("resize", closeOnWidthChange);
   }, [sideOpen]);
   useEffect(() => {
-    if (!openSurface || openSurface === "notes") return undefined;
+    if (!paneActive || !openSurface || openSurface === "notes") return undefined;
     const dismissPopover = (event) => {
       if (event.target.closest?.(".workspace-v2-toolbar, .workspace-v2-tool-options, .workspace-v2-action-popover, .workspace-v2-settings-popover, .workspace-v2-page-dock")) return;
       setOpenSurface(null);
@@ -1346,7 +1482,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // toggle. Escape is the other half of that contract for a keyboard, and it
     // hands focus back to the control that owns the panel.
     const dismissOnEscape = (event) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
       event.stopPropagation();
       const owner = openSurface.startsWith("tool:")
         ? `[data-workspace-tool="${openSurface.slice(5)}"]`
@@ -1373,7 +1509,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       document.removeEventListener("pointerdown", dismissPopover);
       document.removeEventListener("keydown", dismissOnEscape);
     };
-  }, [openSurface]);
+  }, [openSurface, paneActive]);
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return undefined;
@@ -1394,7 +1530,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const gesture = gestureRef.current;
       const activeTouchSession = gesture.pan
         || gesture.pinch?.active
-        || (gesture.drawingPointerId !== null && gesture.drawingPointerType === "touch");
+        || (gesture.drawingPointerId !== null && isTouchLikePointer(gesture.drawingPointerType));
       if (activeTouchSession) {
         cancelInteractionRef.current?.({ pointerId: null, pointerType: "touch", type: event.type });
         return;
@@ -1423,6 +1559,90 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       stage.removeEventListener("scroll", preserveDrawingPosition);
     };
   }, []);
+
+  /**
+   * Keep a point inside a specific PDF page while changing the horizontal
+   * reader's zoom. Its inter-page gaps are recalculated at every scale, so a
+   * position inside the entire document is NOT a stable zoom anchor.
+   */
+  const captureHorizontalZoomAnchor = useCallback((clientX, clientY) => {
+    if (pageDirection !== "horizontal" || !sheet?.pdfUrl) return null;
+    const root = documentRef.current;
+    if (!root) return null;
+    const pages = Array.from(root.querySelectorAll(".workspace-v2-a4-page"), (element) => ({
+      key: Number(element.getAttribute("data-workspace-page")),
+      rect: element.getBoundingClientRect()
+    }));
+    return horizontalZoomPageAnchor(pages, clientX, clientY, activeVirtualPageIdRef.current ?? pageRef.current);
+  }, [pageDirection, sheet?.pdfUrl]);
+
+  // A continuous vertical document contains fixed inter-page gaps, which do
+  // not scale with the PDF. Anchor to the actual page rather than multiplying
+  // the whole document's position when zoom changes.
+  const captureVerticalZoomAnchor = useCallback((clientX, clientY) => {
+    if (pageDirection === "horizontal" || !sheet?.pdfUrl) return null;
+    const root = documentRef.current;
+    if (!root) return null;
+    const pages = Array.from(root.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]"))
+      .map((element) => ({
+        key: Number(element.getAttribute("data-workspace-page")),
+        rect: element.getBoundingClientRect()
+      }))
+      .filter((entry) => Number.isFinite(entry.key) && entry.rect.width > 0 && entry.rect.height > 0);
+    if (!pages.length) return null;
+    const distance = (rect) => clientY < rect.top ? rect.top - clientY : clientY > rect.bottom ? clientY - rect.bottom : 0;
+    const page = pages.reduce((nearest, current) => distance(current.rect) < distance(nearest.rect) ? current : nearest);
+    return {
+      pageKey: page.key,
+      x: Math.max(0, Math.min(1, (clientX - page.rect.left) / page.rect.width)),
+      y: Math.max(0, Math.min(1, (clientY - page.rect.top) / page.rect.height)),
+      // Preserve fixed-size inter-page gaps when a pinch begins between pages.
+      gapOffsetY: clientY - (page.rect.top + page.rect.height * Math.max(0, Math.min(1, (clientY - page.rect.top) / page.rect.height)))
+    };
+  }, [pageDirection, sheet?.pdfUrl]);
+
+  function reconciledZoomScroll(pending, stage, root, documentBounds, finalZoom, focalClientX, focalClientY) {
+    if (pending.verticalAnchor) {
+      const pageNode = Array.from(root.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]"))
+        .find((element) => Number(element.getAttribute("data-workspace-page")) === pending.verticalAnchor.pageKey);
+      if (pageNode) {
+        const pageRect = pageNode.getBoundingClientRect();
+        if (pageRect.width > 0 && pageRect.height > 0) {
+          return {
+            scrollLeft: stage.scrollLeft + pageRect.left + pageRect.width * pending.verticalAnchor.x - focalClientX,
+            scrollTop: stage.scrollTop + pageRect.top + pageRect.height * pending.verticalAnchor.y + (pending.verticalAnchor.gapOffsetY || 0) - focalClientY
+          };
+        }
+      }
+    }
+    if (pending.horizontalAnchor) {
+      const pageNode = Array.from(root.querySelectorAll(".workspace-v2-a4-page"))
+        .find((element) => Number(element.getAttribute("data-workspace-page")) === pending.horizontalAnchor.pageKey);
+      if (pageNode) {
+        const anchored = scrollForHorizontalPageAnchor({
+          scrollLeft: stage.scrollLeft,
+          scrollTop: stage.scrollTop,
+          pageRect: pageNode.getBoundingClientRect(),
+          anchor: pending.horizontalAnchor,
+          clientX: focalClientX,
+          clientY: focalClientY
+        });
+        if (anchored) return anchored;
+      }
+    }
+    return scrollForDocumentAnchor({
+      currentScrollLeft: stage.scrollLeft,
+      currentScrollTop: stage.scrollTop,
+      documentLeft: documentBounds.left,
+      documentTop: documentBounds.top,
+      documentAnchorX: pending.documentAnchorX,
+      documentAnchorY: pending.documentAnchorY,
+      scale: finalZoom,
+      focalClientX,
+      focalClientY
+    });
+  }
+
   useLayoutEffect(() => {
     const pending = pendingPinchCommitRef.current;
     const root = documentRef.current;
@@ -1432,21 +1652,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const documentElement = root.querySelector(".workspace-v2-a4-document") || root;
     const documentBounds = documentElement.getBoundingClientRect();
     if (documentBounds.width > 0 && documentBounds.height > 0) {
-      const next = scrollForDocumentAnchor({
-        // React's final zoom geometry may already have forced the browser to
-        // clamp scrollTop (especially near the last page while zooming out).
-        // Reconcile from that actual post-layout position, never the stale
-        // gesture-start scroll position.
-        currentScrollLeft: stage.scrollLeft,
-        currentScrollTop: stage.scrollTop,
-        documentLeft: documentBounds.left,
-        documentTop: documentBounds.top,
-        documentAnchorX: pending.documentAnchorX,
-        documentAnchorY: pending.documentAnchorY,
-        scale: zoom,
-        focalClientX: pending.currentFocalX,
-        focalClientY: pending.currentFocalY
-      });
+      // Use the actual post-layout geometry, not the start-of-gesture scroll.
+      const next = reconciledZoomScroll(
+        pending, stage, root, documentBounds, zoom, pending.currentFocalX, pending.currentFocalY
+      );
       const bounds = readerScrollBounds({ preserveCurrent: false });
       stage.scrollLeft = Math.min(bounds.maxScrollLeft, Math.max(bounds.minScrollLeft, next.scrollLeft));
       if (pending.constrainToBounds) {
@@ -1465,7 +1674,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // The commit must run exactly once for the newly mounted zoom geometry;
   // gesture helpers intentionally read the latest mutable refs in that frame.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zoom]);
+  }, [zoom, pinchCommitEpoch]);
   useLayoutEffect(() => {
     const pending = pendingFitAnchorRef.current;
     const stage = stageRef.current;
@@ -1475,17 +1684,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const documentElement = root.querySelector(".workspace-v2-a4-document") || root;
     const documentBounds = documentElement.getBoundingClientRect();
     if (!(documentBounds.width > 0 && documentBounds.height > 0)) return;
-    const next = scrollForDocumentAnchor({
-      currentScrollLeft: stage.scrollLeft,
-      currentScrollTop: stage.scrollTop,
-      documentLeft: documentBounds.left,
-      documentTop: documentBounds.top,
-      documentAnchorX: pending.documentAnchorX,
-      documentAnchorY: pending.documentAnchorY,
-      scale: zoom,
-      focalClientX: pending.focalClientX,
-      focalClientY: pending.focalClientY
-    });
+    const next = reconciledZoomScroll(
+      pending, stage, root, documentBounds, zoom, pending.focalClientX, pending.focalClientY
+    );
     const bounds = readerScrollBounds({ preserveCurrent: false });
     stage.scrollLeft = Math.min(bounds.maxScrollLeft, Math.max(bounds.minScrollLeft, next.scrollLeft));
     stage.scrollTop = Math.min(bounds.maxScrollTop, Math.max(bounds.minScrollTop, next.scrollTop));
@@ -1493,6 +1694,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   // helper reads the latest mutable refs in that same frame.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoom]);
+
+  // The floating toolbar shares the reader grid cell with the PDF stage.
+  // Scroll offsets are measured against the *visible* top edge, not the
+  // scroller's origin hidden underneath that toolbar.
+  const readerVisibleTopInset = useCallback((stage) => {
+    if (!stage) return 0;
+    const stageTop = stage.getBoundingClientRect().top;
+    const cssPadding = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
+    const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? stageTop;
+    return Math.max(cssPadding, toolbarBottom - stageTop + 12);
+  }, []);
 
   useEffect(() => {
     setPageCount(configuredPageCount);
@@ -1523,12 +1735,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       if (previousStageWidth !== null && previousStageWidth !== stageWidth && documentBounds?.height > 0) {
         const stageBounds = stage.getBoundingClientRect();
         const currentZoom = Math.max(.001, zoomRef.current);
+        const focalClientX = pageDirection === "horizontal" ? stageBounds.left + stageBounds.width / 2 : stageBounds.left;
+        const focalClientY = pageDirection === "horizontal"
+          ? stageBounds.top + Math.min(stageBounds.height / 2, 180)
+          : stageBounds.top + readerVisibleTopInset(stage);
         pendingFitAnchorRef.current = {
           finalZoom: nextZoom,
-          documentAnchorX: (stageBounds.left - documentBounds.left) / currentZoom,
-          documentAnchorY: (stageBounds.top - documentBounds.top) / currentZoom,
-          focalClientX: stageBounds.left,
-          focalClientY: stageBounds.top
+          documentAnchorX: (focalClientX - documentBounds.left) / currentZoom,
+          documentAnchorY: (focalClientY - documentBounds.top) / currentZoom,
+          focalClientX,
+          focalClientY,
+          horizontalAnchor: captureHorizontalZoomAnchor(focalClientX, focalClientY),
+          verticalAnchor: captureVerticalZoomAnchor(focalClientX, focalClientY)
         };
       }
       zoomRef.current = nextZoom;
@@ -1538,7 +1756,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const observer = new window.ResizeObserver(keepPdfFitted);
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [clampReaderZoom, materialSlug, minimumPdfZoom, sheet?.pdfUrl, sheetSlug]);
+  }, [captureHorizontalZoomAnchor, captureVerticalZoomAnchor, clampReaderZoom, materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
 
   const resetInitialPdfPosition = useCallback(() => {
     const viewKey = `${materialSlug}/${sheetSlug}`;
@@ -1555,7 +1773,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       : "fit";
     zoomRef.current = initialZoom;
     setZoom(initialZoom);
+    // Initial alignment is deferred across frames. If the student scrolls
+    // before those frames complete, their deliberate position takes priority.
+    const beforeAlignment = { left: stage.scrollLeft, top: stage.scrollTop };
     const positionInitialPage = () => {
+      if (Math.abs(stage.scrollTop - beforeAlignment.top) > 1
+        || Math.abs(stage.scrollLeft - beforeAlignment.left) > 1) {
+        initialPageViewRef.current = viewKey;
+        return;
+      }
       // A study resume or explicit navigation made while PDF.js was loading
       // owns the position. Initial placement must not overwrite that choice.
       if (pendingReaderAnchorRef.current) {
@@ -1566,8 +1792,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       if (!initialPage) return;
       const stageBounds = stage.getBoundingClientRect();
       const pageBounds = initialPage.getBoundingClientRect();
-      const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
-      const targetTop = stage.scrollTop + pageBounds.top - stageBounds.top - paddingTop;
+      const visibleTop = readerVisibleTopInset(stage);
+      const targetTop = stage.scrollTop + pageBounds.top - stageBounds.top - visibleTop;
       // The stage scrolls left-to-right in every reading direction (see
       // .workspace-v2-document-stage), so one clamped range serves Arabic too.
       const left = centeredScrollLeft({ scrollLeft: stage.scrollLeft, pageLeft: pageBounds.left, viewportLeft: stageBounds.left, viewportWidth: stage.clientWidth, pageWidth: pageBounds.width, scrollWidth: stage.scrollWidth });
@@ -1581,9 +1807,25 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       setPageJumpDraft("1");
       viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: 0 };
       initialPageViewRef.current = viewKey;
+      // The toolbar can finish measuring or the PDF placeholder can resize on
+      // the following paint. Correct only this initial page-one placement; do
+      // not steal the reader's position later during ordinary scrolling.
+      if (pageDirection === "vertical") {
+        const alignedScrollTop = stage.scrollTop;
+        requestAnimationFrame(() => {
+          if (initialPageViewRef.current !== viewKey || pageRef.current !== 1 || pendingReaderAnchorRef.current
+            || Math.abs(stage.scrollTop - alignedScrollTop) > 1) return;
+          const first = stage.querySelector('[data-pdf-page="1"]');
+          if (!first) return;
+          const stageTop = stage.getBoundingClientRect().top;
+          const desiredTop = stageTop + readerVisibleTopInset(stage);
+          const offset = first.getBoundingClientRect().top - desiredTop;
+          if (Math.abs(offset) > 1) stage.scrollTop = Math.max(0, stage.scrollTop + offset);
+        });
+      }
     };
     requestAnimationFrame(() => requestAnimationFrame(positionInitialPage));
-  }, [materialSlug, minimumPdfZoom, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
+  }, [materialSlug, minimumPdfZoom, pageDirection, readerVisibleTopInset, rememberZoomLevel, restored, sheetSlug, zoomFromStoredView]);
 
   const markPdfDocumentReady = useCallback(() => setPdfDocumentReady(true), []);
 
@@ -1605,8 +1847,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const stageBounds = stage.getBoundingClientRect();
     const pageBounds = target.getBoundingClientRect();
     const pageTop = pageBounds.top - stageBounds.top + stage.scrollTop;
-    const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
-    const top = anchor.pageOffset === null ? pageTop - paddingTop : pageTop + anchor.pageOffset * pageBounds.height;
+    const visibleTop = readerVisibleTopInset(stage);
+    const top = anchor.pageOffset === null ? pageTop - visibleTop : pageTop + anchor.pageOffset * pageBounds.height;
     const left = anchor.left ?? centeredScrollLeft({ scrollLeft: stage.scrollLeft, pageLeft: pageBounds.left, viewportLeft: stageBounds.left, viewportWidth: stage.clientWidth, pageWidth: pageBounds.width, scrollWidth: stage.scrollWidth });
     stage.scrollTo({ left, top: Math.max(0, top), behavior: "auto" });
     viewPositionRef.current = { left: stage.scrollLeft, top: stage.scrollTop, pageOffset: Math.max(0, anchor.pageOffset || 0) };
@@ -1614,7 +1856,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     pageRef.current = anchor.page;
     setPage(anchor.page);
     setActiveVirtualPageId(anchor.virtualPageId ?? null);
-  }, [materialSlug, sheet?.pdfUrl, sheetSlug]);
+  }, [materialSlug, readerVisibleTopInset, sheet?.pdfUrl, sheetSlug]);
 
   /**
    * Moves the reader to a page, or back to an anchor taken with
@@ -1818,9 +2060,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         setSaveErrorReason("");
         markDocumentDirty(target);
         if (!target) scheduleServerSync();
-      } catch {
+      } catch (error) {
         setSaveState("error");
-        setSaveErrorReason(translateRef.current("focus.outOfSpace"));
+        setSaveErrorReason(localSaveError(error, currentAppLocale()));
       }
       return;
     }
@@ -1847,7 +2089,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       // The signatures are deliberately not advanced, so the next save retries
       // exactly the pages that failed.
       setSaveState("error");
-      setSaveErrorReason(error?.message || translateRef.current("focus.marksNotSaved"));
+      setSaveErrorReason(localSaveError(error, currentAppLocale()));
     }
   }, [markDocumentDirty, materialSlug, minimumPdfZoom, ownerKey, scheduleServerSync, storageSlug]);
 
@@ -2047,9 +2289,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       try {
         const result = await sync.refresh({
           pageCount,
-          local: { annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current }
+          getLocal: () => ({ annotations: annotationsRef.current, notes: notesRef.current, virtualPages: virtualPagesRef.current })
         });
-        if (disposed) return;
+        if (disposed || serverSyncRef.current !== sync) return;
         if (result.documentChanged) {
           setFocusMessage(translateRef.current("focus.thisSheetWasUpdatedYour"));
           onDocumentChanged();
@@ -2201,7 +2443,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   useEffect(() => {
     const sessionId = focusPayload?.session?.id;
-    if (!sessionId || !isUnfinished(focusPayload)) return undefined;
+    if (!sessionId || !isUnfinished(focusPayload) || focusPayload.session.experience_version === 2) return undefined;
     const refresh = () => { if (!document.hidden) focusApi.getLockInSession(sessionId).then(setFocusPayload).catch(() => {}); };
     document.addEventListener("visibilitychange", refresh);
     return () => document.removeEventListener("visibilitychange", refresh);
@@ -2263,7 +2505,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.target?.closest?.(".knowledge-panel")) return;
+      if (event.target?.closest?.(".knowledge-panel, .study-companion")) return;
       if (isTypingTarget(event.target)) return;
       const commandKey = event.ctrlKey || event.metaKey;
       if (event.key === "Escape" && coverSelecting) {
@@ -3166,7 +3408,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const rawTop = pan.top - delta.y + (delta.y ? pan.baseVirtualY : 0);
       const top = elasticScrollPosition(rawTop, pan.bounds.minScrollTop, pan.bounds.maxScrollTop, pan.limits.y);
       stage.scrollTop = top.legal;
-      elasticY = delta.y ? -top.overshoot : 0;
+      // Never stretch the first vertical page into the toolbar or expose
+      // empty space above it on a downward pull. Normal page scrolling and
+      // the end-of-document edge keep their existing behaviour.
+      const atVerticalStart = pageDirection === "vertical" && sheet?.pdfUrl
+        && rawTop < pan.bounds.minScrollTop;
+      elasticY = atVerticalStart ? 0 : (delta.y ? -top.overshoot : 0);
     }
     // Free pan applies both components of the physical finger vector. Bounds
     // constrain each axis independently, so reaching one edge never kills the
@@ -3203,7 +3450,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (!sheet?.pdfUrl || !stage || !root) return fullBounds;
     const stageRect = stage.getBoundingClientRect();
     const rootRect = root.getBoundingClientRect();
-    return visibleDocumentScrollBounds({
+    const bounds = visibleDocumentScrollBounds({
       contentStartX: rootRect.left - stageRect.left + stage.scrollLeft,
       contentStartY: rootRect.top - stageRect.top + stage.scrollTop,
       contentWidth: root.offsetWidth,
@@ -3218,6 +3465,23 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       verticalEdgeReveal: WORKSPACE_GESTURE.verticalEdgeReveal,
       preserveCurrent
     });
+    if (pageDirection === "vertical") {
+      // The stage reserves toolbar clearance in its top padding, not in the
+      // scroll coordinate. Document-relative bounds previously set the minimum
+      // to paddingTop - edgeReveal and blocked returning to scrollTop=0.
+      // That left page one hidden behind the toolbar after a downward swipe.
+      bounds.minScrollTop = 0;
+    }
+    if (whiteboard) {
+      // Whiteboards have an Add page footer after the final page. The document
+      // root's offsetHeight/offsetWidth measures the pages only; restricting
+      // gestures to those bounds makes the footer unreachable even when the
+      // scroll surface reserves extra space for it. Allow navigation through
+      // that reserved space, but leave ordinary PDFs page-bounded.
+      if (pageDirection === "horizontal") bounds.maxScrollLeft = fullBounds.maxScrollLeft;
+      else bounds.maxScrollTop = fullBounds.maxScrollTop;
+    }
+    return bounds;
   }
 
   function schedulePanFrame() {
@@ -3289,7 +3553,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         const horizontalLimit = Math.min(60, Math.max(24, stage.clientWidth * .08)) * speedFactor;
         const verticalLimit = Math.min(60, Math.max(24, stage.clientHeight * .07)) * speedFactor;
         const edgeX = -elasticScrollPosition(next.unclampedLeft, momentum.bounds.minScrollLeft, momentum.bounds.maxScrollLeft, horizontalLimit).overshoot;
-        const edgeY = -elasticScrollPosition(next.unclampedTop, momentum.bounds.minScrollTop, momentum.bounds.maxScrollTop, verticalLimit).overshoot;
+        const edgeY = pageDirection === "vertical" && sheet?.pdfUrl
+          && next.unclampedTop < momentum.bounds.minScrollTop
+          ? 0
+          : -elasticScrollPosition(next.unclampedTop, momentum.bounds.minScrollTop, momentum.bounds.maxScrollTop, verticalLimit).overshoot;
         stopScrollMomentum({ endActivity: false });
         startPanSpringBack(edgeX, edgeY);
         return;
@@ -3326,6 +3593,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       top: stage.scrollTop,
       direction,
       bounds: readerScrollBounds(),
+      // The intersection observer can lag a fast drag after zoom/scroll. Use
+      // the page actually under the pointer rather than stale React page state.
+      startPageKey: captureHorizontalZoomAnchor(clientX, clientY)?.pageKey ?? activePageKey,
       limits,
       // Store the inverse rubber-band value once, so an in-flight spring is
       // part of the new drag's origin instead of being cleared first.
@@ -3380,6 +3650,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       currentFocalY: center.y,
       documentAnchorX: documentAnchor.x,
       documentAnchorY: documentAnchor.y,
+      horizontalAnchor: captureHorizontalZoomAnchor(center.x, center.y),
+      verticalAnchor: captureVerticalZoomAnchor(center.x, center.y),
       startingScrollLeft: stage.scrollLeft,
       startingScrollTop: stage.scrollTop,
       initialDocumentLeft: rootBounds.left,
@@ -3415,6 +3687,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function renderLivePinchTransform(pinch) {
     const root = documentRef.current;
     if (!pinch || !root) return;
+    // PDF.js page-geometry changes or browser scroll anchoring may nudge the
+    // scroller by a few pixels while a compositor pinch is in progress.
+    // Pointer motion owns the viewport until release; restore its starting
+    // scroll so the page stays exactly under the student's fingertips.
+    const stage = stageRef.current;
+    if (stage) {
+      if (Math.abs(stage.scrollLeft - pinch.startingScrollLeft) > 0.01) stage.scrollLeft = pinch.startingScrollLeft;
+      if (Math.abs(stage.scrollTop - pinch.startingScrollTop) > 0.01) stage.scrollTop = pinch.startingScrollTop;
+    }
     // The compositor follows the resisted display scale so a pinch past a zoom
     // limit still tracks the fingers; only `currentScale` may be committed.
     const displayScale = Number.isFinite(pinch.displayScale) ? pinch.displayScale : pinch.currentScale;
@@ -3487,17 +3768,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         root.style.transform = "";
         const documentElement = root.querySelector(".workspace-v2-a4-document") || root;
         const documentBounds = documentElement.getBoundingClientRect();
-        const next = scrollForDocumentAnchor({
-          currentScrollLeft: stage.scrollLeft,
-          currentScrollTop: stage.scrollTop,
-          documentLeft: documentBounds.left,
-          documentTop: documentBounds.top,
-          documentAnchorX: pinch.documentAnchorX,
-          documentAnchorY: pinch.documentAnchorY,
-          scale: finalZoom,
-          focalClientX: pinch.currentFocalX,
-          focalClientY: pinch.currentFocalY
-        });
+        const next = reconciledZoomScroll(
+          pinch, stage, root, documentBounds, finalZoom, pinch.currentFocalX, pinch.currentFocalY
+        );
         const constrainToBounds = finalZoom <= pinch.initialScale + Number.EPSILON;
         const bounds = readerScrollBounds({ preserveCurrent: false });
         stage.scrollLeft = Math.min(bounds.maxScrollLeft, Math.max(bounds.minScrollLeft, next.scrollLeft));
@@ -3524,6 +3797,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       currentFocalY: pinch.currentFocalY,
       documentAnchorX: pinch.documentAnchorX,
       documentAnchorY: pinch.documentAnchorY,
+      horizontalAnchor: pinch.horizontalAnchor,
+      verticalAnchor: pinch.verticalAnchor,
       startingScrollLeft: pinch.startingScrollLeft,
       startingScrollTop: pinch.startingScrollTop,
       constrainToBounds: finalZoom <= pinch.initialScale + Number.EPSILON,
@@ -3532,10 +3807,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     };
     zoomRef.current = finalZoom;
     gesture.pinch = null;
-    // Keep the last compositor transform visible while React prepares the new
-    // document geometry. A transition lets React yield between chunks instead
-    // of blocking the release frame with the entire Workspace render.
-    startTransition(() => setZoom(finalZoom));
+    // This is the completion of a direct pointer interaction, so the matching
+    // document geometry must not be deferred behind unrelated transitions.
+    // A deferred commit can leave the compositor-only pinch frame attached for
+    // seconds (and make a following Fit action read stale geometry).
+    setZoom(finalZoom);
+    setPinchCommitEpoch((current) => current + 1);
     revealZoomHud(finalZoom);
   }
 
@@ -3596,18 +3873,19 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       cancelAnimationFrame(gesture.pinchRafId);
       gesture.pinchRafId = null;
     }
-    // Paint the most recent raw pointer sample before reconciling compositor
-    // geometry with layout. The committed scale is the exact distance ratio;
-    // only a rubber-band overshoot is eased, and never past a legal value.
+    // Track every raw finger movement continuously; only settle to the nearest
+    // 5% once the fingers lift. This keeps split-pane and single-PDF gestures
+    // fluid, with a gentle visual transition rather than 5% jumps mid-pinch.
     renderLivePinchTransform(pinch);
     const finalZoom = pinch.currentScale;
+    const committedZoom = clampReaderZoom(Math.round(finalZoom * 20) / 20);
     gesture.pinch = null;
     const stage = stageRef.current;
     for (const touch of gesture.touches.values()) {
       try { if (stage?.hasPointerCapture?.(touch.pointerId)) stage.releasePointerCapture(touch.pointerId); } catch { /* Releasing an already-ended pointer is harmless. */ }
     }
     gesture.touches.clear();
-    settleZoomOvershoot(pinch, finalZoom, () => commitPinchLegal(pinch, finalZoom));
+    settleZoomOvershoot(pinch, committedZoom, () => commitPinchLegal(pinch, committedZoom));
   }
 
   function beginWorkspacePointer(event) {
@@ -3627,7 +3905,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       gesture.lastPenAt = Date.now();
       gesture.lastPenPosition = { x: event.clientX, y: event.clientY };
     }
-    if (event.pointerType === "touch") {
+    if (isTouchLikePointer(event.pointerType)) {
       if (suspiciousPalmContact({ event, activePenCount: gesture.penPointers.size, lastPenAt: gesture.lastPenAt, lastPenPosition: gesture.lastPenPosition, activeTouchCount: gesture.touches.size })) {
         gesture.rejectedTouches.add(event.pointerId);
         event.preventDefault();
@@ -3694,8 +3972,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       event.preventDefault();
       return;
     }
-    if (activeTool === "select" && event.pointerType !== "touch" && beginSelectionPointer(event)) return;
-    if (activeTool !== "hand" && event.pointerType !== "touch" && beginDirectObjectMove(event)) return;
+    if (activeTool === "select" && !isTouchLikePointer(event.pointerType) && beginSelectionPointer(event)) return;
+    if (activeTool !== "hand" && !isTouchLikePointer(event.pointerType) && beginDirectObjectMove(event)) return;
     const canDraw = pointerCanDraw(event.pointerType, drawingInput);
     // A stylus or mouse that lands beside the pages (the gutter, the gap
     // between pages, the space above the first one) has nothing to draw on:
@@ -3760,7 +4038,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const point = documentPoint(event.clientX, event.clientY);
     const annotationPage = point.page;
     const onPage = annotationsRef.current.filter((item) => item.page === annotationPage);
-    const tolerance = (event.pointerType === "touch" ? 14 : event.pointerType === "pen" ? 8 : 5) * pageUnitsPerCssPixel(annotationPage);
+    const tolerance = (isTouchLikePointer(event.pointerType) ? 14 : event.pointerType === "pen" ? 8 : 5) * pageUnitsPerCssPixel(annotationPage);
     const aspect = pageAspectFor(annotationPage);
     const selected = new Set(selectedIds);
     const current = onPage.filter((item) => selected.has(item.id));
@@ -3788,7 +4066,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (!ids) {
       // Hiding an area is an explicit rectangle gesture, so a finger can do it
       // even while ink remains restricted to Apple Pencil.
-      if (!coverSelecting && event.pointerType === "touch" && !pointerCanDraw("touch", drawingInput)) {
+      if (!coverSelecting && isTouchLikePointer(event.pointerType) && !pointerCanDraw("touch", drawingInput)) {
         gesture.selectionTapClear = true;
         return false;
       }
@@ -3866,7 +4144,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       gesture.lastPenAt = Date.now();
       gesture.lastPenPosition = { x: event.clientX, y: event.clientY };
     }
-    if (event.pointerType === "touch" && gesture.touches.has(event.pointerId)) {
+    if (isTouchLikePointer(event.pointerType) && gesture.touches.has(event.pointerId)) {
       const touch = gesture.touches.get(event.pointerId);
       touch.currentX = event.clientX;
       touch.currentY = event.clientY;
@@ -3888,11 +4166,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       });
       const elasticZoom = elasticZoomScale(rawScale, minimumAllowedZoom(), MAX_FOCUS_ZOOM, ZOOM_OVERSHOOT_RATIO);
       gesture.pinch.currentScale = elasticZoom.legal;
-      gesture.pinch.displayScale = elasticZoom.display;
+      // In horizontal reading 120% is a strict visual floor too, not merely
+      // the scale committed after a rubber-band pinch settles.
+      gesture.pinch.displayScale = pageDirection === "horizontal"
+        ? Math.max(HORIZONTAL_READING_ZOOM_FLOOR, elasticZoom.display)
+        : elasticZoom.display;
       scheduleLivePinchFrame();
       return;
     }
-    if ((gesture.mode === INTERACTION_STATE.SETTLING || gesture.mode === INTERACTION_STATE.SPRING_BACK) && event.pointerType === "touch") {
+    if ((gesture.mode === INTERACTION_STATE.SETTLING || gesture.mode === INTERACTION_STATE.SPRING_BACK) && isTouchLikePointer(event.pointerType)) {
       event.preventDefault();
       return;
     }
@@ -3993,7 +4275,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function finishWorkspacePointer(event) {
     const gesture = gestureRef.current;
     let suppressMomentum = false;
-    if (event.pointerType === "touch") {
+    if (isTouchLikePointer(event.pointerType)) {
       if (gesture.rejectedTouches.delete(event.pointerId)) return;
       gesture.touches.delete(event.pointerId);
       try { if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* Pointer capture is progressive enhancement. */ }
@@ -4004,7 +4286,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       }
       if (gesture.mode === INTERACTION_STATE.SETTLING) {
         gesture.pan = null;
-        if (gesture.touches.size === 0 && !pendingPinchCommitRef.current) gesture.mode = INTERACTION_STATE.IDLE;
+        // Releasing the second finger must not mark the reader idle before the
+        // snap animation has run its completion callback. A subsequent pen
+        // cancellation otherwise discards that callback, leaving the PDF
+        // permanently tagged is-live-pinching with its old transform.
+        if (gesture.touches.size === 0 && !pendingPinchCommitRef.current && !gesture.zoomSettleComplete) {
+          gesture.mode = INTERACTION_STATE.IDLE;
+        }
         event.preventDefault();
         return;
       }
@@ -4066,19 +4354,40 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       if (gesture.panRafId !== null) cancelAnimationFrame(gesture.panRafId);
       gesture.panRafId = null;
       if (!pendingDirection) applyPanPosition(completedPan);
+      // Once a page extends past the viewport, swipes pan its contents instead
+      // of unexpectedly turning to the next page near the fit-zoom threshold.
+      const panStartPage = stageRef.current?.querySelector(`[data-workspace-page="${completedPan.startPageKey}"]`);
+      const horizontalTarget = pageDirection === "horizontal" && sheet?.pdfUrl
+        && horizontalPageFitsViewport(panStartPage?.getBoundingClientRect().width, stageRef.current?.clientWidth)
+        && gesture.touches.size === 0
+        ? horizontalSwipeTarget(
+          Array.from(stageRef.current?.querySelectorAll(".workspace-v2-a4-page") || [], (element) => Number(element.getAttribute("data-workspace-page"))),
+          completedPan.startPageKey,
+          event.clientX - completedPan.x,
+          event.clientY - completedPan.y,
+          stageRef.current?.clientWidth
+        )
+        : null;
       gesture.pan = null;
       gesture.mode = INTERACTION_STATE.IDLE;
       const hasElasticOffset = !pendingDirection && (Math.abs(completedPan.elasticX) > .1 || Math.abs(completedPan.elasticY) > .1);
       const releaseVelocity = pendingDirection
         ? { x: 0, y: 0, speed: 0 }
         : lockedGestureVelocity(completedPan.direction, estimateReleaseScrollVelocity(completedPan.samples, event.timeStamp));
-      if (hasElasticOffset) startPanSpringBack(completedPan.elasticX, completedPan.elasticY, releaseVelocity);
+      if (horizontalTarget !== null) {
+        // Paged swipes advance exactly one accessible page; cancel the normal
+        // free-pan momentum before restoring the page centre.
+        documentRef.current?.classList.remove("is-live-panning");
+        if (documentRef.current) documentRef.current.style.transform = "";
+        endScrollActivity();
+        requestAnimationFrame(() => jumpToPagePosition(horizontalTarget));
+      } else if (hasElasticOffset) startPanSpringBack(completedPan.elasticX, completedPan.elasticY, releaseVelocity);
       else {
         documentRef.current?.classList.remove("is-live-panning");
         if (documentRef.current) documentRef.current.style.transform = "";
         // A flick glides on whether it came from a finger or a stylus; a mouse
         // drag stops where it is released, as on a desktop.
-        const momentumStarted = (event.pointerType === "touch" || event.pointerType === "pen") && !suppressMomentum && startScrollMomentum(releaseVelocity);
+        const momentumStarted = (isTouchLikePointer(event.pointerType) || event.pointerType === "pen") && !suppressMomentum && startScrollMomentum(releaseVelocity);
         if (!momentumStarted) endScrollActivity();
       }
       if (event.pointerType !== "mouse") event.preventDefault();
@@ -4194,8 +4503,28 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   function cancelWorkspacePointer(event) {
     const gesture = gestureRef.current;
-    if (event.pointerType === "touch" && gesture.rejectedTouches.delete(event.pointerId)) {
+    if (isTouchLikePointer(event.pointerType) && gesture.rejectedTouches.delete(event.pointerId)) {
       debugGesture("rejected-touch-cancel", event);
+      return;
+    }
+    // A stylus can be cancelled after its stroke has already been handed off
+    // to a two-finger pinch. That stale cancellation does not own the pinch
+    // settlement and must not cancel its animation or leave the compositor
+    // transform permanently attached to the document.
+    if (gesture.mode === INTERACTION_STATE.SETTLING) {
+      // An interrupted settling gesture (touch or stylus) still commits the
+      // last legal zoom; never drop the callback before releasing the layer.
+      gesture.touches.delete(event.pointerId);
+      gesture.penPointers.delete(event.pointerId);
+      // Finish rather than abandon the touch-owned settlement. This commits
+      // its legal zoom and lets the geometry effect remove compositor classes.
+      cancelZoomSettle();
+      // The cancellation can arrive before React commits that geometry. Clear
+      // the compositor frame synchronously so no stale live class or transform
+      // survives in the meantime.
+      clearLivePinchTransform();
+      unlockStageForDrawing(event.pointerId ?? null);
+      debugGesture("settling-stale-pointer-cancel", event);
       return;
     }
     stopScrollMomentum();
@@ -4279,7 +4608,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       window.clearTimeout(wheelZoomEndTimerRef.current);
       wheelZoomEndTimerRef.current = null;
     }
-    if (gesture.pinch?.source === "wheel") {
+    if (gesture.pinch?.source === "wheel" || pendingPinchCommitRef.current) {
+      // Fit width can be pressed while React is reconciling the last wheel
+      // pinch. The live compositor scale is not document geometry: discard it
+      // before measuring the page or the result can stay ~100px too wide.
+      pendingPinchCommitRef.current = null;
       clearLivePinchTransform();
       gesture.pinch = null;
       gesture.mode = INTERACTION_STATE.IDLE;
@@ -4291,7 +4624,13 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const x = clientX ?? bounds.left + bounds.width / 2;
     const y = clientY ?? bounds.top + bounds.height / 2;
     const finalZoom = clampReaderZoom(nextZoom);
-    if (Math.abs(finalZoom - zoomRef.current) < .001) {
+    // `zoomRef` is updated before React commits the resized PDF. A Fit width
+    // click during that small window must still repair stale document
+    // geometry instead of returning because the numeric target already
+    // matches the ref.
+    const liveWidth = documentRef.current?.getBoundingClientRect().width || 0;
+    const fitGeometryMatches = mode !== "fit" || Math.abs(liveWidth - bounds.width) < 1.5;
+    if (Math.abs(finalZoom - zoomRef.current) < .001 && fitGeometryMatches) {
       revealZoomHud(finalZoom, label || (mode === "fit" ? t("focus.fitWidth") : ""));
       return;
     }
@@ -4303,6 +4642,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         finalZoom,
         documentAnchorX: anchor.x,
         documentAnchorY: anchor.y,
+        horizontalAnchor: captureHorizontalZoomAnchor(x, y),
+        verticalAnchor: captureVerticalZoomAnchor(x, y),
         focalClientX: x,
         focalClientY: y
       };
@@ -4343,15 +4684,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const targetLeft = targetBounds.left - stageBounds.left + stage.scrollLeft;
     // The toolbar floats over the top of the stage; its padding keeps a page
     // that is jumped to from starting underneath it.
-    const paddingTop = Number.parseFloat(window.getComputedStyle(stage).paddingTop) || 0;
+    const visibleTop = readerVisibleTopInset(stage);
     const top = point
       ? targetTop + (Math.min(1000, Math.max(0, point.y)) / 1000) * targetBounds.height - stage.clientHeight * 0.32
-      : targetTop - paddingTop;
+      : targetTop - visibleTop;
     const left = point
       ? targetLeft + (Math.min(1000, Math.max(0, point.x)) / 1000) * targetBounds.width - stage.clientWidth * 0.5
-      : stage.scrollLeft;
+      : pageDirection === "horizontal" && sheet?.pdfUrl
+        ? centeredScrollLeft({ scrollLeft: stage.scrollLeft, pageLeft: targetBounds.left, viewportLeft: stageBounds.left, viewportWidth: stage.clientWidth, pageWidth: targetBounds.width, scrollWidth: stage.scrollWidth })
+        : stage.scrollLeft;
     stage.scrollTo({
-      top: Math.max(0, top),
+      top: pageDirection === "horizontal" && !point ? 0 : Math.max(0, top),
       left: Math.max(0, left),
       behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
     });
@@ -4498,7 +4841,6 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       const openingNotes = openSurface !== "notes";
       setSideTab("notes");
       setOpenSurface(openingNotes ? "notes" : null);
-      if (openingNotes) window.setTimeout(() => noteRef.current?.focus(), 0);
       return;
     }
     if (nextTool === "image") {
@@ -4529,6 +4871,8 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // Takes effect for the very next pointerdown, before React re-renders.
     activeToolRef.current = nextTool;
     toolStateRef.current = next;
+    // Revisiting a tool should not replay an old colour-selection animation.
+    setColorAnimation((current) => current.tool === nextTool ? current : { ...current, tool: null });
     if (nextTool === "pen") setPenProfile(rememberedProfile);
     if (remembered) {
       setActiveColor(remembered.color || COLORS[0]);
@@ -4812,6 +5156,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (annotationsHidden) setAnnotationsHidden(false);
     if (tool === "pen") setPenProfile(profile);
     setActiveColor(favorite.color);
+    if (SWATCH_TOOLS.has(tool)) setColorAnimation((current) => ({ tool, revision: current.revision + 1 }));
     setBrushSize(favorite.width);
     if (tool === "highlighter") setHighlighterOpacity(favorite.opacity);
     else setBrushOpacity(favorite.opacity);
@@ -4825,21 +5170,29 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return normalizeFavoritePen({ tool: activeTool, profile: penProfile, color: activeColor, width: brushSize, opacity: activeToolOpacity });
   }
 
+  function persistFavoritePenSet(next) {
+    const saved = saveFavoritePens(next, { notify: true });
+    setFavoritePens(saved);
+  }
+
   function saveFavoritePen() {
     const favorite = currentFavoritePen();
     if (!favorite) return;
-    setFavoritePens((current) => normalizeFavoritePens([...current, favorite]));
+    if (matchingFavoritePen(favoritePens, favorite) >= 0) return;
+    if (favoritePens.length >= MAX_FAVORITE_PENS) return;
+    persistFavoritePenSet([...favoritePens, favorite]);
     setFocusMessage(t("focus.favoritePenSaved"));
   }
 
   function replaceFavoritePen(index) {
     const favorite = currentFavoritePen();
-    if (!favorite) return;
-    setFavoritePens((current) => normalizeFavoritePens(current.map((item, position) => position === index ? favorite : item)));
+    if (!favorite || index < 0 || index >= favoritePens.length) return;
+    persistFavoritePenSet(favoritePens.map((item, position) => position === index ? favorite : item));
   }
 
   function removeFavoritePen(index) {
-    setFavoritePens((current) => current.filter((_, position) => position !== index));
+    if (index < 0 || index >= favoritePens.length) return;
+    persistFavoritePenSet(favoritePens.filter((_, position) => position !== index));
   }
 
   function openZoomWindow() {
@@ -4874,20 +5227,33 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function chooseAnnotationColor(color) {
     const normalized = normalizeToolColor(color) || activeColor;
     updateSelectionColor(normalized);
+    const tool = activeToolRef.current;
+    if (SWATCH_TOOLS.has(tool)) setColorAnimation((current) => ({ tool, revision: current.revision + 1 }));
   }
 
   function toggleFavoriteColor() {
     const normalized = normalizeToolColor(activeColor);
     if (!normalized) return;
-    setFavoriteColors((items) => items.includes(normalized) ? items.filter((color) => color !== normalized) : [normalized, ...items].slice(0, 5));
+    const next = favoriteColors.includes(normalized)
+      ? favoriteColors.filter((color) => color !== normalized)
+      : [normalized, ...favoriteColors].slice(0, 5);
+    setFavoriteColors(next);
+    try { window.localStorage.setItem(FAVORITE_COLORS_KEY, JSON.stringify(next)); } catch { /* Device preference only. */ }
+    window.dispatchEvent(new Event(WORKSPACE_PALETTE_CHANGE_EVENT));
   }
 
-  function commitCustomColor() {
-    const normalized = normalizeToolColor(customColorDraft);
+  function commitCustomColor(color = customColorDraft) {
+    // The pen-inspector button passes a click event, while the quick '+' picker
+    // passes a hex string. Both paths save into one shared device palette.
+    const normalized = normalizeToolColor(typeof color === "string" ? color : customColorDraft);
     if (!normalized) return;
     if (!paletteColors.includes(normalized) && paletteColors.length >= MAX_PALETTE_COLORS) return;
-    setRecentColors((items) => addSavedColor(items, normalized, MAX_PALETTE_COLORS, COLORS));
+    const next = addSavedColor(recentColors, normalized, MAX_PALETTE_COLORS, COLORS);
+    persistRecentColors(next, { notify: true });
+    setRecentColors(next);
     updateSelectionColor(normalized);
+    const tool = activeToolRef.current;
+    if (SWATCH_TOOLS.has(tool)) setColorAnimation((current) => ({ tool, revision: current.revision + 1 }));
     setCustomColorEditorOpen(false);
   }
 
@@ -4895,8 +5261,12 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const normalized = normalizeToolColor(color);
     if (!normalized) return;
     const nextColors = removeSavedColor(recentColors, normalized, MAX_PALETTE_COLORS, COLORS);
+    persistRecentColors(nextColors, { notify: true });
     setRecentColors(nextColors);
-    setFavoriteColors((items) => items.filter((item) => item !== normalized));
+    const nextFavorites = favoriteColors.filter((item) => item !== normalized);
+    setFavoriteColors(nextFavorites);
+    try { window.localStorage.setItem(FAVORITE_COLORS_KEY, JSON.stringify(nextFavorites)); } catch { /* Device preference only. */ }
+    window.dispatchEvent(new Event(WORKSPACE_PALETTE_CHANGE_EVENT));
     if (activeColor === normalized) setActiveColor(normalizeSavedPalette([...COLORS, ...nextColors], MAX_PALETTE_COLORS)[0] || COLORS[0]);
     if (customColorDraft === normalized) setCustomColorDraft(COLORS[0]);
   }
@@ -5130,7 +5500,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [summaryError, setSummaryError] = useState("");
   const [summaryPanelId, setSummaryPanelId] = useState("");
-  const [summaryPanelOpen, setSummaryPanelOpen] = useState(true);
+  const requestedSummaryId = searchParams.get("summary") || "";
+  const openedSummaryLink = useRef("");
+  const requestedSourcePage = Number(searchParams.get("sourcePage"));
+  const requestedSourceVersion = searchParams.get("sourceVersion") || "";
+  const openedSourcePage = useRef("");
+  // Never reveal the floating keyboard-summary panel automatically when a sheet loads.
+  // Students may still explicitly continue or create a keyboard summary from My Summary.
+  const [summaryPanelOpen, setSummaryPanelOpen] = useState(false);
+  useEffect(() => {
+    if (!paneActive) setSummaryPanelOpen(false);
+  }, [paneActive]);
   const [summaryReceiveDismissed, setSummaryReceiveDismissed] = useState(false);
   const shownSummaryIds = useMemo(() => new Set(sheetSummaries.summaries.filter((item) => item.visible).map((item) => item.id)), [sheetSummaries.summaries]);
   // Hidden summaries keep their pages and ink; the reader just leaves them out.
@@ -5238,6 +5618,41 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       || virtualPagesRef.current.find((item) => item.summary === summary.id && item.afterPage >= accessiblePageStart);
     if (target) jumpToPagePosition(target.id);
   }
+
+  useEffect(() => {
+    if (!requestedSummaryId) { openedSummaryLink.current = ""; return undefined; }
+    if (!paneActive || !sheetSummaries.loaded || !workspaceReady) return undefined;
+    const key = `${shareDocumentId}:${requestedSummaryId}`;
+    if (openedSummaryLink.current === key) return undefined;
+    const summary = sheetSummaries.summaries.find(item => item.id === requestedSummaryId);
+    if (!summary) return undefined;
+    if (!summary.visible) {
+      openedSummaryLink.current = key;
+      setSummaryDialogOpen(true);
+      return undefined;
+    }
+    if (summary.mode === "pen" && !virtualPages.some(item => item.summary === summary.id)) return undefined;
+    const frame = requestAnimationFrame(() => { openedSummaryLink.current = key; continueSummary(summary); });
+    return () => cancelAnimationFrame(frame);
+    // Open a requested summary once after its pages and saved state are ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedSummaryId, paneActive, sheetSummaries.loaded, sheetSummaries.summaries, workspaceReady, shareDocumentId, virtualPages]);
+
+  useEffect(() => {
+    if (!Number.isInteger(requestedSourcePage) || requestedSourcePage < 1 || !paneActive || !workspaceReady) return undefined;
+    const key = `${shareDocumentId}:${requestedSourcePage}`;
+    if (openedSourcePage.current === key) return undefined;
+    if (requestedSourceVersion && requestedSourceVersion !== catalogDocument?.versionId) {
+      openedSourcePage.current = key;
+      setFocusMessage(translateRef.current("review.sourceUpdated"));
+      return undefined;
+    }
+    if (requestedSourcePage < accessiblePageStart || requestedSourcePage > accessiblePageCount) return undefined;
+    const frame = requestAnimationFrame(() => { openedSourcePage.current = key; jumpToPagePosition(requestedSourcePage); });
+    return () => cancelAnimationFrame(frame);
+    // Source navigation respects the reader's existing accessible page bounds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedSourcePage, requestedSourceVersion, catalogDocument?.versionId, paneActive, workspaceReady, shareDocumentId, accessiblePageStart, accessiblePageCount]);
 
   /** Builds the PDF, marks the summary received and hands the file over. */
   async function receiveSummary(summary) {
@@ -5489,6 +5904,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     }
   }
 
+  usePlannedSourceNavigation({ search: searchParams, source: catalogDocument, limit: accessiblePageCount,
+    ready: workspaceReady && pdfDocumentReady && paneActive && (!modeDialogOpen || searchParams.get("studyActivity") === "active_study"),
+    onActive: difficulty => { setActiveDifficulty(difficulty); setModeDialogOpen(true); },
+    onRead: jumpToPagePosition, onUnavailable: () => setFocusMessage(t("knowledge.lockedSource")),
+    onExplain: questionId => {
+      if (!STUDY_TOOLS_ENABLED || COMING_SOON_STUDY_TOOLS.includes("explain")) return;
+      setKnowledgeVisited(true); setKnowledgeOpen(true);
+      setKnowledgeNavigation({ requestId: globalThis.crypto.randomUUID(), question_id: questionId });
+    },
+  });
+
   function commitPageJump() {
     const target = Number.parseInt(pageJumpDraft, 10);
     if (!Number.isFinite(target)) {
@@ -5500,18 +5926,31 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     if (clamped !== page || activeVirtualPageId !== null) jumpToPagePosition(clamped);
   }
 
+  // Button zoom preserves the reader's active line near the top of a
+  // continuous PDF. Centering on the entire viewport moved that reading line
+  // by almost a tenth of a page with each zoom step on a desktop.
+  function toolbarZoomFocalPoint(stage) {
+    const bounds = stage.getBoundingClientRect();
+    return {
+      x: bounds.left + bounds.width / 2,
+      y: pageDirection === "horizontal"
+        ? bounds.top + bounds.height / 2
+        : bounds.top + Math.min(180, bounds.height / 2)
+    };
+  }
+
   function zoomByStep(factor) {
     const stage = stageRef.current;
     if (!stage) return;
-    const bounds = stage.getBoundingClientRect();
-    zoomTo(zoomRef.current * factor, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+    const focal = toolbarZoomFocalPoint(stage);
+    zoomTo(zoomRef.current * factor, focal.x, focal.y);
   }
 
   function zoomToFitMultiple(multiplier) {
     const stage = stageRef.current;
     if (!stage) return;
-    const bounds = stage.getBoundingClientRect();
-    zoomTo(minimumPdfZoom() * multiplier, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2, { mode: multiplier === 1 ? "fit" : "manual", label: multiplier === 1 ? t("focus.fitWidth") : `${multiplier}× fit` });
+    const focal = toolbarZoomFocalPoint(stage);
+    zoomTo(minimumPdfZoom() * multiplier, focal.x, focal.y, { mode: multiplier === 1 ? "fit" : "manual", label: multiplier === 1 ? t("focus.fitWidth") : `${multiplier}× fit` });
   }
 
   function exportWorkspaceBackup() {
@@ -5868,8 +6307,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function fitPdfWidth() {
     const stage = stageRef.current;
     if (!stage) return;
-    const bounds = stage.getBoundingClientRect();
-    zoomTo(minimumPdfZoom(), bounds.left + bounds.width / 2, bounds.top + Math.min(bounds.height / 2, 180), { mode: "fit" });
+    // Closing Settings can expand the reader in the same frame as this click.
+    // Measure on the next painted layout so Fit uses the viewport the student
+    // actually sees, rather than the narrower closing-panel width.
+    requestAnimationFrame(() => {
+      const currentStage = stageRef.current;
+      if (!currentStage) return;
+      const bounds = currentStage.getBoundingClientRect();
+      zoomTo(minimumPdfZoom(), bounds.left + bounds.width / 2, bounds.top + Math.min(bounds.height / 2, 180), { mode: "fit" });
+    });
     setFocusMessage(t("focus.pdfFittedToWidth"));
   }
 
@@ -5881,7 +6327,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   const customColors = addSavedColor(recentColors, null, MAX_PALETTE_COLORS, COLORS);
   const customColorSet = new Set(customColors);
   const paletteColors = normalizeSavedPalette([...favoriteColors, ...COLORS, ...customColors], MAX_PALETTE_COLORS);
-  const quickColors = normalizeSavedPalette([...favoriteColors, ...recentColors, ...COLORS], 3);
+  // Most recently saved custom colours come first; all remain reachable by
+  // horizontal swiping, with the '+' control pinned alongside the strip.
+  const quickColors = normalizeSavedPalette([...recentColors, ...favoriteColors, ...COLORS], MAX_PALETTE_COLORS);
   const activeToolOpacity = activeTool === "highlighter" ? highlighterOpacity : activeTool === "pencil" ? pencilOpacity : brushOpacity;
   // What the Zoom Window writes with: the pen or highlighter in use (the
   // Pointer pen's glow does not belong in a magnified window, so it writes ink).
@@ -6004,11 +6452,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     </>;
   }
 
-  return (
-    <main className={`workspace-v2${zoomWindow ? " has-zoom-window" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}${singleTab ? " has-single-tab" : ""}`} ref={rootRef} data-knowledge-open={knowledgeOpen ? "true" : undefined} aria-busy={!workspaceReady} aria-label={t("focus.workspaceLabel", { title: sheet.title })}>
-      <div className={`workspace-v2-body${sideOpen ? " has-side" : ""}`}>
-        <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
-          <nav className="workspace-v2-toolbar" aria-label={t("focus.documentTools")} ref={toolbarRef}>
+  // The existing Focus toolbar is rendered only once. The selected pane portals
+  // its genuine controls into the shared full-width chrome (no duplicate tools).
+  const toolbarMarkup = (
+    <nav className="workspace-v2-toolbar" aria-label={t("focus.documentTools")} ref={toolbarRef}>
             {showWorkspaceTabs && <WorkspaceTabBar tabs={tabBarTabs} activeId={currentTabId} materials={tabMaterials} portalRef={rootRef} onSelect={showWorkspaceTab} onClose={closeTab} onNewWhiteboard={openNewWhiteboard} onOpenSheet={openSheetTab} />}
             <div className="workspace-v2-control-group is-exit">
               <WorkspaceIconButton label={t("focus.exitWorkspace")} onClick={requestWorkspaceExit}><ArrowLeft size={19} /></WorkspaceIconButton>
@@ -6017,15 +6464,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                 <span>{whiteboard ? t("workspaceTabs.whiteboardStoredHere") : personal ? t("personalSheets.readerLabel") : summaryMode ? t("materials.sheetSummary") : sheetEdition?.edition === "lockin" ? t("focus.lockinEdition") : t("focus.universityEdition")}</span>
               </div>
             </div>
-            <div className="workspace-v3-primary" ref={toolRailRef} inert={workspaceReady ? undefined : ""}>
+            <DockableToolRail railRef={toolRailRef} readerRef={readerRef} userId={user?.id} arabic={currentAppLocale() === "ar"} onMove={() => setOpenSurface(null)} inert={workspaceReady ? undefined : ""}>
               <div className="workspace-v2-tool-list" ref={toolListRef} aria-label={t("focus.writingTools")} data-active-tool={activeTool}>
                 <span className="workspace-v2-tool-indicator" ref={toolIndicatorRef} aria-hidden="true" />
                 {PRIMARY_WRITE_TOOLS.map(([id, labelKey, ToolIcon, responsiveClass]) => {
                   const label = t(labelKey);
                   const expanded = activeTool === id && toolOptionsOpen === id;
+                  const animatingColor = activeTool === id && colorAnimation.tool === id && colorAnimation.revision > 0;
                   return <WorkspaceIconButton
                     key={id}
-                    className={`workspace-v3-tool-button${id === "pen" ? " is-hero" : ""}${responsiveClass ? ` ${responsiveClass}` : ""}`}
+                    className={`workspace-v3-tool-button${id === "pen" ? " is-hero" : ""}${responsiveClass ? ` ${responsiveClass}` : ""}${animatingColor ? " is-color-animated" : ""}`}
                     label={label}
                     disabled={!workspaceReady}
                     active={activeTool === id}
@@ -6033,21 +6481,27 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
                     aria-expanded={CONFIGURABLE_TOOLS.has(id) ? expanded : undefined}
                     aria-controls={CONFIGURABLE_TOOLS.has(id) ? `workspace-${id}-options` : undefined}
                     data-workspace-tool={id}
+                    data-color-motion={animatingColor ? colorAnimation.revision : undefined}
                     style={id === activeTool && SWATCH_TOOLS.has(id) ? cssVars({ "--workspace-tool-color": activeColor, "--workspace-swatch-size": `${swatchSize}px` }) : undefined}
                     onClick={() => chooseWritingTool(id)}
-                  ><ToolIcon size={19} />{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
+                  ><WorkspaceToolIcon tool={id} fallback={ToolIcon} />{animatingColor && <span key={colorAnimation.revision} className="workspace-v3-tool-color-trace" aria-hidden="true" />}{id === activeTool && SWATCH_TOOLS.has(id) && <span className="workspace-v3-tool-swatch" aria-hidden="true" />}</WorkspaceIconButton>;
                 })}
                 <WorkspaceIconButton label={t("focus.add")} className="workspace-v3-tool-button" active={openSurface === "add"} aria-expanded={openSurface === "add"} aria-controls="workspace-add-popover" data-workspace-surface="add" onClick={() => setOpenSurface((current) => current === "add" ? null : "add")}><Plus size={20} /></WorkspaceIconButton>
               </div>
-              <div className="workspace-v3-quick-colors" role="group" aria-label={t("focus.quickAnnotationColors")}>
-                {quickColors.map((color) => <button key={color} type="button" className={`workspace-v3-quick-color${activeColor === color ? " is-active" : ""}`} aria-label={t("focus.useColor", { color })} aria-pressed={activeColor === color} title={color} disabled={!showColorPalette} style={cssVars({ "--workspace-tool-color": color })} onClick={() => chooseAnnotationColor(color)}><span /></button>)}
-              </div>
-              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
+              {/* The edit controls stay with writing tools. Quick colours and
+                  saved pens follow as secondary choices, without divider bars. */}
               <div className="workspace-v2-history" aria-label={t("focus.editHistory")}>
                 <WorkspaceIconButton label={t("focus.undoCtrlZ")} className="workspace-v3-history-button" disabled={!undoHistory.length} onClick={undoTool}><Undo2 size={18} /></WorkspaceIconButton>
                 <WorkspaceIconButton label={t("focus.redoCtrlShiftZ")} className="workspace-v3-history-button" disabled={!redoHistory.length} onClick={redoTool}><Redo2 size={18} /></WorkspaceIconButton>
               </div>
-            </div>
+              {/* All colours and up to five starred pens stay in the SAME
+                  horizontally scrolling tool rail as the writing tools. Do
+                  not move them to a tab row when a favorite is added. */}
+              <QuickColorPicker colors={quickColors} activeColor={activeColor} enabled={showColorPalette}
+                allowAdd={paletteColors.length < MAX_PALETTE_COLORS} onSelect={chooseAnnotationColor}
+                onSave={commitCustomColor} portalRef={rootRef} t={t} />
+              {workspaceReady && favoritePens.length > 0 && favoritePensStrip("is-toolbar")}
+            </DockableToolRail>
             {/* A phone shows Undo and Redo here, pinned beside the tool rail,
                 because the rail scrolls them out of reach exactly when writing
                 needs them. */}
@@ -6057,6 +6511,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             </div>
             <input ref={imageInputRef} className="workspace-v2-file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={!workspaceReady} onChange={addImage} tabIndex={-1} aria-hidden="true" />
             <div className="workspace-v2-toolbar-actions" aria-label={t("focus.workspaceControls")}>
+              {focusPayload?.session?.experience_version === 2 && <StudyDock payload={focusPayload} onChange={setFocusPayload} active={paneActive} portalRef={rootRef} />}
               {RESCUE_ENABLED && shareDocumentId && user?.id && rescueSource.managed_file_id && <StartRescue
                 key={user.id + "/" + shareDocumentId}
                 userId={user.id} source={rescueSource} page={page} pageLimit={accessiblePageCount}
@@ -6078,13 +6533,20 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
               <WorkspaceIconButton label={t("focus.moreWorkspaceActions")} className={`workspace-v3-utility-button${studyInProgress ? " has-study-progress" : ""}`} active={openSurface === "more" || settingsOpen} aria-expanded={openSurface === "more" || settingsOpen} aria-controls="workspace-more-popover" data-workspace-surface="more" disabled={!workspaceReady} onClick={() => setOpenSurface((current) => current === "more" ? null : "more")}><MoreHorizontal size={20} />{studyInProgress && <span className="workspace-v3-more-badge" aria-hidden="true" />}</WorkspaceIconButton>
             </div>
           </nav>
+  );
+
+  return (
+    <main className={`workspace-v2${zoomWindow ? " has-zoom-window" : ""}${isDocumentFullscreen ? " is-document-fullscreen" : ""}${whiteboard ? " is-whiteboard" : ""}${showWorkspaceTabs ? " has-tabs" : ""}${singleTab ? " has-single-tab" : ""}`} ref={rootRef} data-knowledge-open={knowledgeOpen ? "true" : undefined} aria-busy={!workspaceReady} aria-label={t("focus.workspaceLabel", { title: sheet.title })}>
+      <div className={`workspace-v2-body${sideOpen ? " has-side" : ""}`}>
+        <section ref={readerRef} className={`workspace-v2-reader${isDocumentFullscreen ? " is-document-fullscreen" : ""}`} aria-label={t("focus.documentReader")}>
+          {!isMulti ? toolbarMarkup : paneActive && toolbarHost ? createPortal(toolbarMarkup, toolbarHost) : null}
 
           {marksSet && <button type="button" className="workspace-marks-chip" data-workspace-marks-chip="" onClick={() => setMarksOpen(true)}>
             <Users size={14} aria-hidden="true" />
             <span dir="auto">{marksSet.author ? t("marks.viewing", { author: marksSet.author }) : t("marks.viewingAnonymous")}</span>
           </button>}
 
-          <AddMenu closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} page={page} popover={popover} selectTool={selectTool} setActiveTool={setActiveTool} setCardDraft={setCardDraft} setCardKind={setCardKind} setClipSelecting={setClipSelecting} setCoverSelecting={setCoverSelecting} setEditingCardId={setEditingCardId} setEditingTextId={setEditingTextId} setFocusMessage={setFocusMessage} setLassoMode={setLassoMode} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} setTextDraft={setTextDraft} sheet={sheet} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
+          <AddMenu companionUserId={user?.id} companionAvailable={!whiteboard && !personal && Boolean(catalogDocument?.id || sheet?.pdfUrl) && Boolean(user?.id)} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} page={page} popover={popover} selectTool={selectTool} setActiveTool={setActiveTool} setCardDraft={setCardDraft} setCardKind={setCardKind} setClipSelecting={setClipSelecting} setCoverSelecting={setCoverSelecting} setEditingCardId={setEditingCardId} setEditingTextId={setEditingTextId} setFocusMessage={setFocusMessage} setLassoMode={setLassoMode} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} setTextDraft={setTextDraft} sheet={sheet} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
 
           <PageBackgroundMenu addBlankPage={addBlankPage} page={page} popover={popover} setOpenSurface={setOpenSurface} t={t} workspaceReady={workspaceReady} />
 
@@ -6094,7 +6556,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
           <StudyMenu activeStudy={activeStudy} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} knowledgeNavigation={knowledgeNavigation} knowledgeOpen={knowledgeOpen} openStudyTool={openStudyTool} personal={personal} popover={popover} setMarksOpen={setMarksOpen} setModeDialogOpen={setModeDialogOpen} setOpenSurface={setOpenSurface} setSummaryDialogOpen={setSummaryDialogOpen} shareDocumentId={shareDocumentId} sheetSummaries={sheetSummaries} studyMode={studyMode} studyTools={studyTools} summariesEnabled={summariesEnabled} t={t} whiteboard={whiteboard} workspaceReady={workspaceReady} />
 
-          <MoreMenu openZoomWindow={openZoomWindow} activeVirtualPageId={activeVirtualPageId} allCoversRevealed={allCoversRevealed} annotationsHidden={annotationsHidden} bookmarkBusy={bookmarkBusy} bookmarked={bookmarked} chooseWritingTool={chooseWritingTool} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coverIds={coverIds} deleteBlankPage={deleteBlankPage} documentSearch={documentSearch} exportBusy={exportBusy} openNewWhiteboard={openNewWhiteboard} page={page} personal={personal} popover={popover} searchDocumentProxy={searchDocumentProxy} selectTool={selectTool} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setExportForShare={setExportForShare} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setMarksOpen={setMarksOpen} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} shareDocumentId={shareDocumentId} sheet={sheet} sheetEdition={sheetEdition} singleTab={singleTab} studyInProgress={studyInProgress} studyRangeLabel={studyRangeLabel} summaryMode={summaryMode} t={t} toggleAllCovers={toggleAllCovers} toggleBookmark={toggleBookmark} whiteboard={whiteboard} workspaceReady={workspaceReady} />
+          <MoreMenu openTranslation={() => setTranslationOpen(true)} openZoomWindow={openZoomWindow} activeVirtualPageId={activeVirtualPageId} allCoversRevealed={allCoversRevealed} annotationsHidden={annotationsHidden} bookmarkBusy={bookmarkBusy} bookmarked={bookmarked} chooseWritingTool={chooseWritingTool} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coverIds={coverIds} deleteBlankPage={deleteBlankPage} documentSearch={documentSearch} exportBusy={exportBusy} openNewWhiteboard={openNewWhiteboard} page={page} personal={personal} popover={popover} searchDocumentProxy={searchDocumentProxy} selectTool={selectTool} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setExportForShare={setExportForShare} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setMarksOpen={setMarksOpen} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} shareDocumentId={shareDocumentId} sheet={sheet} sheetEdition={sheetEdition} singleTab={singleTab} studyInProgress={studyInProgress} studyRangeLabel={studyRangeLabel} summaryMode={summaryMode} t={t} toggleAllCovers={toggleAllCovers} toggleBookmark={toggleBookmark} whiteboard={whiteboard} workspaceReady={workspaceReady} />
 
           <ExportMenu accessiblePageCount={accessiblePageCount} exportBusy={exportBusy} exportForShare={exportForShare} exportRangeEnd={exportRangeEnd} exportRangeStart={exportRangeStart} exportStudyDocument={exportStudyDocument} popover={popover} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setOpenSurface={setOpenSurface} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
 
@@ -6103,10 +6565,24 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
           <ToolOptionsPanel favoritesStrip={favoritePensStrip("is-panel")} activeColor={activeColor} activePenOption={activePenOption} activeTool={activeTool} activeToolLabel={activeToolLabel} activeToolOpacity={activeToolOpacity} brushSize={brushSize} changePenProfile={changePenProfile} chooseAnnotationColor={chooseAnnotationColor} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} commitCustomColor={commitCustomColor} customColorDraft={customColorDraft} customColorEditorOpen={customColorEditorOpen} customColorSet={customColorSet} deleteCustomColor={deleteCustomColor} displayedToolOptions={displayedToolOptions} drawAndHold={drawAndHold} eraserMode={eraserMode} eraserSize={eraserSize} favoriteColors={favoriteColors} inkToolActive={inkToolActive} lassoMode={lassoMode} pageAnnotations={pageAnnotations} paletteColors={paletteColors} penProfile={penProfile} recentColors={recentColors} selectedAnnotations={selectedAnnotations} setBrushSize={setBrushSize} setCircleToErase={setCircleToErase} setCustomColorDraft={setCustomColorDraft} setCustomColorEditorOpen={setCustomColorEditorOpen} setDrawAndHold={setDrawAndHold} setEraserMode={setEraserMode} setEraserSize={setEraserSize} setLassoMode={setLassoMode} setShapeAngle={setShapeAngle} setShapeDashed={setShapeDashed} setShapeFill={setShapeFill} setShapeFillColor={setShapeFillColor} setShapeSnapGrid={setShapeSnapGrid} setShapeStyle={setShapeStyle} shapeAngle={shapeAngle} shapeDashed={shapeDashed} shapeFill={shapeFill} shapeFillColor={shapeFillColor} shapeSnapGrid={shapeSnapGrid} shapeStyle={shapeStyle} showColorPalette={showColorPalette} t={t} toggleFavoriteColor={toggleFavoriteColor} toolOptionsOpen={toolOptionsOpen} toolOptionsRef={toolOptionsRef} updateActiveToolOpacity={updateActiveToolOpacity} workspaceReady={workspaceReady} />
 
-          <SettingsPopover activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
+          <SettingsPopover openNotes={() => selectTool("note")} activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
 
           <div
             className={`workspace-v2-document-stage is-tool-${activeTool}`}
+            data-page-direction={sheet.pdfUrl ? pageDirection : undefined}
+            role={sheet.pdfUrl ? "application" : undefined}
+            tabIndex={sheet.pdfUrl ? 0 : undefined}
+            aria-label={sheet.pdfUrl ? t("focus.documentReader") : undefined}
+            onKeyDown={(event) => {
+              if (!sheet.pdfUrl || pageDirection !== "horizontal" || isTypingTarget(event.target) || isStageControl(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
+              const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+              if (!step) return;
+              const keys = Array.from(event.currentTarget.querySelectorAll(".workspace-v2-a4-page"), (element) => Number(element.getAttribute("data-workspace-page")));
+              const index = keys.indexOf(activePageKey);
+              if (index < 0 || !keys[index + step]) return;
+              event.preventDefault();
+              jumpToPagePosition(keys[index + step]);
+            }}
             ref={stageRef}
             inert={workspaceReady ? undefined : ""}
             onPointerDown={beginWorkspacePointer}
@@ -6116,7 +6592,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
             onLostPointerCapture={lostWorkspacePointer}
             onPointerLeave={() => { hideStylusHover(); hideEraserHitbox(); }}
           >
-            {sheet.pdfUrl ? <ContinuousA4Pdf pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={readerVirtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
+            {sheet.pdfUrl ? <ContinuousA4Pdf pageDirection={pageDirection === "horizontal" ? "horizontal" : "vertical"} pdfUrl={sheet.pdfUrl} pageCount={pageCount} visiblePageStart={accessiblePageStart} visiblePageCount={accessiblePageCount} zoom={zoom} stageRef={stageRef} documentRootRef={documentRef} onPageCount={syncPdfPageCount} onDocumentReady={markPdfDocumentReady} onDocumentLoaded={handlePdfDocumentLoaded} onCurrentPageChange={handleCurrentWorkspacePage} virtualPages={readerVirtualPages} renderPageOverlay={renderPdfPageOverlay} onPdfPageRendered={recordPdfPageRender} documentFooter={whiteboard ? <div className="workspace-whiteboard-footer"><button type="button" onClick={addWhiteboardPage}><Plus size={18} /><span>{t("workspaceTabs.addPage")}</span></button></div> : null} /> : <article ref={documentRef} className="workspace-v2-document" onDoubleClick={smartZoom} style={cssVars({ "--workspace-document-width": `${PAGE_WIDTH * zoom}px`, "--workspace-document-min-height": `${760 * zoom}px`, "--workspace-document-max-width": "none" })}>
               <svg className={annotationLayerClass} viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label={t("focus.documentAnnotations")}>
                 <AnnotationVisuals annotations={annotationsHidden ? [] : pageAnnotations} prefix={`document-${page}`} includeHitTargets={activeTool === "select" && !annotationsHidden} revealedIds={revealedCoverIds} />
                 <DraftAnnotationLayer ref={draftLayerRef} latest={draftAnnotationRef} />
@@ -6160,7 +6636,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           <ZoomBar fitPdfWidth={fitPdfWidth} minimumAllowedZoom={minimumAllowedZoom} minimumPdfZoom={minimumPdfZoom} sheet={sheet} t={t} workspaceReady={workspaceReady} zoom={zoom} zoomByStep={zoomByStep} zoomToFitMultiple={zoomToFitMultiple} />
           {workspaceReady && zoomWindow && <ZoomWindow region={zoomWindow} onRegionChange={setZoomWindow} pageAspect={pageAspectFor(zoomWindow.page)} annotations={annotationsHidden ? NO_ANNOTATIONS : (annotationsByPage.get(zoomWindow.page) || NO_ANNOTATIONS)} pdfDocument={searchDocumentProxy} pen={zoomWindowPen} onCommit={commitZoomWindowStroke} onClose={() => setZoomWindow(null)} onHeightChange={setZoomWindowHeight} />}
           {sheet.pdfUrl && <output className={`workspace-v4-zoom-hud${zoomHud.visible ? " is-visible" : ""}`} aria-live="polite" aria-label={t("focus.currentZoom", { percent: Math.round(zoom * 100) })}><strong>{Math.round(zoom * 100)}%</strong><span>{zoomHud.label && !zoomHud.label.endsWith("%") ? zoomHud.label : pdfZoomModeRef.current === "fit" ? t("focus.fitWidth") : t("focus.zoom")}</span></output>}
-          {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />{t("focus.thisDeviceCannotStoreMore")}</p>}
+          {saveState === "error" && <p className="workspace-v2-save-warning" role="alert"><Zap size={14} aria-hidden="true" />{saveErrorReason || t("errors.localSaveFailed")}</p>}
           {focusMessage && !sideOpen && <p className="workspace-v2-toast" aria-hidden="true">{focusMessage}</p>}
           {workspaceReady && renderSelectionToolbar()}
           {workspaceReady && renderExportSheet()}
@@ -6180,31 +6656,39 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
           </div>
           <div className="workspace-v2-side-content">
             {sideTab === "notes" && <section id="workspace-notes-tabpanel" role="tabpanel" aria-labelledby="workspace-notes-tab" tabIndex={0} className="workspace-v2-note-list">
+              <label className="workspace-v2-note-editor"><span>{t("focus.noteForPage", { page })}</span><textarea value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={10000} placeholder={t("focus.writeNoteForPage", { page })} /><button type="button" onClick={saveNote} disabled={noteBusy || !noteDraft.trim()}>{noteBusy ? t("focus.saving") : t("focus.saveToPage", { page })}</button></label>
               {sortedNotes.map((note) => <div key={note.id} className="workspace-v2-note-item">
                 <button type="button" className="workspace-v2-note-card" onClick={() => openNote(note)} aria-label={t("focus.openNoteFromPage", { page: note.page })}>
                   <span className="workspace-v2-card-meta"><strong>{t("focus.pageNumberLabel", { page: note.page })}</strong><span>{formatDate(note.createdAt)}</span></span>
                   <span className="workspace-v2-card-copy">{note.body}</span>
-                  <span className="workspace-v2-card-tags"><span>{material.title}</span><span>{t("focus.pageNote")}</span></span>
                 </button>
                 <button type="button" className="workspace-v2-note-delete" onClick={() => deleteNote(note)} aria-label={t("focus.deleteNoteFromPage", { page: note.page })} title={t("focus.deleteNote")}><Trash2 size={15} aria-hidden="true" /></button>
               </div>)}
               {!sortedNotes.length && <p className="workspace-v2-empty-panel">{t("focus.notesSavedOnAnyPage")}</p>}
-              <label className="workspace-v2-note-editor"><span>{t("focus.noteForPage", { page })}</span><textarea ref={noteRef} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={10000} placeholder={t("focus.writeNoteForPage", { page })} /><button type="button" onClick={saveNote} disabled={noteBusy || !noteDraft.trim()}>{noteBusy ? t("focus.saving") : t("focus.saveToPage", { page })}</button></label>
             </section>}
             {sideTab === "highlights" && <section id="workspace-highlights-tabpanel" role="tabpanel" aria-labelledby="workspace-highlights-tab" tabIndex={0} className="workspace-v2-highlight-list">{highlights.length ? highlights.map((highlight, index) => <button key={highlight.id} type="button" className="workspace-v2-highlight-card" onClick={() => openHighlight(highlight)} aria-label={t("focus.openHighlightOnPage", { number: index + 1, page: highlight.page })}><span className="workspace-v2-highlight-color" style={{ backgroundColor: highlight.color }} /><strong>{t("focus.pageNumberLabel", { page: highlight.page })}</strong><span>{t("focus.highlight")} {index + 1}</span><small>{t("focus.openHighlight")}</small></button>) : <p className="workspace-v2-empty-panel">{t("focus.chooseTheHighlightToolAnd")}</p>}</section>}
           </div>
           {focusMessage && <p className="workspace-v2-status" role="status">{focusMessage}</p>}
         </aside>
       </div>
+      {!whiteboard && !personal && catalogDocument?.id && user?.id && <Suspense fallback={null}><StudyCompanion
+        key={[user.id, catalogDocument.id, documentScope?.edition, documentScope?.view].join("/")}
+        userId={user.id} documentId={catalogDocument.id} versionId={catalogDocument.versionId}
+        edition={documentScope?.edition || "university"} view={documentScope?.view || "study"}
+        page={activeVirtualPageId === null ? page : 0} pageStart={accessiblePageStart} pageLimit={accessiblePageCount}
+        active={paneActive && workspaceReady && !activeQuiz && !modeDialogOpen && !activeExitOpen && !knowledgeOpen && !marksOpen && !sideOpen && !summaryDialogOpen && !openSurface && !exportBusy}
+        portalRoot={isDocumentFullscreen ? rootRef.current : null} phoneAddFromToolbar /></Suspense>}
       <span className="workspace-v2-visually-hidden" role="status" aria-live="polite">{saveLabel}{focusMessage ? ` · ${focusMessage}` : ""}</span>
       {studyMode === "active" && activeStudy?.study_mode !== "pomodoro" && activeStudy?.status === "active" && (["reading", "checkpoint", "final"].includes(activeStudy.stage) || ACTIVE_RESULT_STAGES.has(activeStudy.stage)) && <div className="workspace-v2-checkpoint-dock" role="status" aria-live="polite">
         <button type="button" className={`workspace-v2-checkpoint-button${activeStudyButtonReady ? " is-ready" : ""}`} onClick={openActiveQuiz} disabled={activeStudyBusy || !activeStudyButtonReady} aria-label={activeStudyButtonReady ? t(activeStudy.stage.startsWith("final") ? "activeStudy.openFinal" : "activeStudy.openCheckpoint") : t("activeStudy.reachToUnlock", { page: accessiblePageCount })}>{!activeStudy.stage.startsWith("final") && activeStudy.number_of_parts > 1 && <span className="workspace-v9-step-part" aria-hidden="true">{t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page })}</span>}{activeStudyButtonReady ? <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t(activeStudy.stage.startsWith("final") ? "activeStudy.finalExam" : "activeStudy.checkpoint")}</span></> : <><CheckCircle2 size={20} /><span className="workspace-v2-checkpoint-copy">{t("activeStudy.reachPage", { page: accessiblePageCount })}</span></>}</button>
       </div>}
       {knowledgeVisited && shareDocumentId && user?.id && <Suspense fallback={null}><KnowledgeWorkspace key={`${user.id}/${shareDocumentId}`} userId={user.id} documentId={shareDocumentId} title={sheet.title} page={page} pageLimit={accessiblePageCount} onSaveState={setKnowledgeSaveStatus} navigation={knowledgeNavigation} visible={knowledgeOpen && paneActive} onClose={() => setKnowledgeOpen(false)} onRead={(target) => { if (target >= accessiblePageStart && target <= accessiblePageCount) jumpToPagePosition(target); }} /></Suspense>}
       {studyMode === "active" && activeStudy?.study_mode === "pomodoro" && activeStudy?.status === "active" && <PomodoroStudy key={`${user?.id}:${activeStudy.id}`} userId={user?.id || ownerKey} run={activeStudy} page={page} virtualPage={activeVirtualPageId !== null} active={paneActive && workspaceReady && !modeDialogOpen && !activeExitOpen} blocked={Boolean(activeQuiz)} deferSetup={knowledgeOpen || marksOpen || sideOpen} busy={activeStudyBusy} onStartTest={openPomodoroQuiz} onOpenTest={openActiveQuiz} onSaveClock={(clock) => focusApi.savePomodoroClock(activeStudy.id, clock)} />}
-      {summariesEnabled && paneActive && workspaceReady && !activeQuiz && shownKeyboardSummaries.length > 0 && <SummaryTextPanel
+      {translationOpen && shareDocumentId && paneActive && workspaceReady && !activeQuiz && !modeDialogOpen && <SheetTranslationPanel
+        documentId={shareDocumentId} page={page} onClose={() => { setTranslationOpen(false); rootRef.current?.querySelector('[data-workspace-surface="more"]')?.focus(); }} />}
+      {summariesEnabled && paneActive && workspaceReady && !activeQuiz && summaryPanelOpen && shownKeyboardSummaries.length > 0 && <SummaryTextPanel
         summaries={shownKeyboardSummaries} activeId={summaryPanelId} onActive={setSummaryPanelId} page={page}
-        open={summaryPanelOpen} onToggle={() => setSummaryPanelOpen((value) => !value)}
+        open={true} onToggle={() => setSummaryPanelOpen(false)}
         pageText={sheetSummaries.pageText} onWrite={sheetSummaries.writePage} saveState={sheetSummaries.saveState} />}
       {summariesEnabled && paneActive && workspaceReady && !activeQuiz && jumpSummary && jumpTarget !== undefined && <button type="button" className="summary-jump"
         style={/** @type {any} */ ({ "--summary-accent": SUMMARY_COLORS[jumpSummary.color]?.accent })}

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .push_views import PushSubscriptionView, PushTestView
+from .reminder_views import StudyReminderView
 from .views import (
     NotificationListView,
     NotificationOpenView,
@@ -14,6 +15,7 @@ from .views import (
 app_name = "notifications"
 
 urlpatterns = [
+    path("notifications/study-reminder", StudyReminderView.as_view(), name="study-reminder"),
     path("notifications/push", PushSubscriptionView.as_view(), name="push-subscription"),
     path("notifications/push/test", PushTestView.as_view(), name="push-test"),
     path("notifications", NotificationListView.as_view(), name="list"),

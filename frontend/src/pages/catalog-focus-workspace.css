@@ -66,7 +66,7 @@
 .workspace-v2-icon-button:disabled { color: var(--workspace-chrome-muted); opacity: .42; cursor: not-allowed; }
 
 .workspace-v2-body { display: grid; grid-template-columns: minmax(0, 1fr); height: 100%; }
-.workspace-v2-body.has-side { grid-template-columns: minmax(0, 1fr) 330px; gap: 10px; }
+.workspace-v2-body.has-side { grid-template-columns: minmax(0, 1fr) 264px; gap: 10px; }
 .workspace-v2-reader { position: relative; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; border-block-end: 1px solid var(--workspace-border); background: #090f1e; }
 .workspace-v2:fullscreen,
 .workspace-v2.is-document-fullscreen {
@@ -238,6 +238,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-a4-live-layer { position: absolute; overflow-anchor: none; transform-origin: 0 0; }
 .workspace-v2-a4-live-layer.is-live-pinching { will-change: transform; }
 .workspace-v2-a4-document { position: absolute; top: 0; left: 0; display: grid; justify-items: center; width: max-content; gap: var(--workspace-a4-page-gap); padding: 0; overflow-anchor: none; transform-origin: 0 0; }
+.workspace-v2-a4-document.is-horizontal { display: flex; align-items: flex-start; direction: ltr; }
 .workspace-v2-a4-page { position: relative; flex: 0 0 auto; overflow: hidden; overflow-anchor: none; color: #11162a; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.24); contain: layout paint style; content-visibility: auto; }
 .workspace-v2-a4-page.is-virtual.is-background-lined { background-image: repeating-linear-gradient(to bottom, transparent 0 39px, #dbe5ef 39px 40px); }
 .workspace-v2-a4-page.is-virtual.is-background-grid { background-image: linear-gradient(to right, #e5ebf1 1px, transparent 1px), linear-gradient(to bottom, #e5ebf1 1px, transparent 1px); background-size: 40px 40px; }
@@ -252,13 +253,18 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-a4-detail-canvas { position: absolute; z-index: 2; display: block; visibility: hidden; pointer-events: none; background: #fff; backface-visibility: hidden; }
 .workspace-v2-a4-detail-canvas.is-visible { visibility: visible; }
 .workspace-v2-a4-status { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #3b4154; background: rgba(255,255,255,.86); font-weight: 700; }
+/* Page recovery controls must receive taps above the ink input layers. */
+.workspace-v2-a4-page > .workspace-v2-a4-status { z-index: 6; }
 .workspace-v2-a4-status p { margin: 0; }
 .workspace-v2-a4-status button { min-width: 112px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 9px; color: #fff; background: #7650ed; cursor: pointer; }
 .workspace-v2-document > :not(.workspace-v2-annotation-layer) { position: relative; z-index: 1; }
 .workspace-v2-annotation-layer { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.workspace-v2-live-annotation-canvas { position: absolute; z-index: 4; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
+/* Cropped ink canvases set their own left/top/size. Never constrain both
+   horizontal edges: in RTL an over-constrained absolute box ignores left and
+   pins the live stroke to the right until the saved SVG replaces it. */
+.workspace-v2-live-annotation-canvas { position: absolute; z-index: 4; top: 0; left: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
 /* Pointer ink: above the live stroke, never saved. */
-.workspace-v2-transient-ink-canvas { position: absolute; z-index: 5; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
+.workspace-v2-transient-ink-canvas { position: absolute; z-index: 5; top: 0; left: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
 .workspace-v2-stylus-hover { position: fixed; z-index: 5; top: 0; left: 0; border: 1px solid rgba(20, 28, 48, .72); border-radius: 50%; background: rgba(255, 255, 255, .34); opacity: 0; pointer-events: none; will-change: transform, width, height; }
 .workspace-v2-stylus-hover[data-tool="eraser"] { border-color: rgba(118, 80, 237, .82); background: rgba(118, 80, 237, .12); }
 /* The eraser outline is the exact erase disc: border-box keeps the ring inside
@@ -282,7 +288,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-document li::marker { color: #7650ed; }
 
 
-.workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(330px, calc(100vw - 20px)); min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,.42); transform: translateX(100%); clip-path: inset(-24px 100% -24px -24px); visibility: hidden; transition: transform 220ms cubic-bezier(.4,0,1,1), clip-path 220ms cubic-bezier(.4,0,1,1), visibility 0s linear 220ms; pointer-events: none; }
+.workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(280px, calc(100vw - 20px)); min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; box-shadow: 0 0 12px rgba(0,0,0,.42); transform: translateX(100%); clip-path: inset(-24px 100% -24px -24px); visibility: hidden; transition: transform 220ms cubic-bezier(.4,0,1,1), clip-path 220ms cubic-bezier(.4,0,1,1), visibility 0s linear 220ms; pointer-events: none; }
 /* The drawer slides out from its own edge, and clip-path keeps everything that
    paints inside the box it opens into. In an iPad split view the window edge is
    not the layout edge, and a drawer travelling in from beyond it crossed the
@@ -295,7 +301,7 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2:fullscreen .workspace-v2-side,
 .workspace-v2:fullscreen .workspace-v2-body.has-side .workspace-v2-side,
 .workspace-v2.is-document-fullscreen .workspace-v2-side,
-.workspace-v2.is-document-fullscreen .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(330px, calc(100vw - 20px)); height: auto; box-shadow: 0 0 12px rgba(0,0,0,.42); }
+.workspace-v2.is-document-fullscreen .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-bottom)); inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(280px, calc(100vw - 20px)); height: auto; box-shadow: 0 0 12px rgba(0,0,0,.42); }
 .workspace-v2:fullscreen .workspace-v2-side-backdrop,
 .workspace-v2.is-document-fullscreen .workspace-v2-side-backdrop { display: block; }
 .workspace-v2-side-close { position: absolute; z-index: 2; inset-block-start: 6px; inset-inline-end: 6px; display: grid; width: 44px; height: 44px; place-items: center; border: 0; color: #dce2f3; background: transparent; cursor: pointer; }
@@ -320,12 +326,12 @@ html.ix-hover .workspace-v2-settings-action:not(:disabled):hover { background: c
 .workspace-v2-card-copy { display: -webkit-box; overflow: hidden; margin-block: 6px; color: #d8deee; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: .76rem; line-height: 1.45; white-space: pre-wrap; }
 .workspace-v2-card-tags { display: flex; gap: 6px; }
 .workspace-v2-card-tags > span { padding: 3px 6px; border-radius: 5px; color: #baa8f7; background: #1a2341; }
-.workspace-v2-note-editor { display: grid; gap: 7px; color: var(--workspace-chrome-secondary); font-size: .74rem; }
+.workspace-v2-note-editor { display: grid; gap: 7px; padding: 8px; border: 1px solid var(--workspace-border); border-radius: 12px; color: var(--workspace-chrome-secondary); font-size: .74rem; }
 /* Four lines of the field's own text, not a fixed block: the note list above
    it is the part of the panel worth the room, and the field grows by drag on
    a pointer and by content everywhere else. */
-.workspace-v2-note-editor textarea { min-height: calc((4 * 1.5em) + 22px); resize: vertical; padding: 10px; border: 1px solid var(--workspace-control-border); border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-text); background: var(--workspace-control-bg); font-size: var(--text-sm); line-height: 1.5; }
-.workspace-v2-note-editor button { min-height: 44px; border: 0; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-weight: 750; }
+.workspace-v2-note-editor textarea { min-height: calc((2 * 1.5em) + 22px); resize: vertical; padding: 10px; border: 1px solid var(--workspace-control-border); border-radius: var(--workspace-toolbar-radius); color: var(--workspace-chrome-text); background: var(--workspace-control-bg); font-size: var(--text-sm); line-height: 1.5; }
+.workspace-v2-note-editor button { justify-self: end; min-height: 44px; padding-inline: 12px; border: 0; border-radius: var(--workspace-toolbar-radius); color: var(--workspace-on-accent); background: var(--workspace-gold); cursor: pointer; font-weight: 750; }
 .workspace-v2-note-editor button:disabled { opacity: .45; cursor: not-allowed; }
 .workspace-v2-highlight-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; overflow: hidden; padding-inline-start: 17px; }
 .workspace-v2-highlight-card strong { color: #e9edfa; font-size: .78rem; }
@@ -418,7 +424,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-tool-options .workspace-v2-custom-color { min-height: 44px; height: 44px; }
   .workspace-v2-body, .workspace-v2-body.has-side { grid-template-columns: 1fr; gap: 0; height: 100%; }
   .workspace-v2-side,
-  .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 8px); inset-block-end: auto; inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(340px, calc(100vw - 16px)); height: auto; max-height: min(620px, calc(100% - 74px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); box-shadow: 0 8px 24px rgba(0,0,0,.38); }
+  .workspace-v2-body.has-side .workspace-v2-side { position: fixed; z-index: var(--z-drawer); inset-block-start: calc(var(--workspace-toolbar-height, calc(52px + env(safe-area-inset-top))) + 8px); inset-block-end: auto; inset-inline-end: calc(max(8px, env(safe-area-inset-right)) + var(--workspace-visible-end-gap, 0px)); width: min(280px, calc(100vw - 16px)); height: auto; max-height: min(440px, calc(100% - 74px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); box-shadow: 0 8px 24px rgba(0,0,0,.38); }
   .workspace-v2-side-backdrop { display: none !important; }
   .workspace-v2-checkpoint-dock { right: 0; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; width: 48px; padding: 0; }
   .workspace-v2-checkpoint-button { width: 48px; min-width: 48px; min-height: 48px; padding: 0; border-radius: 12px 0 0 12px; font-size: 0; }
@@ -460,13 +466,13 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2-tool-options-title { display: none; }
   .workspace-v2-document { min-height: 680px; padding: 28px 22px; }
   .workspace-v2-side,
-  .workspace-v2-body.has-side .workspace-v2-side { top: auto; right: 0; bottom: 0; left: 0; inset-inline-start: var(--workspace-visible-start-gap, 0px); inset-inline-end: var(--workspace-visible-end-gap, 0px); width: auto; height: min(64dvh, 520px); padding-bottom: env(safe-area-inset-bottom); border-radius: 16px 16px 0 0; }
+  .workspace-v2-body.has-side .workspace-v2-side { top: auto; right: 0; bottom: 0; left: 0; inset-inline-start: var(--workspace-visible-start-gap, 0px); inset-inline-end: var(--workspace-visible-end-gap, 0px); width: auto; height: min(46dvh, 340px); padding-bottom: env(safe-area-inset-bottom); border-radius: 16px 16px 0 0; }
   .workspace-v2-side-backdrop { display: block !important; }
   .workspace-v2-side, [dir="rtl"] .workspace-v2-side { transform: translateY(100%); clip-path: inset(-24px -24px 100% -24px); }
   .workspace-v2-side.is-open, [dir="rtl"] .workspace-v2-side.is-open { transform: none; clip-path: inset(-24px); }
   .workspace-v2-side::before { width: 42px; height: 4px; flex: 0 0 auto; margin: 8px auto 0; border-radius: 99px; content: ""; background: #69738e; }
   .workspace-v2-side-content { padding: 6px 8px 8px; }
-  .workspace-v2-note-editor textarea { min-height: calc((4 * 1.5em) + 22px); max-height: 34dvh; resize: none; }
+  .workspace-v2-note-editor textarea { min-height: calc((2 * 1.5em) + 22px); max-height: 34dvh; resize: none; }
   .workspace-v2-settings-popover { inset-inline: 4px; width: auto; max-height: calc(100% - 68px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
   .workspace-v2-checkpoint-dock { right: 0; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; width: 48px; padding: 0; }
   .workspace-v2-checkpoint-button { width: 48px; min-width: 48px; min-height: 48px; padding: 0; border-radius: 12px 0 0 12px; font-size: 0; }
@@ -558,7 +564,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
 /* Three lines while the keyboard is up: enough to see what is being written,
    short enough that the save action stays above the keyboard. */
 .workspace-v2[data-keyboard="open"] .workspace-v2-note-editor textarea {
-  min-height: calc((3 * 1.5em) + 22px);
+  min-height: calc((2 * 1.5em) + 22px);
   max-height: 30dvh;
 }
 
@@ -568,6 +574,7 @@ button.workspace-v2-mode-card:disabled { opacity: .55; cursor: progress; }
   .workspace-v2[data-keyboard="open"] .workspace-v2-side,
   .workspace-v2[data-keyboard="open"] .workspace-v2-body.has-side .workspace-v2-side {
     bottom: var(--workspace-keyboard-inset, 0px);
+    height: min(46dvh, 340px, calc((100dvh - var(--workspace-keyboard-inset, 0px)) * .55));
     padding-bottom: 0;
   }
 }
@@ -1530,3 +1537,34 @@ html.ix-hover .workspace-v2-action-popover .workspace-v3-menu-list > button:not(
 /* Drawing waits for saved state, while PDF rendering continues independently. */
 .workspace-v2-document-stage[inert] { overflow: hidden; }
 .workspace-v2-hydration-status { position: absolute; z-index: 20; left: 50%; top: 50%; transform: translateX(-50%); margin: 0; padding: 12px 18px; max-width: calc(100% - 32px); border: 1px solid var(--workspace-border); border-radius: 12px; background: #101a2d; color: #f1f5f9; text-align: center; pointer-events: none; }
+
+
+/* On a phone workspace settings is a compact scrollable popover, not an
+   almost full-screen sheet that covers reading and exceeds touch viewport. */
+@media (max-width: 600px) {
+  .workspace-v2 .workspace-v2-settings-popover {
+    top: calc(var(--workspace-toolbar-height, 56px) + 8px);
+    bottom: auto;
+    inset-inline-start: auto;
+    inset-inline-end: 8px;
+    box-sizing: border-box;
+    width: min(296px, calc(100vw - 16px));
+    height: min(420px, 48dvh);
+    max-height: calc(100dvh - var(--workspace-toolbar-height, 56px) - 24px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--settings-border);
+    border-radius: 18px;
+    box-shadow: 0 14px 38px rgb(0 0 0 / .24);
+    overflow: hidden;
+  }
+  .workspace-v2 .workspace-v2-settings-popover > header { flex: 0 0 auto; }
+  .workspace-v2 .workspace-v2-settings-popover .workspace-v2-settings-content {
+    min-height: 0;
+    height: auto;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px;
+  }
+}

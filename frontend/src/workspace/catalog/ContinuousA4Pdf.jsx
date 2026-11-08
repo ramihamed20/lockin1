@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useWorkspacePaneActive } from "./workspacePane.js";
+import { useWorkspacePaneVisible, useWorkspaceSplit } from "./workspacePane.js";
 import { assetPath } from "../../lib/utils.js";
 import { boundedOutputScale, pdfPageAspectRatio } from "../document/coordinateTransforms.js";
 import { WORKSPACE_RENDER } from "../config.js";
@@ -10,6 +10,7 @@ import { pdfDetailArea, pdfDetailCovers, pdfDetailNeeded, visiblePageArea } from
 import { visiblePdfPages } from "./visiblePdfPages.js";
 import { recordWorkspacePdfLoadTiming } from "./workspacePerformance.js";
 import { composeWorkspacePages } from "./virtualPages.js";
+import { horizontalPageSlotWidth } from "./horizontalPageLayout.js";
 
 export const A4_PAGE_WIDTH = 595;
 export const A4_PAGE_RATIO = 297 / 210;
@@ -88,7 +89,7 @@ async function measureEveryPage(documentProxy, isCancelled) {
 const A4PdfCanvas = memo(
 /** @param {{ documentProxy: any, pageNumber: number, pageAspectRatio: number, renderZoom: number, shouldRender: boolean, evictionDelayMs?: number, renderRevision: number, wakeToken?: number, renderController: { suspended: boolean, generation: number, scrolling: boolean, deferred: Set<() => void>, viewportListeners: Set<() => void> }, priority: number, renderQueue: PdfRenderQueue, onPageGeometry?: (pageNumber: number, width: number, height: number) => void, onPageRendered?: (duration: number) => void, onPageOutcome?: (pageNumber: number, failed: boolean) => void }} props */
 function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, shouldRender, evictionDelayMs = CANVAS_EVICTION_MS, renderRevision, wakeToken = 0, renderController, priority, renderQueue, onPageGeometry, onPageRendered, onPageOutcome }) {
-  const paneActive = useWorkspacePaneActive();
+  const paneActive = useWorkspacePaneVisible();
   const canvasRefs = useRef([null, null]);
   const visibleCanvasRef = useRef(0);
   const renderedRef = useRef({ documentProxy: null, qualityScale: 0 });
@@ -108,6 +109,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
   /** @type {import("react").MutableRefObject<null | { minX: number, minY: number, width: number, height: number, scale: number, documentProxy: any }>} */
   const detailPendingRef = useRef(null);
   const detailRetireRafRef = useRef(null);
+  const detailWakeTokenRef = useRef(wakeToken);
   const detailStateRef = useRef(null);
   detailStateRef.current = { documentProxy, pageNumber, pageAspectRatio, renderZoom, qualityScale, shouldRender, paneActive, priority };
 
@@ -270,8 +272,13 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
   }, [renderController, updateDetail]);
 
   useEffect(() => {
+    // Cached bounds do not prove the bitmap survived backgrounding on iOS.
+    if (detailWakeTokenRef.current !== wakeToken) {
+      detailWakeTokenRef.current = wakeToken;
+      releaseDetail();
+    }
     updateDetail();
-  }, [documentProxy, paneActive, qualityScale, renderRevision, renderZoom, shouldRender, updateDetail, wakeToken]);
+  }, [documentProxy, paneActive, qualityScale, releaseDetail, renderRevision, renderZoom, shouldRender, updateDetail, wakeToken]);
 
   useEffect(() => releaseDetail, [releaseDetail]);
 
@@ -316,6 +323,9 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
     // us (mobile browsers reclaim them); coming back repaints every live page.
     const woken = wakeTokenRef.current !== wakeToken;
     wakeTokenRef.current = wakeToken;
+    // Keep the old bitmap invalid until its replacement actually finishes.
+    // A resume revision can cancel this first attempt before it paints.
+    if (woken) renderedRef.current = { documentProxy: null, qualityScale: 0 };
     if (!woken && renderedRef.current.documentProxy === documentProxy
       && renderedRef.current.qualityScale >= qualityScale
       && canvasRefs.current[visibleCanvasRef.current]?.width > 0) return undefined;
@@ -352,7 +362,10 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
           nextCanvas.width = Math.ceil(viewport.width);
           nextCanvas.height = Math.ceil(viewport.height);
           const nextContext = nextCanvas.getContext("2d", { alpha: false });
-          if (!nextContext || isCancelled()) return;
+          if (isCancelled()) return;
+          if (!nextContext || nextContext.isContextLost?.()) {
+            throw new Error("PDF page canvas is unavailable");
+          }
           renderTask = pdfPage.render({ canvasContext: nextContext, viewport });
           renderTask.onContinue = (continueRendering) => {
             if (!pdfRenderGenerationIsCurrent(renderController, renderGeneration, isCancelled())) {
@@ -423,6 +436,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
           onPageOutcome?.(pageNumber, false);
         } catch (error) {
           if (!isCancelled() && error?.name !== "RenderingCancelledException") {
+            renderedRef.current = { documentProxy: null, qualityScale: 0 };
             console.error("Could not render PDF page", error);
             // A blank page shell with no explanation looks like missing
             // content. The reader is told, and offered the page again.
@@ -472,6 +486,7 @@ function A4PdfCanvas({ documentProxy, pageNumber, pageAspectRatio, renderZoom, s
  *   visiblePageCount?: number,
  *   virtualPages?: { id: number, afterPage: number }[],
  *   zoom: number,
+ *   pageDirection?: "vertical" | "horizontal",
  *   stageRef: import("react").RefObject<HTMLDivElement>,
  *   documentRootRef: import("react").RefObject<HTMLDivElement>,
  *   onPageCount: (count: number) => void,
@@ -490,6 +505,7 @@ export function ContinuousA4Pdf({
   visiblePageCount = pageCount,
   virtualPages = [],
   zoom,
+  pageDirection = "vertical",
   stageRef,
   documentRootRef,
   onPageCount,
@@ -500,6 +516,7 @@ export function ContinuousA4Pdf({
   onPdfPageRendered,
   documentFooter = null
 }) {
+  const isHorizontal = pageDirection === "horizontal";
   const [documentProxy, setDocumentProxy] = useState(null);
   const [status, setStatus] = useState("Loading PDF…");
   const [pdfError, setPdfError] = useState("");
@@ -510,8 +527,9 @@ export function ContinuousA4Pdf({
   const [primaryPage, setPrimaryPage] = useState(1);
   const [renderScale, setRenderScale] = useState(zoom);
   const [renderRevision, setRenderRevision] = useState(0);
-  // Bumped each time this tab returns to the screen, see A4PdfCanvas.
-  const paneActive = useWorkspacePaneActive();
+  // Bumped when a kept pane or the browser page returns, see A4PdfCanvas.
+  const paneActive = useWorkspacePaneVisible();
+  const { isMulti: isSplitPane } = useWorkspaceSplit();
   const [wakeToken, setWakeToken] = useState(0);
   const wasPaneActiveRef = useRef(paneActive);
   useEffect(() => {
@@ -540,7 +558,7 @@ export function ContinuousA4Pdf({
   const renderResumeRafRef = useRef(null);
   const scrollTimerRef = useRef(null);
   const scrollingRef = useRef(false);
-  const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false, pane: false });
+  const suspensionRef = useRef({ activity: false, pinch: false, scroll: false, zoom: false, pane: false, visibility: false });
   const renderControllerRef = useRef({ suspended: false, generation: 0, scrolling: false, deferred: new Set(), viewportListeners: new Set() });
   // Pages that keep an on-screen detail canvas re-measure when the view settles.
   const notifyViewportSettled = useCallback(() => {
@@ -700,6 +718,39 @@ export function ContinuousA4Pdf({
   }, [paneActive, setRenderSuspension]);
 
   useEffect(() => {
+    let pageHidden = false;
+    let backgrounded = false;
+    const syncVisibility = () => {
+      const next = pageHidden || document.visibilityState === "hidden";
+      if (next === backgrounded) return;
+      backgrounded = next;
+      // Cancel pending continuations before Safari freezes animation frames.
+      // Preserve page geometry and reading position while the app is away.
+      setRenderSuspension("visibility", next);
+      if (next) {
+        // The app is hidden: release PDF raster allocations before another
+        // media app needs GPU memory. Page geometry and annotations stay put.
+        documentRootRef.current?.querySelectorAll(".workspace-v2-a4-canvas, .workspace-v2-a4-detail-canvas").forEach((element) => {
+          const canvas = /** @type {HTMLCanvasElement} */ (element);
+          canvas.width = 0;
+          canvas.height = 0;
+        });
+      } else setWakeToken((token) => token + 1);
+    };
+    const hidePage = () => { pageHidden = true; syncVisibility(); };
+    const showPage = () => { pageHidden = false; syncVisibility(); };
+    document.addEventListener("visibilitychange", syncVisibility);
+    window.addEventListener("pagehide", hidePage);
+    window.addEventListener("pageshow", showPage);
+    syncVisibility();
+    return () => {
+      document.removeEventListener("visibilitychange", syncVisibility);
+      window.removeEventListener("pagehide", hidePage);
+      window.removeEventListener("pageshow", showPage);
+    };
+  }, [documentRootRef, setRenderSuspension]);
+
+  useEffect(() => {
     if (Math.abs(renderScaleRef.current - zoom) < .001) {
       setRenderSuspension("zoom", false);
       return undefined;
@@ -819,6 +870,7 @@ export function ContinuousA4Pdf({
   useEffect(() => {
     let cancelled = false;
     let loadingTask;
+    let finishPdfRead = () => {};
     async function load() {
       const measureLoad = import.meta.env.VITE_WORKSPACE_BENCHMARK === "1";
       const started = measureLoad ? window.performance.now() : 0;
@@ -829,10 +881,13 @@ export function ContinuousA4Pdf({
         setFailedPages(new Set());
         setDefaultPageAspectRatio(A4_PAGE_RATIO);
         setPageAspectRatios(new Map());
-        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure, rememberOpenedPdf }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
+        const [pdfjs, { pdfDocumentSource, downloadedPdfSource, isPdfNetworkFailure, rememberOpenedPdf, beginReaderPdfLoad }] = await Promise.all([loadPdfLibrary(), import("../../offline/pdfSource.js")]);
         const libraryReady = measureLoad ? window.performance.now() : 0;
+        if (cancelled) return;
+        finishPdfRead = beginReaderPdfLoad(pdfUrl);
         // A downloaded PDF arrives as its stored bytes, read for this open only.
         const source = await pdfDocumentSource(pdfUrl, assetPath);
+        let usingStoredBytes = "data" in source;
         if (cancelled) return;
         const sourceReady = measureLoad ? window.performance.now() : 0;
         loadingTask = pdfjs.getDocument(source);
@@ -847,6 +902,7 @@ export function ContinuousA4Pdf({
           void loadingTask.destroy();
           loadingTask = pdfjs.getDocument(stored);
           nextDocument = await loadingTask.promise;
+          usingStoredBytes = true;
         }
         if (cancelled) return;
         const parsed = measureLoad ? window.performance.now() : 0;
@@ -862,7 +918,7 @@ export function ContinuousA4Pdf({
         applyMeasuredGeometry(geometry);
         setDocumentProxy(nextDocument);
         // Reuse PDF.js's transport, then save all bytes in the background.
-        void rememberOpenedPdf(pdfUrl, nextDocument).catch(() => undefined);
+        if (!usingStoredBytes) void rememberOpenedPdf(pdfUrl, nextDocument).catch(() => undefined);
         onPageCount(nextDocument.numPages);
         setStatus("");
       } catch (error) {
@@ -876,6 +932,7 @@ export function ContinuousA4Pdf({
     load();
     return () => {
       cancelled = true;
+      finishPdfRead();
       renderQueueRef.current?.clear();
       loadingTask?.destroy();
     };
@@ -946,7 +1003,7 @@ export function ContinuousA4Pdf({
       if (!nextPages.size) return;
       if (renderControllerRef.current.suspended) pendingNearbyPagesRef.current = nextPages;
       else commitNearbyPages(nextPages);
-    }, { root: stage, rootMargin: "160% 0px", threshold: 0 });
+    }, { root: stage, rootMargin: isHorizontal ? "0px 160%" : "160% 0px", threshold: 0 });
     const pageObserver = new window.IntersectionObserver((entries) => {
       entries.forEach((entry) => pageRatios.set(Number(/** @type {HTMLElement} */ (entry.target).dataset.workspacePage), entry.isIntersecting ? entry.intersectionRatio : 0));
       if (geometryIsLocked()) return;
@@ -975,7 +1032,7 @@ export function ContinuousA4Pdf({
       pageObserver.disconnect();
       documentRoot.removeEventListener("workspace:zoomgeometrysettled", updateCurrentFromGeometry);
     };
-  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, notifyViewportSettled, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart, virtualPages, wakeToken]);
+  }, [commitNearbyPages, commitPrimaryPage, documentRootRef, isHorizontal, notifyViewportSettled, pageCount, pageGeometryReady, stageRef, visiblePageCount, visiblePageStart, virtualPages, wakeToken]);
 
   // Nothing is laid out at a guessed page shape. The sheet knows its page count
   // long before the file is open, so the reader used to raise a full document of
@@ -1000,9 +1057,9 @@ export function ContinuousA4Pdf({
   // the overscan, so live canvases follow the viewport rather than page shape.
   const renderReach = useMemo(() => {
     const pageHeight = Math.max(1, A4_PAGE_WIDTH * defaultPageAspectRatio * zoom);
-    const pagesOnScreen = Math.ceil(stageViewport.height / pageHeight);
+    const pagesOnScreen = isHorizontal ? 1 : Math.ceil(stageViewport.height / pageHeight);
     return Math.max(1, pagesOnScreen) + renderOverscanPages;
-  }, [defaultPageAspectRatio, renderOverscanPages, stageViewport.height, zoom]);
+  }, [defaultPageAspectRatio, isHorizontal, renderOverscanPages, stageViewport.height, zoom]);
   const pagesToRender = useMemo(() => {
     const next = new Set();
     for (let offset = -renderOverscanPages; offset <= renderOverscanPages; offset += 1) {
@@ -1019,35 +1076,79 @@ export function ContinuousA4Pdf({
     total + A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)
   ), Math.max(0, pages.length - 1) * A4_PAGE_GAP), [defaultPageAspectRatio, pageAspectRatios, pages]);
   const scaledDocumentWidth = A4_PAGE_WIDTH * zoom;
+  // A page occupies one viewport-sized slot at fit width. At higher zoom it
+  // gets its own wider slot, so students can still pan the enlarged page.
+  const slotWidth = horizontalPageSlotWidth(stageViewport.width, zoom, A4_PAGE_WIDTH);
+  const pageGap = slotWidth / zoom - A4_PAGE_WIDTH;
+  const maximumPageHeight = pages.reduce((height, entry) => Math.max(height,
+    A4_PAGE_WIDTH * (entry.kind === "virtual" ? A4_PAGE_RATIO : pageAspectRatios.get(entry.pdfPage) || defaultPageAspectRatio)), 0);
+  const horizontalDocumentHeight = maximumPageHeight * zoom;
+  // Render the whiteboard action outside the zoomed page layer. Previously it
+  // was scaled with the PDF and could sit below the scrollable surface's final
+  // visible edge. Give it an explicit unscaled 88px slot and enough bottom
+  // clearance for the iPad home indicator / floating page dock.
+  const footerSlotHeight = documentFooter ? 88 : 0;
+  const footerGap = documentFooter ? 20 : 0;
+  const footerBottomClearance = documentFooter
+    ? Math.min(200, Math.max(96, stageViewport.height * 0.22))
+    : 0;
+  const footerTop = baseDocumentHeight * zoom + footerGap;
+  const verticalSurfaceHeight = documentFooter
+    ? footerTop + footerSlotHeight + footerBottomClearance
+    : baseDocumentHeight * zoom + stageViewport.height / 2;
+  const horizontalContentWidth = pages.length * slotWidth;
   const surfaceStyle = /** @type {import("react").CSSProperties} */ ({
     "--workspace-a4-zoom": zoom,
-    width: `${Math.max(scaledDocumentWidth, stageViewport.width)}px`,
-    height: `${baseDocumentHeight * zoom + stageViewport.height}px`
+    width: isHorizontal ? `${Math.max(stageViewport.width, horizontalContentWidth + (documentFooter ? slotWidth : 0))}px` : `${Math.max(scaledDocumentWidth, stageViewport.width)}px`,
+    height: isHorizontal ? `${Math.max(stageViewport.height, horizontalDocumentHeight + stageViewport.height / 2)}px` : `${verticalSurfaceHeight}px`
   });
   const liveLayerStyle = /** @type {import("react").CSSProperties} */ ({
-    left: `${Math.max(0, (stageViewport.width - scaledDocumentWidth) / 2)}px`,
-    top: `${stageViewport.height / 2}px`,
-    width: `${scaledDocumentWidth}px`,
-    height: `${baseDocumentHeight * zoom}px`
+    left: isHorizontal ? "0px" : `${Math.max(0, (stageViewport.width - scaledDocumentWidth) / 2)}px`,
+    top: "0px",
+    width: isHorizontal ? `${horizontalContentWidth}px` : `${scaledDocumentWidth}px`,
+    height: isHorizontal ? `${horizontalDocumentHeight}px` : `${baseDocumentHeight * zoom}px`
+  });
+  const footerAnchorStyle = /** @type {import("react").CSSProperties} */ ({
+    "--workspace-footer-view-width": `${stageViewport.width}px`,
+    left: isHorizontal ? `${horizontalContentWidth}px` : "0px",
+    top: isHorizontal ? `${Math.max(96, stageViewport.height * 0.32)}px` : `${footerTop}px`,
+    width: isHorizontal ? `${slotWidth}px` : `${Math.max(stageViewport.width, scaledDocumentWidth)}px`
   });
   const documentStyle = /** @type {import("react").CSSProperties} */ ({
     "--workspace-a4-zoom": zoom,
     "--workspace-a4-page-gap": `${A4_PAGE_GAP}px`,
+    ...(isHorizontal ? {
+      display: "flex",
+      alignItems: "flex-start",
+      width: "max-content",
+      gap: `${pageGap}px`,
+      paddingInline: `${pageGap / 2}px`
+    } : {}),
     transform: `scale(${zoom})`
   });
 
-  // The document is inset by half the stage height and centred in the stage
-  // width, so a rotation or a docked panel moves it under a scroll position
-  // that stays put. Keep the same point of the page under the stage: the top
-  // edge vertically, the centre horizontally. A zoom change in the same commit
-  // is anchored by the workspace instead, which owns zoom.
-  const previousLayoutRef = useRef({ viewport: stageViewport, zoom });
+  // The vertical document begins at the top of its scroll surface. Previously
+  // a half-viewport offset above page one let a downward drag expose a huge
+  // empty strip and made the first page settle behind the toolbar. The stage's
+  // own padding provides the only top clearance. Horizontal pages keep their
+  // separate viewport-sized slot geometry. Zoom anchoring is owned by the
+  // workspace, while horizontal/vertical resizing preserves reading position.
+  const previousLayoutRef = useRef({ viewport: stageViewport, zoom, pageDirection });
   useLayoutEffect(() => {
     const previous = previousLayoutRef.current;
-    previousLayoutRef.current = { viewport: stageViewport, zoom };
+    previousLayoutRef.current = { viewport: stageViewport, zoom, pageDirection };
     const stage = stageRef.current;
     // Before the pages are laid out there is no reading position to keep.
     if (!stage || !pageGeometryReady || previous.viewport === stageViewport || Math.abs(previous.zoom - zoom) > .0001) return;
+    if (isHorizontal) {
+      if (previous.pageDirection === "horizontal") {
+        const oldSlot = horizontalPageSlotWidth(previous.viewport.width, zoom, A4_PAGE_WIDTH);
+        const currentIndex = Math.max(0, pages.findIndex((entry) => entry.key === primaryPageKeyRef.current));
+        const relativeLeft = stage.scrollLeft - currentIndex * oldSlot;
+        stage.scrollLeft = Math.max(0, currentIndex * slotWidth + relativeLeft * slotWidth / oldSlot);
+      }
+      return;
+    }
     const documentWidth = A4_PAGE_WIDTH * zoom;
     const rightToLeft = window.getComputedStyle(stage).direction === "rtl";
     const layout = (viewport) => ({
@@ -1064,13 +1165,47 @@ export function ContinuousA4Pdf({
     const overflow = Math.max(0, after.surfaceWidth - after.width);
     const nextLeft = Math.min(overflow, Math.max(0, documentCentre + after.documentLeft - after.centreLine));
     stage.scrollLeft = rightToLeft ? nextLeft - overflow : nextLeft;
-    stage.scrollTop = Math.max(0, stage.scrollTop + (stageViewport.height - previous.viewport.height) / 2);
-  }, [pageGeometryReady, stageRef, stageViewport, zoom]);
+    // Vertical pages no longer have a height-dependent top offset. Resizing
+    // the reader must not shift the reading position by half the delta.
+  }, [isHorizontal, pageDirection, pageGeometryReady, pages, slotWidth, stageRef, stageViewport, zoom]);
+
+  // A split pane is shorter and often has a different fitted zoom than its
+  // neighbour. Each reader keeps its own scroll position, so the first PDF
+  // page could land 20–50px below the top while the adjacent page starts
+  // immediately below the shared toolbar. Align only a page that is already
+  // near the beginning; never pull a student back from a later reading point.
+  useLayoutEffect(() => {
+    if (!isSplitPane || isHorizontal || !pageGeometryReady) return undefined;
+    let animationFrame = 0;
+    let secondFrame = 0;
+    const alignNearStart = () => {
+      const stage = stageRef.current;
+      const firstPage = documentRootRef.current?.querySelector(".workspace-v2-a4-page");
+      if (!stage || !firstPage) return;
+      const pageRect = firstPage.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      if (pageRect.height <= 0 || stageRect.height <= 0) return;
+      const desiredTop = stageRect.top;
+      const offset = pageRect.top - desiredTop;
+      // Only correct the blank strip above page one. Negative offsets represent
+      // deliberate reading/scrolling and must remain untouched.
+      if (Math.abs(offset) > 1 && offset >= -24 && offset <= Math.max(96, stageRect.height * .18)) {
+        stage.scrollTop = Math.max(0, stage.scrollTop + offset);
+      }
+    };
+    animationFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(alignNearStart);
+    });
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [documentRootRef, isSplitPane, isHorizontal, pageGeometryReady, stageRef, stageViewport, zoom]);
 
   return (
     <div className="workspace-v2-a4-zoom-surface" style={surfaceStyle}>
       <div ref={documentRootRef} className="workspace-v2-a4-live-layer" style={liveLayerStyle} aria-busy={Boolean(status)}>
-        <div className="workspace-v2-a4-document" style={documentStyle}>
+        <div className={`workspace-v2-a4-document${isHorizontal ? " is-horizontal" : ""}`} style={documentStyle}>
         {pages.map((entry) => (
           <section
             key={entry.key}
@@ -1111,9 +1246,9 @@ export function ContinuousA4Pdf({
             </div>}
           </section>
         ))}
-        {documentProxy && documentFooter}
         </div>
       </div>
+      {documentProxy && documentFooter && <div className="workspace-v2-a4-footer-anchor" style={footerAnchorStyle}>{documentFooter}</div>}
       {!documentProxy && <div className="workspace-v2-a4-status" role={pdfError ? "alert" : "status"} style={{ bottom: "auto", height: `${stageViewport.height}px` }}>
         <p>{pdfError || (loadStalled ? "This PDF is taking longer than usual." : status)}</p>
         {(pdfError || loadStalled) && <button type="button" onClick={retryDocument}>Retry PDF</button>}

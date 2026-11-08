@@ -340,6 +340,37 @@ test("an unchanged revision probe does not download workspace or annotation stat
   assert.deepEqual(server.calls.map((call) => call.kind), ["probe"]);
 });
 
+for (const annotationsOnly of [false, true]) {
+  test(`refresh preserves edits made during a delayed download (${annotationsOnly ? "summary" : "workspace"})`, async () => {
+    const server = fakeServer();
+    const sync = createCatalogServerSync({ documentId: DOCUMENT_ID, documentVersionId: VERSION_ID,
+      workspaceDocumentId: annotationsOnly ? null : DOCUMENT_ID, owner: "reader", storage: memoryStorage(),
+      catalog: server.catalog, focus: server.focus });
+    await sync.load({ pageCount: 4 });
+    sync.reconcile({ annotations: [], notes: [] });
+    await sync.push({ annotations: [stroke], notes: [], view: null });
+    server.annotations.set(ids[2], catalogAnnotationToFocus(strokeWith(ids[2], 20)));
+    server.collectionRevision += 1;
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const originalRead = server.focus.getAnnotations;
+    server.focus.getAnnotations = async (...args) => { await gate; return originalRead(...args); };
+    let local = { annotations: [stroke], notes: [], virtualPages: [] };
+    const reading = sync.refresh({ pageCount: 4, local, getLocal: () => local });
+    // Erase an old stroke, draw a new one, and add a note/blank page while
+    // the other device's revision is being downloaded.
+    local = { annotations: [strokeWith(ids[1], 10)], notes: [{ id: "new-note", body: "during refresh", page: 1 }],
+      virtualPages: [{ id: -220, afterPage: 1, background: "blank" }] };
+    release();
+    const result = await reading;
+    assert.deepEqual(result.annotations.map((item) => item.id).sort(), [ids[1], ids[2]].sort());
+    assert.deepEqual(result.notes, local.notes);
+    assert.deepEqual(result.virtualPages, local.virtualPages);
+    assert.equal((await sync.push({ ...result, view: null })).status, "synced");
+    assert.deepEqual([...server.annotations.keys()].sort(), [ids[1], ids[2]].sort());
+  });
+}
+
 test("offline reconnect drains more than one bounded annotation batch", async () => {
   const server = fakeServer();
   const sync = syncFor(server);

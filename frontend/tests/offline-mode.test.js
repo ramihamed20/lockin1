@@ -510,9 +510,9 @@ test("signing out locks one account's downloads; another account on the device c
 
 test("Review answers offline are graded, reflected locally and queued once per idempotency key", async () => {
   const userId = await freshUser();
-  const item = { id: "item-1", subject_key: "catalog:path", prompt: "P?", answer_mode: "single", options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], state: "active" };
+  const item = { id: "item-1", subject_key: "catalog:path", prompt: "P?", answer_mode: "single", options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], state: "active_review", next_review_at: "2026-01-01T00:00:00Z", mistake_count: 2, review_incorrect_count: 0 };
   await offlineDatabase.put(userId, "review-snapshot", {
-    bank: { active_count: 1, mastered_this_week: 0, subjects: [{ subject_key: "catalog:path", subject_label_snapshot: "Pathology", question_count: 1 }] },
+    bank: { active_count: 1, due_count: 1, mastered_this_week: 0, subjects: [{ subject_key: "catalog:path", subject_label_snapshot: "Pathology", question_count: 1, due_count: 1 }] },
     queue: { count: 0, results: [] },
     subjects: { "catalog:path": { subject_key: "catalog:path", subject_label: "Pathology", count: 1, results: [item] } },
     weekly: { available: false, session: null },
@@ -521,16 +521,19 @@ test("Review answers offline are graded, reflected locally and queued once per i
   offline();
   const subject = await reviewApi.getSubject("catalog:path", userId);
   assert.equal(subject.results[0].id, "item-1");
+  assert.equal((await reviewApi.getDaily(userId)).results[0].id, "item-1");
   const key = randomUUID();
-  const outcome = await reviewApi.answerItem("item-1", { selectedOptionIds: ["b"], idempotencyKey: key });
+  const outcome = await reviewApi.answerItem("item-1", { selectedOptionIds: ["b"], idempotencyKey: key, confidence: "unsure", activeSeconds: 42 });
   assert.equal(outcome.was_correct, true);
   assert.deepEqual(outcome.review_item.correct_option_ids, ["b"]);
-  const again = await reviewApi.answerItem("item-1", { selectedOptionIds: ["b"], idempotencyKey: key });
+  const again = await reviewApi.answerItem("item-1", { selectedOptionIds: ["b"], idempotencyKey: key, confidence: "unsure", activeSeconds: 42 });
   assert.deepEqual(again, outcome);
   const pending = await queue.pendingOfflineOperations(userId);
   assert.equal(pending.length, 1);
-  assert.deepEqual(pending[0].payload, { review_item_id: "item-1", selected_option_ids: ["b"], idempotency_key: key, context: "review_bank" });
+  assert.deepEqual(pending[0].payload, { review_item_id: "item-1", selected_option_ids: ["b"], idempotency_key: key, context: "review_bank", confidence: "unsure", active_seconds: 42 });
   assert.equal((await reviewApi.getBank(userId)).active_count, 0, "a correct answer leaves the active bank on the device too");
+  assert.equal((await reviewApi.getBank(userId)).due_count, 0);
+  assert.equal((await reviewApi.getDaily(userId)).due_count, 0, "daily review uses the updated snapshot, not stale cached items");
 });
 
 test("downloaded normal Questions answer offline and keep XP pending until the server grades them", async () => {
@@ -614,6 +617,7 @@ test("a Focus document changed offline syncs on reconnect without reopening the 
 test("Automatic Downloads fetch opted-in content once and then only what changed", async () => {
   const userId = await freshUser();
   const { saveOfflinePreferences, readOfflinePreferences } = await import("../src/offline/coordinator.js");
+  await saveOfflinePreferences(userId, { automatic: false });
   env.route("GET /offline/lease/", () => ({ lease: signedLease({ userId }) }));
   env.route("GET /catalog/materials", () => ({ results: [] }));
   env.route("GET /catalog/questions?source=exam", () => ({ results: [] }));
@@ -625,8 +629,8 @@ test("Automatic Downloads fetch opted-in content once and then only what changed
   assert.ok(!env.calls.some((call) => call.includes("/offline/active-study/")), "nothing downloads while Automatic Downloads is off");
 
   const preferences = await readOfflinePreferences(userId);
-  assert.equal(preferences.types.active_study, true);
-  await saveOfflinePreferences(userId, { ...preferences, automatic: true, network: "any" });
+  assert.equal(preferences.types.active_study, false);
+  await saveOfflinePreferences(userId, { ...preferences, automatic: true, network: "any", types: { ...preferences.types, active_study: true } });
   env.calls.length = 0;
   await synchronizeOffline(userId, () => {}, { force: true });
   assert.ok(env.calls.includes("GET /files/file-1/view"));

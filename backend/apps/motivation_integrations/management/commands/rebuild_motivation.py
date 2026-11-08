@@ -85,6 +85,22 @@ class Command(BaseCommand):
             count += 1
         sessions = FocusSession.objects.filter(status=FocusSession.Status.COMPLETED)
         for session in sessions.iterator(chunk_size=1_000):
+            if session.experience_version == 2 and session.team_id:
+                for participant in session.participants.filter(credited_at__isnull=False):
+                    if participant.credited_at is None:
+                        continue
+                    _focus_completed(
+                        FocusSessionCompleted(
+                            session_id=session.id,
+                            user_id=participant.user_id,
+                            context_type=session.context_type,
+                            context_id=session.context_id,
+                            active_duration_seconds=participant.active_microseconds // 1_000_000,
+                            actor_id=participant.user_id,
+                            occurred_at=participant.credited_at,
+                        )
+                    )
+                continue
             _focus_completed(
                 FocusSessionCompleted(
                     session_id=session.id,

@@ -48,6 +48,97 @@ async function savedAnnotations(page) {
   return parseCatalogWorkspace(await page.evaluate((key) => localStorage.getItem(key), key))?.annotations ?? [];
 }
 
+// Exercise the touch pointer path directly: a regular range.fill() or a
+// programmatic input event never reproduces the fast-swipe bug on Safari.
+async function swipeRangeRapidly(range, start, end) {
+  await range.evaluate((input, { start, end }) => {
+    const box = input.getBoundingClientRect();
+    const pointerId = 806;
+    const fire = (type, progress, verticalOffset = 0) => input.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerId, pointerType: "touch", isPrimary: true,
+      button: 0, buttons: type === "pointerup" ? 0 : 1,
+      clientX: box.left + box.width * progress,
+      clientY: box.top + box.height / 2 + verticalOffset
+    }));
+    fire("pointerdown", start);
+    // One large movement with no intermediate positions, slightly outside the
+    // track's vertical bounds, must still update the controlled range.
+    fire("pointermove", end, 24);
+    fire("pointerup", end, 40);
+  }, { start, end });
+}
+
+test("fast touch swipes adjust thickness and opacity without the inspector stealing them", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page, { width: 390, height: 844 });
+  await openPenPanel(page);
+  const panel = page.locator("#workspace-pen-options");
+  const thickness = panel.locator(".workspace-v2-tool-range.is-stroke input[type='range']");
+  const opacity = panel.locator(".workspace-v2-tool-range.is-opacity input[type='range']");
+
+  for (const slider of [thickness, opacity]) {
+    await expect(slider).toBeVisible();
+    await expect(slider).toHaveCSS("touch-action", "none");
+    expect((await slider.boundingBox()).height).toBeGreaterThanOrEqual(38);
+  }
+  await swipeRangeRapidly(thickness, .18, 1.15);
+  await expect.poll(async () => Number(await thickness.inputValue())).toBe(12);
+  await swipeRangeRapidly(thickness, .8, -.15);
+  await expect.poll(async () => Number(await thickness.inputValue())).toBe(1);
+
+  await swipeRangeRapidly(opacity, .2, 1.12);
+  await expect.poll(async () => Number(await opacity.inputValue())).toBe(1);
+  await swipeRangeRapidly(opacity, .9, -.16);
+  await expect.poll(async () => Number(await opacity.inputValue())).toBe(.2);
+
+  // RTL sliders must move toward their minimum on the right and maximum on
+  // the left, unlike their LTR counterparts.
+  await page.evaluate(() => { document.documentElement.dir = "rtl"; });
+  await swipeRangeRapidly(opacity, .7, -.14);
+  await expect.poll(async () => Number(await opacity.inputValue())).toBe(1);
+  await swipeRangeRapidly(opacity, .2, 1.15);
+  await expect.poll(async () => Number(await opacity.inputValue())).toBe(.2);
+});
+
+test("choosing an ink colour replays a brief pen animation in the toolbar", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page);
+  await openPenPanel(page);
+  const panel = page.locator("#workspace-pen-options");
+  const pen = page.locator(".workspace-v2-toolbar [data-workspace-tool='pen']");
+  const red = panel.getByRole("button", { name: "Use #e5383b" });
+
+  await red.click();
+  await expect(pen).toHaveAttribute("data-color-motion", "1");
+  await expect(pen.locator(".workspace-v3-tool-color-trace")).toHaveCount(1);
+  await expect.poll(() => pen.locator("svg").evaluate((node) => getComputedStyle(node).color)).toBe("rgb(229, 56, 59)");
+  await expect(pen.locator(".workspace-v3-tool-swatch")).toHaveCSS("background-color", "rgb(229, 56, 59)");
+
+  // Same-colour taps replay the motion rather than relying on a changed CSS
+  // variable (which would leave the animation stuck after the first tap).
+  await red.click();
+  await expect(pen).toHaveAttribute("data-color-motion", "2");
+  // WebKit previously left two painted pen glyphs after a colour choice.
+  // The glyph must stay as one stable SVG, not a keyed/remounted animation.
+  const highlighter = page.locator(".workspace-v2-toolbar [data-workspace-tool='highlighter']");
+  for (const button of [pen, highlighter]) {
+    await expect(button.locator(":scope > svg")).toHaveCount(1);
+    const glyphBounds = await button.locator(":scope > svg").boundingBox();
+    const buttonBounds = await button.boundingBox();
+    expect(glyphBounds.y).toBeGreaterThanOrEqual(buttonBounds.y - 1);
+    expect(glyphBounds.y + glyphBounds.height).toBeLessThanOrEqual(buttonBounds.y + buttonBounds.height + 1);
+    await expect(button.locator(":scope > svg")).toHaveCSS("animation-name", "none");
+    await expect(button.locator(":scope > svg")).toHaveCSS("transform", "none");
+  }
+
+  // Motion-sensitive users retain the new colour without the animation.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await panel.getByRole("button", { name: "Use #2563eb" }).click();
+  await expect(pen).toHaveAttribute("data-color-motion", "3");
+  await expect(pen.locator("svg")).toHaveCSS("animation-name", "none");
+  await expect(pen.locator(".workspace-v3-tool-swatch")).toHaveCSS("background-color", "rgb(37, 99, 235)");
+});
+
 test("a favorite pen is saved from the pen panel, taken up from the toolbar in one tap, and removed", async ({ page }) => {
   await mockWorkspace(page);
   await openWorkspace(page);
@@ -82,18 +173,54 @@ test("a favorite pen is saved from the pen panel, taken up from the toolbar in o
   await expect(page.locator(".workspace-favorite-pens.is-toolbar")).toHaveCount(0);
 });
 
-test("a phone keeps favorites in the pen panel, where its full toolbar has no room", async ({ page }) => {
+test("a phone keeps starred pens inside the scrollable tool row and in the pen panel", async ({ page }) => {
   await mockWorkspace(page);
   await openWorkspace(page, { width: 390, height: 844 });
   await openPenPanel(page);
   const strip = page.locator("#workspace-pen-options .workspace-favorite-pens");
   await strip.getByRole("button", { name: "Save this pen as a favorite" }).click();
   await expect(strip.getByRole("button", { name: /· 4 pt/ })).toBeVisible();
-  await expect(page.locator(".workspace-favorite-pens.is-toolbar")).toBeHidden();
+  const toolbar = page.locator(".workspace-v2-toolbar");
+  await expect(toolbar.locator(".workspace-toolbar-accessories")).toHaveCount(0);
+  await expect(toolbar.locator(".workspace-tool-dock .workspace-favorite-pens.is-toolbar")).toBeVisible();
   for (const button of await strip.getByRole("button").all()) {
     const box = await button.boundingBox();
     expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
   }
+});
+
+test("five full pen presets save, apply, remove and persist across reloads", async ({ page }) => {
+  await mockWorkspace(page);
+  await openWorkspace(page);
+  await openPenPanel(page);
+  const panel = page.locator("#workspace-pen-options");
+  const favorites = panel.locator(".workspace-favorite-pens.is-panel");
+  const toolbar = page.locator(".workspace-favorite-pens.is-toolbar");
+  const inks = ["#2563eb", "#e5383b", "#f5b700", "#16a34a", "#7c3aed", "#f97316"];
+  for (const [index, color] of inks.slice(0, 5).entries()) {
+    await panel.getByRole("button", { name: `Use ${color}` }).click();
+    await favorites.getByRole("button", { name: "Save this pen as a favorite" }).click();
+    await expect(toolbar.locator(".workspace-favorite-pen-slot")).toHaveCount(index + 1);
+  }
+  await panel.getByRole("button", { name: `Use ${inks[5]}` }).click();
+  // At capacity there is no Add button, and no sixth preset can be created.
+  await expect(favorites.getByRole("button", { name: "Save this pen as a favorite" })).toHaveCount(0);
+  await expect(toolbar.locator(".workspace-favorite-pen-slot")).toHaveCount(5);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.favorite-pens.v1") || "[]").length)).toBe(5);
+
+  // Reapply the first preset and use its own Edit menu to release that slot.
+  await page.keyboard.press("Escape");
+  const first = toolbar.locator(".workspace-favorite-pen-slot").first().getByRole("button");
+  await first.click();
+  await expect(first).toHaveAttribute("aria-pressed", "true");
+  await first.click();
+  await page.getByRole("menuitem", { name: "Remove favorite" }).click();
+  await expect(toolbar.locator(".workspace-favorite-pen-slot")).toHaveCount(4);
+
+  await page.reload();
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot")).toHaveCount(4);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("lock-in.catalog-workspace.favorite-pens.v1") || "[]").length)).toBe(4);
 });
 
 async function writeInZoomWindow(page, fromRatio, toRatio, pointerId) {
@@ -152,4 +279,80 @@ test("in Arabic the zoom box starts at the right margin", async ({ page }) => {
   const pageBox = page.locator(".workspace-zoom-window-box");
   await expect(pageBox).toHaveCount(1);
   expect(Number(await pageBox.getAttribute("x")) + Number(await pageBox.getAttribute("width"))).toBe(960);
+});
+
+
+test("five favorite pens stay in the writing row and compact color controls remain accessible", async ({ page }) => {
+  await mockWorkspace(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("lock-in.catalog-workspace.favorite-pens.v1", JSON.stringify(
+      ["#2563eb", "#e5383b", "#f5b700", "#16a34a", "#7c3aed"].map((color, index) => ({
+        tool: index === 4 ? "highlighter" : "pen",
+        profile: index === 4 ? "highlighter" : "ball",
+        color,
+        width: index + 2,
+        opacity: index === 4 ? .34 : 1
+      }))
+    ));
+  });
+  await openWorkspace(page, { width: 834, height: 1194 });
+  for (const viewport of [
+    { width: 320, height: 700 },
+    { width: 390, height: 844 },
+    { width: 834, height: 1194 },
+    { width: 1024, height: 768 },
+    { width: 1280, height: 900 }
+  ]) {
+    await page.setViewportSize(viewport);
+    const toolbar = page.locator(".workspace-v2-toolbar");
+    const rail = toolbar.locator(".workspace-tool-dock[data-dock-edge='top']");
+    const favorites = rail.locator(".workspace-favorite-pens.is-toolbar");
+    const colors = rail.locator(".workspace-v3-quick-colors");
+    await expect(toolbar.locator(".workspace-toolbar-accessories")).toHaveCount(0);
+    await expect(rail.locator("[data-workspace-tool='pen']")).toBeVisible();
+    await expect(favorites).toBeVisible();
+    const compact = viewport.width < 700 || viewport.height < 600;
+    if (compact) await expect(colors).toBeHidden();
+    else await expect(colors).toBeVisible();
+    const buttons = favorites.locator(".workspace-favorite-pen-slot > .workspace-favorite-pen");
+    await expect(buttons).toHaveCount(5);
+    const layout = await rail.evaluate((element) => {
+      const pen = element.querySelector("[data-workspace-tool='pen']");
+      const colors = element.querySelector(".workspace-v3-quick-colors");
+      const favorite = element.querySelector(".workspace-favorite-pens.is-toolbar");
+      const buttons = [...favorite.querySelectorAll(".workspace-favorite-pen-slot > button")];
+      const centerY = (node) => { const rect = node.getBoundingClientRect(); return rect.top + rect.height / 2; };
+      return {
+        oneRow: Math.abs(centerY(pen) - centerY(favorite)) < 8
+          && (getComputedStyle(colors).display === "none" || Math.abs(centerY(pen) - centerY(colors)) < 8),
+        noShrink: buttons.every((button) => button.getBoundingClientRect().width >= 34),
+        noClippingWithinStrip: favorite.scrollWidth <= favorite.clientWidth + 1,
+        insideRail: element.contains(colors) && element.contains(favorite),
+        horizontalOverflowOnly: element.scrollHeight <= element.clientHeight + 1
+      };
+    });
+    expect(layout, `toolbar layout at ${viewport.width}x${viewport.height}`).toEqual({
+      oneRow: true, noShrink: true, noClippingWithinStrip: true,
+      insideRail: true, horizontalOverflowOnly: true
+    });
+    // On narrow screens every favorite remains reachable by scrolling the
+    // same tool rail sideways, rather than forcing a second toolbar row.
+    await buttons.last().scrollIntoViewIfNeeded();
+    const isReachable = await rail.evaluate((element) => {
+      const viewport = element.getBoundingClientRect();
+      const last = element.querySelector(".workspace-favorite-pen-slot:last-child > button").getBoundingClientRect();
+      return last.left >= viewport.left - 1 && last.right <= viewport.right + 1;
+    });
+    expect(isReachable, `fifth pen unreachable at ${viewport.width}px`).toBe(true);
+  }
+  // A compact phone hides quick colors to leave room for all five pens,
+  // but the same palette remains usable from the real pen inspector.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openPenPanel(page);
+  await expect(page.locator("#workspace-pen-options .workspace-v2-colors")).toBeVisible();
+  await page.locator(".workspace-v3-primary [data-workspace-tool='pen']").click();
+  await expect(page.locator("#workspace-pen-options")).toBeHidden();
+  // A scrolled-to preset must still be usable, not just visually present.
+  await page.locator(".workspace-v2-toolbar .workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot").last().locator("button").click();
+  await expect(page.locator(".workspace-v2-toolbar [data-workspace-tool='highlighter']")).toHaveAttribute("aria-pressed", "true");
 });

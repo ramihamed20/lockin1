@@ -7,7 +7,7 @@ test("Dashboard omits the mascot art rather than rendering an empty preview", as
   const styles = await readFile(new URL("../src/pages/dashboard.css", import.meta.url), "utf8");
 
   assert.match(source, /character=\{themeSettings\.character\}/);
-  assert.match(source, /\{character !== "none" && <div className="dashboard-art">/);
+  assert.match(source, /\{!sheet && character !== "none" && <div className="dashboard-art">/);
   // Continue's text keeps the first column whether or not the art is there.
   assert.match(styles, /\.dashboard \.continue-card > :not\(\.dashboard-art\) \{ grid-column: 1; \}/);
 });

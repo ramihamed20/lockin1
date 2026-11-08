@@ -55,8 +55,8 @@ export function clearAsyncDataCache() {
 export function useAsyncData(loader, deps = [], { keepPreviousData = false, retainOnError = false, cacheKey = "" } = {}) {
   const [state, setState] = useState(() => (
     cacheKey && remembered.has(cacheKey)
-      ? { loading: false, refreshing: true, error: "", data: remembered.get(cacheKey) }
-      : { loading: true, refreshing: false, error: "", data: null }
+      ? { loading: false, refreshing: true, error: "", errorDetails: /** @type {any} */ (null), data: remembered.get(cacheKey) }
+      : { loading: true, refreshing: false, error: "", errorDetails: /** @type {any} */ (null), data: null }
   ));
   const [reloadVersion, setReloadVersion] = useState(0);
   const lastRun = useRef({ deps: /** @type {unknown[] | null} */ (null), reloadVersion: 0 });
@@ -75,19 +75,19 @@ export function useAsyncData(loader, deps = [], { keepPreviousData = false, reta
       // A remembered copy of *this* record is always safe to show while the
       // fresh one loads; it is never another record's data.
       if (cacheKey && remembered.has(cacheKey) && !reloadOnly) {
-        return { loading: false, refreshing: true, error: "", data: remembered.get(cacheKey) };
+        return { loading: false, refreshing: true, error: "", errorDetails: /** @type {any} */ (null), data: remembered.get(cacheKey) };
       }
       const keep = prev.data !== null
         && (reloadOnly || (keepPreviousData && (!prev.error || retainOnError)));
       return keep
         ? { ...prev, loading: false, refreshing: true }
-        : { ...prev, loading: true, refreshing: false, error: "" };
+        : { ...prev, loading: true, refreshing: false, error: "", errorDetails: null };
     });
     Promise.resolve()
       .then(() => loader(controller?.signal))
       .then((data) => {
         if (cacheKey) remember(cacheKey, data);
-        if (active) setState({ loading: false, refreshing: false, error: "", data });
+        if (active) setState({ loading: false, refreshing: false, error: "", errorDetails: /** @type {any} */ (null), data });
       })
       .catch((error) => {
         // A cancelled request is not a failure the reader should see: it was
@@ -100,6 +100,7 @@ export function useAsyncData(loader, deps = [], { keepPreviousData = false, reta
           loading: false,
           refreshing: false,
           error: normalizeUserError(error?.message, "This information could not be loaded."),
+          errorDetails: error,
           // Opt-in read-only lists may stay usable during a connectivity
           // failure. Authorization, validation and missing-record errors clear
           // the previous data immediately.

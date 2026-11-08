@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { studyPlanApi } from "../api/studyPlan.js";
 import { biweeklyApi } from "../api/biweekly.js";
 import { BiweeklyArchive } from "../components/biweekly/BiweeklyArchive.jsx";
 import { useI18n } from "../components/I18nProvider.jsx";
@@ -17,11 +18,12 @@ export function BiweeklyDetail({ type }) {
   const { t, locale } = useI18n();
   const state = useAsyncData(() => biweeklyApi.report(type, id), [type, id]);
   if (state.loading) return <Page title={t("biweekly.view")}> <LoadingPanel /> </Page>;
-  if (state.error) return <Page title={t("biweekly.view")}><ErrorPanel message={state.error} onRetry={state.reload} /></Page>;
+  if (state.error) return <Page title={t("biweekly.view")}><ErrorPanel message={state.errorDetails || state.error} onRetry={state.reload} /></Page>;
   const report = state.data;
   const data = report.data;
   return <Page title={type === "review" ? t("biweekly.reviewTitle") : t("biweekly.analysisTitle")} subtitle={periodLabel(report.period_start, report.period_end, locale)}>
     <div className="biweekly-detail-actions"><Link className="btn btn-soft" to={type === "review" ? "/review" : "/analysis"}>{t("biweekly.history")}</Link><a className="btn btn-soft" href={biweeklyApi.pdfUrl(type, id, true)} target="_blank" rel="noopener noreferrer">{t("biweekly.previewPdf")}</a><a className="btn btn-primary" href={biweeklyApi.pdfUrl(type, id)}>{t("biweekly.downloadPdf")}</a></div>
+    <ReportPlanAction reportId={id} />
     {type === "analysis" ? <AnalysisDetail data={data} t={t} /> : <ReviewDetail data={data} reportId={id} t={t} />}
   </Page>;
 }
@@ -42,7 +44,7 @@ export function WeeklySummaryPage() {
     return { analysis: analysisReport, review: reviewReport };
   }, []);
   if (state.loading) return <Page title={t("weekly.title")}><LoadingPanel /></Page>;
-  if (state.error) return <Page title={t("weekly.title")}><ErrorPanel message={state.error} onRetry={state.reload} /></Page>;
+  if (state.error) return <Page title={t("weekly.title")}><ErrorPanel message={state.errorDetails || state.error} onRetry={state.reload} /></Page>;
   const { analysis, review } = state.data;
   if (!analysis && !review) return <Page title={t("weekly.title")}><p>{t("biweekly.noHistory")}</p></Page>;
   const period = analysis || review;
@@ -53,7 +55,7 @@ export function WeeklySummaryPage() {
     <div className="weekly-summary-grid">
       <section id="weekly-panel-analysis" role="tabpanel" aria-labelledby="weekly-tab-analysis" className={`weekly-summary-column${part === "analysis" ? " is-current" : ""}`} aria-label={t("biweekly.analysisTitle")}>
         <div className="weekly-summary-head"><h2>{t("biweekly.analysisTitle")}</h2>{analysis && <a className="btn btn-primary compact" href={biweeklyApi.pdfUrl("analysis", analysis.id)}>{t("weekly.downloadSummary")}</a>}</div>
-        {analysis ? <AnalysisDetail data={analysis.data} t={t} /> : <p>{t("biweekly.lowActivity")}</p>}
+        {analysis ? <><ReportPlanAction reportId={analysis.id} /><AnalysisDetail data={analysis.data} t={t} /></> : <p>{t("biweekly.lowActivity")}</p>}
       </section>
       <section id="weekly-panel-review" role="tabpanel" aria-labelledby="weekly-tab-review" className={`weekly-summary-column${part === "review" ? " is-current" : ""}`} aria-label={t("biweekly.reviewTitle")}>
         <div className="weekly-summary-head"><h2>{t("biweekly.reviewTitle")}</h2>{review && <a className="btn btn-primary compact" href={biweeklyApi.pdfUrl("review", review.id)}>{t("weekly.downloadQuestions")}</a>}</div>
@@ -93,7 +95,7 @@ export function BiweeklyTest() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   if (state.loading) return <Page title={t("biweekly.startTest")}><LoadingPanel /></Page>;
-  if (state.error) return <Page title={t("biweekly.startTest")}><ErrorPanel message={state.error} onRetry={state.reload} /></Page>;
+  if (state.error) return <Page title={t("biweekly.startTest")}><ErrorPanel message={state.errorDetails || state.error} onRetry={state.reload} /></Page>;
   const questions = state.data.questions;
   const outcome = result || state.data.result;
   async function submit(event) {
@@ -110,4 +112,15 @@ export function BiweeklyTest() {
       {!outcome && questions.length > 0 && <button className="btn btn-primary" type="submit" disabled={busy || questions.some((question) => !(selected[question.review_item_id] || []).length)}>{t("biweekly.submitTest")}</button>}{error && <p role="alert">{error}</p>}
     </form>
   </Page>;
+}
+
+function ReportPlanAction({ reportId }) {
+  const { t } = useI18n();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController(); setReady(false);
+    studyPlanApi.getExams({ signal: controller.signal }).then(exams => { if (!controller.signal.aborted) setReady(exams.length > 0); }).catch(() => { if (!controller.signal.aborted) setReady(false); });
+    return () => controller.abort();
+  }, [reportId]);
+  return ready ? <Link className="btn btn-soft" to={`/study-plan?report=${reportId}`}>{t("connected.planReport")}</Link> : null;
 }

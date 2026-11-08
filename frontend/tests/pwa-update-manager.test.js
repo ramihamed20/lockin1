@@ -1,3 +1,4 @@
+import { SETTINGS_SECTIONS } from "../src/lib/settingsNavigation.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -294,7 +295,7 @@ test("activation that never takes control fails safely and can be retried", asyn
   manager.stop();
 });
 
-test("the plugin's skip-waiting API is used when the plugin registered the worker", async () => {
+test("the chosen window messages the current waiting worker even when the plugin registered it", async () => {
   const env = fakeEnvironment();
   const manager = createUpdateManager(env);
   const registration = fakeRegistration();
@@ -318,8 +319,8 @@ test("the plugin's skip-waiting API is used when the plugin registered the worke
 
   const applying = manager.applyUpdate();
   await flush();
-  assert.deepEqual(pluginCalls, [true]);
-  assert.deepEqual(waiting.messages, []);
+  assert.deepEqual(pluginCalls, [], "the plugin callback must not race another window's worker");
+  assert.deepEqual(waiting.messages, [{ type: "SKIP_WAITING" }]);
   options.onNeedReload();
   env.fire.controllerchange();
   await applying;
@@ -445,7 +446,8 @@ test("version and build are injected at build time and shown in Settings", async
   assert.match(config, /__APP_SEMVER__: JSON\.stringify\(appSemver\)/);
   assert.match(config, /__APP_BUILD_TIME__: JSON\.stringify\(buildTime\)/);
   assert.match(config, /registerType: "prompt"/, "updates stay user-controlled");
-  assert.match(settings, /\{ id: "updates"/);
+  assert.match(settings, /const SECTIONS = SETTINGS_SECTIONS/);
+  assert.equal(SETTINGS_SECTIONS.find(section => section.id === "updates")?.labelKey, "settings.updates.section");
   assert.match(settings, /<AppUpdateSettings user=\{user\} \/>/);
   assert.match(section, /BUILD_INFO\.version/);
   assert.match(section, /BUILD_INFO\.build/);

@@ -1,9 +1,9 @@
+import { userErrorMessage, userFieldErrors } from "../../lib/userErrors.js";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Icon } from "../../lib/icons.jsx";
 import { LockinIcon } from "../../lib/lockinIcons.jsx";
 import { usePageTitle } from "../../hooks/usePageTitle.js";
-import { normalizeUserError } from "../../lib/errors.js";
 import { routeMetadata } from "../../lib/routeMetadata.js";
 import { translate } from "../../lib/i18n.js";
 import { useI18n } from "../I18nProvider.jsx";
@@ -74,8 +74,10 @@ export function EmptyState({ title, text, icon = "", action = null }) {
   return <article className="empty-state">{icon ? <LockinIcon name={icon} size={30} /> : <Icon name="sparkles" />}<h2 dir="auto">{title}</h2><p dir="auto">{text}</p>{action && <Link className="btn btn-soft compact empty-state-action" to={action.to}>{action.label}</Link>}</article>;
 }
 
-export function Skeleton({ className = "", style = undefined }) {
-  return <span className={`skeleton ${className}`.trim()} style={style} aria-hidden="true" />;
+/** Shared decorative placeholder. Keep geometry with the loaded component;
+ * only the unified loading stylesheet controls tone and pulse. */
+export function Skeleton({ className = "", style = undefined, shape = "line" }) {
+  return <span className={`skeleton skeleton--${shape} ${className}`.trim()} style={style} aria-hidden="true" />;
 }
 
 export function SkeletonText({ lines = 2, className = "" }) {
@@ -83,11 +85,11 @@ export function SkeletonText({ lines = 2, className = "" }) {
 }
 
 export function SkeletonAvatar({ className = "" }) {
-  return <Skeleton className={`skeleton-avatar ${className}`.trim()} />;
+  return <Skeleton shape="circle" className={`skeleton-avatar ${className}`.trim()} />;
 }
 
 export function SkeletonButton({ className = "" }) {
-  return <Skeleton className={`skeleton-button ${className}`.trim()} />;
+  return <Skeleton shape="pill" className={`skeleton-button ${className}`.trim()} />;
 }
 
 function SkeletonCard({ children, className = "" }) {
@@ -123,6 +125,10 @@ function DashboardSkeleton() {
   </div>;
 }
 
+function SheetLibrarySkeleton() {
+  return <div className="skeleton-page skeleton-page--sheet-library"><SkeletonHeader /><Skeleton className="skeleton-sheet-branch" /><section className="skeleton-sheet-library-grid">{Array.from({ length: 4 }, (_, index) => <SkeletonCard className="skeleton-sheet-library-card" key={index}><Skeleton className="skeleton-sheet-library-cover" /><div className="skeleton-sheet-library-copy"><SkeletonText lines={3} /><div className="skeleton-sheet-library-footer"><Skeleton className="skeleton-sheet-library-meta" /><SkeletonAvatar /></div></div></SkeletonCard>)}</section></div>;
+}
+
 function MaterialsListSkeleton({ sheets = false }) {
   return <div className={`skeleton-page skeleton-page--materials${sheets ? " is-sheets" : ""}`}><SkeletonHeader /><section className="skeleton-material-grid">{Array.from({ length: sheets ? 6 : 5 }, (_, index) => <SkeletonCard className="skeleton-material-row" key={index}><SkeletonAvatar /><div><SkeletonText lines={2} /></div><Skeleton className="skeleton-row-end" /></SkeletonCard>)}</section></div>;
 }
@@ -145,6 +151,74 @@ function QuizSkeleton({ result = false }) {
 
 function DocumentSkeleton() {
   return <div className="skeleton-page skeleton-page--document"><SkeletonCard className="skeleton-document-toolbar"><Skeleton className="skeleton-tool-group" /><Skeleton className="skeleton-tool-group" /><SkeletonButton /></SkeletonCard><SkeletonCard className="skeleton-document-sheet"><Skeleton className="skeleton-document-title" /><SkeletonText lines={6} /><Skeleton className="skeleton-document-image" /><SkeletonText lines={5} /></SkeletonCard></div>;
+}
+
+/** A single grouped-list silhouette shared by inbox, admin and short result lists. */
+function GroupedListSkeleton({ count = 5 }) {
+  return <div className="skeleton-page skeleton-page--grouped-list">
+    <SkeletonCard className="skeleton-grouped-card">
+      <div className="skeleton-grouped-heading"><Skeleton className="skeleton-section-heading" /><Skeleton className="skeleton-grouped-chip" /></div>
+      {Array.from({ length: count }, (_, index) => <div className="skeleton-grouped-row" key={index}>
+        <SkeletonAvatar className="skeleton-grouped-avatar" />
+        <SkeletonText lines={2} />
+        <Skeleton className="skeleton-grouped-trailing" />
+      </div>)}
+    </SkeletonCard>
+  </div>;
+}
+
+/** The review centre is a daily action, smaller weekly card, then subject rows. */
+function ReviewSkeleton() {
+  return <div className="skeleton-page skeleton-page--review">
+    <SkeletonCard className="skeleton-review-primary">
+      <div className="skeleton-review-heading"><SkeletonAvatar /><SkeletonText lines={2} /></div>
+      <Skeleton className="skeleton-review-description" />
+      <div className="skeleton-review-actions"><SkeletonButton /><SkeletonButton /></div>
+    </SkeletonCard>
+    <SkeletonCard className="skeleton-review-secondary">
+      <div className="skeleton-review-heading"><SkeletonAvatar /><SkeletonText lines={2} /></div>
+      <SkeletonButton />
+    </SkeletonCard>
+    <Skeleton className="skeleton-section-heading" />
+    <GroupedListSkeleton count={3} />
+  </div>;
+}
+
+/** Same hierarchy as the plan: day selector, today's tasks and weekly progress. */
+function StudyPlanSkeleton() {
+  return <div className="skeleton-page skeleton-page--study-plan">
+    <div className="skeleton-plan-heading"><SkeletonText lines={2} /><SkeletonButton /></div>
+    <SkeletonCard className="skeleton-plan-week">
+      {Array.from({ length: 7 }, (_, index) => <div className="skeleton-plan-day" key={index}>
+        <Skeleton className="skeleton-plan-day-label" /><Skeleton shape="circle" className="skeleton-plan-day-date" />
+      </div>)}
+    </SkeletonCard>
+    <div className="skeleton-plan-summary"><Skeleton className="skeleton-section-heading" /><Skeleton className="skeleton-plan-progress" /></div>
+    <SkeletonCard className="skeleton-plan-tasks">
+      {Array.from({ length: 4 }, (_, index) => <div className="skeleton-grouped-row" key={index}>
+        <Skeleton shape="circle" className="skeleton-plan-checkbox" />
+        <SkeletonText lines={2} />
+        <Skeleton className="skeleton-grouped-trailing" />
+      </div>)}
+    </SkeletonCard>
+  </div>;
+}
+
+function NotificationsSkeleton() {
+  return <div className="skeleton-page skeleton-page--notifications">
+    <div className="skeleton-notification-filters"><SkeletonButton /><SkeletonButton /></div>
+    <GroupedListSkeleton count={6} />
+  </div>;
+}
+
+/** Lock-in modes: the student chooses Solo or Team after the loading screen. */
+function LockInModeSkeleton() {
+  return <div className="skeleton-page skeleton-page--lock-in">
+    <SkeletonCard className="skeleton-lockin-hero"><Skeleton className="skeleton-lockin-title" /><SkeletonText lines={2} /><Skeleton className="skeleton-lockin-orbit" /></SkeletonCard>
+    <div className="skeleton-lockin-modes">
+      {Array.from({ length: 2 }, (_, index) => <SkeletonCard key={index} className="skeleton-lockin-mode"><SkeletonAvatar /><SkeletonText lines={2} /><SkeletonButton /></SkeletonCard>)}
+    </div>
+  </div>;
 }
 
 function AdminOverviewSkeleton() {
@@ -171,6 +245,11 @@ function StandardSkeleton({ variant }) {
   if (variant === "admin-list") return <div className="skeleton-page"><SkeletonCard className="skeleton-list-card">{Array.from({ length: 5 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonAvatar /><SkeletonText lines={2} /><SkeletonButton /></div>)}</SkeletonCard></div>;
   if (variant === "admin-form") return <div className="skeleton-page"><SkeletonCard><SkeletonText lines={2} />{Array.from({ length: 4 }, (_, index) => <div className="skeleton-list-row" key={index}><SkeletonText lines={2} /><SkeletonButton /></div>)}</SkeletonCard></div>;
   if (variant === "admin-overview") return <AdminOverviewSkeleton />;
+  if (variant === "list") return <GroupedListSkeleton />;
+  if (variant === "review") return <ReviewSkeleton />;
+  if (variant === "study-plan") return <StudyPlanSkeleton />;
+  if (variant === "notifications") return <NotificationsSkeleton />;
+  if (variant === "lock-in") return <LockInModeSkeleton />;
   if (variant === "dashboard") return <DashboardSkeleton />;
   if (variant === "profile") return <ProfileSkeleton />;
   if (variant === "progress") return <ProgressSkeleton />;
@@ -178,6 +257,7 @@ function StandardSkeleton({ variant }) {
   if (variant === "result") return <QuizSkeleton result />;
   if (variant === "document") return <DocumentSkeleton />;
   if (variant === "material-list") return <MaterialsListSkeleton />;
+  if (variant === "sheet-library") return <SheetLibrarySkeleton />;
   if (variant === "card-list") return <MaterialsListSkeleton sheets />;
   if (variant === "sheet") return <SheetSkeleton />;
   return <div className="skeleton-page skeleton-page--grid"><SkeletonHeader /><CardGridSkeleton count={6} card={variant === "list" ? "row" : "standard"} /></div>;
@@ -194,7 +274,12 @@ function loadingVariant(pathname) {
   if (/\/results?\//.test(pathname)) return "result";
   if (/\/attempts?\//.test(pathname)) return "quiz";
   if (/^\/(materials|questions)$/.test(pathname)) return "material-list";
-  if (/^\/(notifications|review|bookmarks|community|achievements|subscription|my-group|analysis)/.test(pathname)) return "list";
+  if (/^\/materials\/catalog\/[^/]+$/.test(pathname)) return "sheet-library";
+  if (/^\/review(?:\/|$)/.test(pathname)) return "review";
+  if (/^\/study-plan(?:\/|$)/.test(pathname)) return "study-plan";
+  if (/^\/notifications(?:\/|$)/.test(pathname)) return "notifications";
+  if (/^\/lock-in(?:\/|$)|^\/lockin(?:\/|$)/.test(pathname)) return "lock-in";
+  if (/^\/(bookmarks|community|achievements|subscription|my-group|analysis)/.test(pathname)) return "list";
   return "grid";
 }
 
@@ -205,7 +290,8 @@ export function LoadingPanel({ variant = "auto" }) {
   const metadata = routeMetadata(location.pathname, t);
   const resolvedVariant = variant === "auto" ? loadingVariant(location.pathname) : variant;
   return (
-    <section className={`loading-panel loading-panel--${resolvedVariant}`} aria-label={t("common.loading")} aria-busy="true">
+    <section className={`loading-panel loading-panel--${resolvedVariant}`} aria-label={t("common.loading")} aria-busy="true" data-skeleton-system="cupertino">
+      <span className="visually-hidden" role="status">{t("common.loading")}</span>
       {!hasPageIdentity && <h1 className="visually-hidden">{metadata.h1}</h1>}
       <StandardSkeleton variant={resolvedVariant} />
     </section>
@@ -253,25 +339,43 @@ const ROUTE_LOADING_FRAMES = {
 export function ErrorPanel({ message, onRetry = null }) {
   const hasPageIdentity = useContext(PageIdentityContext);
   const location = useLocation();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const metadata = routeMetadata(location.pathname, t);
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
+  const [now, setNow] = useState(Date.now);
+  const retryAt = Number(message?.retryAt) || 0;
+  const waiting = Math.max(0, Math.ceil((retryAt - now) / 1000));
+  useEffect(() => {
+    if (!retryAt || retryAt <= Date.now()) return;
+    const timer = window.setInterval(() => {
+      const next = Date.now();
+      setNow(next);
+      if (next >= retryAt) window.clearInterval(timer);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [retryAt]);
   useEffect(() => {
     const update = () => setOffline(navigator.onLine === false);
     window.addEventListener("online", update);
     window.addEventListener("offline", update);
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
-  // Offline, "Network error" is true but useless: say what still works.
-  const safeMessage = offline ? t("offline.pageNeedsConnection") : normalizeUserError(message, t("error.default"));
+  // An offline hint must never hide a permission/validation answer.
+  const needsConnection = offline && typeof message !== "string" && ["offline", "network_error", "timeout"].includes(message?.code);
+  const safeMessage = needsConnection ? t("offline.pageNeedsConnection") : userErrorMessage(message, { locale, fallback: t("error.default") });
+  const fields = userFieldErrors(message, locale);
+  const reference = typeof message?.request_id === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(message.request_id) ? message.request_id : "";
   const materialsHere = location.pathname === "/materials" || location.pathname.startsWith("/materials/");
   return (
     <section className="panel error-panel" role="alert">
       {!hasPageIdentity && <h1 className="visually-hidden">{metadata.h1}</h1>}
       <span className="error-panel-icon" aria-hidden="true"><Icon name="alert-triangle" size={20} /></span>
       <p dir="auto">{safeMessage}</p>
-      {offline && !materialsHere && <Link className="btn btn-soft" to="/materials">{t("nav.materials")}</Link>}
-      {onRetry && !offline && <button className="btn btn-soft" type="button" onClick={onRetry}>{t("common.tryAgain")}</button>}
+      {fields.length > 1 && <ul>{fields.map((item, index) => <li key={`${item.field}-${index}`} dir="auto">{item.label && <strong>{item.label}: </strong>}{item.message}</li>)}</ul>}
+      {reference && <p><small>{t("errors.reference")}: <bdi dir="ltr">{reference}</bdi></small></p>}
+      {waiting > 0 && <p aria-live="off">{t("errors.wait", { seconds: waiting })}</p>}
+      {needsConnection && !materialsHere && <Link className="btn btn-soft" to="/materials">{t("nav.materials")}</Link>}
+      {onRetry && !needsConnection && <button className="btn btn-soft" type="button" disabled={waiting > 0} onClick={onRetry}>{t("common.tryAgain")}</button>}
     </section>
   );
 }

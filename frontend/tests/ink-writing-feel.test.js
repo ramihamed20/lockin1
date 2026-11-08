@@ -102,3 +102,51 @@ test("a phone writes with the finger until the student chooses; a tablet keeps f
   assert.equal(defaultDrawingInput({ stored: DRAWING_INPUT.STYLUS_AND_FINGER, coarsePointer: true, shortestScreenSide: 834 }), DRAWING_INPUT.STYLUS_AND_FINGER);
   assert.equal(defaultDrawingInput({ stored: "junk", coarsePointer: true, shortestScreenSide: 834 }), DRAWING_INPUT.STYLUS_ONLY);
 });
+
+test("Elite 1 touch-reported tablet pen can draw unless the student chose pen-only", async () => {
+  const { DRAWING_INPUT, defaultDrawingInput, usesTouchStylusTablet, pointerCanDraw } = await import("../src/workspace/input/gestureStateMachine.js");
+  const androidAgent = "Mozilla/5.0 (Linux; Android 14; Elite_1 Build/UP1A) AppleWebKit/537.36";
+  const reducedAgent = "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36";
+  assert.equal(usesTouchStylusTablet({ userAgent: androidAgent }), true);
+  assert.equal(usesTouchStylusTablet({ userAgent: reducedAgent, deviceModel: "OSCAL Elite 1" }), true);
+  assert.equal(usesTouchStylusTablet({ userAgent: reducedAgent, deviceModel: "Galaxy Tab S9" }), false);
+  assert.equal(defaultDrawingInput({ userAgent: androidAgent, shortestScreenSide: 800 }), DRAWING_INPUT.STYLUS_AND_FINGER);
+  assert.equal(defaultDrawingInput({ userAgent: reducedAgent, deviceModel: "Elite 1", shortestScreenSide: 800 }), DRAWING_INPUT.STYLUS_AND_FINGER);
+  assert.equal(defaultDrawingInput({ stored: DRAWING_INPUT.STYLUS_ONLY, userAgent: androidAgent }), DRAWING_INPUT.STYLUS_ONLY);
+  assert.equal(pointerCanDraw("touch", defaultDrawingInput({ userAgent: androidAgent })), true);
+  assert.equal(pointerCanDraw("pen", DRAWING_INPUT.STYLUS_ONLY), true);
+});
+
+test("unrecognized browser pointers draw only when the user enables touch-pen compatibility", async () => {
+  const { DRAWING_INPUT, pointerCanDraw, classifyStylusInput, isTouchLikePointer, suspiciousPalmContact } = await import("../src/workspace/input/gestureStateMachine.js");
+  assert.equal(pointerCanDraw("pen", DRAWING_INPUT.STYLUS_ONLY), true);
+  assert.equal(pointerCanDraw("mouse", DRAWING_INPUT.STYLUS_ONLY), true);
+  assert.equal(pointerCanDraw("touch", DRAWING_INPUT.STYLUS_ONLY), false);
+  assert.equal(pointerCanDraw("", DRAWING_INPUT.STYLUS_ONLY), false);
+  assert.equal(pointerCanDraw("unknown", DRAWING_INPUT.STYLUS_ONLY), false);
+  for (const kind of ["touch", "", null, "unknown"]) {
+    assert.equal(pointerCanDraw(kind, DRAWING_INPUT.STYLUS_AND_FINGER), true);
+    assert.equal(classifyStylusInput(kind), "touch");
+    assert.equal(isTouchLikePointer(kind), true);
+  }
+  assert.equal(isTouchLikePointer("pen"), false);
+  assert.equal(isTouchLikePointer("mouse"), false);
+  assert.equal(suspiciousPalmContact({
+    event: { pointerType: "", width: 28, height: 30, clientX: 15, clientY: 12 },
+    activePenCount: 1, lastPenAt: Date.now(), lastPenPosition: { x: 10, y: 10 }
+  }), true);
+  assert.equal(classifyStylusInput("pen"), "pen");
+  assert.equal(classifyStylusInput("mouse"), "other");
+  // Samsung, Lenovo, Xiaomi and Huawei active-pen devices preserve the normal
+  // tablet default unless the user explicitly requests touch input.
+  for (const userAgent of [
+    "Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-X710)",
+    "Mozilla/5.0 (Linux; Android 13; Lenovo TB370FU)",
+    "Mozilla/5.0 (Linux; Android 15; Xiaomi Pad 7)",
+    "Mozilla/5.0 (Linux; Android 14; HUAWEI MatePad)"
+  ]) {
+    const { defaultDrawingInput } = await import("../src/workspace/input/gestureStateMachine.js");
+    assert.equal(defaultDrawingInput({ userAgent, shortestScreenSide: 800, coarsePointer: true }), DRAWING_INPUT.STYLUS_ONLY);
+    assert.equal(defaultDrawingInput({ stored: DRAWING_INPUT.STYLUS_AND_FINGER, userAgent }), DRAWING_INPUT.STYLUS_AND_FINGER);
+  }
+});

@@ -145,7 +145,13 @@ const server = createServer((request, response) => {
     response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     return response.end("not found");
   }
-  const file = existsSync(candidate) && extname(candidate) ? candidate : resolve(root, "index.html");
+  // E2E-only Vite HTML entries live below dist/e2e/fixtures/.../index.html.
+  // Serve their directory indexes instead of falling back to the SPA; otherwise
+  // the browser fixture tests never mount the real components they assert.
+  const directoryIndex = resolve(candidate, "index.html");
+  const file = existsSync(candidate) && extname(candidate) ? candidate
+    : existsSync(directoryIndex) ? directoryIndex
+    : resolve(root, "index.html");
   const compress = process.env.LOCKIN_PERFORMANCE_GZIP === "1"
     && /\bgzip\b/.test(request.headers["accept-encoding"] || "")
     && [".js", ".css", ".html", ".svg", ".json"].includes(extname(file));

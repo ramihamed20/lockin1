@@ -1,6 +1,7 @@
 import { writePublicKnowledge } from "./scripts/build-public-knowledge.mjs";
 import { publicKnowledgeInDevelopment } from "./scripts/public-knowledge-dev.mjs";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
@@ -149,6 +150,20 @@ export default defineConfig(async ({ mode, command }) => {
 
   return {
   base: basePath,
+  // Browser CI serves the built dist, not Vite dev. Compile the fixture entry
+  // pages in E2E-only builds so they exercise the production React bundle.
+  // These pages are never emitted by an ordinary production build.
+  build: process.env.LOCKIN_E2E_CATALOG === "1" ? {
+    rollupOptions: {
+      input: {
+        app: fileURLToPath(new URL("./index.html", import.meta.url)),
+        ...Object.fromEntries(["companion-ready", "companion-import", "profile-companion"].map(name => [
+          `e2e/fixtures/${name}/index`,
+          fileURLToPath(new URL(`./e2e/fixtures/${name}/index.html`, import.meta.url))
+        ]))
+      }
+    }
+  } : undefined,
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
     __APP_SEMVER__: JSON.stringify(appSemver),
@@ -168,12 +183,13 @@ export default defineConfig(async ({ mode, command }) => {
       srcDir: "src",
       filename: "service-worker.js",
       includeAssets: [
-        "icons/lockin-light-16-v2.png",
-        "icons/lockin-light-32-v2.png",
-        "icons/lockin-light-180-v2.png",
-        "icons/lockin-light-192-v2.png",
-        "icons/lockin-light-512-v2.png",
-        "icons/lockin-light-maskable-512-v2.png",
+        "icons/*.svg",
+        "icons/lockin-light-16-v3.png",
+        "icons/lockin-light-32-v3.png",
+        "icons/lockin-light-180-v3.png",
+        "icons/lockin-light-192-v3.png",
+        "icons/lockin-light-512-v3.png",
+        "icons/lockin-light-maskable-512-v3.png",
         "startup.css"
       ],
       manifest: {
@@ -204,19 +220,19 @@ export default defineConfig(async ({ mode, command }) => {
         prefer_related_applications: false,
         icons: [
           {
-            src: "icons/lockin-light-192-v2.png",
+            src: "icons/lockin-light-192-v3.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "icons/lockin-light-512-v2.png",
+            src: "icons/lockin-light-512-v3.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "icons/lockin-light-maskable-512-v2.png",
+            src: "icons/lockin-light-maskable-512-v3.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable"
@@ -253,9 +269,17 @@ export default defineConfig(async ({ mode, command }) => {
     // A phone that backgrounds Vite's development WebSocket can reconnect as
     // though it has missed an HMR update. This project is frequently tested
     // through a tunnel on mobile, where that can look exactly like an app
-    // reload. Keep development refreshes manual; production has no HMR client.
-    hmr: false,
-    allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok-free.dev", ".ngrok.app", ".ngrok.io"],
+    // reload. Keep refreshes manual by default; isolated live staging opts in.
+    // Production has no HMR client.
+    hmr: env.LOCKIN_STAGING_HMR === "1"
+      ? { protocol: "wss", clientPort: 443, path: "/__hmr" }
+      : false,
+    // Codespaces serves the 5173 port over a private github.dev host.
+    // Permit only this Codespace's assigned hostname, not arbitrary hosts.
+    allowedHosts: [
+      ".trycloudflare.com", ".ngrok-free.app", ".ngrok-free.dev", ".ngrok.app", ".ngrok.io",
+      ...(env.CODESPACE_NAME ? [`${env.CODESPACE_NAME}-5173.app.github.dev`] : [])
+    ],
     proxy: {
       "/api/v1": {
         target: djangoProxyTarget,

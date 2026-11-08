@@ -18,6 +18,17 @@ def unread_count(*, user: User) -> int:
     return int(counter.unread_count) if counter else 0
 
 
+def notification_summary(*, user: User) -> dict[str, int]:
+    """A lightweight, account-scoped revision snapshot for inbox refreshes."""
+    counter = (
+        NotificationCounter.objects.filter(user=user).values("unread_count", "revision").first()
+    )
+    return {
+        "unread_count": int(counter["unread_count"]) if counter else 0,
+        "revision": int(counter["revision"]) if counter else 0,
+    }
+
+
 def preferences_for_user(*, user: User) -> list[dict[str, object]]:
     saved = {
         (preference.category, preference.channel): preference.enabled
@@ -29,8 +40,10 @@ def preferences_for_user(*, user: User) -> list[dict[str, object]]:
             "channel": channel,
             "enabled": saved.get((category, channel), True),
             "required": category in (Notification.Category.ACCOUNT, Notification.Category.BILLING),
-            "available": channel == NotificationPreference.Channel.IN_APP
-            or (channel == NotificationPreference.Channel.PUSH and configured()),
+            "available": (
+                channel == NotificationPreference.Channel.IN_APP
+                or (channel == NotificationPreference.Channel.PUSH and configured())
+            ),
         }
         for category in Notification.Category.values
         for channel in NotificationPreference.Channel.values

@@ -1,9 +1,11 @@
 import { DocumentSearchPanel } from "../../workspace/catalog/DocumentSearchPanel.jsx";
-import { Bookmark, Brain, Download, Eye, EyeOff, FileText, Hand, Image as ImageIcon, Info, MessageSquare, NotebookPen, Plus, Search, Settings, Shapes, Share2, Trash2, Type, Users, X, Youtube, ZoomIn } from "lucide-react";
+import { MY_SUMMARY_RELEASED } from "../../workspace/summary/useSheetSummaries.js";
+import { Languages, Bookmark, Brain, Download, Eye, EyeOff, FileText, Hand, Image as ImageIcon, Info, MessageSquare, NotebookPen, Plus, Search, Settings, Shapes, Share2, Sparkles, Trash2, Type, Users, X, Youtube, ZoomIn } from "lucide-react";
 import { requestFocusVideo } from "../../workspace/catalog/focusVideo.js";
 import { requestSheetPicker } from "../../workspace/catalog/WorkspaceTabBar.jsx";
 import { NOTE_CARD_KINDS } from "../../workspace/catalog/noteCardLayout.js";
 import { PAGE_BACKGROUND_CHOICES } from "./constants.js";
+import { readCompanionPreferences, saveCompanionPreferences } from "../../lib/studyAssistance.js";
 
 /**
  * Search in the document.
@@ -37,7 +39,7 @@ export function ExportMenu({ accessiblePageCount, exportBusy, exportForShare, ex
 /**
  * The More menu: the sheet, study, notes, new tabs, search, sharing, bookmarks and settings.
  */
-export function MoreMenu({ openZoomWindow, activeVirtualPageId, allCoversRevealed, annotationsHidden, bookmarkBusy, bookmarked, chooseWritingTool, closeSurfaceAndRestoreFocus, coverIds, deleteBlankPage, documentSearch, exportBusy, openNewWhiteboard, page, personal, popover, searchDocumentProxy, selectTool, setActiveTool, setAnnotationsHidden, setExportForShare, setExportRangeEnd, setExportRangeStart, setMarksOpen, setOpenSurface, setSelectedIds, shareDocumentId, sheet, sheetEdition, singleTab, studyInProgress, studyRangeLabel, summaryMode, t, toggleAllCovers, toggleBookmark, whiteboard, workspaceReady }) {
+export function MoreMenu({ openTranslation, openZoomWindow, activeVirtualPageId, allCoversRevealed, annotationsHidden, bookmarkBusy, bookmarked, chooseWritingTool, closeSurfaceAndRestoreFocus, coverIds, deleteBlankPage, documentSearch, exportBusy, openNewWhiteboard, page, personal, popover, searchDocumentProxy, selectTool, setActiveTool, setAnnotationsHidden, setExportForShare, setExportRangeEnd, setExportRangeStart, setMarksOpen, setOpenSurface, setSelectedIds, shareDocumentId, sheet, sheetEdition, singleTab, studyInProgress, studyRangeLabel, summaryMode, t, toggleAllCovers, toggleBookmark, whiteboard, workspaceReady }) {
   return <>
     {workspaceReady && popover("more").shown && <section {...popover("more").props} id="workspace-more-popover" className="workspace-v2-action-popover is-more" role="dialog" aria-label={t("focus.moreWorkspaceActions")} onPointerDown={(event) => event.stopPropagation()}>
       <header><strong>{t("focus.workspace")}</strong><button type="button" aria-label={t("focus.closeWorkspaceActions")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
@@ -58,6 +60,7 @@ export function MoreMenu({ openZoomWindow, activeVirtualPageId, allCoversReveale
           <button type="button" className="is-single-tab-entry" data-workspace-action="video" onClick={() => { setOpenSurface(null); requestFocusVideo(); }}><Youtube size={18} /><span><strong>{t("focusVideo.menu")}</strong><small>{t("focusVideo.menuHint")}</small></span></button>
         </>}
         <hr className="workspace-v9-menu-separator is-compact-separator" />
+        {shareDocumentId && <button type="button" data-workspace-action="translate" onClick={() => { setOpenSurface(null); openTranslation(); }}><Languages size={18} /><span><strong>{t("sheetTranslation.title")}</strong><small>{t("sheetTranslation.hint")}</small></span></button>}
         {sheet.pdfUrl && <button type="button" data-workspace-action="search" onClick={() => setOpenSurface("search")} disabled={!searchDocumentProxy}><Search size={18} /><span><strong>{t("focus.searchDocument")}</strong>{documentSearch.matches.length > 0 && <small dir="auto">{documentSearch.query}</small>}</span></button>}
         <button type="button" data-workspace-action="zoom-window" onClick={openZoomWindow}><ZoomIn size={18} /><span><strong>{t("focus.zoomWindow")}</strong><small>{t("focus.zoomWindowHint")}</small></span></button>
         <button type="button" className="is-phone-entry" onClick={() => chooseWritingTool("hand")}><Hand size={18} /><span><strong>{t("focus.tool.hand")}</strong></span></button>
@@ -83,13 +86,14 @@ export function MoreMenu({ openZoomWindow, activeVirtualPageId, allCoversReveale
  * Study: switch between Normal Study and Active Study.
  */
 export function StudyMenu({ activeStudy, closeSurfaceAndRestoreFocus, knowledgeNavigation, knowledgeOpen, openStudyTool, personal, popover, setMarksOpen, setModeDialogOpen, setOpenSurface, setSummaryDialogOpen, shareDocumentId, sheetSummaries, studyMode, studyTools, summariesEnabled, t, whiteboard, workspaceReady }) {
+  const summariesAvailable = MY_SUMMARY_RELEASED && summariesEnabled;
   return <>
     {workspaceReady && !whiteboard && !personal && popover("study").shown && <section {...popover("study").props} id="workspace-study-popover" className="workspace-v2-action-popover is-more is-study" role="dialog" aria-label={t("focus.study")} onPointerDown={(event) => event.stopPropagation()}>
       <header><strong>{t("focus.study")}</strong><button type="button" aria-label={t("focus.closeStudyMenu")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="study"]')}><X size={17} /></button></header>
       <div className="workspace-v3-menu-list">
         <button type="button" data-study-action="mode" onClick={() => { setOpenSurface(null); setModeDialogOpen(true); }}><Brain size={18} /><span><strong>{t(studyMode === "active" ? "focus.studyModeActive" : "focus.studyModeNormal")}</strong><small>{studyMode === "active" && activeStudy ? t("activeStudy.pageRange", { start: activeStudy.current_page_range?.start_page, end: activeStudy.current_page_range?.end_page }) : t("focus.studyModeHint")}</small></span></button>
-        {summariesEnabled && <hr className="workspace-v9-menu-separator" />}
-        {summariesEnabled && <button type="button" data-study-action="my-summary" onClick={() => { setOpenSurface(null); setSummaryDialogOpen(true); void sheetSummaries.reload(); }}><FileText size={18} /><span><strong>{t("summary.title")}</strong><small>{sheetSummaries.summaries.length ? sheetSummaries.summaries.map((item) => item.title).join(" · ") : t("summary.menuHint")}</small></span></button>}
+        {summariesAvailable && <hr className="workspace-v9-menu-separator" />}
+        {summariesAvailable && <button type="button" data-study-action="my-summary" onClick={() => { setOpenSurface(null); setSummaryDialogOpen(true); void sheetSummaries.reload(); }}><FileText size={18} /><span><strong>{t("summary.title")}</strong><small>{sheetSummaries.summaries.length ? sheetSummaries.summaries.map((item) => item.title).join(" · ") : t("summary.menuHint")}</small></span></button>}
         {studyTools.length > 0 && <hr className="workspace-v9-menu-separator" />}
         {studyTools.map(([tool, Icon]) => <button key={tool} type="button" data-study-tool={tool} aria-pressed={knowledgeOpen && knowledgeNavigation?.tool === tool} onClick={() => openStudyTool(tool)}><Icon size={18} /><span><strong>{t(`knowledge.${tool}`)}</strong></span></button>)}
         {shareDocumentId && <hr className="workspace-v9-menu-separator" />}
@@ -152,7 +156,7 @@ export function PageBackgroundMenu({ addBlankPage, page, popover, setOpenSurface
 /**
  * Add to page: text, image, note card, cover, and new pages.
  */
-export function AddMenu({ closeSurfaceAndRestoreFocus, page, popover, selectTool, setActiveTool, setCardDraft, setCardKind, setClipSelecting, setCoverSelecting, setEditingCardId, setEditingTextId, setFocusMessage, setLassoMode, setOpenSurface, setSelectedIds, setTextDraft, sheet, studyMode, t, workspaceReady }) {
+export function AddMenu({ companionUserId, companionAvailable, closeSurfaceAndRestoreFocus, page, popover, selectTool, setActiveTool, setCardDraft, setCardKind, setClipSelecting, setCoverSelecting, setEditingCardId, setEditingTextId, setFocusMessage, setLassoMode, setOpenSurface, setSelectedIds, setTextDraft, sheet, studyMode, t, workspaceReady }) {
   return <>
     {workspaceReady && popover("add").shown && <section {...popover("add").props} id="workspace-add-popover" className="workspace-v2-action-popover is-add" role="dialog" aria-label={t("focus.addToPage")} onPointerDown={(event) => event.stopPropagation()}>
       <header><strong>{t("focus.addToPage")} {page}</strong><button type="button" aria-label={t("focus.closeAddMenu")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]')}><X size={17} /></button></header>
@@ -163,6 +167,10 @@ export function AddMenu({ closeSurfaceAndRestoreFocus, page, popover, selectTool
         <button type="button" data-workspace-tool="cover" onClick={() => { setCoverSelecting(true); setClipSelecting(false); setLassoMode("rectangle"); setActiveTool("select"); setSelectedIds([]); setOpenSurface(null); setFocusMessage(t("focus.dragOverWhatToHide")); }}><EyeOff size={18} /><span><strong>{t("focus.hidePartOfPage")}</strong><small>{t("focus.hidePartOfPageHint")}</small></span></button>
         {sheet.pdfUrl && <hr className="workspace-v9-menu-separator" />}
         {sheet.pdfUrl && <button type="button" data-drill="" aria-label={t("focus.addPage")} onClick={() => setOpenSurface("page-background")}><Plus size={18} /><span><strong>{t("focus.addPage2")}</strong></span></button>}
+        {companionAvailable && <button type="button" className="workspace-add-phone-companion" onClick={() => {
+          saveCompanionPreferences(companionUserId, { ...readCompanionPreferences(companionUserId), hidden: false, phoneAdded: true });
+          closeSurfaceAndRestoreFocus('[data-workspace-surface="add"]');
+        }}><Sparkles size={18} aria-hidden="true" /><span><strong>{t(readCompanionPreferences(companionUserId).phoneAdded ? "studyCompanion.show" : "studyCompanion.add")}</strong><small>{t("studyCompanion.dragToMove")}</small></span></button>}
         <hr className="workspace-v9-menu-separator" />
       </div>
       {studyMode === "active" && <p className="workspace-v7-menu-note"><Info size={15} aria-hidden="true" />{t("focus.pagesYouAddBelongTo")}</p>}

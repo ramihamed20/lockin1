@@ -55,7 +55,9 @@ test("the profile card keeps its ID-card frame while using an inset avatar image
 test("the account menu uses the same resolved profile avatar as the header and profile page", () => {
   assert.match(layout, /account-menu-identity[\s\S]*<UserAvatar user=\{user\} className="account-menu-avatar"/);
   assert.doesNotMatch(layout, /account-menu-identity[\s\S]{0,300}assets\.mascot/);
-  assert.match(responsive, /\.account-menu-identity \.account-menu-avatar \{\s+width: 32px;\s+height: 32px;\s+flex: 0 0 32px;/);
-  assert.match(responsive, /\.account-menu-identity \.account-menu-avatar \{\s+width: 34px;\s+height: 34px;\s+flex-basis: 34px;/);
+  assert.match(responsive, /\.account-menu-identity \.account-menu-avatar \{[^}]*\bwidth: 32px;[^}]*\bheight: 32px;[^}]*\bflex: 0 0 32px;/);
+  assert.match(responsive, /\.account-menu-identity \.account-menu-avatar \{[^}]*\bwidth: 34px;[^}]*\bheight: 34px;[^}]*\bflex-basis: 34px;/);
+  assert.match(responsive, /\.account-menu-identity \.account-menu-avatar \{[^}]*\bmin-width: 0;[^}]*\bmax-width: 32px;/);
+  assert.match(responsive, /\.account-menu-identity > div \{[^}]*\bflex: 1 1 0;/);
   assert.match(avatarStyles, /@layer primitives/);
 });

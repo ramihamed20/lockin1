@@ -26,7 +26,7 @@ export function avatarImageSource(avatar, userId = "") {
   return assetPath(avatarById.get(id).src);
 }
 
-export function UserAvatar({ user, avatar = user?.avatar, alt = "", className = "", loading = "lazy", ...props }) {
+export function UserAvatar({ user = null, avatar = user?.avatar, alt = "", className = "", loading = "lazy", ...props }) {
   const fallback = avatarImageSource({ default_id: avatar?.default_id }, user?.id || "");
   return (
     <img

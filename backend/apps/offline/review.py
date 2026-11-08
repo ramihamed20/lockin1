@@ -9,9 +9,11 @@ service, which grades it again and owns every state change.
 from typing import Any
 from uuid import UUID
 
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import User
+from apps.review.daily import daily_review_payload
 from apps.review.models import ReviewAnswerLog
 from apps.review.selectors import (
     all_active_review_items,
@@ -21,6 +23,7 @@ from apps.review.selectors import (
     weekly_recall_eligible_count,
 )
 from apps.review.serializers import (
+    ReviewAnswerWriteSerializer,
     mistake_event_payload,
     review_item_payload,
     weekly_session_payload,
@@ -64,6 +67,7 @@ def review_snapshot(*, user: User) -> dict[str, Any]:
     mistakes = list(latest_mistakes(user=user, limit=4))
     snapshot = {
         "bank": review_bank_overview(user=user),
+        "daily": daily_review_payload(user=user, now=timezone.now()),
         "queue": {
             "count": len(mistakes),
             "results": [mistake_event_payload(item) for item in mistakes],
@@ -89,6 +93,15 @@ def replay_review_answer(*, user: User, payload: dict[str, object]) -> dict[str,
     selected = payload.get("selected_option_ids")
     if not isinstance(selected, list) or not selected or len(selected) > 12:
         raise ValidationError({"selected_option_ids": ["Choose one or more answers."]})
+    metadata = ReviewAnswerWriteSerializer(
+        data={
+            "idempotency_key": payload.get("idempotency_key"),
+            "selected_option_ids": selected,
+            "confidence": payload.get("confidence", ""),
+            "active_seconds": payload.get("active_seconds"),
+        }
+    )
+    metadata.is_valid(raise_exception=True)
     weekly_question_id = (
         _uuid(payload.get("weekly_question_id"), "weekly_question_id")
         if context == ReviewAnswerLog.Context.WEEKLY_RECALL
@@ -102,6 +115,8 @@ def replay_review_answer(*, user: User, payload: dict[str, object]) -> dict[str,
             idempotency_key=_uuid(payload.get("idempotency_key"), "idempotency_key"),
             context=str(context),
             weekly_question_id=weekly_question_id,
+            confidence=metadata.validated_data["confidence"],
+            active_seconds=metadata.validated_data["active_seconds"],
         )
     except ReviewRuleError as error:
         raise ValidationError({"review": [str(error)]}) from error

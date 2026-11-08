@@ -106,7 +106,79 @@ test("sheets and whiteboards open as tabs, each keeping its own state", async ({
   await expect(tabs(page)).toHaveText(["Vitamin -1", "Vitamin -2"]);
 });
 
-test("five kept PDF tabs release hidden raster buffers and repaint the same reader on return", async ({ page }) => {
+test("whiteboard Add page is fully visible above the bottom edge after three pages on tablets and phones", async ({ page }) => {
+  test.setTimeout(90_000);
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 834, height: 1194 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  // Single-tab tablet layout hides the tab strip; More retains the action.
+  const newTab = page.getByRole("button", { name: "New tab" });
+  if (await newTab.isVisible()) {
+    await newTab.click();
+    await page.getByRole("menuitem", { name: /Whiteboard/ }).click();
+  } else {
+    await page.locator('[data-workspace-surface="more"]').click();
+    await page.locator('#workspace-more-popover [data-workspace-action="new-whiteboard"]').click();
+  }
+
+  const stage = onScreen(page, ".workspace-v2-document-stage");
+  const addPage = onScreen(page, ".workspace-whiteboard-footer button");
+  await expect(onScreen(page, '[data-workspace-page="1"] .workspace-v2-a4-canvas.is-visible')).toBeVisible({ timeout: 20_000 });
+  await expect(addPage).toHaveCount(1);
+  // The reported bug occurs after several lined pages (3/3 in the screenshot).
+  await addPage.click();
+  await expect(onScreen(page, ".workspace-v2-a4-page")).toHaveCount(2);
+  await addPage.click();
+  await expect(onScreen(page, ".workspace-v2-a4-page")).toHaveCount(3);
+
+  for (const viewport of [
+    { width: 834, height: 1194 }, // iPad portrait
+    { width: 1194, height: 834 }, // iPad landscape
+    { width: 390, height: 844 }, // iPhone portrait
+    { width: 844, height: 390 } // short landscape viewport
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect.poll(() => stage.evaluate((element) => element.clientHeight)).toBeGreaterThan(150);
+    // Use the real reader wheel handler: setting scrollTop directly bypasses
+    // the bounds that caused the original broken button.
+    await stage.evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new WheelEvent("wheel", {
+        bubbles: true, cancelable: true, deltaY: 25000
+      }));
+    });
+    await expect.poll(async () => stage.evaluate((element) => {
+      const stageRect = element.getBoundingClientRect();
+      const pageRect = [...element.querySelectorAll(".workspace-v2-a4-page")].at(-1).getBoundingClientRect();
+      const button = element.querySelector(".workspace-whiteboard-footer button");
+      const buttonRect = button.getBoundingClientRect();
+      const footerAnchor = element.querySelector(".workspace-v2-a4-footer-anchor");
+      return Boolean(footerAnchor)
+        && pageRect.bottom < buttonRect.top
+        && buttonRect.top > stageRect.top + 88
+        && buttonRect.bottom <= stageRect.bottom - 70
+        && buttonRect.left >= stageRect.left + 8
+        && buttonRect.right <= stageRect.right - 8
+        && buttonRect.width >= 120
+        && getComputedStyle(button).transform === "none";
+    }), `Add page should be fully visible at ${viewport.width}x${viewport.height}`).toBe(true);
+    if (viewport.width === 390) {
+      // On a zoomed phone page the student can pan sideways; the button must
+      // still remain centred within the visible part of the stage.
+      await stage.evaluate((element) => { element.scrollLeft = element.scrollWidth - element.clientWidth; });
+      await expect.poll(() => stage.evaluate((element) => {
+        const stageBounds = element.getBoundingClientRect();
+        const buttonBounds = element.querySelector(".workspace-whiteboard-footer button").getBoundingClientRect();
+        return buttonBounds.left >= stageBounds.left + 8 && buttonBounds.right <= stageBounds.right - 8;
+      })).toBe(true);
+    }
+  }
+  await addPage.click();
+  await expect(onScreen(page, ".workspace-v2-a4-page")).toHaveCount(4);
+});
+
+test("four kept PDF tabs release hidden raster buffers and repaint the same reader on return", async ({ page }) => {
   test.setTimeout(120_000);
   await mockAuthenticatedWorkspace(page);
   await page.setViewportSize({ width: 834, height: 1194 });
@@ -117,14 +189,14 @@ test("five kept PDF tabs release hidden raster buffers and repaint the same read
   await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
   await onScreen(page, ".workspace-v2").evaluate((element) => { element.dataset.memoryProbe = "original-reader"; });
 
-  for (const [slug, title] of [["vitamin-2", "Vitamin -2"], ["vitamin-3", "Vitamin -3"], ["range-probe", "Range probe"], ["long-probe", "Long probe"]]) {
+  for (const [slug, title] of [["vitamin-2", "Vitamin -2"], ["vitamin-3", "Vitamin -3"], ["range-probe", "Range probe"]]) {
     await page.evaluate((slug) => { location.hash = `/materials/catalog/biochemistry-1/sheets/${slug}/workspace`; }, slug);
     await expect(onScreen(page, ".workspace-v3-document-context strong")).toHaveText(title);
     await page.getByRole("button", { name: /Normal Study/ }).click();
     await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
     await expect.poll(() => pixels(".workspace-pane.is-kept .workspace-v2-a4-canvas")).toBe(0);
   }
-  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(4);
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(3);
   // Native tab navigation preserves the component and its geometry/state.
   await tabs(page).filter({ hasText: "Vitamin -1" }).click();
   await expect(onScreen(page, ".workspace-v2[data-memory-probe='original-reader']")).toHaveCount(1);
@@ -132,20 +204,20 @@ test("five kept PDF tabs release hidden raster buffers and repaint the same read
   await expect.poll(() => pixels(".workspace-pane.is-kept .workspace-v2-a4-canvas")).toBe(0);
   await expect(page.getByRole("dialog", { name: /Choose study mode/i })).toHaveCount(0);
   // Compact tab strips expose the close action only on the selected tab.
-  await tabs(page).filter({ hasText: "Long probe" }).click();
+  await tabs(page).filter({ hasText: "Range probe" }).click();
   await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
-  await page.getByRole("button", { name: "Close Long probe" }).click();
-  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(3);
+  await page.getByRole("button", { name: "Close Range probe" }).click();
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(2);
 });
 
 
-test("five written tabs release hidden live buffers without losing ink, undo or durable state", async ({ page }) => {
+test("four written tabs release hidden live buffers without losing ink, undo or durable state", async ({ page }) => {
   test.setTimeout(120_000);
   await mockAuthenticatedWorkspace(page);
   await keepRawInk(page);
   await page.addInitScript(() => localStorage.setItem("lock-in.pwa-launch.dismissed-at", String(Date.now())));
   await page.setViewportSize({ width: 834, height: 1194 });
-  const documents = [["vitamin-1", "Vitamin -1"], ["vitamin-2", "Vitamin -2"], ["vitamin-3", "Vitamin -3"], ["range-probe", "Range probe"], ["long-probe", "Long probe"]];
+  const documents = [["vitamin-1", "Vitamin -1"], ["vitamin-2", "Vitamin -2"], ["vitamin-3", "Vitamin -3"], ["range-probe", "Range probe"]];
   const saved = new Map();
   const ink = () => onScreen(page, '[data-pdf-page="1"] [data-annotation-type="pen"]');
   const hiddenPixels = () => page.evaluate(() => [...document.querySelectorAll(".workspace-pane.is-kept canvas")].reduce((sum, canvas) => sum + canvas.width * canvas.height, 0));
@@ -169,7 +241,7 @@ test("five written tabs release hidden live buffers without losing ink, undo or 
     saved.set(slug, await ink().evaluate((mark) => ({ id: mark.dataset.annotationId, path: mark.getAttribute("d") })));
     if (index) await expect.poll(hiddenPixels).toBe(0);
   }
-  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(4);
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(3);
   await page.setViewportSize({ width: 1194, height: 834 });
   await expect.poll(hiddenPixels).toBe(0);
   for (const [slug, title] of documents) {
@@ -190,7 +262,7 @@ test("five written tabs release hidden live buffers without losing ink, undo or 
     const rows = await new Promise((resolve, reject) => { const request = db.transaction("pages").objectStore("pages").getAll(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     db.close();
     return rows.filter((row) => row.documentId.startsWith("user:tabs-student::") && row.page === 1 && row.annotations.length === 1).length;
-  })).toBe(5);
+  })).toBe(4);
   await page.reload();
   await expect(ink()).toHaveCount(1, { timeout: 20_000 });
   expect(await ink().evaluate((mark) => ({ id: mark.dataset.annotationId, path: mark.getAttribute("d") }))).toEqual(saved.get("vitamin-1"));
@@ -244,4 +316,125 @@ test("an unfinished live stroke repaints after a tab return and commits once", a
   await expect(ink).toHaveCount(0);
   await page.getByRole("button", { name: "Redo (Ctrl+Shift+Z)" }).click();
   await expect(ink).toHaveCount(1);
+});
+
+// Hidden readers retain their documents, but must not own global menus/keys.
+test("only the visible reader opens a sheet picker and keeps keyboard focus inside it", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.evaluate(() => { location.hash = "/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace"; });
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(1);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("lockin:workspace-sheet-picker")));
+  // Count includes hidden readers: a visible-only assertion misses the bug.
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(1);
+  const picker = page.getByRole("dialog", { name: "Open sheet" });
+  const first = picker.locator("button").first();
+  const last = picker.locator("button").last();
+  await last.focus();
+  await page.keyboard.press("Tab");
+  await expect(first).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(last).toBeFocused();
+  await picker.getByRole("button", { name: /Biochemistry 1/ }).click();
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveAttribute("data-step", "subjects");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "New tab" })).toBeFocused();
+  // Reopening the old sheet must not resurrect its hidden picker.
+  await tabs(page).first().click();
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
+});
+
+test("switching away dismisses a picker without letting its Escape handler steal focus", async ({ page }) => {
+  await mockAuthenticatedWorkspace(page);
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("lockin:workspace-sheet-picker")));
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(1);
+  await page.evaluate(() => { location.hash = "/materials/catalog/biochemistry-1/sheets/vitamin-2/workspace"; });
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
+  await tabs(page).first().click();
+  await expect(page.locator(".workspace-tabs-picker")).toHaveCount(0);
+});
+
+test("split screen shows two independent PDF sheets and resizes on iPad and phone", async ({ page }) => {
+  test.setTimeout(90_000);
+  await mockAuthenticatedWorkspace(page);
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await page.goto(ROUTE);
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await expect(onScreen(page, ".workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole("button", { name: "New tab" }).click();
+  await page.getByRole("menuitem", { name: /Open sheet/ }).click();
+  const picker = page.getByRole("dialog", { name: "Open sheet" });
+  await picker.getByRole("button", { name: /Biochemistry 1/ }).click();
+  await picker.getByRole("button", { name: /Vitamin -2/ }).click();
+  await page.getByRole("button", { name: /Normal Study/ }).click();
+  await tabs(page).first().click();
+  await expect(page).toHaveURL(/\/sheets\/vitamin-1\/workspace$/);
+
+  // Drag the open tab into the right half of the PDF, as on an iPad.
+  const source = await onScreen(page, '.workspace-tab').filter({ hasText: 'Vitamin -2' }).locator('[role="tab"]').boundingBox();
+  const stage = await onScreen(page, '.workspace-v2-document-stage').boundingBox();
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(source.x + source.width / 2 + 25, source.y + 36, { steps: 4 });
+  await page.mouse.move(stage.x + stage.width * .77, stage.y + stage.height * .4, { steps: 12 });
+  await expect(page.locator('.workspace-tab-drop-highlight.is-end')).toBeVisible();
+  await expect(page.locator('.workspace-tab-drag-ghost')).toContainText('Vitamin -2');
+  await page.mouse.up();
+  const layout = page.locator(".workspace-split-layout.is-split");
+  await expect(layout).toBeVisible();
+  await expect(page.locator('.workspace-pane.is-secondary[aria-label="Vitamin -2"]')).toBeVisible();
+  await expect(page.locator(".workspace-pane.is-secondary .workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
+  const firstPageBefore = await page.locator(".workspace-pane.is-active .workspace-v2-page-number").textContent();
+  const secondPageBefore = await page.locator(".workspace-pane.is-secondary .workspace-v2-page-number").textContent();
+  expect(firstPageBefore).toBeTruthy();
+  expect(secondPageBefore).toBeTruthy();
+  await expect(page.locator(".workspace-pane.is-secondary")).not.toHaveAttribute("inert", "");
+  await expect(page.locator(".workspace-pane.is-active")).not.toHaveAttribute("inert", "");
+  const divider = page.getByRole("separator", { name: "Resize sheet columns" });
+  const initial = await page.locator(".workspace-pane.is-active").boundingBox();
+  await divider.focus();
+  await page.keyboard.press("ArrowRight");
+  const resized = await page.locator(".workspace-pane.is-active").boundingBox();
+  expect(resized.width).toBeGreaterThan(initial.width);
+
+  // Both panes retain separate scroll containers and can take focus.
+  await page.locator(".workspace-pane.is-secondary .workspace-v2-document-stage").click({ position: { x: 25, y: 80 } });
+  await expect(page.locator(".workspace-pane.is-secondary .workspace-v2")).toBeVisible();
+  await expect(onScreen(page, ".workspace-v2")).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(layout).toBeVisible();
+  const top = await page.locator(".workspace-pane.is-active").boundingBox();
+  const bottom = await page.locator(".workspace-pane.is-secondary").boundingBox();
+  expect(bottom.y).toBeGreaterThan(top.y);
+  // Split view closes by removing one pane; there is no legacy
+  // "Close split view" button in the current multi-reader header.
+  await page.locator(".workspace-pane.is-secondary .workspace-split-pane-remove").click();
+  await expect(layout).toHaveCount(0);
+  await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(1);
+  // Left-side drops should reverse the pane order without changing the open tabs.
+  await page.setViewportSize({ width: 1180, height: 820 });
+  const sourceLeft = await onScreen(page, '.workspace-tab').filter({ hasText: 'Vitamin -2' }).locator('[role="tab"]').boundingBox();
+  const stageLeft = await onScreen(page, '.workspace-v2-document-stage').boundingBox();
+  await page.mouse.move(sourceLeft.x + sourceLeft.width / 2, sourceLeft.y + sourceLeft.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(stageLeft.x + stageLeft.width * .22, stageLeft.y + stageLeft.height * .45, { steps: 15 });
+  await expect(page.locator(".workspace-tab-drop-highlight.is-start")).toBeVisible();
+  await page.mouse.up();
+  await expect(page.locator(".workspace-split-layout.is-split")).toBeVisible();
+  // The first grid slot, not a removed legacy data-secondary-side attribute,
+  // identifies a split dropped on the left.
+  await expect(page.locator(".workspace-pane.is-secondary[data-split-slot='0']")).toBeVisible();
+  const leftPane = await page.locator(".workspace-pane.is-secondary").boundingBox();
+  const rightPane = await page.locator(".workspace-pane.is-active").boundingBox();
+  expect(leftPane.x).toBeLessThan(rightPane.x);
 });

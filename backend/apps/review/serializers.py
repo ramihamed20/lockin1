@@ -94,14 +94,22 @@ class ReviewAnswerWriteSerializer(StrictSerializer):
         min_length=1,
         max_length=12,
     )
+    confidence = serializers.ChoiceField(
+        choices=("", "unsure", "confident"), required=False, default="", allow_blank=True
+    )
+    active_seconds = serializers.IntegerField(
+        min_value=1, max_value=900, allow_null=True, required=False, default=None
+    )
 
 
 def _original_source(item: ReviewItem) -> dict[str, object]:
+    version = item.last_question_version
     return {
         "type": item.source_type,
         "id": item.source_id or None,
         "label": item.source_label_snapshot or None,
         "question_index": item.source_question_index,
+        "has_page": bool(version and version.source_learning_object_id and version.source_page),
     }
 
 

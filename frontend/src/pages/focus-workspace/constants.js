@@ -9,6 +9,8 @@ export const PAGE_WIDTH = 690;
 export const PAGE_SPACE = 1000;
 export const MIN_FOCUS_ZOOM = WORKSPACE_ZOOM.minimum;
 export const MAX_FOCUS_ZOOM = WORKSPACE_ZOOM.catalogMaximum;
+// Horizontal reading starts at 120% and never permits zooming out below it.
+export const HORIZONTAL_READING_ZOOM_FLOOR = 1.2;
 export const AUTOSAVE_IDLE_MS = 750;
 // The server mirror trails the local save, so a burst of strokes or a scroll
 // becomes one request rather than many.
@@ -23,7 +25,8 @@ export const RECENT_COLORS_KEY = "lock-in.catalog-workspace.recent-colors.v1";
 export const FAVORITE_COLORS_KEY = "lock-in.catalog-workspace.favorite-colors.v1";
 export const WORKSPACE_SETTINGS_KEY = "lock-in.catalog-workspace.settings.v1";
 export const FINGER_SCROLL_HINT_KEY = "lock-in.catalog-workspace.finger-scroll-hint.v1";
-export const MAX_PALETTE_COLORS = 10;
+// Eight built-in inks plus room for saved custom colours across sheets.
+export const MAX_PALETTE_COLORS = 32;
 export const ZOOM_OVERSHOOT_RATIO = .22;
 export const NO_ANNOTATIONS = Object.freeze([]);
 export const ZOOM_SETTLE_MS = 220;

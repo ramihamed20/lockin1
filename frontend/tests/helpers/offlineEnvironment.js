@@ -163,7 +163,7 @@ export function installOfflineEnvironment() {
       || [...env.routes].find(([key]) => key.endsWith("*") && `${method} ${path}`.startsWith(key.slice(0, -1)))?.[1];
     if (!handler) return json({ error: { message: `No route for ${method} ${path}` } }, 404);
     const body = typeof options.body === "string" && options.body ? JSON.parse(options.body) : undefined;
-    const result = await handler({ body, path, method });
+    const result = await handler({ body, path, method, signal: options.signal });
     return result instanceof Response ? result : json(result);
   };
   return env;

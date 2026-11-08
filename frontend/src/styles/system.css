@@ -98,8 +98,12 @@ body::after {
   box-shadow: none;
 }
 
-.brand-logo-img {
+.brand-mark .brand-logo-img {
+  box-sizing: border-box;
+  padding: 6px;
   border-radius: inherit;
+  background: #FFFDF9;
+  object-fit: contain;
 }
 
 .brand strong {
@@ -519,8 +523,8 @@ body::after {
 .section-heading h2 {
   margin: 0;
   font-size: var(--title-large);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
   letter-spacing: var(--tracking-title);
   text-wrap: balance;
 }
@@ -552,6 +556,9 @@ body::after {
     gap: 16px;
   }
 }
+
+/* Loading content uses the same quiet entry as the loaded screen. */
+.app-shell .skeleton-page-heading { display: none; }
 
 /* --- Surfaces ------------------------------------------------------------ */
 
@@ -1780,4 +1787,27 @@ html.ix-hover :is(a, button).ui-row:hover:not(:disabled) {
   font-size: 16px;
 }
 
+}
+
+/* Five mobile navigation targets retain their own icon/label geometry. */
+@layer system {
+  @media (max-width: 768px) {
+    .bottom-nav > :is(a, button) {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .bottom-nav > :is(a, button) > svg { flex: 0 0 20px; }
+    .bottom-nav > :is(a, button) > span {
+      display: block;
+      flex: 0 0 auto;
+      max-width: 100%;
+      line-height: 1.15;
+    }
+  }
 }

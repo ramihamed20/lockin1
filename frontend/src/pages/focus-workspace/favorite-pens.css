@@ -71,7 +71,50 @@
   .workspace-favorite-pens.is-toolbar .workspace-favorite-pen { width: 34px; height: 40px; border-radius: 10px; }
   .workspace-favorite-pens.is-toolbar .workspace-favorite-pen > i { width: 20px; height: 20px; }
 }
-/* The phone toolbar is full: favorites live in the pen panel there. */
-@media (max-width: 560px), (max-height: 500px) and (max-width: 900px) {
-  .workspace-favorite-pens.is-toolbar { display: none; }
+/* On compact devices the toolbar provides a full-width favorites row;
+   unlike before, it must not disappear or be horizontally clipped. */
+
+
+/* All five presets are visible simultaneously. Tablet layouts give them a
+   dedicated small row rather than clipping the strip to two favorites. */
+.workspace-favorite-pens.is-toolbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: none;
+  overflow: visible;
+  gap: 5px;
+  padding-inline: 5px;
+  border-radius: 12px;
+}
+.workspace-favorite-pens.is-toolbar .workspace-favorite-pen-slot {
+  flex: 0 0 auto;
+}
+.workspace-favorite-pens.is-panel {
+  flex-wrap: wrap;
+  max-width: 100%;
+  gap: 5px;
+}
+.workspace-favorite-pens.is-panel .workspace-favorite-pen {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.workspace-favorite-pens.is-panel .workspace-favorite-pen.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+.workspace-favorite-pen-menu {
+  min-width: 210px;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow-float, 0 14px 34px rgb(0 0 0 / .26));
+}
+.workspace-favorite-pen-menu button { color: var(--text); }
+.workspace-favorite-pen-menu button:hover,
+.workspace-favorite-pen-menu button:focus-visible { background: var(--surface-2); }
+.workspace-favorite-pen-menu button.is-danger { color: var(--danger, #ce4a50); }
+@media (prefers-reduced-motion: reduce) {
+  .workspace-favorite-pen { transition: none; }
 }

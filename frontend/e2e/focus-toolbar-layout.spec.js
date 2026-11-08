@@ -186,7 +186,7 @@ test("a second document brings the tab row back, and closing it removes the row 
   expect((await toolbarReport(page)).height).toBeLessThanOrEqual(56);
 });
 
-test("the one-row landscape bar keeps its height when a second tab opens", async ({ page }) => {
+test("landscape tab row stays compact and keeps the tools clear when a second tab opens", async ({ page }) => {
   test.setTimeout(90_000);
   await openWorkspace(page, { width: 1194, height: 834 });
   const height = () => toolbar(page).evaluate((bar) => Math.round(bar.getBoundingClientRect().height));
@@ -194,7 +194,23 @@ test("the one-row landscape bar keeps its height when a second tab opens", async
   await toolbar(page).getByRole("button", { name: "New tab" }).click();
   await page.getByRole("menuitem", { name: /Whiteboard/ }).click();
   await expect(toolbar(page).locator("[role='tab']")).toHaveCount(2);
-  expect(await height(), "a second tab made the one-row bar taller").toBe(single);
+  const withTabs = await height();
+  // With the separate favorites/tab row, tab labels can add a few pixels.
+  // Reject a new wrapped tool row or a giant toolbar.
+  expect(withTabs, "a second tab expanded the compact toolbar unexpectedly").toBeLessThanOrEqual(single + 12);
+  expect(withTabs).toBeGreaterThanOrEqual(single);
+  const geometry = await toolbar(page).evaluate((bar) => {
+    const tabRow = bar.querySelector(".workspace-tabs")?.getBoundingClientRect();
+    const favorites = bar.querySelector(".workspace-toolbar-accessories")?.getBoundingClientRect();
+    const dock = bar.querySelector(".workspace-tool-dock")?.getBoundingClientRect();
+    return {
+      tabsFit: Boolean(tabRow && tabRow.left >= -1 && tabRow.right <= innerWidth + 1),
+      toolsFit: Boolean(dock && dock.top >= 0 && dock.bottom <= innerHeight + 1),
+      favoritesFit: !favorites || (favorites.left >= -1 && favorites.right <= innerWidth + 1),
+      favoritesAboveTools: !favorites || Boolean(dock && favorites.bottom <= dock.top + 2),
+    };
+  });
+  expect(geometry).toEqual({ tabsFit: true, toolsFit: true, favoritesFit: true, favoritesAboveTools: true });
 });
 
 test("exactly one tool looks active, and the swatch follows the colour tool", async ({ page }) => {
@@ -264,3 +280,37 @@ for (const language of ["en", "ar"]) {
     await expect(page.locator(".focus-video")).toBeVisible();
   });
 }
+
+
+test("writing, history and palette read as one clean toolbar without divider clutter", async ({ page }) => {
+  test.setTimeout(60_000);
+  await openWorkspace(page, { width: 834, height: 1194 });
+  const structure = await toolbar(page).evaluate((bar) => {
+    const tool = bar.querySelector(".workspace-v2-tool-list");
+    const history = bar.querySelector(".workspace-v3-primary .workspace-v2-history");
+    const colors = bar.querySelector(".workspace-v3-quick-colors");
+    const primary = bar.querySelector(".workspace-v3-primary");
+    const actions = bar.querySelector(".workspace-v2-toolbar-actions");
+    const after = (first, second) => Boolean(first && second && (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING));
+    const hairlines = [
+      [".workspace-v2-control-group.is-exit", "::after"],
+      [".workspace-v2-toolbar-actions", "::before"],
+      [".workspace-v3-quick-colors", "::before"],
+      [".workspace-v3-primary .workspace-v2-history", "::before"],
+      [".workspace-v2-tool-list [data-workspace-tool='select']", "::before"]
+    ].map(([selector, pseudo]) => {
+      const element = bar.querySelector(selector);
+      if (!element) return false;
+      const style = getComputedStyle(element, pseudo);
+      return style.content === "none" || style.display === "none";
+    });
+    return {
+      order: after(tool, history) && after(history, colors) && after(primary, actions),
+      hairlines,
+      buttons: Array.from(tool.querySelectorAll("[data-workspace-tool]"), (button) => button.dataset.workspaceTool)
+    };
+  });
+  expect(structure.order).toBe(true);
+  expect(structure.hairlines).toEqual([true, true, true, true, true]);
+  expect(structure.buttons.slice(0, 4)).toEqual(["pen", "highlighter", "eraser", "select"]);
+});

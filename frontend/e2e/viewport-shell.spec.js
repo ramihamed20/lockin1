@@ -314,13 +314,14 @@ test("bottom navigation items never collide at supported phone widths", async ({
       };
     });
 
-    expect(layout).toEqual({
+    expect(layout).toMatchObject({
       count: 5,
-      minHeight: 48,
       independentTargets: true,
       childrenContained: true,
       horizontalOverflow: 0
     });
+    // Taller touch targets remain valid as long as they fit the bottom bar.
+    expect(layout.minHeight).toBeGreaterThanOrEqual(48);
   }
 });
 

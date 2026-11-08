@@ -256,7 +256,7 @@ test("dashboard continue and recent sheets share actual opened-sheet history", a
     source("../src/lib/i18n.js")
   ]);
 
-  assert.match(dashboard, /const recent = getRecentOpenedCatalogSheets\(user\?\.id\)/);
+  assert.match(dashboard, /recentStudyEntries\(recentStudy\.data\?\.results, getRecentOpenedCatalogSheets\(user\?\.id\)\)/);
   assert.match(dashboard, /<ContinueCard sheetEntry=\{recent\[0\] \|\| null\}/);
   // The sheet Continue offers is not repeated in the list beneath it.
   assert.match(dashboard, /const otherRecent = recent\.slice\(1\)/);
@@ -291,8 +291,8 @@ test("the dashboard fills its column, keeps the cat small, and lifts mistakes on
 
   // Width never depends on the length of a student's titles.
   assert.match(styles, /\.dashboard \{[\s\S]*?width: 100%;[\s\S]*?max-width: 1440px;/);
-  // The cat supports Continue: 112-144px beside it, 64px on phones, absent below 375px.
-  assert.match(styles, /\.dashboard-art \{[\s\S]*?width: clamp\(112px, 14vw, 144px\);/);
+  // The cat supports Continue: 64-96px beside it, 64px on phones, absent below 375px.
+  assert.match(styles, /\.dashboard-art \{[\s\S]*?width: clamp\(64px, 8vw, 96px\);/);
   assert.match(styles, /@media \(max-width: 639px\)[\s\S]*\.dashboard-art \{ width: 64px;/);
   assert.match(styles, /@media \(max-width: 374px\)[\s\S]*\.dashboard-art \{ display: none; \}/);
   assert.match(styles, /\.dashboard-art \.scene-card \{[\s\S]*?aspect-ratio: 1;/);
@@ -301,7 +301,7 @@ test("the dashboard fills its column, keeps the cat small, and lifts mistakes on
   assert.match(styles, /@container dash-states \(min-width: 320px\) and \(max-width: 479px\)[\s\S]*repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(styles, /\.dashboard \.review-queue-item:nth-child\(n\+3\) \{ display: none; \}/);
   // Wide: mistakes take the larger, leading column.
-  assert.match(styles, /@media \(min-width: 900px\)[\s\S]*\.dashboard-secondary \{ grid-template-columns: minmax\(0, 1\.3fr\) minmax\(0, 1fr\); \}/);
+  assert.match(styles, /@media \(min-width: 900px\)[\s\S]*\.dashboard-secondary \{[\s\S]*?grid-template-columns: minmax\(0, 1\.3fr\) minmax\(0, 1fr\);[\s\S]*?align-items: stretch;/);
 });
 
 test("coarse-pointer scrolling avoids live glass sampling and paint-bound pulse effects", async () => {

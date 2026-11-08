@@ -1,0 +1,59 @@
+name: Repair generated release artifacts and formatting
+on:
+  push:
+    branches:
+      - release/lockin-unified-2026-11-08
+    paths:
+      - .github/workflows/release-public-knowledge-regenerate.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/release/lockin-unified-2026-11-08'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/lockin-unified-2026-11-08
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install the pinned Ruff formatter
+        run: python -m pip install "ruff==0.15.21"
+      - name: Rebuild verified public files and normalize backend style on latest head
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            echo "Attempt $attempt"
+            git fetch origin refs/heads/release/lockin-unified-2026-11-08:refs/remotes/origin/release/lockin-unified-2026-11-08
+            git checkout -B release/lockin-unified-2026-11-08 origin/release/lockin-unified-2026-11-08
+            git clean -fd
+            python -m ruff format backend/apps/notifications/reminders.py backend/apps/notifications/selectors.py
+            python -m ruff check backend/apps/notifications/reminders.py backend/apps/notifications/selectors.py
+            python -m ruff format --check backend/apps/notifications/reminders.py backend/apps/notifications/selectors.py
+            node frontend/scripts/build-public-knowledge.mjs
+            node frontend/scripts/build-public-knowledge.mjs --check
+            git diff --check
+            git add backend/apps/notifications/reminders.py backend/apps/notifications/selectors.py
+            git add frontend/public frontend/nginx/default.conf deploy/container-host/nginx.conf.template
+            if git diff --cached --quiet; then
+              echo "Release artifacts and backend formatter already match"
+              exit 0
+            fi
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "build(release): sync verified public pages and format reminder sources"
+            if git push origin HEAD:refs/heads/release/lockin-unified-2026-11-08; then
+              exit 0
+            fi
+            echo "Release head changed; retrying without force"
+            sleep 2
+          done
+          echo "Could not update release branch without a conflict"
+          exit 1

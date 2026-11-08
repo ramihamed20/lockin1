@@ -53,3 +53,6 @@ backend/.local-logs/
 
 # Large synthetic image PDF is reproduced by fixtures:pdf, not stored in Git.
 /frontend/e2e/fixtures/pdf/sheet-scanned.pdf
+
+# Isolated staging identity and operator credentials.
+.runtime/

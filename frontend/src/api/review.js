@@ -30,6 +30,18 @@ async function offlineReview(userId) {
 /** Central Review Bank, mistake events, and Weekly Recall API. */
 export const reviewApi = {
   /** @param {string} [userId] @param {{ signal?: AbortSignal }} [options] */
+  async getDaily(userId = "", { signal } = {}) {
+    const payload = objectPayload(
+      await reviewRead("/review-bank/daily", userId, "daily", { signal }),
+      "The daily review response was incomplete."
+    );
+    if (!Array.isArray(payload.results) || typeof payload.count !== "number" || typeof payload.due_count !== "number") {
+      throw new ApiError(500, payload, "The daily review response was incomplete.", "invalid_response");
+    }
+    return payload;
+  },
+
+  /** @param {string} [userId] @param {{ signal?: AbortSignal }} [options] */
   async getQueue(userId = "", { signal } = {}) {
     const payload = objectPayload(
       await reviewRead("/review-queue", userId, "queue", { signal }),
@@ -64,17 +76,19 @@ export const reviewApi = {
     return payload;
   },
 
-  async answerItem(itemId, { selectedOptionIds, idempotencyKey, userId = "" }) {
+  async answerItem(itemId, { selectedOptionIds, idempotencyKey, userId = "", confidence = undefined, activeSeconds = undefined }) {
+    const metadata = { ...(confidence === undefined ? {} : { confidence }), ...(activeSeconds === undefined ? {} : { active_seconds: activeSeconds }) };
     return objectPayload(
       await reviewWrite(userId, () => request(`/review-bank/items/${itemId}/answer`, {
         method: "POST",
         body: {
           selected_option_ids: selectedOptionIds,
-          idempotency_key: idempotencyKey
+          idempotency_key: idempotencyKey,
+          ...metadata
         }
       }), async () => {
         const { answerReviewItemOffline, currentOwner } = await offlineReview(userId);
-        return answerReviewItemOffline(currentOwner, itemId, { selectedOptionIds, idempotencyKey });
+        return answerReviewItemOffline(currentOwner, itemId, { selectedOptionIds, idempotencyKey, confidence, activeSeconds });
       }),
       "The review answer response was incomplete."
     );
@@ -119,17 +133,19 @@ export const reviewApi = {
     );
   },
 
-  async answerWeeklyRecall(sessionId, questionId, { selectedOptionIds, idempotencyKey, userId = "" }) {
+  async answerWeeklyRecall(sessionId, questionId, { selectedOptionIds, idempotencyKey, userId = "", confidence = undefined, activeSeconds = undefined }) {
+    const metadata = { ...(confidence === undefined ? {} : { confidence }), ...(activeSeconds === undefined ? {} : { active_seconds: activeSeconds }) };
     return objectPayload(
       await reviewWrite(userId, () => request(`/weekly-recall/${sessionId}/questions/${questionId}/answer`, {
         method: "POST",
         body: {
           selected_option_ids: selectedOptionIds,
-          idempotency_key: idempotencyKey
+          idempotency_key: idempotencyKey,
+          ...metadata
         }
       }), async () => {
         const { answerWeeklyRecallOffline, currentOwner } = await offlineReview(userId);
-        return answerWeeklyRecallOffline(currentOwner, sessionId, questionId, { selectedOptionIds, idempotencyKey });
+        return answerWeeklyRecallOffline(currentOwner, sessionId, questionId, { selectedOptionIds, idempotencyKey, confidence, activeSeconds });
       }),
       "The Weekly Recall answer response was incomplete."
     );

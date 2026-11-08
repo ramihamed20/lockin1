@@ -2,6 +2,7 @@ import { API_BASE_PATH, request } from "../api/client.js";
 import { offlineDatabase } from "./database.js";
 import { offlineAccessStatus } from "./lease.js";
 import { captureOfflineSession, mutateOfflineCache } from "./sessionScope.js";
+import { fetchPdfBlob } from "./pdfTransfer.js";
 
 const cacheName = (userId) => `lock-in-private-offline-v1-${userId}`;
 const cacheKey = (userId, itemId, checksum = "") => new URL(`/__lockin_offline__/${encodeURIComponent(userId)}/${encodeURIComponent(itemId)}${checksum ? `/${encodeURIComponent(checksum)}` : ""}`, globalThis.location.origin).href;
@@ -16,12 +17,47 @@ function cacheRequestUrl(request) { return typeof request === "string" ? request
 // Content kept in IndexedDB rather than Cache Storage: small JSON bundles that
 // include answer keys, which must never sit in a cache a URL could address.
 const JSON_TYPES = new Set(["questions", "active_study"]);
+const activeDownloads = new Map();
+const manifestReads = new Map();
+const readerLoads = new Map();
+const readerKey = (userId, url) => `${userId}|${url}`;
+const removalKey = (itemId) => `removed-download:${itemId}`;
+
+/** An explicit device removal is respected until a manual download restores it. */
+export async function isOfflineItemRemoved(userId, itemId) {
+  return Boolean(await offlineDatabase.get(userId, removalKey(itemId)));
+}
+
+/** The visible reader owns its transport; background downloads yield to it. */
+export function prioritizePdfRead(userId, url) {
+  const key = readerKey(userId, url);
+  const token = {};
+  const readers = readerLoads.get(key) || new Set();
+  readers.add(token);
+  readerLoads.set(key, readers);
+  for (const download of activeDownloads.values()) {
+    if (download.readerKey === key) download.controller.abort();
+  }
+  return () => {
+    readers.delete(token);
+    if (!readers.size && readerLoads.get(key) === readers) readerLoads.delete(key);
+  };
+}
 
 export async function fetchOfflineManifest(userId, assertCurrent = captureOfflineSession(userId)) {
-  const manifest = await request("/offline/manifest/");
-  if (!Array.isArray(manifest?.items) || !Array.isArray(manifest?.subjects)) throw new Error("Invalid offline manifest.");
-  await offlineDatabase.putScoped(userId, "manifest", { ...manifest, fetched_at: new Date().toISOString() }, assertCurrent);
-  return manifest;
+  assertCurrent();
+  const existing = manifestReads.get(userId);
+  if (existing?.assertCurrent.isCurrent()) return existing.promise;
+  const state = { assertCurrent, promise: null };
+  manifestReads.set(userId, state);
+  state.promise = (async () => {
+    const manifest = await request("/offline/manifest/");
+    if (!Array.isArray(manifest?.items) || !Array.isArray(manifest?.subjects)) throw new Error("Invalid offline manifest.");
+    await offlineDatabase.putScoped(userId, "manifest", { ...manifest, fetched_at: new Date().toISOString() }, assertCurrent);
+    return manifest;
+  })();
+  try { return await state.promise; }
+  finally { if (manifestReads.get(userId) === state) manifestReads.delete(userId); }
 }
 
 export async function readOfflineManifest(userId) {
@@ -109,12 +145,20 @@ function jsonSize(value) {
 /** Keeps exactly one stored version of a JSON bundle. */
 async function storeJsonContent(userId, item, bundle, assertCurrent) {
   const metadata = { ...item, downloadedAt: new Date().toISOString(), storedSize: jsonSize(bundle) };
-  await offlineDatabase.putManyScoped(userId, [
-    [`content:${item.id}:${item.checksum}`, bundle],
-    [`download:${item.id}`, metadata]
-  ], assertCurrent);
+  const committed = await mutateOfflineCache(userId, async () => {
+    assertCurrent();
+    if (await isOfflineItemRemoved(userId, item.id)) return false;
+    await offlineDatabase.putManyScoped(userId, [
+      [`content:${item.id}:${item.checksum}`, bundle],
+      [`download:${item.id}`, metadata]
+    ], assertCurrent);
+    return true;
+  });
+  if (!committed) return null;
+  // Cleanup does not hold the cache lock while logout waits for storage.
   const storedKeys = await offlineDatabase.keys(userId);
   assertCurrent();
+  if ((await readDownloadMetadata(userId, item.id))?.checksum !== item.checksum) return metadata;
   for (const key of storedKeys) {
     const text = String(key);
     if (text.startsWith(`content:${item.id}:`) && text !== `content:${item.id}:${item.checksum}`) await offlineDatabase.deleteScoped(userId, key, assertCurrent);
@@ -157,6 +201,7 @@ async function downloadJson(userId, item, assertCurrent) {
   const bundle = await request(item.download_url.slice(API_BASE_PATH.length));
   if (!validActiveStudyBundle(bundle, item)) throw new Error("The Active Study download is incomplete.");
   const metadata = await storeJsonContent(userId, item, bundle, assertCurrent);
+  if (!metadata) return null;
   assertCurrent();
   // Seeds this device's progress from the server. Progress this device made
   // itself is never overwritten here.
@@ -165,49 +210,41 @@ async function downloadJson(userId, item, assertCurrent) {
   return metadata;
 }
 
-async function downloadFile(userId, item, onProgress, assertCurrent) {
+async function downloadFile(userId, item, onProgress, assertCurrent, signal) {
   assertCurrent();
   if (!/^\/api\/v1\/files\/[\w-]+\/(view|download)$/.test(item.download_url)) throw new Error("Invalid download item.");
-  const response = await fetch(item.download_url, { credentials: "include", cache: "no-store" });
-  if (!response.ok) throw new Error("Download failed.");
-  const total = Number(response.headers.get("Content-Length")) || item.size;
-  const chunks = [];
-  let received = 0;
-  if (response.body?.getReader) {
-    const reader = response.body.getReader();
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      received += value.byteLength;
-      onProgress(total > 0 ? Math.min(1, received / total) : 0);
-    }
-  } else {
-    const bytes = await response.arrayBuffer();
-    chunks.push(bytes);
-    received = bytes.byteLength;
+  try {
+    const blob = await fetchPdfBlob(item, { signal, onProgress, assertCurrent });
+    return storePdfBlob(userId, item, blob, blob.size, assertCurrent);
+  } catch (error) {
+    assertCurrent();
+    if ([401, 403, 404].includes(error?.status)) await setStoredPdfAccess(userId, item.download_url, false);
+    throw error;
   }
-  const blob = new Blob(chunks, { type: response.headers.get("Content-Type") || "application/pdf" });
-  if ((item.size && received !== item.size) || (item.checksum && await sha256(blob) !== item.checksum.toLowerCase())) {
-    throw new Error("Download integrity check failed.");
-  }
-  return storePdfBlob(userId, item, blob, received, assertCurrent);
 }
 
 async function storePdfBlob(userId, item, blob, received, assertCurrent) {
   return mutateOfflineCache(userId, async () => {
     assertCurrent();
+    if (await isOfflineItemRemoved(userId, item.id)) return null;
+    const manifest = await readOfflineManifest(userId);
+    const current = manifest?.items?.find((entry) => entry.id === item.id && entry.available);
+    // A response from before a manifest refresh must not replace newer bytes.
+    if (manifest && (!current || current.download_url !== item.download_url || current.checksum !== item.checksum || current.version !== item.version)) return null;
     const existing = await readDownloadMetadata(userId, item.id);
     if (existing?.blocked && existing.download_url === item.download_url) return null;
     const cache = await caches.open(cacheName(userId));
     assertCurrent();
     const key = cacheKey(userId, item.id, item.checksum);
+    const previous = await cache.match(key);
     await cache.put(key, new Response(blob, { headers: { "Content-Type": blob.type, "Content-Length": String(received) } }));
     const metadata = { ...item, downloadedAt: new Date().toISOString(), storedSize: received };
     try {
       await offlineDatabase.putScoped(userId, `download:${item.id}`, metadata, assertCurrent);
     } catch (error) {
-      await cache.delete(key);
+      // The same checksum may already belong to the previous document version.
+      if (previous) await cache.put(key, previous).catch(() => undefined);
+      else await cache.delete(key).catch(() => undefined);
       throw error;
     }
     // The new version is committed before removing the old one. A failed
@@ -220,19 +257,70 @@ async function storePdfBlob(userId, item, blob, received, assertCurrent) {
   });
 }
 
-async function downloadOne(userId, item, onProgress, assertCurrent) {
+async function performDownload(userId, item, onProgress, assertCurrent, signal) {
   assertCurrent();
   if (!item?.available || typeof item.download_url !== "string") throw new Error("Invalid download item.");
+  if (await isOfflineItemRemoved(userId, item.id)) return null;
   if (await isOwnContentStored(userId, item)) return readDownloadMetadata(userId, item.id);
-  if (item.size && navigator.storage?.estimate) {
-    const estimate = await navigator.storage.estimate().catch(() => null);
-    if (estimate?.quota && estimate.usage && estimate.quota - estimate.usage < item.size * 1.1) {
-      throw new Error("This device is low on storage. Remove a download and try again.");
+  if (!JSON_TYPES.has(item.type)) {
+    const stored = await readDownloadMetadata(userId, item.id);
+    if (stored?.blocked && stored.download_url === item.download_url) return null;
+    // A Lockin summary can reuse the university summary's exact same file.
+    const aliases = (await readOfflineManifest(userId))?.items?.filter((entry) => entry.available && entry.id !== item.id && entry.download_url === item.download_url && entry.checksum === item.checksum) || [];
+    for (const alias of aliases) {
+      const source = await readDownloadMetadata(userId, alias.id);
+      if (source?.download_url !== item.download_url || source?.checksum !== item.checksum) continue;
+      const bytes = await readOfflinePdfBytes(userId, alias.id).catch(() => null);
+      if (bytes) return storePdfBlob(userId, item, new Blob([bytes], { type: "application/pdf" }), bytes.length, assertCurrent);
     }
   }
-  const metadata = JSON_TYPES.has(item.type) ? await downloadJson(userId, item, assertCurrent) : await downloadFile(userId, item, onProgress, assertCurrent);
+  if (item.size && navigator.storage?.estimate) {
+    const estimate = await navigator.storage.estimate().catch(() => null);
+    if (estimate?.quota && estimate.quota - (estimate.usage || 0) < item.size * 1.1) {
+      throw Object.assign(new Error("This device is low on storage. Remove a download and try again."), { name: "QuotaExceededError" });
+    }
+  }
+  assertCurrent();
+  if (!JSON_TYPES.has(item.type) && readerLoads.has(readerKey(userId, item.download_url))) return null;
+  const metadata = JSON_TYPES.has(item.type) ? await downloadJson(userId, item, assertCurrent) : await downloadFile(userId, item, onProgress, assertCurrent, signal);
   onProgress(1);
   return metadata;
+}
+
+/** Coalesce bulk/manual/reconnect requests for the same account and version. */
+async function downloadOne(userId, item, onProgress, assertCurrent) {
+  assertCurrent();
+  if (!item?.available) throw new Error("Invalid download item.");
+  const key = JSON_TYPES.has(item.type)
+    ? `${userId}|${item.id}|${item.version}|${item.checksum}`
+    : `${userId}|${item.download_url}|${item.checksum}`;
+  let download = activeDownloads.get(key);
+  if (download && (!download.assertCurrent.isCurrent() || download.controller.signal.aborted)) {
+    download.controller.abort();
+    download = null;
+  }
+  if (download) {
+    download.listeners.add(onProgress);
+    try {
+      const stored = await download.promise;
+      return stored && stored.id !== item.id
+        ? downloadOne(userId, item, onProgress, assertCurrent) : stored;
+    }
+    finally { download.listeners.delete(onProgress); }
+  }
+  const controller = new AbortController();
+  const listeners = new Set([onProgress]);
+  download = { userId, itemId: item.id, controller, listeners, assertCurrent, readerKey: readerKey(userId, item.download_url), promise: null };
+  activeDownloads.set(key, download);
+  const perform = () => performDownload(userId, item, (progress) => {
+    for (const listener of listeners) listener(progress);
+  }, assertCurrent, controller.signal);
+  // Other tabs also recheck the committed version before starting a transfer.
+  download.promise = navigator.locks
+    ? navigator.locks.request(`lock-in:download:${key}`, { signal: controller.signal }, perform)
+    : perform();
+  try { return await download.promise; }
+  finally { if (activeDownloads.get(key) === download) activeDownloads.delete(key); }
 }
 
 /**
@@ -247,6 +335,9 @@ async function downloadOne(userId, item, onProgress, assertCurrent) {
 export async function downloadOfflineItem(userId, item, onProgress = () => {}, { manual = false, manifest = null, assertCurrent = captureOfflineSession(userId) } = {}) {
   const graph = dependencyGraph(manifest || await readOfflineManifest(userId) || { items: [item] }, item);
   if (manual && navigator.storage?.persist) await navigator.storage.persist().catch(() => false);
+  if (manual) await mutateOfflineCache(userId, async () => {
+    for (const entry of graph) await offlineDatabase.deleteScoped(userId, removalKey(entry.id), assertCurrent);
+  });
   let metadata = null;
   for (let index = 0; index < graph.length; index += 1) {
     metadata = await downloadOne(userId, graph[index], (progress) => onProgress((index + progress) / graph.length), assertCurrent);
@@ -269,6 +360,7 @@ const PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
 export async function readOfflinePdfBytes(userId, itemId, { onlineAuthorized = false } = {}) {
   const assertCurrent = captureOfflineSession(userId);
   if (!onlineAuthorized && !(await offlineAccessStatus(userId)).available) return null;
+  if (await isOfflineItemRemoved(userId, itemId)) return null;
   const current = (await readOfflineManifest(userId))?.items?.find((item) => item.id === itemId && item.available);
   const stored = await readDownloadMetadata(userId, itemId);
   if (!current || !stored || stored.blocked || current.type !== stored.type || JSON_TYPES.has(stored.type)) return null;
@@ -287,6 +379,7 @@ export async function readOfflinePdfBytes(userId, itemId, { onlineAuthorized = f
 
 /** Whether a version of this downloaded file (current or older) is stored. */
 export async function hasStoredOfflineFile(userId, itemId) {
+  if (await isOfflineItemRemoved(userId, itemId)) return false;
   const stored = await readDownloadMetadata(userId, itemId);
   return Boolean(stored && !stored.blocked && !JSON_TYPES.has(stored.type) && await cachedFile(await caches.open(cacheName(userId)), userId, stored));
 }
@@ -294,15 +387,14 @@ export async function hasStoredOfflineFile(userId, itemId) {
 /** The downloaded item behind an online file view URL, when one is stored. */
 export async function findDownloadedPdfItem(userId, viewUrl) {
   const items = (await readOfflineManifest(userId))?.items?.filter((entry) => entry.available && ["sheet", "summary"].includes(entry.type)) || [];
-  const current = items.find((entry) => entry.download_url === viewUrl);
-  if (current) {
-    const stored = await readDownloadMetadata(userId, current.id);
-    return stored?.download_url === viewUrl ? stored : null;
-  }
   // A refreshed manifest can precede the replacement download. Read the old
   // file only through its old URL and version, never through the new URL.
-  const stored = await offlineDatabase.getMany(userId, items.map((entry) => `download:${entry.id}`));
-  return stored.find((entry) => entry?.download_url === viewUrl) || null;
+  const stored = (await offlineDatabase.getMany(userId, items.map((entry) => `download:${entry.id}`)))
+    .filter((entry) => entry?.download_url === viewUrl);
+  for (const item of stored) {
+    if (await hasStoredOfflineFile(userId, item.id)) return item;
+  }
+  return stored[0] || null;
 }
 
 /** Save the bytes PDF.js already loaded; opening a sheet never downloads it twice. */
@@ -327,31 +419,59 @@ export async function storeOpenedPdf(userId, viewUrl, data) {
 /** A known server denial locks the downloaded PDF without deleting student work. */
 export async function setStoredPdfAccess(userId, viewUrl, allowed) {
   const assertCurrent = captureOfflineSession(userId);
-  const item = await findDownloadedPdfItem(userId, viewUrl);
-  if (!item) return;
-  await mutateOfflineCache(userId, () => offlineDatabase.updateScoped(userId, `download:${item.id}`, (stored) => {
-    if (!stored || stored.download_url !== viewUrl) return stored;
-    return { ...stored, blocked: !allowed };
-  }, assertCurrent));
+  const manifest = await readOfflineManifest(userId);
+  const items = (manifest?.items || []).filter((entry) => entry?.available && ["sheet", "summary"].includes(entry.type));
+  const stored = await offlineDatabase.getMany(userId, items.map((entry) => `download:${entry.id}`));
+  await mutateOfflineCache(userId, async () => {
+    for (const item of stored.filter((entry) => entry?.download_url === viewUrl)) {
+      await offlineDatabase.updateScoped(userId, `download:${item.id}`, (current) => {
+        if (!current || current.download_url !== viewUrl) return current;
+        return { ...current, blocked: !allowed };
+      }, assertCurrent);
+    }
+  });
 }
 
 /** Removes downloaded content only. Progress and unsynced work stay on the device. */
 export async function removeOfflineItem(userId, itemId) {
-  const cache = await caches.open(cacheName(userId));
-  for (const request of await cache.keys()) {
-    if (belongsToItem(cacheRequestUrl(request), userId, itemId)) await cache.delete(request);
-  }
-  await offlineDatabase.delete(userId, `download:${itemId}`);
-  for (const key of await offlineDatabase.keys(userId)) {
-    if (String(key).startsWith(`content:${itemId}:`)) await offlineDatabase.delete(userId, key);
-  }
+  await mutateOfflineCache(userId, async () => {
+    await offlineDatabase.put(userId, removalKey(itemId), true);
+    for (const download of activeDownloads.values()) {
+      if (download.userId === userId && download.itemId === itemId) download.controller.abort();
+    }
+    const cache = await caches.open(cacheName(userId));
+    for (const request of await cache.keys()) {
+      if (belongsToItem(cacheRequestUrl(request), userId, itemId)) await cache.delete(request);
+    }
+    await offlineDatabase.delete(userId, `download:${itemId}`);
+    for (const key of await offlineDatabase.keys(userId)) {
+      if (String(key).startsWith(`content:${itemId}:`)) await offlineDatabase.delete(userId, key);
+    }
+  });
 }
 
-export async function clearOfflineDownloads(userId) {
-  await mutateOfflineCache(userId, () => caches.delete(cacheName(userId)));
-  for (const key of await offlineDatabase.keys(userId)) {
-    if (String(key).startsWith("download:") || String(key).startsWith("content:")) await offlineDatabase.delete(userId, key);
-  }
+export async function clearOfflineDownloads(userId, { logout = false } = {}) {
+  await mutateOfflineCache(userId, async () => {
+    const keys = await offlineDatabase.keys(userId);
+    if (!logout) {
+      const manifest = await readOfflineManifest(userId);
+      const ids = new Set([
+        ...(manifest?.items || []).map((item) => item.id),
+        ...keys.filter((key) => String(key).startsWith("download:")).map((key) => String(key).slice(9)),
+        ...[...activeDownloads.values()].filter((entry) => entry.userId === userId).map((entry) => entry.itemId)
+      ]);
+      const preferences = await offlineDatabase.get(userId, "preferences") || {};
+      await offlineDatabase.putMany(userId, [
+        ...[...ids].map((id) => [removalKey(id), true]),
+        ["preferences", { ...preferences, automatic: false }]
+      ]);
+    }
+    for (const download of activeDownloads.values()) if (download.userId === userId) download.controller.abort();
+    await caches.delete(cacheName(userId));
+    for (const key of keys) {
+      if (String(key).startsWith("download:") || String(key).startsWith("content:")) await offlineDatabase.delete(userId, key);
+    }
+  });
 }
 
 export async function offlineDownloadStats(userId) {

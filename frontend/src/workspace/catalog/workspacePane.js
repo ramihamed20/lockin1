@@ -14,3 +14,22 @@ export const WorkspacePaneActiveContext = createContext(true);
 export function useWorkspacePaneActive() {
   return useContext(WorkspacePaneActiveContext);
 }
+
+/**
+ * Split view is owned by the keep-alive host, not by individual PDF readers.
+ * Both readers remain isolated; the currently focused pane alone receives
+ * global keyboard commands and foreground study effects.
+ */
+/** @type {import("react").Context<{splitId:string,splitIds:string[],isMulti:boolean,toolbarHost:Element|null,dropSplit:(id:string,side:string)=>void,closeSplit:()=>void,focusSheet:(id:string)=>void}>} */
+export const WorkspaceSplitContext = createContext({ splitId: "", splitIds: [], isMulti: false, toolbarHost: null, dropSplit: (_tabId, _side) => {}, closeSplit: () => {}, focusSheet: (_tabId) => {} });
+
+export function useWorkspaceSplit() {
+  return useContext(WorkspaceSplitContext);
+}
+
+/** Visible includes both split-screen readers, but excludes kept background tabs. */
+export const WorkspacePaneVisibleContext = createContext(true);
+
+export function useWorkspacePaneVisible() {
+  return useContext(WorkspacePaneVisibleContext);
+}

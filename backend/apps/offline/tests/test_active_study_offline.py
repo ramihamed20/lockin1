@@ -449,6 +449,7 @@ def test_lease_never_outlives_a_subscription_ending_within_24_hours() -> None:
 
 
 def test_review_snapshot_and_offline_review_answer_are_idempotent() -> None:
+    from apps.review.models import ReviewAnswerLog
     from apps.review.services import record_question_attempt
     from apps.review.tests.test_review import attempt_event
 
@@ -468,6 +469,8 @@ def test_review_snapshot_and_offline_review_answer_are_idempotent() -> None:
             "selected_option_ids": ["b"],
             "idempotency_key": str(uuid4()),
             "context": "review_bank",
+            "confidence": "unsure",
+            "active_seconds": 42,
         },
     }
     first = _sync(user, [operation]).json()
@@ -477,6 +480,9 @@ def test_review_snapshot_and_offline_review_answer_are_idempotent() -> None:
     second = _sync(user, [{**operation, "operation_id": str(uuid4())}]).json()
     assert second["accepted"][0]["result"]["was_correct"] is True
     assert ReviewItem.objects.get(id=item["id"]).review_correct_count == 1
+    log = ReviewAnswerLog.objects.get(user=user, review_item_id=item["id"])
+    assert log.confidence == "unsure"
+    assert log.active_seconds == 42
     # An item that is no longer active is refused, not silently re-answered.
     late = {
         **operation,

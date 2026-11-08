@@ -97,32 +97,32 @@ export const defaultThemeSettings = {
   appIcon: "light"
 };
 
-// Source artwork supplied for the application icon. The files are cropped and
-// scaled from that artwork only; no logo variants are generated in code.
+// SVG artwork is used in the UI and browser tabs. PNG exports from the same
+// artwork remain available for Apple touch icons and installed PWA compatibility.
 export const appIconOptions = [
   {
     id: "light",
     label: "Light",
-    preview: "/icons/lockin-light-192-v2.png",
-    favicon16: "/icons/lockin-light-16-v2.png",
-    favicon: "/icons/lockin-light-32-v2.png",
-    appleTouchIcon: "/icons/lockin-light-180-v2.png"
+    preview: "/icons/lockin-logo.svg",
+    favicon16: "/icons/lockin-logo.svg",
+    favicon: "/icons/lockin-logo.svg",
+    appleTouchIcon: "/icons/lockin-light-180-v3.png"
   },
   {
     id: "midnight",
     label: "Midnight",
-    preview: "/icons/lockin-midnight-192-v2.png",
-    favicon16: "/icons/lockin-midnight-16-v2.png",
-    favicon: "/icons/lockin-midnight-32-v2.png",
-    appleTouchIcon: "/icons/lockin-midnight-180-v2.png"
+    preview: "/icons/lockin-midnight.svg",
+    favicon16: "/icons/lockin-midnight.svg",
+    favicon: "/icons/lockin-midnight.svg",
+    appleTouchIcon: "/icons/lockin-midnight-180-v3.png"
   },
   {
     id: "gold",
     label: "Gold",
-    preview: "/icons/lockin-gold-192-v2.png",
-    favicon16: "/icons/lockin-gold-16-v2.png",
-    favicon: "/icons/lockin-gold-32-v2.png",
-    appleTouchIcon: "/icons/lockin-gold-180-v2.png"
+    preview: "/icons/lockin-gold.svg",
+    favicon16: "/icons/lockin-gold.svg",
+    favicon: "/icons/lockin-gold.svg",
+    appleTouchIcon: "/icons/lockin-gold-180-v3.png"
   }
 ];
 
@@ -133,10 +133,10 @@ export const characterOptions = [
 ];
 
 export const themeOptions = [
-  { id: "dawn", label: "Dawn", time: "05:00 - 08:00" },
-  { id: "day", label: "Day", time: "08:00 - 17:00" },
-  { id: "sunset", label: "Sunset", time: "17:00 - 20:00" },
-  { id: "night", label: "Night", time: "20:00 - 05:00" }
+  { id: "dawn", preview: "/icons/lockin-theme-dawn.svg", label: "Dawn", time: "05:00 - 08:00" },
+  { id: "day", preview: "/icons/lockin-theme-day.svg", label: "Day", time: "08:00 - 17:00" },
+  { id: "sunset", preview: "/icons/lockin-theme-sunset.svg", label: "Sunset", time: "17:00 - 20:00" },
+  { id: "night", preview: "/icons/lockin-theme-night.svg", label: "Night", time: "20:00 - 05:00" }
 ];
 
 export const reminderDefaults = {

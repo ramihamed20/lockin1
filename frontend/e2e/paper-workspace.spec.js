@@ -184,6 +184,9 @@ test("a student sets up a paper session and plays a video", async ({ page }) => 
   const status = page.locator(".paper-status");
   await expect(status.getByText("Pages 1–5")).toBeVisible();
   await expect(status.getByText("1 – 5")).toBeVisible();
+  // The Notes panel is intentionally closed until a student opens it.
+  await expect(page.getByRole("textbox", { name: "Notes" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Notes", exact: true }).click();
   await page.getByRole("textbox", { name: "Notes" }).fill("Basal lamina = lucida + densa");
   await page.getByRole("button", { name: "Pause" }).first().click();
   await expect(page.getByText("Paused")).toBeVisible();
@@ -209,6 +212,9 @@ test("a paper checkpoint saves answers and advances the session", async ({ page 
   await page.getByRole("button", { name: /Start Session/ }).click();
   const status = page.locator(".paper-status");
   await expect(status.getByText("Pages 1–5")).toBeVisible();
+  // The Notes panel is intentionally closed until a student opens it.
+  await expect(page.getByRole("textbox", { name: "Notes" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Notes", exact: true }).click();
   await page.getByRole("textbox", { name: "Notes" }).fill("Basal lamina = lucida + densa");
   // Checkpoint opens a modal dialog and answers are checked one by one. The
   // run was already moved on elsewhere, so completing the reading is refused;
@@ -244,6 +250,8 @@ test("a paper checkpoint saves answers and advances the session", async ({ page 
   // Notes survive leaving and returning.
   await page.getByRole("button", { name: "Change" }).click();
   await page.getByRole("button", { name: /Start Session/ }).click();
+  await expect(page.getByRole("textbox", { name: "Notes" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Notes", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Notes" })).toHaveValue("Basal lamina = lucida + densa");
 });
 

@@ -11,12 +11,14 @@ const NOTIFICATION_DESTINATIONS = new Set([
   "/materials",
   "/questions",
   "/review",
+  "/study-plan",
   "/bookmarks",
   "/notifications",
   "/store"
 ]);
 
 const NOTIFICATION_DESTINATION_PREFIXES = [
+  "/study-plan/",
   "/materials/catalog/",
   "/questions/",
   "/review/",
