@@ -189,11 +189,18 @@ test("one original shared toolbar controls two, three and four PDF cells", async
       await expect(primary).toBeVisible();
       await expect(secondary).toBeVisible();
       const rtlColumns = await layout.evaluate((node) => getComputedStyle(node).direction === "rtl");
-      // Resizing persists as extra panes open; move only the remaining 5% steps.
-      const primarySteps = Math.max(0, (70 - Number(await primary.getAttribute("aria-valuenow"))) / 5);
-      const secondarySteps = Math.max(0, (60 - Number(await secondary.getAttribute("aria-valuenow"))) / 5);
-      for (let i = 0; i < primarySteps; i += 1) await primary.press(rtlColumns ? "ArrowLeft" : "ArrowRight");
-      for (let i = 0; i < secondarySteps; i += 1) await secondary.press("ArrowDown");
+      // Pane count and previous resizing can leave either divider above or below
+      // the target. Exercise both directions instead of assuming it starts at 50%.
+      const primaryDelta = (70 - Number(await primary.getAttribute("aria-valuenow"))) / 5;
+      const secondaryDelta = (60 - Number(await secondary.getAttribute("aria-valuenow"))) / 5;
+      const growPrimary = rtlColumns ? "ArrowLeft" : "ArrowRight";
+      const shrinkPrimary = rtlColumns ? "ArrowRight" : "ArrowLeft";
+      for (let i = 0; i < Math.abs(primaryDelta); i += 1) {
+        await primary.press(primaryDelta >= 0 ? growPrimary : shrinkPrimary);
+      }
+      for (let i = 0; i < Math.abs(secondaryDelta); i += 1) {
+        await secondary.press(secondaryDelta >= 0 ? "ArrowDown" : "ArrowUp");
+      }
       await expect(primary).toHaveAttribute("aria-valuenow", "70");
       await expect(secondary).toHaveAttribute("aria-valuenow", "60");
     }
