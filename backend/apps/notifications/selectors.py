@@ -41,10 +41,7 @@ def preferences_for_user(*, user: User) -> list[dict[str, object]]:
             "category": category,
             "channel": channel,
             "enabled": saved.get((category, channel), True),
-            "required": category in (
-                Notification.Category.ACCOUNT,
-                Notification.Category.BILLING,
-            ),
+            "required": category in (Notification.Category.ACCOUNT, Notification.Category.BILLING),
             "available": (
                 channel == NotificationPreference.Channel.IN_APP
                 or (channel == NotificationPreference.Channel.PUSH and configured())
