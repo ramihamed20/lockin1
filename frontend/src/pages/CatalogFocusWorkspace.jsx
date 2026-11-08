@@ -859,7 +859,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // "Fit" in horizontal mode means the requested 120% baseline.
     if (pageDirection === "horizontal") return HORIZONTAL_READING_ZOOM_FLOOR;
     const stage = stageRef.current;
+    // Use the painted viewport width. In responsive transitions the grid can
+    // finish laying out before `clientWidth` catches up, which made an
+    // explicit Fit width action retain the preceding narrower scale.
     const stageWidth = stage?.clientWidth || window.innerWidth;
+    const paintedStageWidth = stage?.getBoundingClientRect().width || stageWidth;
     // Phones and tablets (an iPad Pro in landscape too) fit the page edge to
     // edge. A wide desktop window would make that a 240% page with a third of
     // it on screen, so with a mouse "fit" is a comfortable reading width,
@@ -869,7 +873,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // merely because a wide browser has room for a larger rendered page.
     // On phones and tablets retain responsive fit-to-width so a page remains usable.
     if (readingWidth) return HORIZONTAL_READING_ZOOM_FLOOR;
-    return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(stageWidth, A4_PAGE_WIDTH, 0)));
+    return Math.min(MAX_FOCUS_ZOOM, Math.max(MIN_FOCUS_ZOOM, fitWidthZoom(paintedStageWidth, A4_PAGE_WIDTH, 0)));
   }, [pageDirection, sheet?.pdfUrl]);
 
   // Fit width is the opening/reset scale, not the lower pinch limit. Keep a
@@ -3859,14 +3863,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     // 5% once the fingers lift. This keeps split-pane and single-PDF gestures
     // fluid, with a gentle visual transition rather than 5% jumps mid-pinch.
     renderLivePinchTransform(pinch);
-    const finalZoom = clampReaderZoom(Math.round(pinch.currentScale * 20) / 20);
+    const finalZoom = pinch.currentScale;
+    const committedZoom = clampReaderZoom(Math.round(finalZoom * 20) / 20);
     gesture.pinch = null;
     const stage = stageRef.current;
     for (const touch of gesture.touches.values()) {
       try { if (stage?.hasPointerCapture?.(touch.pointerId)) stage.releasePointerCapture(touch.pointerId); } catch { /* Releasing an already-ended pointer is harmless. */ }
     }
     gesture.touches.clear();
-    settleZoomOvershoot(pinch, finalZoom, () => commitPinchLegal(pinch, finalZoom));
+    settleZoomOvershoot(pinch, committedZoom, () => commitPinchLegal(pinch, committedZoom));
   }
 
   function beginWorkspacePointer(event) {
@@ -4480,6 +4485,18 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     const gesture = gestureRef.current;
     if (isTouchLikePointer(event.pointerType) && gesture.rejectedTouches.delete(event.pointerId)) {
       debugGesture("rejected-touch-cancel", event);
+      return;
+    }
+    // A stylus can be cancelled after its stroke has already been handed off
+    // to a two-finger pinch. That stale cancellation does not own the pinch
+    // settlement and must not cancel its animation or leave the compositor
+    // transform permanently attached to the document.
+    if (gesture.mode === INTERACTION_STATE.SETTLING
+      && event.pointerType === "pen"
+      && gesture.drawingPointerId !== event.pointerId) {
+      gesture.penPointers.delete(event.pointerId);
+      unlockStageForDrawing(event.pointerId ?? null);
+      debugGesture("settling-stale-pointer-cancel", event);
       return;
     }
     stopScrollMomentum();
