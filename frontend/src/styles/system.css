@@ -1788,3 +1788,26 @@ html.ix-hover :is(a, button).ui-row:hover:not(:disabled) {
 }
 
 }
+
+/* Five mobile navigation targets retain their own icon/label geometry. */
+@layer system {
+  @media (max-width: 768px) {
+    .bottom-nav > :is(a, button) {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .bottom-nav > :is(a, button) > svg { flex: 0 0 20px; }
+    .bottom-nav > :is(a, button) > span {
+      display: block;
+      flex: 0 0 auto;
+      max-width: 100%;
+      line-height: 1.15;
+    }
+  }
+}

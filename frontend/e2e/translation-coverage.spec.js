@@ -82,7 +82,7 @@ for (const language of ["en", "ar"]) {
       // shell - its loading and error states use `.lock-in-screen`, and the
       // lobby, setup and live screens use `.lm-shell` - so the sweep waits on
       // any of those roots.
-      await expect(page.locator(".app-shell, .lock-in-screen, .lm-shell").first()).toBeVisible({ timeout: 20_000 });
+      await expect(page.locator(".app-shell, .lock-in-screen, .lm-shell, .feature-coming-soon").first()).toBeVisible({ timeout: 20_000 });
       await page.waitForTimeout(400);
       const strings = await page.evaluate(collectStrings);
       for (const value of strings) {

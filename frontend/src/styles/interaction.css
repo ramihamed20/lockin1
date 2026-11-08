@@ -572,3 +572,19 @@
     min-block-size: 44px;
   }
 }
+
+/* Keep current navigation visible and segmented controls finger-sized. */
+@layer interaction {
+  .sidebar .nav-btn[aria-current="page"] {
+    background-color: color-mix(in srgb, var(--color-primary) 13%, var(--surface));
+    box-shadow: none;
+    outline: none;
+  }
+  .progress-mobile-nav [role="tab"],
+  .rank-mode .rank-mode-periods [role="tab"] {
+    box-sizing: border-box;
+    min-height: 48px;
+    min-block-size: 48px;
+    height: auto;
+  }
+}

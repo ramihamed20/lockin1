@@ -1154,3 +1154,13 @@ html.ix-hover[data-theme] .workspace-v2 .workspace-v2-tool-options.lockin-tool-i
 /* The PDF + menu is the sole add/restore entry on every viewport:
    never strand tablet or desktop users after hiding their companion. */
 .workspace-v2 .workspace-add-phone-companion { display: flex; }
+
+/* Keep workspace settings small and within the phone viewport. */
+@media (max-width: 600px) {
+  .workspace-v2 .workspace-v8-settings {
+    box-sizing: border-box;
+    width: min(296px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: min(52dvh, calc(100% - var(--workspace-toolbar-height, 54px) - 8px));
+  }
+}

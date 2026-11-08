@@ -27,7 +27,11 @@ for (const locale of ['en','ar']) {
    ['/questions/categories/ai-sheet/subjects/subject-0', '.catalog-material-grid']
   ]) {
    await page.goto('/#'+path);
-   await expect(page.locator(selector).getByRole('link')).toHaveCount(7);
+   const cards = selector === '.catalog-sheet-grid'
+     ? page.locator('.catalog-sheet-grid > a.catalog-sheet-card')
+     : page.locator(selector).getByRole('link');
+   // Other actions can be links, but are not catalog cards.
+   await expect(cards).toHaveCount(7);
    await expect(page.getByRole('searchbox', { name: label })).toHaveCount(0);
    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   }
