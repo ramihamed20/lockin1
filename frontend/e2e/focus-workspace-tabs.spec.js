@@ -206,7 +206,7 @@ test("four kept PDF tabs release hidden raster buffers and repaint the same read
   // Compact tab strips expose the close action only on the selected tab.
   await tabs(page).filter({ hasText: "Range probe" }).click();
   await expect.poll(() => pixels(activeCanvases)).toBeGreaterThan(0);
-  await page.getByRole("button", { name: "Close Long probe" }).click();
+  await page.getByRole("button", { name: "Close Range probe" }).click();
   await expect(page.locator(".workspace-pane.is-kept")).toHaveCount(2);
 });
 
@@ -391,7 +391,7 @@ test("split screen shows two independent PDF sheets and resizes on iPad and phon
   await page.mouse.up();
   const layout = page.locator(".workspace-split-layout.is-split");
   await expect(layout).toBeVisible();
-  await expect(page.locator(".workspace-pane.is-secondary .workspace-v3-document-context strong")).toHaveText("Vitamin -2");
+  await expect(page.locator('.workspace-pane.is-secondary[aria-label="Vitamin -2"]')).toBeVisible();
   await expect(page.locator(".workspace-pane.is-secondary .workspace-v2-a4-canvas.is-visible").first()).toBeVisible({ timeout: 20_000 });
   const firstPageBefore = await page.locator(".workspace-pane.is-active .workspace-v2-page-number").textContent();
   const secondPageBefore = await page.locator(".workspace-pane.is-secondary .workspace-v2-page-number").textContent();
