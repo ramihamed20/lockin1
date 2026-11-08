@@ -172,11 +172,13 @@ test("an Arabic reader zooms centred and can still pan across a zoomed page", as
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   // V2 translates the Focus controls, so the Arabic reader names them in Arabic.
   for (const label of ["تكبير", "تكبير", "تصغير"]) await zoomWithButton(page, label);
-  // One step above the desktop reading width can still fit the stage.
-  // Request overflow explicitly before testing horizontal panning.
-  await zoomWithButton(page, "تكبير");
-  // A horizontal pan reaches both edges of the zoomed page.
+  // Increase until the page actually overflows; 120% starts narrower than
+  // a desktop viewport, so a fixed number of clicks may still fit the page.
   const stage = page.locator(".workspace-v2-document-stage");
+  for (let i = 0; i < 6 && (await pageMargins(page)).scrollLeft <= 0; i += 1) {
+    await zoomWithButton(page, "تكبير");
+  }
+  // A horizontal pan reaches both edges of the zoomed page.
   const centred = (await pageMargins(page)).scrollLeft;
   expect(centred).toBeGreaterThan(0);
   await stage.evaluate((node) => { node.scrollLeft = 0; });

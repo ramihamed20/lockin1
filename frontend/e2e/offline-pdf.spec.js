@@ -223,6 +223,7 @@ test.describe("under the production Content-Security-Policy", () => {
 
   test("background permission denial removes a locally opened reader", async ({ page, baseURL }) => {
     test.setTimeout(90_000);
+    await page.addInitScript(() => localStorage.setItem("lock-in.locale", "en"));
     const state = newState();
     await applyProductionPolicy(page, baseURL);
     await mockServer(page, state);
@@ -235,7 +236,7 @@ test.describe("under the production Content-Security-Policy", () => {
     releaseMetadata();
     state.metadataGate = null;
     await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]")).toHaveCount(0, { timeout: 20_000 });
-    await expect(page.getByText("Access denied", { exact: false }).first()).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("Your account does not have access to this action.");
   });
 
   test("a downloaded PDF opens from the device with the server unreachable", async ({ page, baseURL }) => {
