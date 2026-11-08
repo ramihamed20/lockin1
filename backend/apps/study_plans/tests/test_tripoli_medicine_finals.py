@@ -107,6 +107,5 @@ def test_dentistry_first_and_second_year_midterms_are_unchanged():
         )
         period = ExamPeriod.objects.get(cohort=cohort, kind="midterm")
         assert [
-            exam.scheduled_on
-            for exam in period.schedules.order_by("scheduled_on")
+            exam.scheduled_on for exam in period.schedules.order_by("scheduled_on")
         ] == [date(2027, 1, day) for day in january_days]
