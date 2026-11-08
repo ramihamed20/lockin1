@@ -588,3 +588,30 @@
     height: auto;
   }
 }
+
+/* Merged browser-gate fix: protect compact bottom navigation labels. */
+@layer interaction {
+  /* Keep the icon and label within their independent bottom-bar hitbox,
+     including 320px screens and longer translated labels. */
+  .bottom-nav > a,
+  .bottom-nav > button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .bottom-nav > :is(a, button) > svg { flex: 0 0 auto; }
+  .bottom-nav > :is(a, button) > span {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

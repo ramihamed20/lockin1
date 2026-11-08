@@ -287,8 +287,8 @@ test("the iPad toolbar keeps direct tools, quick colors, and Active Study usable
   await expect(page.getByRole("slider", { name: "Thickness" })).toHaveValue("8");
   // Percentages move in whole percents.
   await expect(page.getByRole("slider", { name: "Opacity" })).toHaveAttribute("step", "0.01");
-  // Secondary drawing gestures are inside the compact Drawing disclosure.
-  await page.getByRole("button", { name: "Drawing", exact: true }).click();
+  // Advanced pen gestures live behind the compact Drawing settings section.
+  await page.locator("#workspace-pen-options .workspace-tool-extras-toggle").click();
   await expect(page.getByRole("switch", { name: /Straight lines/ })).toBeVisible();
   await expect(page.getByRole("switch", { name: /Circle erase/ })).toBeVisible();
   await expect(page.getByRole("slider", { name: "Pressure sensitivity" })).toHaveCount(0);
