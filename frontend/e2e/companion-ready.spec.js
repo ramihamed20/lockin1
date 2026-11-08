@@ -192,8 +192,13 @@ test("dragging the phone companion moves without opening help and survives reloa
   await page.mouse.down();
   await page.mouse.move(initial.x + initial.width / 2 - 110, initial.y + initial.height / 2 - 85, { steps: 8 });
   await page.mouse.up();
+  // Pointer release commits the position through React; wait for that render
+  // before measuring rather than sampling the preceding pointer frame.
+  await expect.poll(async () => {
+    const box = await pet.boundingBox();
+    return Math.hypot(box.x - initial.x, box.y - initial.y);
+  }).toBeGreaterThan(40);
   const moved = await pet.boundingBox();
-  expect(Math.hypot(moved.x - initial.x, moved.y - initial.y)).toBeGreaterThan(40);
   await expect(page.locator(".study-companion-panel")).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => {
     const prefs = JSON.parse(localStorage.getItem("lock-in.study-companion.v1:test-student") || "null");
