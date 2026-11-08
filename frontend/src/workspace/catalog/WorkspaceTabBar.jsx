@@ -185,10 +185,19 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
     if (!paneActive || !scroller || !tab) return undefined;
     const reveal = () => revealWorkspaceTab(scroller, tab);
     reveal();
-    const observer = new globalThis.ResizeObserver(reveal);
+    // A tab can mount before its sheet label has received the final width.
+    // Keep the selected tab in view across font/layout completion and rotation.
+    let frame = globalThis.requestAnimationFrame(reveal);
+    const onResize = () => { globalThis.cancelAnimationFrame(frame); frame = globalThis.requestAnimationFrame(reveal); };
+    const observer = new globalThis.ResizeObserver(onResize);
     observer.observe(scroller);
     observer.observe(tab);
-    return () => observer.disconnect();
+    globalThis.addEventListener("resize", onResize);
+    return () => {
+      globalThis.cancelAnimationFrame(frame);
+      globalThis.removeEventListener("resize", onResize);
+      observer.disconnect();
+    };
   }, [activeId, tabs, paneActive]);
 
   useEffect(() => {
