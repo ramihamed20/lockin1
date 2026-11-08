@@ -1,42 +1,80 @@
 /**
- * The release notes for this build. To announce an update, bump `version` here
- * and in package.json, set `id` and `date`, and rewrite `summary` and `items`.
- * The same data is shown twice: before the update (fetched from the server as
- * release-notes.json by the app that is still running the old build) and after
- * it (bundled, shown once per account). Accounts created on or after `date`
- * already start on this version, so they are not shown the after-update panel.
+ * Release notes shared by the in-app What's New dialog and the PWA update prompt.
+ * Keep `version` aligned with package.json. A distinct `id` lets an updated
+ * announcement appear once even if an earlier build already used this version.
+ * Accounts created on or after `date` start with the updated experience.
  */
 export const WHATS_NEW = {
-  id: "0.1.5",
+  id: "0.1.5-2026-11-08",
   version: "0.1.5",
-  date: "2026-11-02",
+  date: "2026-11-08",
   summary: {
-    en: "More flexible PDF reading, study tools, and improved focus controls.",
-    ar: "قراءة PDF بمرونة أكبر، وأدوات دراسة أكثر، وتحكم أفضل في التركيز."
+    en: "A more connected study experience, with cohort rankings and improvements to reading, planning and review.",
+    ar: "تجربة دراسية أكثر ترابطًا، مع ترتيب الطلاب وتحسينات للقراءة والتخطيط والمراجعة."
   },
   items: [
     {
-      icon: "pencil",
-      title: { en: "Smoother writing and easier controls", ar: "كتابة وأقلام أفضل واستخدام أسهل" },
+      icon: "trophy",
+      title: { en: "Rank Mode — Your cohort ranking", ar: "Rank Mode — ترتيب دفعتك" },
       body: {
-        en: "Improvements to handwriting, pen tools and ease of use.",
-        ar: "تحسينات في الكتابة وأدوات الأقلام وسهولة الاستخدام."
+        en: "See your position based on XP earned, switch between weekly, monthly and all-time rankings, and control how your name appears.",
+        ar: "تابع مركزك بين طلاب دفعتك حسب نقاط XP، واستعرض ترتيبك الأسبوعي والشهري والإجمالي، مع التحكم في ظهور اسمك."
       }
     },
     {
-      icon: "file",
-      title: { en: "Faster sheet and file opening", ar: "فتح أسرع للشيتات والملفات" },
+      icon: "layers",
+      title: { en: "Split Screen — Study side by side", ar: "Split Screen — شيتاتك جنبًا إلى جنب" },
       body: {
-        en: "Less waiting when opening sheets and files, especially those already saved on your device.",
-        ar: "انتظار أقل عند فتح الشيتات والملفات، خصوصًا المحفوظة مسبقًا على جهازك."
+        en: "Open multiple sheets in the same workspace, compare content side by side and adjust the layout to suit your reading.",
+        ar: "افتح عدة شيتات في مساحة واحدة، وقارن محتواها بسهولة، وعدّل تقسيم الشاشة بما يناسب دراستك."
+      }
+    },
+    {
+      icon: "pencil",
+      title: { en: "A more flexible PDF reader", ar: "قارئ PDF أكثر مرونة" },
+      body: {
+        en: "Smoother writing and highlighting, more accessible tools, and improved zoom and navigation on phones and tablets.",
+        ar: "كتابة وتحديد أكثر سلاسة، وأدوات أسهل استخدامًا، وتحسينات للتكبير والتنقل على الهاتف والآيباد."
+      }
+    },
+    {
+      icon: "calendar",
+      title: { en: "Study Plan — Better organized study", ar: "Study Plan — تنظيم أفضل لدراستك" },
+      body: {
+        en: "Organize study tasks and prepare around your subjects and exam dates, with additional planning options where available.",
+        ar: "نظّم مهامك واستعد للامتحانات وفق المواد والمواعيد، مع خيارات إضافية لتخطيط الدراسة حيثما تتوفر."
       }
     },
     {
       icon: "brain",
-      title: { en: "Faster answer feedback", ar: "استجابة أسرع عند الإجابة" },
+      title: { en: "Active Study & Pomodoro", ar: "Active Study وPomodoro" },
       body: {
-        en: "Faster answer processing and less waiting for question results.",
-        ar: "تحسين سرعة معالجة الإجابات وتقليل الانتظار لظهور نتيجة السؤال."
+        en: "Choose your pages and question count in supported sheets, or study with a focus timer before testing what you've read.",
+        ar: "حدد الصفحات وعدد الأسئلة في الشيتات المدعومة، أو استخدم مؤقت التركيز ثم اختبر نفسك فيما قرأته."
+      }
+    },
+    {
+      icon: "list-checks",
+      title: { en: "Review, summaries & reminders", ar: "المراجعة وملخصي والتذكيرات" },
+      body: {
+        en: "Find summaries more easily, return to your review questions and set optional reminders for study and revision.",
+        ar: "اعثر على ملخصاتك بسهولة أكبر، وتابع أسئلة المراجعة، واضبط تذكيرات اختيارية للدراسة والمراجعة."
+      }
+    },
+    {
+      icon: "globe",
+      title: { en: "Sheet translations", ar: "ترجمة الشيتات" },
+      body: {
+        en: "Read page-by-page Arabic translations where prepared translations are available, while keeping the original PDF unchanged.",
+        ar: "اطّلع على الترجمة العربية صفحة بصفحة للشيتات التي تتوفر لها ترجمة، مع الحفاظ على ملف PDF الأصلي."
+      }
+    },
+    {
+      icon: "sparkles",
+      title: { en: "Starmo & Starsea — Study companions", ar: "Starmo وStarsea — رفيقا الدراسة" },
+      body: {
+        en: "Explore concise explanations, helpful facts and memory aids linked to pages of sheets with prepared companion content.",
+        ar: "اكتشف شروحات مختصرة ومعلومات وطرق حفظ مرتبطة بصفحات الشيتات التي يتوفر لها محتوى مساعد."
       }
     }
   ]
