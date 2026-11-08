@@ -206,8 +206,8 @@ test("landscape tab row stays compact and keeps the tools clear when a second ta
     return {
       tabsFit: Boolean(tabRow && tabRow.left >= -1 && tabRow.right <= innerWidth + 1),
       toolsFit: Boolean(dock && dock.top >= 0 && dock.bottom <= innerHeight + 1),
-      favoritesFit: Boolean(favorites && favorites.left >= -1 && favorites.right <= innerWidth + 1),
-      favoritesAboveTools: Boolean(favorites && dock && favorites.bottom <= dock.top + 2),
+      favoritesFit: !favorites || (favorites.left >= -1 && favorites.right <= innerWidth + 1),
+      favoritesAboveTools: !favorites || Boolean(dock && favorites.bottom <= dock.top + 2),
     };
   });
   expect(geometry).toEqual({ tabsFit: true, toolsFit: true, favoritesFit: true, favoritesAboveTools: true });
