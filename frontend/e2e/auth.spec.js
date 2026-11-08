@@ -603,7 +603,9 @@ test("the username chosen at Google onboarding is the only name the product show
     return { classes: node.className, popover: node.getAttribute("popover"), display: style.display,
       visibility: style.visibility, opacity: style.opacity, rect: {x:rect.x,y:rect.y,width:rect.width,height:rect.height},
       expanded: document.querySelector('[aria-label="Open profile menu"]')?.getAttribute("aria-expanded"),
-      phone: matchMedia("(max-width: 639px), (max-height: 559px)").matches };
+      phone: matchMedia("(max-width: 639px), (max-height: 559px)").matches,
+      identity: (()=>{const el=node.querySelector(".account-menu-identity"),r=el?.getBoundingClientRect(),cs=el?getComputedStyle(el):null;return {display:cs?.display,visibility:cs?.visibility,width:r?.width,height:r?.height};})(),
+      name: (()=>{const el=document.getElementById("account-menu-name"),r=el?.getBoundingClientRect(),cs=el?getComputedStyle(el):null;return {display:cs?.display,visibility:cs?.visibility,opacity:cs?.opacity,fontSize:cs?.fontSize,width:r?.width,height:r?.height,parentWidth:el?.parentElement?.getBoundingClientRect().width};})() };
   });
   console.info("PROFILE_MENU_DIAGNOSTIC", JSON.stringify(menuState));
   await expect(shownName).toBeVisible();

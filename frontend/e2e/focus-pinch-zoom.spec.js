@@ -268,8 +268,14 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
   await expectHorizontalFocalOrPhysicalEdge(page, committedPoint.x, targetFocal.x);
   // The spring has released by now, so a constrained gesture must have settled
   // onto the legal bound itself rather than anywhere inside the elastic band.
-  if (targetScale > initialScale) expect(Math.abs(committedPoint.y - targetFocal.y)).toBeLessThan(1.25);
-  else await expectVerticalFocalOrConstrainedEdge(page, committedPoint.y, targetFocal.y);
+  if (targetScale > initialScale) {
+    const drift = Math.abs(committedPoint.y - targetFocal.y);
+    // At the physical start of a PDF, negative scrollTop is impossible.
+    // Only a constrained top edge may stop short of the gesture's Y target.
+    const atPhysicalTop = await stage.evaluate((node) => node.scrollTop <= 1);
+    if (atPhysicalTop && drift >= 1.25) await expectVerticalFocalOrConstrainedEdge(page, committedPoint.y, targetFocal.y);
+    else expect(drift).toBeLessThan(1.25);
+  } else await expectVerticalFocalOrConstrainedEdge(page, committedPoint.y, targetFocal.y);
 
   await page.waitForTimeout(250);
   const settledScale = await readerScale(page);
@@ -337,7 +343,7 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   // the zoom-out below reaches the bottom constraint depends on exactly that.
   const scrollLastPageIntoPosition = async () => {
     await stage.evaluate((node) => {
-      const lastPage = document.querySelector(".workspace-v2-a4-page:last-child");
+      const lastPage = [...document.querySelectorAll(".workspace-v2-a4-page[data-pdf-page]")].at(-1);
       const viewport = node.getBoundingClientRect();
       const pageBounds = lastPage.getBoundingClientRect();
       const anchorClientY = pageBounds.top + pageBounds.height * 0.04;
@@ -348,13 +354,14 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   };
 
   await scrollLastPageIntoPosition();
-  await expect.poll(async () => page.locator(".workspace-v2-a4-page:last-child .workspace-v2-a4-canvas.is-visible").evaluate((canvas) => canvas.width > 0), { timeout: 20_000 }).toBe(true);
+  // Test geometry, not PDF.js bitmap completion, which is lazy off-screen.
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").last()).toBeInViewport({ ratio: 0.01 });
   await waitForStableDocumentGeometry(page);
 
   await scrollLastPageIntoPosition();
   await waitForStableDocumentGeometry(page);
 
-  const ratios = await page.locator(".workspace-v2-a4-page:last-child").evaluate((lastPage) => {
+  const ratios = await page.locator(".workspace-v2-a4-page[data-pdf-page]").last().evaluate((lastPage) => {
     const pageBounds = lastPage.getBoundingClientRect();
     const documentBounds = lastPage.closest(".workspace-v2-a4-document").getBoundingClientRect();
     return {
@@ -367,7 +374,7 @@ test("last-page zoom-out reconciles from post-layout scroll without jumping", as
   await exactPinch(page, { ...ratios, targetScale: 1.55, moveX: -11, moveY: -9 });
   await exactPinch(page, { ...ratios, targetScale: 2.123, moveX: 9, moveY: 7 });
   await exactPinch(page, { ...ratios, targetScale: 1.55, moveX: -7, moveY: -5 });
-  await expect(page.locator(".workspace-v2-a4-page:last-child")).toBeInViewport({ ratio: 0.1 });
+  await expect(page.locator(".workspace-v2-a4-page[data-pdf-page]").last()).toBeInViewport({ ratio: 0.1 });
 });
 
 test("high zoom keeps exact 247.8% and 487.3% values without snapping", async ({ page }) => {

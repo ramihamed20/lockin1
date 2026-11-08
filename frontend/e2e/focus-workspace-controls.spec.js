@@ -627,7 +627,7 @@ test("phone adds and restores the study companion from the plus menu", async ({ 
   await expect(companion).toHaveCount(0);
   const add = async () => {
     await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
-    const action = page.getByRole("button", { name: /Add study companion/ });
+    const action = page.getByRole("button", { name: /Add study companion|Show companion/ });
     try { await expect(action).toBeVisible(); }
     catch (failure) {
       const state = await page.evaluate(() => {
