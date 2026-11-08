@@ -549,7 +549,7 @@ test("opaque Ball Pen stays color-stable and Precision Eraser masks only touched
   await keepRawInk(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
-  await page.getByRole("button", { name: "Use #db2777" }).click();
+  await page.locator("#workspace-pen-options").getByRole("button", { name: "Use #db2777" }).click();
   await page.locator('.workspace-v2-toolbar [data-workspace-tool="pen"]').click();
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
@@ -716,6 +716,8 @@ test("circle erase removes enclosed ink once and remains undoable", async ({ pag
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
+  // Pen gestures now live in the collapsible Drawing section.
+  await page.locator("#workspace-pen-options .workspace-tool-extras-toggle").click();
   await page.getByRole("switch", { name: /Circle erase/ }).click();
   const stage = page.locator(".workspace-v2-document-stage");
   const pageBounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
@@ -748,6 +750,8 @@ test("circle erase can finish after a pause during its incomplete loop", async (
   await mockAuthenticatedWorkspace(page);
   await openWorkspace(page, { width: 834, height: 1194 });
   await page.getByRole("button", { name: "Pen", exact: true }).click();
+  // Pen gestures now live in the collapsible Drawing section.
+  await page.locator("#workspace-pen-options .workspace-tool-extras-toggle").click();
   await page.getByRole("switch", { name: /Circle erase/ }).click();
   const stage = page.locator(".workspace-v2-document-stage");
   const bounds = await page.locator(".workspace-v2-a4-page").first().boundingBox();
