@@ -572,3 +572,48 @@
     min-block-size: 44px;
   }
 }
+
+
+/* Release gate: preserve real finger hitboxes during segmented navigation.
+   Responsive navigation has no press-scale animation: it must stay >=44px. */
+@layer interaction {
+  .progress-mobile-nav [role="tab"],
+  .rank-mode .rank-mode-periods [role="tab"] {
+    min-block-size: 46px;
+    min-height: 46px;
+    transform: none;
+  }
+
+  /* A selected sidebar destination must remain perceptible independently
+     of focus or the pointer; no second border or shadow indicator. */
+  .sidebar .nav-btn[aria-current="page"] {
+    background-color: color-mix(in srgb, var(--color-primary, #3b82f6) 14%, var(--surface, #fff));
+    background-image: none;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  /* Keep the icon and label within their independent bottom-bar hitbox,
+     including 320px screens and longer translated labels. */
+  .bottom-nav > a,
+  .bottom-nav > button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .bottom-nav > :is(a, button) > svg { flex: 0 0 auto; }
+  .bottom-nav > :is(a, button) > span {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
