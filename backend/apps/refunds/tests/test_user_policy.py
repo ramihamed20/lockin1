@@ -291,6 +291,8 @@ def test_accepted_policy_is_followed_by_successful_subscription_submission(setti
         format="json",
     )
     assert consent.status_code == 200, consent.json()
+    # force_authenticate retains the Python user instance between test requests.
+    user.refresh_from_db()
     purchase = _submit(client, plan=plan, code="1234567890123", key=uuid4().hex)
     assert purchase.status_code == 201, purchase.json()
     assert Payment.objects.filter(account__primary_user=user).count() == 1
