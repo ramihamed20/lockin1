@@ -10,7 +10,6 @@ import "./styles/tokens.css";
 import "./styles/system.css";
 import "./styles/polish.css";
 import "./styles/refine.css";
-import "./styles/study-flow.css";
 import "./styles/v2.css";
 import "./styles/rail.css";
 import "./styles/motion.css";
@@ -54,7 +53,12 @@ window.__LOCKIN_BUILD__ = BUILD_INFO;
 // cannot arrive at all, render anyway rather than hold the startup screen.
 startEarlySessionCheck(authApi.me);
 if (!getSessionMarker() && navigator.onLine !== false) prefetchSignInData();
-loadLocaleMessages(initialAppLocale()).catch(() => undefined).then(render);
+// Keep study-session styles available before first paint while loading them
+// in a separate CSS chunk, rather than inflating the global entry stylesheet.
+Promise.all([
+  loadLocaleMessages(initialAppLocale()).catch(() => undefined),
+  import("./styles/study-flow.css").catch(() => undefined)
+]).then(render);
 
 function render() {
   createRoot(document.getElementById("root")).render(
