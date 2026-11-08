@@ -399,7 +399,11 @@
 /* Phone companions use the toolbar + button as their only summon/restore
    control. A dragged character stays inside the viewport in RTL and LTR. */
 .study-companion.is-positioned,
-.study-companion.is-positioned[dir] {
+.study-companion.is-positioned[dir],
+.study-companion.is-dragging,
+.study-companion.is-dragging[dir] {
+  /* Reset the original RTL/LTR right and bottom anchors while the pointer moves.
+     Otherwise right/bottom compete with inline left/top until pointer release. */
   inset: auto;
 }
 .study-companion.is-phone-draggable .study-companion-pet {
