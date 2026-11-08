@@ -363,6 +363,26 @@ def test_external_request_preserves_its_original_receipt_and_deadline():
     assert claim.due_at == received + timedelta(hours=48)
 
 
+def test_catalog_does_not_offer_checkout_before_policy_activation(settings):
+    user, _ = _trial_user(email="catalog-policy-activation@example.com")
+    _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+    settings.ACCOUNT_POLICY_VERSION = USER_POLICY_VERSION
+    settings.USER_POLICY_EFFECTIVE_AT = ""
+
+    unavailable = client.get("/api/v1/catalog/products")
+    assert unavailable.status_code == 200
+    assert unavailable.json()["manual_payment_available"] is False
+    assert unavailable.json()["manual_payment_unavailable_reason"] == "policy_activation_pending"
+
+    settings.USER_POLICY_EFFECTIVE_AT = (timezone.now() - timedelta(minutes=1)).isoformat()
+    available = client.get("/api/v1/catalog/products")
+    assert available.status_code == 200
+    assert available.json()["manual_payment_available"] is True
+    assert available.json()["manual_payment_unavailable_reason"] is None
+
+
 @override_settings(ACCOUNT_POLICY_VERSION=USER_POLICY_VERSION, USER_POLICY_EFFECTIVE_AT="")
 def test_new_purchase_waits_for_announced_policy_activation(settings):
     user, _ = _trial_user(email="activation-policy@example.com")
