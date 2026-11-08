@@ -77,8 +77,11 @@ async function jump(page, number) {
   await expect.poll(() => page.locator(".workspace-v2-document-stage").evaluate((stage, targetPage) => {
     const target = stage.querySelector(`[data-pdf-page="${targetPage}"]`);
     if (!target) return Infinity;
+    const stageTop = stage.getBoundingClientRect().top;
     const padding = Number.parseFloat(getComputedStyle(stage).paddingTop) || 0;
-    return Math.abs(target.getBoundingClientRect().top - stage.getBoundingClientRect().top - padding);
+    const toolbar = stage.closest(".workspace-v2-reader")?.querySelector(".workspace-v2-toolbar");
+    const unobscuredTop = Math.max(padding, (toolbar?.getBoundingClientRect().bottom ?? stageTop) - stageTop + 12);
+    return Math.abs(target.getBoundingClientRect().top - stageTop - unobscuredTop);
   }, number), { message: "PDF navigation must finish before advancing the timer" }).toBeLessThan(2);
   await expect(page.locator(".workspace-v2-page-number strong")).toHaveText(String(number));
 }
