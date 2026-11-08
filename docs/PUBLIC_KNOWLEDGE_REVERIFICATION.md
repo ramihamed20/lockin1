@@ -1,3 +1,17 @@
+## Follow-up release evidence review — 8 November 2026 (inspector prop cleanup)
+
+Reviewed the exact diff in `frontend/src/pages/CatalogFocusWorkspace.jsx` after removing three unused props
+(`activeFavoritePen`, `favoritePenCount`, `onToggleFavoritePen`) from the
+`ToolOptionsPanel` call. The corresponding duplicate favorite-pen control had
+already been removed in the inspector; the `FavoritePens` panel strip still
+owns save, apply, replace and remove actions. No PDF bytes, annotation persistence,
+access gates, grading, Review, question availability, privacy or Pomodoro logic
+changed. Consequently the existing qualified public help for notes, pens,
+Active Study and reader availability remains accurate; no new capability is
+advertised. Only this reviewed source digest was refreshed. This is a source
+review, **not** a browser pass or authorization to merge; the independent CI
+and staging checks remain mandatory.
+
 ## Unified release source-evidence review — 8 November 2026
 
 This review applies only to the unified release branch. The source evidence gate
