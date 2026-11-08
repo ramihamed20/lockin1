@@ -76,6 +76,7 @@ function undersizedControls() {
     if (target.height < minimum - 0.5 || target.width < minimum - 0.5) {
       const name = (control.getAttribute("aria-label") || control.textContent || control.getAttribute("placeholder") || control.tagName).trim().slice(0, 30);
       offenders.push(`${name} ${Math.round(target.width)}x${Math.round(target.height)}`);
+      console.log('TARGET_GEOMETRY', JSON.stringify({name, bounds: target.toJSON(), offsetHeight: control.offsetHeight, minHeight: getComputedStyle(control).minHeight, minBlock: getComputedStyle(control).minBlockSize, height: getComputedStyle(control).height, transform: getComputedStyle(control).transform, parent: control.parentElement?.outerHTML.slice(0,900)}));
     }
   }
   return [...new Set(offenders)];
@@ -93,6 +94,7 @@ for (const [label, descriptor] of [["phone", devices["Pixel 5"]], ["tablet", dev
     test(`every control meets the touch minimum on ${label}`, async ({ page }) => {
       test.setTimeout(120_000);
       await mockOperator(page);
+      page.on("console", message => { if (message.text().includes("TARGET_GEOMETRY")) console.log(message.text()); });
       // The floors are gated on a coarse pointer; without one nothing applies.
       expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches), "touch emulation is not active").toBe(true);
 

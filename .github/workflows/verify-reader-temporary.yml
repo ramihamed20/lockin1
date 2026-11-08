@@ -27,7 +27,11 @@ jobs:
       - working-directory: frontend
         run: pnpm exec playwright test e2e/companion-diagnostic-temp.spec.js --workers=1
       - working-directory: frontend
+        run: pnpm exec playwright test e2e/student-experience.spec.js --grep 'review remains usable' --workers=1
+      - working-directory: frontend
         run: pnpm exec playwright test e2e/focus-workspace-tabs.spec.js --grep 'whiteboard Add page' --workers=1
+      - working-directory: frontend
+        run: pnpm exec playwright test e2e/focus-workspace.spec.js --grep 'Focus Workspace owns each production viewport' --workers=1
       - working-directory: frontend
         run: pnpm exec playwright test e2e/companion-ready.spec.js e2e/profile-companion.spec.js --workers=2
       - working-directory: frontend
@@ -36,3 +40,24 @@ jobs:
         run: pnpm exec playwright test e2e/focus-pinch-zoom.spec.js --grep 'desktop 120% minimum|reaches horizontal edges' --workers=1
       - working-directory: frontend
         run: pnpm exec playwright test e2e/offline-pdf.spec.js e2e/reader-zoom-alignment.spec.js --grep 'background permission denial|Arabic reader zooms' --workers=1
+  touch-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - working-directory: frontend
+        run: pnpm run build:e2e
+      - working-directory: frontend
+        run: pnpm exec playwright test e2e/touch-targets.spec.js --grep 'phone touch targets' --workers=1
