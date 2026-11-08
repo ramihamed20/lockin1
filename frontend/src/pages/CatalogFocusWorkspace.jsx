@@ -4496,6 +4496,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       // Finish rather than abandon the touch-owned settlement. This commits
       // its legal zoom and lets the geometry effect remove compositor classes.
       cancelZoomSettle();
+      // The cancellation can arrive before React commits that geometry. Clear
+      // the compositor frame synchronously so no stale live class or transform
+      // survives in the meantime.
+      clearLivePinchTransform();
       unlockStageForDrawing(event.pointerId ?? null);
       debugGesture("settling-stale-pointer-cancel", event);
       return;
