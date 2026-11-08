@@ -123,6 +123,33 @@ async function anchoredClientPoint(page, anchor) {
   }, anchor);
 }
 
+
+/** After a pinch commits, page boxes reflow but the fixed gaps do not scale.
+ * Check the student's real physical page position instead of scaling the
+ * entire continuous document height as though all gaps were ink. */
+async function physicalPageAnchor(page, point) {
+  return page.evaluate(({x,y}) => {
+    const pages = [...document.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]")];
+    const nearest = pages.reduce((best, node) => {
+      const r = node.getBoundingClientRect();
+      const d = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+      return !best || d < best.distance ? {node, r, distance:d} : best;
+    }, null);
+    if (!nearest) throw new Error("No PDF pages mounted for pinch");
+    const {r,node} = nearest;
+    const ny = Math.max(0, Math.min(1, (y-r.top)/r.height));
+    return {key:node.dataset.workspacePage,x:(x-r.left)/r.width,y:ny,gapOffsetY:y-(r.top+r.height*ny)};
+  },point);
+}
+async function anchoredPhysicalPagePoint(page, anchor) {
+  return page.evaluate(({key,x,y,gapOffsetY}) => {
+    const node=[...document.querySelectorAll(".workspace-v2-a4-page[data-workspace-page]")].find(el=>el.dataset.workspacePage===key);
+    if(!node)throw new Error("Pinch anchor page disappeared");
+    const r=node.getBoundingClientRect();
+    return {x:r.left+r.width*x,y:r.top+r.height*y+gapOffsetY};
+  },anchor);
+}
+
 async function expectHorizontalFocalOrPhysicalEdge(page, actualX, targetX, live = false) {
   if (Math.abs(actualX - targetX) < 1.25) return;
   const geometry = await page.evaluate(() => {
@@ -207,6 +234,7 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
   const stage = page.locator(".workspace-v2-document-stage");
   const initialScale = await readerScale(page);
   const initialPoint = await documentPoint(page, xRatio, yRatio);
+  const physicalAnchor = await physicalPageAnchor(page, initialPoint);
   const documentBounds = await page.locator(".workspace-v2-a4-document").boundingBox();
   const anchor = {
     x: (initialPoint.x - documentBounds.x) / initialScale,
@@ -236,7 +264,7 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
 
   const committedScale = await readerScale(page);
   expect(Math.abs(committedScale - targetScale)).toBeLessThan(1e-6);
-  const committedPoint = await anchoredClientPoint(page, anchor);
+  const committedPoint = await anchoredPhysicalPagePoint(page, physicalAnchor);
   await expectHorizontalFocalOrPhysicalEdge(page, committedPoint.x, targetFocal.x);
   // The spring has released by now, so a constrained gesture must have settled
   // onto the legal bound itself rather than anywhere inside the elastic band.
@@ -245,7 +273,7 @@ async function exactPinch(page, { xRatio, yRatio, targetScale, moveX = 0, moveY 
 
   await page.waitForTimeout(250);
   const settledScale = await readerScale(page);
-  const settledPoint = await anchoredClientPoint(page, anchor);
+  const settledPoint = await anchoredPhysicalPagePoint(page, physicalAnchor);
   expect(settledScale).toBe(committedScale);
   expect(Math.abs(settledPoint.x - committedPoint.x)).toBeLessThan(0.25);
   expect(Math.abs(settledPoint.y - committedPoint.y)).toBeLessThan(0.25);

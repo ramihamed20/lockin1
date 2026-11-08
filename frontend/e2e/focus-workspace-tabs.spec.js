@@ -430,7 +430,10 @@ test("split screen shows two independent PDF sheets and resizes on iPad and phon
   await page.mouse.move(stageLeft.x + stageLeft.width * .22, stageLeft.y + stageLeft.height * .45, { steps: 15 });
   await expect(page.locator(".workspace-tab-drop-highlight.is-start")).toBeVisible();
   await page.mouse.up();
-  await expect(page.locator(".workspace-split-layout[data-secondary-side='start'].is-split")).toBeVisible();
+  await expect(page.locator(".workspace-split-layout.is-split")).toBeVisible();
+  // The first grid slot, not a removed legacy data-secondary-side attribute,
+  // identifies a split dropped on the left.
+  await expect(page.locator(".workspace-pane.is-secondary[data-split-slot='0']")).toBeVisible();
   const leftPane = await page.locator(".workspace-pane.is-secondary").boundingBox();
   const rightPane = await page.locator(".workspace-pane.is-active").boundingBox();
   expect(leftPane.x).toBeLessThan(rightPane.x);

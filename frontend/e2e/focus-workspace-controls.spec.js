@@ -628,7 +628,17 @@ test("phone adds and restores the study companion from the plus menu", async ({ 
   const add = async () => {
     await page.locator(".workspace-v2-toolbar [data-workspace-surface='add']").click();
     const action = page.getByRole("button", { name: /Add study companion/ });
-    await expect(action).toBeVisible();
+    try { await expect(action).toBeVisible(); }
+    catch (failure) {
+      const state = await page.evaluate(() => {
+        const panel=document.querySelector('#workspace-add-popover');
+        return {panel:!!panel,visible:panel?getComputedStyle(panel).display:null,
+          buttons:[...(panel?.querySelectorAll('button')||[])].map(el=>({text:el.textContent,hidden:el.hidden,display:getComputedStyle(el).display})),
+          locale:localStorage.getItem('lock-in.locale'),companion:localStorage.getItem('lock-in.study-companion.v1:controls-student')};
+      });
+      console.info("COMPANION_ADD_DIAGNOSTIC",JSON.stringify(state));
+      throw failure;
+    }
     await action.click();
     await expect(companion).toBeVisible();
   };

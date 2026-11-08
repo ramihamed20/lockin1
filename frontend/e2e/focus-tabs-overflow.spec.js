@@ -27,7 +27,18 @@ for (const direction of ["ltr", "rtl"]) {
       else await page.evaluate((slug) => { location.hash = `/materials/catalog/biochemistry-1/sheets/${slug}/workspace`; }, slug);
       await page.getByRole("button", { name: /Normal Study/ }).click();
       if (slug === "vitamin-1") await page.evaluate((direction) => { document.documentElement.dir = direction; }, direction);
-      await expect.poll(inStrip).toBe(true);
+      try { await expect.poll(inStrip).toBe(true); }
+      catch (failure) {
+        const geometry = await strip.evaluate((node) => {
+          const r=node.getBoundingClientRect();
+          const selected=node.querySelector('[role="tab"][aria-selected="true"]')?.parentElement?.getBoundingClientRect();
+          return {scrollLeft:node.scrollLeft,scrollWidth:node.scrollWidth,clientWidth:node.clientWidth,
+            direction:getComputedStyle(node).direction,viewport:{left:r.left,right:r.right},
+            selected:selected?{left:selected.left,right:selected.right,width:selected.width}:null};
+        });
+        console.info("TAB_REVEAL_DIAGNOSTIC", JSON.stringify({slug,direction,...geometry}));
+        throw failure;
+      }
     }
     await expect(active.getByRole("tab")).toHaveCount(5);
     expect(await strip.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);

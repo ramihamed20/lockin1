@@ -596,6 +596,16 @@ test("the username chosen at Google onboarding is the only name the product show
 
   await page.getByRole("button", { name: "Open profile menu" }).click();
   const shownName = page.locator("#account-menu-name");
+  // Log actual presentation state if the menu regresses during onboarding.
+  await page.waitForTimeout(250);
+  const menuState = await page.locator("#profile-menu").evaluate((node) => {
+    const style = getComputedStyle(node), rect = node.getBoundingClientRect();
+    return { classes: node.className, popover: node.getAttribute("popover"), display: style.display,
+      visibility: style.visibility, opacity: style.opacity, rect: {x:rect.x,y:rect.y,width:rect.width,height:rect.height},
+      expanded: document.querySelector('[aria-label="Open profile menu"]')?.getAttribute("aria-expanded"),
+      phone: matchMedia("(max-width: 639px), (max-height: 559px)").matches };
+  });
+  console.info("PROFILE_MENU_DIAGNOSTIC", JSON.stringify(menuState));
   await expect(shownName).toBeVisible();
   await expect(shownName).toHaveText("ra33");
   await expect(page.getByText("Rami ha")).toHaveCount(0);

@@ -1588,7 +1588,9 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     return {
       pageKey: page.key,
       x: Math.max(0, Math.min(1, (clientX - page.rect.left) / page.rect.width)),
-      y: Math.max(0, Math.min(1, (clientY - page.rect.top) / page.rect.height))
+      y: Math.max(0, Math.min(1, (clientY - page.rect.top) / page.rect.height)),
+      // Preserve fixed-size inter-page gaps when a pinch begins between pages.
+      gapOffsetY: clientY - (page.rect.top + page.rect.height * Math.max(0, Math.min(1, (clientY - page.rect.top) / page.rect.height)))
     };
   }, [pageDirection, sheet?.pdfUrl]);
 
@@ -1601,7 +1603,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
         if (pageRect.width > 0 && pageRect.height > 0) {
           return {
             scrollLeft: stage.scrollLeft + pageRect.left + pageRect.width * pending.verticalAnchor.x - focalClientX,
-            scrollTop: stage.scrollTop + pageRect.top + pageRect.height * pending.verticalAnchor.y - focalClientY
+            scrollTop: stage.scrollTop + pageRect.top + pageRect.height * pending.verticalAnchor.y + (pending.verticalAnchor.gapOffsetY || 0) - focalClientY
           };
         }
       }
