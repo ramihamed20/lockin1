@@ -107,12 +107,12 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1920, height: 108
     await expect(reset).toHaveText("Fit");
     await reset.click();
     await expect.poll(() => readerScale(page)).toBeCloseTo(start, 1);
-    await expect(bar.getByRole("button", { name: "Zoom out", exact: true })).toBeEnabled();
-    await bar.getByRole("button", { name: "Zoom out", exact: true }).click();
-    // On a wide desktop, the half-stage readability floor can clamp a
-    // 20% step; Zoom out must still reduce the scale below reading fit.
-    await expect.poll(() => readerScale(page)).toBeLessThan(start);
-    await reset.click();
+    // The desktop reading baseline is also its minimum zoom.
+    const zoomOut = bar.getByRole("button", { name: "Zoom out", exact: true });
+    await expect(zoomOut).toBeDisabled();
+    await bar.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await expect(zoomOut).toBeEnabled();
+    await zoomOut.click();
     await expect.poll(() => readerScale(page)).toBeCloseTo(start, 1);
 
     // One set of zoom controls: the page dock drops its zoom row here.

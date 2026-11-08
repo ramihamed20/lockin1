@@ -1,0 +1,28 @@
+name: Temporary reader focused verification
+on:
+  pull_request:
+    branches: [release/lockin-unified-2026-11-08]
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - working-directory: frontend
+        run: pnpm run build:e2e
+      - working-directory: frontend
+        run: pnpm exec playwright test e2e/focus-toolbar-dock.spec.js e2e/focus-workspace-keyboard.spec.js e2e/paper-workspace.spec.js e2e/reader-zoom-bar.spec.js e2e/pdf-split-visual.spec.js --workers=2

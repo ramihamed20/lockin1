@@ -95,3 +95,18 @@ test('drag detaches, stays floating, snaps to right and preserves saved location
   await expect(rail(page)).toHaveAttribute('data-dock-edge','right');
   await expect.poll(()=>fits(page)).toBe(true);
 });
+
+test('the attached drag handle does not cover toolbar controls on phone', async ({ page }) => {
+  await openWorkspace(page, { width: 390, height: 844 });
+  const handle = grip(page);
+  const handleBounds = await handle.boundingBox();
+  expect(handleBounds.width).toBeGreaterThanOrEqual(44);
+  expect(handleBounds.height).toBeGreaterThanOrEqual(44);
+  const add = rail(page).locator('[data-workspace-surface="add"]');
+  await add.scrollIntoViewIfNeeded();
+  await add.click();
+  await expect(page.locator('#workspace-add-popover')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await choose(page, 'Left');
+  await expect(rail(page)).toHaveAttribute('data-dock-edge', 'left');
+});
