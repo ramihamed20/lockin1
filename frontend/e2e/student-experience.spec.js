@@ -70,7 +70,8 @@ for (const config of [{ locale: "en", width: 390, height: 844 }, { locale: "ar",
     await page.goto("/#/review");
     const start = page.locator(".review-bank-entry .btn-primary");
     await expect(start).toBeVisible();
-    await expect(page.getByText("Weekly unavailable", { exact: true })).toBeVisible();
+    const notice = config.locale === "ar" ? "خدمة Lock-in غير متاحة مؤقتًا. حاول بعد قليل." : "Lock-in is temporarily unavailable. Try again shortly.";
+    await expect(page.getByRole("alert").filter({ hasText: notice })).toBeVisible();
     state.weeklyFails = false;
     await page.getByRole("button", { name: config.locale === "ar" ? "حاول مجددًا" : "Try again" }).first().click();
     await expect(page.locator(".weekly-recall-entry")).toBeVisible();

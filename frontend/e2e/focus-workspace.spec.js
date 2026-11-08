@@ -271,9 +271,9 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await lassoTool.click();
 
   const shapeTool = page.locator('.workspace-v2-toolbar [data-workspace-tool="shapes"]');
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await shapeTool.click();
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await shapeTool.click();
   const shapeOptions = page.locator("#workspace-shapes-options");
   await expect(shapeOptions.getByRole("button", { name: "Rectangle" })).toBeVisible();
@@ -334,7 +334,7 @@ test("Focus Workspace owns each production viewport and keeps panels contextual 
   await expect(penOptions.getByRole("button", { name: "Use #6789ab" })).toHaveCount(1);
   await expect(penOptions.getByRole("slider", { name: "Thickness" })).toHaveValue("9");
   await expect(penOptions.getByRole("slider", { name: "Opacity" })).toHaveValue("0.55");
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.locator('[data-workspace-tool="text"]')).toBeVisible();
   await page.getByRole("button", { name: "Close Add menu" }).click();
   await page.locator('[data-workspace-tool="pen"]').click();
