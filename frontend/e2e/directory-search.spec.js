@@ -18,11 +18,23 @@ for (const locale of ['en','ar']) {
   });
   const label=locale==='ar'?'ابحث في هذه القائمة':'Search this list';
   const clear=locale==='ar'?'مسح البحث':'Clear search';
+  // Materials and sheet directories intentionally keep their simple card
+  // navigation without a redundant search field. Keep the full catalogue
+  // discoverable in both languages and at phone width.
+  for (const [path, selector] of [
+   ['/materials', '.catalog-sheet-grid'],
+   ['/materials/catalog/subject-0', '.catalog-sheet-grid'],
+   ['/questions/categories/ai-sheet/subjects/subject-0', '.catalog-material-grid']
+  ]) {
+   await page.goto('/#'+path);
+   await expect(page.locator(selector).getByRole('link')).toHaveCount(7);
+   await expect(page.getByRole('searchbox', { name: label })).toHaveCount(0);
+   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  }
+  // Questions by subject and the Review Bank still support genuine filtering:
+  // one result, an empty result, and restoration of all seven on clear.
   for(const [path,query,selector] of [
-   ['/materials','اساسيات تشريح','.catalog-material-grid'],
-   ['/materials/catalog/subject-0','sheet 6','.catalog-sheet-grid'],
    ['/questions/categories/ai-sheet','اساسيات تشريح','.catalog-material-grid'],
-   ['/questions/categories/ai-sheet/subjects/subject-0','sheet 6','.catalog-material-grid'],
    ['/review/bank','اساسيات تشريح','.review-bank-subjects']
   ]){
    await page.goto('/#'+path);
