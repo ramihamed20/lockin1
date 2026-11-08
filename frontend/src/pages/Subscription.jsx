@@ -450,6 +450,13 @@ export default function Subscription({ onPoliciesAccepted }) {
               <h2>{t("subscription.nothingToBuyTitle")}</h2>
               <p>{t("subscription.nothingToBuyBody")}</p>
             </div>
+          ) : catalog.manualPaymentUnavailableReason === "policy_activation_pending" ? (
+            <div className="subscription-payment-unavailable" role="status">
+              <h2>{locale === "ar" ? "الاشتراكات متوقفة مؤقتًا" : "Subscriptions are temporarily unavailable"}</h2>
+              <p>{locale === "ar"
+                ? "لم يكتمل تفعيل سياسة الدفع على الخادم بعد. لا يمكن إرسال بطاقة شحن أو إنشاء اشتراك حتى يكتمل التفعيل، حتى إذا وافقت على السياسات."
+                : "Payment policy activation is not complete on the server. Recharge cards cannot be submitted or subscriptions created until activation is complete, even after consenting."}</p>
+            </div>
           ) : !catalog.manualPaymentAvailable || !offers.length ? (
             <EmptyState title={t("subscription.noOffers")} text={t("subscription.noOffersBody")} />
           ) : !canSubmit ? (

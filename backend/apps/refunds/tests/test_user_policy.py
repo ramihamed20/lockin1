@@ -275,6 +275,30 @@ def test_partial_card_collection_remains_refundable_without_granting_access():
 
 
 @override_settings(ACCOUNT_POLICY_VERSION=USER_POLICY_VERSION)
+def test_accepted_policy_is_followed_by_successful_subscription_submission(settings):
+    settings.USER_POLICY_EFFECTIVE_AT = (timezone.now() - timedelta(minutes=1)).isoformat()
+    user, _ = _trial_user(email="consent-checkout-regression@example.com")
+    user.policy_version = "previous-policy"
+    user.policy_accepted_at = None
+    user.save(update_fields=("policy_version", "policy_accepted_at", "updated_at"))
+    plan, _ = _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+
+    consent = client.post(
+        "/api/v1/account/policies",
+        {"version": USER_POLICY_VERSION, "accept_policies": True},
+        format="json",
+    )
+    assert consent.status_code == 200, consent.json()
+    # force_authenticate retains the Python user instance between test requests.
+    user.refresh_from_db()
+    purchase = _submit(client, plan=plan, code="1234567890123", key=uuid4().hex)
+    assert purchase.status_code == 201, purchase.json()
+    assert Payment.objects.filter(account__primary_user=user).count() == 1
+
+
+@override_settings(ACCOUNT_POLICY_VERSION=USER_POLICY_VERSION)
 def test_current_policy_acceptance_is_explicit_and_idempotent():
     user = create_user(email="consent-policy@example.com")
     client = APIClient()
@@ -361,6 +385,32 @@ def test_external_request_preserves_its_original_receipt_and_deadline():
     claim = RefundClaim.objects.get(id=response.json()["id"])
     assert claim.received_at == received
     assert claim.due_at == received + timedelta(hours=48)
+
+
+def test_catalog_does_not_offer_checkout_before_policy_activation(settings):
+    user, _ = _trial_user(email="catalog-policy-activation@example.com")
+    _monthly_plan_and_price()
+    client = APIClient()
+    client.force_authenticate(user)
+    settings.ACCOUNT_POLICY_VERSION = USER_POLICY_VERSION
+    settings.USER_POLICY_EFFECTIVE_AT = ""
+
+    unavailable = client.get("/api/v1/catalog/products")
+    assert unavailable.status_code == 200
+    assert unavailable.json()["manual_payment_available"] is False
+    assert unavailable.json()["manual_payment_unavailable_reason"] == "policy_activation_pending"
+
+    # Checkout accepts 2026.10 explicitly, even if a demo backend advertises
+    # an older account-policy setting. The catalogue must still hide checkout.
+    settings.ACCOUNT_POLICY_VERSION = "legacy-demo-policy"
+    unavailable_legacy = client.get("/api/v1/catalog/products")
+    assert unavailable_legacy.json()["manual_payment_available"] is False
+
+    settings.USER_POLICY_EFFECTIVE_AT = (timezone.now() - timedelta(minutes=1)).isoformat()
+    available = client.get("/api/v1/catalog/products")
+    assert available.status_code == 200
+    assert available.json()["manual_payment_available"] is True
+    assert available.json()["manual_payment_unavailable_reason"] is None
 
 
 @override_settings(ACCOUNT_POLICY_VERSION=USER_POLICY_VERSION, USER_POLICY_EFFECTIVE_AT="")

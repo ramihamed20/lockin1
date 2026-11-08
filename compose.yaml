@@ -35,6 +35,9 @@ services:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://127.0.0.1:5173}
+      # Keep local Docker checkout policy aligned with Django and the deployment environment.
+      ACCOUNT_POLICY_VERSION: ${ACCOUNT_POLICY_VERSION:-2026.10}
+      USER_POLICY_EFFECTIVE_AT: ${USER_POLICY_EFFECTIVE_AT:-}
       # Local demo enables exam previews; production uses independent, opt-in settings.
       STUDY_PLAN_V2_ENABLED: ${STUDY_PLAN_V2_ENABLED:-true}
       STUDY_PLAN_V2_USER_IDS: ${STUDY_PLAN_V2_USER_IDS:-}
