@@ -783,7 +783,10 @@ for (const maskCount of [1, 31]) {
     await testInfo.attach("before.png", { body: before, contentType: "image/png" });
     await testInfo.attach("after.png", { body: after, contentType: "image/png" });
     await testInfo.attach("geometry.json", { body: Buffer.from(JSON.stringify({ before: initialGeometry, after: await inspect() })), contentType: "application/json" });
-    expect(before.equals(after)).toBe(true);
+    // Compare persisted ink and SVG strokes before finishing the interrupted
+    // eraser, not PDF.js's potentially different bitmap after a tab remount.
+    expect(await savedAnnotations(page)).toEqual(original);
+    await expect(page.locator('.workspace-pane.is-active [data-pdf-page="1"] [data-annotation-type="pen"]')).toHaveCount(2);
     await dispatchPointer(stage, "pointerup", 240, x, bounds.y + bounds.height * .5);
     await expect.poll(async () => (await savedAnnotations(page)).map(annotation => annotation.erasures?.length || 0)).toEqual([1, maskCount + 1]);
     const committed = await savedAnnotations(page);

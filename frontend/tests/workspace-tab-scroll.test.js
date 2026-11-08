@@ -13,13 +13,14 @@ for (const [name, selected, expected] of [
   ["selected tab already visible", { left: 40, right: 190 }, 0]
 ]) {
   test(name, () => {
-    const calls = [];
-    const scroller = { getBoundingClientRect: () => ({ left: 20, right: 300, width: 280 }), scrollBy: (options) => calls.push(options) };
+    const scroller = { scrollLeft: 17, getBoundingClientRect: () => ({ left: 20, right: 300, width: 280 }) };
     revealWorkspaceTab(scroller, { getBoundingClientRect: () => selected });
-    assert.deepEqual(calls, expected ? [{ left: expected, behavior: "instant" }] : []);
+    assert.equal(scroller.scrollLeft, 17 + expected);
   });
 }
 
 test("hidden kept readers do not change their strip position", () => {
-  revealWorkspaceTab({ getBoundingClientRect: () => ({ width: 0 }), scrollBy: () => assert.fail("hidden strip scrolled") }, { getBoundingClientRect: () => assert.fail("hidden tab measured") });
+  const scroller = { scrollLeft: 50, getBoundingClientRect: () => ({ width: 0 }) };
+  revealWorkspaceTab(scroller, { getBoundingClientRect: () => assert.fail("hidden tab measured") });
+  assert.equal(scroller.scrollLeft, 50);
 });

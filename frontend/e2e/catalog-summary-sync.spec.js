@@ -162,7 +162,7 @@ async function drawStroke(page) {
   await send("pointerup", bounds.x + bounds.width * 0.62);
 }
 
-test.skip("a personal summary link opens the requested summary in the real reader", async ({ page }) => {
+test("a personal summary link opens the requested summary in the real reader", async ({ page }) => {
   const server = createServer();
   server.summaries = ["first", "requested"].map(id => ({
     id, title: `${id} notes`, mode: "keyboard", color: "blue", visible: true,
