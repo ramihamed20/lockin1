@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { sheetSummariesApi } from "../../api/sheetSummaries.js";
 
 const DRAFT_PREFIX = "lock-in.summary.draft.";
+// My Summary is deferred: never load or mutate saved student summaries in this release.
+export const MY_SUMMARY_RELEASED = false;
 const SAVE_DELAY_MS = 700;
 const RETRY_MS = 5000;
 
@@ -26,6 +28,7 @@ function writeDrafts(summaryId, drafts) {
  * other's pages.
  */
 export function useSheetSummaries(documentId) {
+  const enabledDocumentId = MY_SUMMARY_RELEASED ? documentId : "";
   const [summaries, setSummaries] = useState(/** @type {any[]} */ ([]));
   const [maxPerSheet, setMaxPerSheet] = useState(2);
   const [loaded, setLoaded] = useState(false);
@@ -36,9 +39,9 @@ export function useSheetSummaries(documentId) {
   const inFlight = useRef(/** @type {Set<string>} */ (new Set()));
 
   const reload = useCallback(async () => {
-    if (!documentId) return;
+    if (!enabledDocumentId) return;
     try {
-      const { results, maxPerSheet: max } = await sheetSummariesApi.forDocument(documentId);
+      const { results, maxPerSheet: max } = await sheetSummariesApi.forDocument(enabledDocumentId);
       setSummaries(results);
       setMaxPerSheet(max);
       setDrafts(Object.fromEntries(results.filter((item) => item.mode === "keyboard").map((item) => [item.id, readDrafts(item.id)])));
@@ -47,7 +50,7 @@ export function useSheetSummaries(documentId) {
     } catch (failure) {
       setError(/** @type {any} */ (failure)?.message || "");
     }
-  }, [documentId]);
+  }, [enabledDocumentId]);
 
   useEffect(() => { setLoaded(false); setSummaries([]); void reload(); }, [reload]);
 
@@ -118,10 +121,11 @@ export function useSheetSummaries(documentId) {
   }, [drafts]);
 
   const create = useCallback(async (form) => {
-    const summary = await sheetSummariesApi.create(documentId, form);
+    if (!enabledDocumentId) throw new Error("My Summary is unavailable in this release");
+    const summary = await sheetSummariesApi.create(enabledDocumentId, form);
     setSummaries((current) => [summary, ...current]);
     return summary;
-  }, [documentId]);
+  }, [enabledDocumentId]);
 
   const update = useCallback(async (summaryId, changes) => replace(await sheetSummariesApi.update(summaryId, changes)), [replace]);
 

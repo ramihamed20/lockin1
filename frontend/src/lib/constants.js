@@ -58,8 +58,7 @@ export const bottomNavPaths = ["/", "/materials", "/questions", "/review"];
 export const navHubs = [
   { path: "/materials", sections: [
     { path: "/materials", labelKey: "hub.subjects" },
-    { path: "/paper-workspace", labelKey: "nav.paperWorkspace" },
-    { path: "/materials/summaries", labelKey: "summary.mine" }
+    { path: "/paper-workspace", labelKey: "nav.paperWorkspace" }
   ] },
   { path: "/review", sections: [
     { path: "/review", labelKey: "review.center" },

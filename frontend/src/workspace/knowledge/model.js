@@ -2,7 +2,8 @@
 export const newId = () => globalThis.crypto.randomUUID();
 export const MAX_DOCUMENT_BYTES = 1024 * 1024;
 export const KNOWLEDGE_FIXTURE_TOOLS = typeof __E2E_CATALOG_MATERIALS__ !== "undefined" && __E2E_CATALOG_MATERIALS__ !== null;
-export const STUDY_TOOLS_ENABLED = KNOWLEDGE_FIXTURE_TOOLS || import.meta.env?.VITE_KNOWLEDGE_ENABLED !== "false";
+// My Knowledge and Concept Map are deferred from this release; preserve data and code.
+export const STUDY_TOOLS_ENABLED = false;
 // Explain stays scheduled; Map Builder follows the server per-sheet setting.
 export const COMING_SOON_STUDY_TOOLS = Object.freeze(KNOWLEDGE_FIXTURE_TOOLS ? [] : ["explain"]);
 export function availableStudyTools(tools = {}) {

@@ -12,6 +12,16 @@ if (webkitRequested) process.env.PLAYWRIGHT_WEBKIT = "1";
 
 export default defineConfig({
   testDir: "./e2e",
+  // Defer feature-only behavior suites until My Knowledge, Concept Map,
+  // My Summary and Lock-in Mode are released. Reader and safety tests remain.
+  testIgnore: [
+    "**/focus-knowledge.spec.js",
+    "**/focus-knowledge-live.spec.js",
+    "**/lock-in-friends.spec.js",
+    "**/lock-in-live.spec.js",
+    "**/lock-in-lobby.spec.js",
+    "**/lock-in-rankings.spec.js"
+  ],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

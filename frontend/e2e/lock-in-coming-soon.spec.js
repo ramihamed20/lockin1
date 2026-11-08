@@ -20,7 +20,7 @@ async function connect(page) {
 }
 
 
-for (const path of ["/lock-in"]) {
+for (const path of ["/lock-in", "/lock-in/session-123"]) {
   test(`${path} shows Coming Soon instead of the lobby or a session`, async ({ page }) => {
     const lockInRequests = await connect(page);
     await page.setViewportSize({ width: 390, height: 844 });

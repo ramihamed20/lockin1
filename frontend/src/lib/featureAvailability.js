@@ -17,7 +17,7 @@ const FEATURE_REGISTRY = Object.freeze([
     primaryPath: "/lock-in",
     routes: ["/lock-in"],
     labelKey: "nav.lockInMode",
-    status: FEATURE_AVAILABILITY.AVAILABLE
+    status: FEATURE_AVAILABILITY.COMING_SOON
   }),
   Object.freeze({
     id: "study-plan",

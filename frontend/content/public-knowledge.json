@@ -1873,7 +1873,7 @@
     "backend/apps/accounts/tests/test_email_delivery.py": "e18920add886620fc4872d063b93a58a6385ce004229c6c73d384590f0940b13",
     "frontend/src/pages/Profile.jsx": "7a5e0a1a461d36ee3dbc9f9a6c27c81ccac98382a084a312f17037d1db1b6dbf",
     "docs/ACCOUNT_DELETION_RETENTION.md": "bbbadadaca0c6c97a01df471ff300fedff71eafa16473ad21188695929764c00",
-    "frontend/src/lib/featureAvailability.js": "25510818872ac1873adc498824a7514f72043c43734db88b1117cd6825cb0861",
+    "frontend/src/lib/featureAvailability.js": "2703a145af5e17ef38e9e6bfb1854f4c561342fb19c50f2b58b4789367e3330f",
     "frontend/src/pages/MyGroup.jsx": "8bb12fa42170deb4d4bd3f9e7e8edf0b9914cec68f0e4e1878cf459fd40fdf4d",
     "backend/apps/focus/tests/test_page_active_study.py": "25d02fa15de5480875b19b4996a4b1a67621e2b80954a64ffb2e171b75e40d07",
     "frontend/src/components/shared/ActiveStudyCustomization.jsx": "49a02da58d2cf1095ab0c16ea126572a072e2e456e9d8a69b1f0e62a0e9c4454",
