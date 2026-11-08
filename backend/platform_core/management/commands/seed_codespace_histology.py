@@ -404,7 +404,7 @@ class Command(BaseCommand):
             # The same semester slug exists in several real colleges; select
             # only the year node explicitly attached to the demo cohort.
             semester = EducationNode.objects.get(
-                parent__in=student.cohort.content_nodes.all(),
+                parent__in=student.cohort.content_nodes.all() if student.cohort_id else [],
                 slug="fall-2026",
                 kind=EducationNode.Kind.SEMESTER,
             )
