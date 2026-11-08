@@ -401,18 +401,19 @@ class Command(BaseCommand):
                 email="student@lockin.local"
             )
             creator = User.objects.get(email="creator@lockin.local")
+            cohort = student.cohort
+            if cohort is None or cohort.program.code != "codespace-dentistry":
+                raise CommandError("Refusing to modify a non-demo cohort.")
             # The same semester slug exists in several real colleges; select
             # only the year node explicitly attached to the demo cohort.
             semester = EducationNode.objects.get(
-                parent__in=student.cohort.content_nodes.all() if student.cohort_id else [],
+                parent__in=cohort.content_nodes.all(),
                 slug="fall-2026",
                 kind=EducationNode.Kind.SEMESTER,
             )
-            exam = ExamPeriod.objects.get(title="Codespace Midterm Preview", cohort=student.cohort)
+            exam = ExamPeriod.objects.get(title="Codespace Midterm Preview", cohort=cohort)
         except (User.DoesNotExist, EducationNode.DoesNotExist, ExamPeriod.DoesNotExist) as error:
             raise CommandError("Run seed_demo and seed_codespace_exam first.") from error
-        if student.cohort is None or student.cohort.program.code != "codespace-dentistry":
-            raise CommandError("Refusing to modify a non-demo cohort.")
 
         subject_node = ensure_node(
             semester,
