@@ -63,7 +63,11 @@ def study_plan_item_payload(item: StudyPlanItem) -> dict[str, object]:
         "id": item.id,
         "title": item.title,
         "subject": item.subject,
-        "material_slug": item.catalog_subject.material_slug if item.catalog_subject_id else None,
+        "material_slug": (
+            item.catalog_subject.material_slug
+            if item.catalog_subject is not None
+            else None
+        ),
         "catalog_subject_id": item.catalog_subject_id,
         "scheduled_date": item.scheduled_date,
         "duration_minutes": item.duration_minutes,

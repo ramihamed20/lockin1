@@ -55,7 +55,9 @@ def review_exam_dates(
             f"node:{subject.source_node_id}",
         ):
             dates.setdefault(key, schedule.scheduled_on)
-        for key, path in descendant_keys:
-            if path.startswith(subject.source_node.path):
-                dates.setdefault(key, schedule.scheduled_on)
+        source_node = subject.source_node
+        if source_node is not None:
+            for key, path in descendant_keys:
+                if path.startswith(source_node.path):
+                    dates.setdefault(key, schedule.scheduled_on)
     return dates

@@ -72,7 +72,10 @@ class ExamPeriod(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        if self.carryover_period_id and not valid_carryover_pair(self, self.carryover_period):
+        carryover = self.carryover_period if self.carryover_period_id else None
+        if self.carryover_period_id and (
+            carryover is None or not valid_carryover_pair(self, carryover)
+        ):
             raise ValidationError(
                 {
                     "carryover_period": (

@@ -37,8 +37,9 @@ def daily_review_payload(*, user: User, now: datetime) -> dict[str, Any]:
             "next_review_at",
             "id",
         )
-    times = list(
-        ReviewAnswerLog.objects.filter(
+    times = [
+        int(value)
+        for value in ReviewAnswerLog.objects.filter(
             user=user,
             answered_at__gte=now - timedelta(days=60),
             answered_at__lte=now,
@@ -47,21 +48,23 @@ def daily_review_payload(*, user: User, now: datetime) -> dict[str, Any]:
         )
         .order_by("-answered_at", "-id")
         .values_list("active_seconds", flat=True)[:40]
-    )
+        if value is not None
+    ]
     personalized = len(times) >= 5
     seconds = max(15, min(120, round(median(times)))) if personalized else 30
     results = []
     for item in due[:20]:
         row = review_item_payload(item)
-        row["priority_reasons"] = ["due_review"]
+        reasons: list[str] = ["due_review"]
         if item.mistake_count > 1:
-            row["priority_reasons"].append("repeated_mistake")
+            reasons.append("repeated_mistake")
         if getattr(item, "latest_confidence", "") == "unsure":
-            row["priority_reasons"].append("unsure")
+            reasons.append("unsure")
         exam_on = exam_dates.get(item.subject_key)
         row["exam_on"] = exam_on.isoformat() if exam_on else None
         if exam_on:
-            row["priority_reasons"].append("exam_soon")
+            reasons.append("exam_soon")
+        row["priority_reasons"] = reasons
         results.append(row)
     return {
         "due_count": due.count(),
