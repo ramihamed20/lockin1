@@ -156,8 +156,10 @@ async function expectHorizontalFocalOrPhysicalEdge(page, actualX, targetX, live 
     const viewport = document.querySelector(".workspace-v2-document-stage").getBoundingClientRect();
     const pdf = document.querySelector(".workspace-v2-a4-live-layer").getBoundingClientRect();
     return {
-      leftEdge: Math.abs(pdf.left - viewport.left),
-      rightEdge: Math.abs(viewport.right - pdf.right),
+      // Positive means a real uncovered strip; negative means the PDF
+      // correctly overflows the corresponding physical viewport edge.
+      leftGap: pdf.left - viewport.left,
+      rightGap: viewport.right - pdf.right,
       centerError: Math.abs((pdf.left + pdf.right) / 2 - (viewport.left + viewport.right) / 2),
       fits: pdf.width <= viewport.width + 0.5,
       viewportWidth: viewport.width,
@@ -169,7 +171,7 @@ async function expectHorizontalFocalOrPhysicalEdge(page, actualX, targetX, live 
   const tolerance = live ? 29 : 1.5;
   const diagnostic = JSON.stringify({ actualX, targetX, live, ...geometry });
   if (geometry.fits) expect(geometry.centerError, diagnostic).toBeLessThan(tolerance);
-  else expect(Math.min(geometry.leftEdge, geometry.rightEdge), diagnostic).toBeLessThan(tolerance);
+  else expect(Math.max(geometry.leftGap, geometry.rightGap), diagnostic).toBeLessThan(tolerance);
 }
 
 /**

@@ -1766,7 +1766,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       : "fit";
     zoomRef.current = initialZoom;
     setZoom(initialZoom);
+    // Initial alignment is deferred across frames. If the student scrolls
+    // before those frames complete, their deliberate position takes priority.
+    const beforeAlignment = { left: stage.scrollLeft, top: stage.scrollTop };
     const positionInitialPage = () => {
+      if (Math.abs(stage.scrollTop - beforeAlignment.top) > 1
+        || Math.abs(stage.scrollLeft - beforeAlignment.left) > 1) {
+        initialPageViewRef.current = viewKey;
+        return;
+      }
       // A study resume or explicit navigation made while PDF.js was loading
       // owns the position. Initial placement must not overwrite that choice.
       if (pendingReaderAnchorRef.current) {
@@ -1796,8 +1804,10 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
       // the following paint. Correct only this initial page-one placement; do
       // not steal the reader's position later during ordinary scrolling.
       if (pageDirection === "vertical") {
+        const alignedScrollTop = stage.scrollTop;
         requestAnimationFrame(() => {
-          if (initialPageViewRef.current !== viewKey || pageRef.current !== 1 || pendingReaderAnchorRef.current) return;
+          if (initialPageViewRef.current !== viewKey || pageRef.current !== 1 || pendingReaderAnchorRef.current
+            || Math.abs(stage.scrollTop - alignedScrollTop) > 1) return;
           const first = stage.querySelector('[data-pdf-page="1"]');
           if (!first) return;
           const stageTop = stage.getBoundingClientRect().top;
