@@ -1,5 +1,6 @@
 import "./subject-banner.css";
 
+/** @type {Array<[RegExp, import("react").ReactNode]>} */
 const illustrations = [
   [/embryo/, <>
     <circle r="32" fill="currentColor" fillOpacity=".10" />
