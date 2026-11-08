@@ -3795,10 +3795,11 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     };
     zoomRef.current = finalZoom;
     gesture.pinch = null;
-    // Keep the last compositor transform visible while React prepares the new
-    // document geometry. A transition lets React yield between chunks instead
-    // of blocking the release frame with the entire Workspace render.
-    startTransition(() => setZoom(finalZoom));
+    // This is the completion of a direct pointer interaction, so the matching
+    // document geometry must not be deferred behind unrelated transitions.
+    // A deferred commit can leave the compositor-only pinch frame attached for
+    // seconds (and make a following Fit action read stale geometry).
+    setZoom(finalZoom);
     revealZoomHud(finalZoom);
   }
 
@@ -6280,8 +6281,15 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
   function fitPdfWidth() {
     const stage = stageRef.current;
     if (!stage) return;
-    const bounds = stage.getBoundingClientRect();
-    zoomTo(minimumPdfZoom(), bounds.left + bounds.width / 2, bounds.top + Math.min(bounds.height / 2, 180), { mode: "fit" });
+    // Closing Settings can expand the reader in the same frame as this click.
+    // Measure on the next painted layout so Fit uses the viewport the student
+    // actually sees, rather than the narrower closing-panel width.
+    requestAnimationFrame(() => {
+      const currentStage = stageRef.current;
+      if (!currentStage) return;
+      const bounds = currentStage.getBoundingClientRect();
+      zoomTo(minimumPdfZoom(), bounds.left + bounds.width / 2, bounds.top + Math.min(bounds.height / 2, 180), { mode: "fit" });
+    });
     setFocusMessage(t("focus.pdfFittedToWidth"));
   }
 
