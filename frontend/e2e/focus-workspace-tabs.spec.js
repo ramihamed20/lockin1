@@ -112,8 +112,15 @@ test("whiteboard Add page is fully visible above the bottom edge after three pag
   await page.setViewportSize({ width: 834, height: 1194 });
   await page.goto(ROUTE);
   await page.getByRole("button", { name: /Normal Study/ }).click();
-  await page.getByRole("button", { name: "New tab" }).click();
-  await page.getByRole("menuitem", { name: /Whiteboard/ }).click();
+  // Single-tab tablet layout hides the tab strip; More retains the action.
+  const newTab = page.getByRole("button", { name: "New tab" });
+  if (await newTab.isVisible()) {
+    await newTab.click();
+    await page.getByRole("menuitem", { name: /Whiteboard/ }).click();
+  } else {
+    await page.locator('[data-workspace-surface="more"]').click();
+    await page.locator('#workspace-more-popover [data-workspace-action="new-whiteboard"]').click();
+  }
 
   const stage = onScreen(page, ".workspace-v2-document-stage");
   const addPage = onScreen(page, ".workspace-whiteboard-footer button");
