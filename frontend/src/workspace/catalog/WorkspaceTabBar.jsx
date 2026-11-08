@@ -191,12 +191,18 @@ export default function WorkspaceTabBar({ tabs, activeId, materials, portalRef, 
     const onResize = () => { globalThis.cancelAnimationFrame(frame); frame = globalThis.requestAnimationFrame(reveal); };
     const observer = new globalThis.ResizeObserver(onResize);
     observer.observe(scroller);
-    observer.observe(tab);
+    // A sibling tab changing width can move the selected tab without
+    // resizing the selected tab or the scrolling viewport.
+    for (const child of scroller.children) observer.observe(child);
+    const mutations = new globalThis.MutationObserver(onResize);
+    mutations.observe(scroller, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "dir"] });
+    mutations.observe(document.documentElement, { attributes: true, attributeFilter: ["dir"] });
     globalThis.addEventListener("resize", onResize);
     return () => {
       globalThis.cancelAnimationFrame(frame);
       globalThis.removeEventListener("resize", onResize);
       observer.disconnect();
+      mutations.disconnect();
     };
   }, [activeId, tabs, paneActive]);
 

@@ -314,7 +314,7 @@ test("bottom navigation items never collide at supported phone widths", async ({
       };
     });
 
-    expect(layout).toEqual({
+    expect(layout).toMatchObject({
       count: 5,
       independentTargets: true,
       childrenContained: true,

@@ -630,3 +630,10 @@
   box-shadow: none;
   outline: none;
 }
+
+/* Desktop account menu still works if the native Popover top-layer API is unavailable. */
+.account-menu.account-menu--popover[popover]:not(:popover-open) {
+  display: block;
+  position: fixed;
+  z-index: 100000;
+}

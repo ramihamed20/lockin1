@@ -663,7 +663,13 @@ export function Topbar({ user, operationsSession = null, theme, onThemeChange, o
     } catch {
       // The fixed, portalled surface remains the fallback for older browsers.
     }
+    // React may reparent the topbar while the account identity updates after
+    // onboarding. Check again after the portal is committed to the document.
+    const frame = window.requestAnimationFrame(() => {
+      try { show(profileBackdropRef.current); show(profilePanelRef.current); } catch { /* CSS fallback stays visible. */ }
+    });
     return () => {
+      window.cancelAnimationFrame(frame);
       try {
         if (panel?.hidePopover && panel.matches(":popover-open")) panel.hidePopover();
         if (backdrop?.hidePopover && backdrop.matches(":popover-open")) backdrop.hidePopover();
