@@ -218,9 +218,10 @@ test("one original shared toolbar controls two, three and four PDF cells", async
   await page.locator('.workspace-pane[data-split-slot="2"] .workspace-v2-document-stage').click({ position: { x: 22, y: 70 }, force: true });
   await expect(page.locator('.workspace-pane[data-split-slot="2"]')).toHaveAttribute("data-focused", "true");
   await expect(page.locator(".workspace-split-shared-chrome .workspace-v2-toolbar")).toHaveCount(1);
-  await expect(page.getByRole("combobox", { name: /Sheet for Active Study/ })).toBeVisible();
-  const studySheet = page.getByRole("combobox", { name: /Sheet for Active Study/ });
-  await expect(studySheet).toHaveValue(/vitamin-3/);
+  // The shared toolbar now follows the focused sheet; the old Active Study
+  // sheet selector was deliberately removed from the compact toolbar.
+  const sharedSheet = page.locator(".workspace-split-shared-chrome .workspace-v3-document-context strong");
+  await expect(sharedSheet).toHaveText("Vitamin -3");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".workspace-pane[data-split-slot]")).toHaveCount(4);
   await page.screenshot({ path: "output/playwright/pdf-grid-phone-four.png", fullPage: false });
