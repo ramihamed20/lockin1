@@ -185,9 +185,7 @@ def _briefing(reminder: StudyReminder, now: datetime) -> dict[str, str] | None:
     if count:
         return {
             "template_key": "study.review",
-            "title": "مراجعة قصيرة تثبّت معلوماتك"
-            if arabic
-            else "A little review helps it stick",
+            "title": "مراجعة قصيرة تثبّت معلوماتك" if arabic else "A little review helps it stick",
             "body": f"لديك {count} أسئلة جاهزة في بنك المراجعة. ابدأ ببضعة أسئلة اليوم."
             if arabic
             else f"{count} questions are ready in your Review Bank. Try a few today.",
