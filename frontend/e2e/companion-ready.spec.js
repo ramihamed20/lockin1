@@ -215,11 +215,10 @@ test("dragging the phone companion moves without opening help and survives reloa
   await page.locator(".study-companion-panel header button").click();
 
   await page.setViewportSize({ width: 320, height: 568 });
-  const narrow = await pet.boundingBox();
-  expect(narrow.x).toBeGreaterThanOrEqual(0);
-  expect(narrow.y).toBeGreaterThanOrEqual(0);
-  expect(narrow.x + narrow.width).toBeLessThanOrEqual(320);
-  expect(narrow.y + narrow.height).toBeLessThanOrEqual(568);
+  await expect.poll(async () => {
+    const narrow = await pet.boundingBox();
+    return narrow.x >= 0 && narrow.y >= 0 && narrow.x + narrow.width <= 320 && narrow.y + narrow.height <= 568;
+  }).toBe(true);
 });
 
 test('phone + adds a draggable companion, keeps its position and restores it without a floating button', async ({ page }) => {
