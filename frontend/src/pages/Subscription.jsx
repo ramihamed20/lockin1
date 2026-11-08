@@ -454,8 +454,8 @@ export default function Subscription({ onPoliciesAccepted }) {
             <div className="subscription-payment-unavailable" role="status">
               <h2>{locale === "ar" ? "الاشتراكات متوقفة مؤقتًا" : "Subscriptions are temporarily unavailable"}</h2>
               <p>{locale === "ar"
-                ? "لم يكتمل تفعيل سياسة الدفع على الخادم بعد. موافقتك محفوظة، لكن لا يمكن إرسال بطاقة شحن أو إنشاء اشتراك حتى يكتمل التفعيل."
-                : "Payment policy activation is not complete on the server. Your consent can be saved, but recharge cards cannot be submitted until checkout is activated."}</p>
+                ? "لم يكتمل تفعيل سياسة الدفع على الخادم بعد. لا يمكن إرسال بطاقة شحن أو إنشاء اشتراك حتى يكتمل التفعيل، حتى إذا وافقت على السياسات."
+                : "Payment policy activation is not complete on the server. Recharge cards cannot be submitted or subscriptions created until activation is complete, even after consenting."}</p>
             </div>
           ) : !catalog.manualPaymentAvailable || !offers.length ? (
             <EmptyState title={t("subscription.noOffers")} text={t("subscription.noOffersBody")} />
