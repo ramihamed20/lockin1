@@ -42,6 +42,60 @@
 
 شغّل الترحيلات المعتادة عند نشر الإصدار. لا ينشر رفع الفرع الميزة على VPS تلقائيًا.
 
+## الترجمة الجماعية عبر Gemini وأداة `translate_sheets`
+
+يتيح نظام الترجمة الجماعية إعطاء أوامر مباشرة لـ Gemini مثل:
+«ترجم جميع شيتات Pathology واحفظها في الموقع» أو «ترجم شيت General Pathology — Introduction، نسخة University فقط، مع معاينة قبل الحفظ».
+
+### القواعد الطبية الإلزامية
+
+- ترجمة الشرح إلى العربية الأكاديمية الواضحة.
+- الإبقاء على جميع المصطلحات الطبية والعلمية والتشريحية والاختصارات الإنجليزية كما هي داخل النص (مثل `Pathology`, `Apoptosis`, `Necrosis`, `Hypertrophy`, `Hyperplasia`, `Atrophy`, `Metaplasia`, `Ischemia`, `Hypoxia`, `ATP`, `ROS`, `Caspases`, `Cytochrome c`).
+- فحص تلقائي لكل صفحة للتحقق من بقاء المصطلحات الإنجليزية المستخرجة من `source_text` محفوظة داخل `translated_text`.
+- عدم الحفظ المباشر: يجب توليد معاينة موقّعة (`preview_token`) ومراجعتها قبل الحفظ النهائي، ولا يستخدم النظام أي API خارجي مدفوع تلقائيًا.
+
+### أوامر سطر الأوامر (`manage.py translate_sheets`)
+
+1. **فحص الشيتات المتاحة لمادة أو شيت محدد**:
+   ```bash
+   python manage.py translate_sheets --subject "Pathology" --edition university --action inspect
+   ```
+2. **استخراج نصوص PDF والمصطلحات الطبية لكل صفحة (Manifest)**:
+   ```bash
+   python manage.py translate_sheets \
+     --subject "Pathology" \
+     --edition university \
+     --action extract \
+     --output /tmp/pathology_manifest.json
+   ```
+3. **إنتاج معاينة قبل الحفظ (مع رمز معاينة موقّع وتقرير Markdown)**:
+   ```bash
+   python manage.py translate_sheets \
+     --sheet "General Pathology — Introduction" \
+     --edition university \
+     --action preview \
+     --input /tmp/general_pathology_intro_translations.json \
+     --output /tmp/preview.json \
+     --preview-markdown docs/previews/GENERAL_PATHOLOGY_INTRODUCTION_UNIVERSITY_PREVIEW_AR.md
+   ```
+4. **الحفظ النهائي بعد اعتماد المعاينة (`preview_token`)**:
+   ```bash
+   python manage.py translate_sheets \
+     --sheet "General Pathology — Introduction" \
+     --edition university \
+     --action save \
+     --input /tmp/general_pathology_intro_translations.json \
+     --preview-token "<PREVIEW_TOKEN>"
+   ```
+
+### نقطة نهاية الاستيراد والمعاينة في الخادم
+
+- `GET /api/v1/operations/admin/content/sheets/<sheet_id>/translations/import?edition=university`
+  تُرجع قالب الشيت مع استخراج نص PDF (`source_text`) والمصطلحات الطبية المكتشفة لكل صفحة، وتدعم `?subject=<subject>` لاستخراج جميع شيتات المادة دفعة واحدة (`lockin_translation_batch_v1`).
+- `POST /api/v1/operations/admin/content/sheets/<sheet_id>/translations/import`
+  - عند الإرسال **دون `preview_token`** (أو مع `confirm: false`): يتحقق الخادم من الصلاحيات وبصمة الملف (`checksum`) ومراجعات الصفحات (`expected_revision`) والمصطلحات الطبية، ويُرجع معاينة كاملة (`saved: false`) مع `preview_token` موقّع دون تعديل قاعدة البيانات.
+  - عند الإرسال **مع `preview_token` و`confirm: true`**: يتحقق الخادم من تطابق البصمة والـ `preview_token` ويحفظ الترجمات ذريًا مع تسجيل حدث التدقيق.
+
 ## التحقق
 
-نجح 29 اختبارًا للخادم و37 اختبارًا للواجهة، مع فحص الأنواع والتنسيق وبناء الإنتاج. اختبار SQLite يثبت السلوك والصلاحيات ولا يثبت أقفال PostgreSQL تحت التزامن. لقطات الواجهة السابقة استخدمت بيانات تجريبية محلية، ولا تمثل اعتمادًا على أجهزة حقيقية أو إثبات نشر.
+نجح 27 اختبارًا لنظام ترجمة الشيتات في الخادم (`test_sheet_translation.py` و`test_sheet_translation_batch.py`) و37 اختبارًا للواجهة، مع فحص الأنواع (`mypy`) والتنسيق (`ruff`) وفحص Django. اختبار SQLite يثبت السلوك والصلاحيات ولا يثبت أقفال PostgreSQL تحت التزامن. لقطات الواجهة السابقة استخدمت بيانات تجريبية محلية، ولا تمثل اعتمادًا على أجهزة حقيقية أو إثبات نشر.
