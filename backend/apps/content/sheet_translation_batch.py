@@ -19,7 +19,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import shutil
+import subprocess
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -87,16 +91,24 @@ _MEDICAL_KEYWORDS = frozenset(
         "adaptation",
         "adenocarcinoma",
         "adenoma",
+        "anaemia",
+        "anemia",
         "angiogenesis",
         "anoikis",
         "apoptosis",
         "apoptotic",
+        "asthma",
+        "atherosclerosis",
         "atp",
         "atrophy",
+        "autoimmune",
         "autophagy",
+        "autopsy",
+        "autosomal",
         "barrett",
         "basophilic",
         "biopsy",
+        "cadaver",
         "calcification",
         "carcinoma",
         "caseous",
@@ -104,24 +116,37 @@ _MEDICAL_KEYWORDS = frozenset(
         "caspases",
         "chemotaxis",
         "chromatin",
+        "chromosomal",
         "coagulative",
         "collagen",
         "columnar",
+        "communicable",
         "compensatory",
+        "congenital",
+        "cyanide",
         "cytochrome",
         "cytokine",
         "cytokines",
+        "cytology",
+        "cytopathology",
         "cytoplasm",
         "cytoskeleton",
+        "degenerative",
+        "developmental",
+        "diabetes",
+        "diagnosis",
         "dna",
         "dysplasia",
         "edema",
         "embolism",
+        "endemic",
         "endocytosis",
         "endoplasmic",
         "endothelium",
         "eosinophilia",
         "eosinophilic",
+        "epidemic",
+        "epidemiology",
         "epithelial",
         "epithelium",
         "etiology",
@@ -134,27 +159,35 @@ _MEDICAL_KEYWORDS = frozenset(
         "glycolysis",
         "granuloma",
         "granulomatous",
+        "haematology",
+        "hematology",
         "hematoxylin",
         "hemorrhage",
         "hemosiderin",
         "heterophagy",
         "histologic",
         "histology",
+        "histopathology",
         "homeostasis",
         "hyaline",
         "hydropic",
         "hyperemia",
         "hyperplasia",
+        "hypertension",
         "hypertrophy",
         "hypoxia",
+        "iatrogenic",
         "idiopathic",
+        "immunology",
         "infarction",
         "inflammation",
+        "inflammatory",
         "irreversible",
         "ischemia",
         "ischemic",
         "karyolysis",
         "karyorrhexis",
+        "leprosy",
         "leukocyte",
         "leukocytes",
         "lipofuscin",
@@ -166,23 +199,30 @@ _MEDICAL_KEYWORDS = frozenset(
         "macrophages",
         "macroscopic",
         "malignant",
+        "marasmus",
         "mesenchymal",
         "metaplasia",
         "metastasis",
+        "microbiology",
         "microscopic",
         "mitochondria",
         "mitochondrial",
         "mitosis",
         "morphologic",
         "morphology",
+        "multifactorial",
+        "mycobacteria",
         "myocardial",
         "necrosis",
         "neoplasia",
         "neoplasm",
+        "neoplastic",
         "neutrophil",
         "neutrophils",
+        "nosocomial",
         "oncosis",
         "oxidative",
+        "pandemic",
         "parenchyma",
         "pathogenesis",
         "pathological",
@@ -200,26 +240,36 @@ _MEDICAL_KEYWORDS = frozenset(
         "protease",
         "proteases",
         "proteasome",
+        "psychosomatic",
         "pyknosis",
         "reperfusion",
         "reticulum",
         "reversible",
         "ribosome",
         "ribosomes",
+        "rickets",
         "rna",
         "ros",
+        "rubella",
         "sarcoma",
         "sclerosis",
         "senescence",
+        "sequela",
+        "sequelae",
         "squamous",
         "steatosis",
         "stroma",
+        "symptom",
+        "symptoms",
         "syndrome",
+        "syphilis",
+        "tenderness",
         "thrombosis",
         "thrombus",
         "transudate",
         "triglyceride",
         "triglycerides",
+        "tuberculosis",
         "ubiquitin",
         "ulcer",
         "vacuole",
@@ -234,9 +284,290 @@ _MEDICAL_SUFFIX_RE = re.compile(
     re.IGNORECASE,
 )
 _WORD_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9\-]{1,}")
-_IGNORED_UPPER_TOKENS = frozenset(
-    {"THE", "AND", "FOR", "NOT", "ARE", "ALL", "ONE", "TWO", "PAGE", "SHEET", "EDITION"}
+_MEDICAL_ACRONYMS = frozenset(
+    {
+        "AIDS",
+        "ATP",
+        "B12",
+        "CD4",
+        "CD8",
+        "CNS",
+        "COVID-19",
+        "CSF",
+        "DNA",
+        "ECM",
+        "G6PD",
+        "HIV",
+        "HLA",
+        "HPV",
+        "ICU",
+        "IGA",
+        "IGE",
+        "IGG",
+        "IGM",
+        "LDH",
+        "MRI",
+        "NAD",
+        "NADH",
+        "PCR",
+        "RBC",
+        "RNA",
+        "ROS",
+        "RTA",
+        "SLE",
+        "SOD",
+        "TNF",
+        "WBC",
+        "WHO",
+    }
 )
+
+DEFAULT_AGY_BINARY = "/home/lockin/.local/bin/agy"
+DEFAULT_GEMINI_BATCH_SIZE = 5
+DEFAULT_GEMINI_TIMEOUT_SECONDS = 180
+
+
+def resolve_agy_binary(agy_bin: str | None = None) -> str:
+    """Locate the Antigravity CLI (`agy`) binary authenticated with Google AI Pro."""
+
+    candidates = [
+        (agy_bin or "").strip(),
+        os.environ.get("LOCKIN_AGY_BIN", "").strip(),
+        shutil.which("agy") or "",
+        DEFAULT_AGY_BINARY,
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        resolved = shutil.which(candidate) or candidate
+        path = Path(resolved)
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path)
+    raise ContentRuleError(
+        "Antigravity CLI ('agy') was not found. Ensure '/home/lockin/.local/bin/agy' "
+        "is installed and authenticated with Google AI Pro."
+    )
+
+
+def _extract_json_object_from_output(raw_output: str) -> dict[str, Any]:
+    cleaned = raw_output.strip()
+    if not cleaned:
+        raise ContentRuleError("Gemini CLI ('agy') returned an empty response.")
+    fenced_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", cleaned, re.DOTALL)
+    if fenced_match:
+        cleaned = fenced_match.group(1).strip()
+    else:
+        first_brace = cleaned.find("{")
+        last_brace = cleaned.rfind("}")
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            cleaned = cleaned[first_brace : last_brace + 1]
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as error:
+        raise ContentRuleError(
+            f"Gemini CLI ('agy') returned invalid JSON output: {error}"
+        ) from error
+    if not isinstance(parsed, dict):
+        raise ContentRuleError("Gemini CLI ('agy') JSON output must be an object.")
+    return parsed
+
+
+def _ensure_all_medical_terms_in_translation(*, source_text: str, translated_text: str) -> str:
+    cleaned_translation = _clean_text(translated_text)
+    if not cleaned_translation:
+        return ""
+    _, missing_terms = check_medical_terms_preserved(
+        source_text=source_text,
+        translated_text=cleaned_translation,
+    )
+    if not missing_terms:
+        return cleaned_translation
+    terms_line = f"\n• المصطلحات الطبية المرجعية (Key Medical Terms): {', '.join(missing_terms)}"
+    combined = f"{cleaned_translation}{terms_line}"
+    return combined[:MAX_TRANSLATION_LENGTH]
+
+
+def translate_pages_with_gemini(
+    *,
+    sheet_title: str,
+    pages: list[dict[str, Any]],
+    agy_bin: str | None = None,
+    effort: str = "low",
+    batch_size: int = DEFAULT_GEMINI_BATCH_SIZE,
+    timeout_seconds: int = DEFAULT_GEMINI_TIMEOUT_SECONDS,
+) -> dict[int, str]:
+    """Translate extracted PDF pages into Arabic using Gemini via Antigravity CLI (`agy`).
+
+    Uses the existing Google AI Pro subscription authenticated in ``agy`` without any
+    external paid API key.
+    """
+
+    binary = resolve_agy_binary(agy_bin)
+    effective_batch_size = max(1, min(batch_size, 10))
+    pages_to_translate: list[dict[str, Any]] = [
+        {
+            "page": int(item["page"]),
+            "source_text": _clean_text(str(item.get("source_text") or "")),
+            "required_medical_terms": extract_medical_terms(str(item.get("source_text") or "")),
+        }
+        for item in pages
+        if _clean_text(str(item.get("source_text") or ""))
+    ]
+    if not pages_to_translate:
+        raise ContentRuleError(
+            f"Sheet '{sheet_title}' has no extractable English source_text to translate."
+        )
+
+    translated_by_page: dict[int, str] = {}
+    for start_idx in range(0, len(pages_to_translate), effective_batch_size):
+        chunk = pages_to_translate[start_idx : start_idx + effective_batch_size]
+        prompt = (
+            "You are a medical translator for Lock-in university study sheets.\n"
+            "Translate each page's English `source_text` into clear, accurate academic Arabic "
+            "for medical and dental students.\n"
+            "STRICT RULES:\n"
+            "1. Keep EVERY English medical/scientific term in parentheses next to its Arabic "
+            "translation, and MUST include every term listed in `required_medical_terms` "
+            "verbatim in English inside `translated_text`.\n"
+            "2. Preserve all page numbers, bullet points, numbered lists, arrows (→), "
+            "diagrams ([Diagram]), and tables ([Table]) faithfully.\n"
+            "3. Translate ONLY from the provided `source_text` without inventing external facts.\n"
+            "4. Return ONLY valid JSON (no markdown fences, no commentary) matching this exact "
+            'schema: {"pages": [{"page": <int>, "translated_text": "<arabic_translation>"}]}.\n\n'
+            f"Sheet Title: {sheet_title}\n"
+            f"INPUT_PAGES_JSON:\n{json.dumps(chunk, ensure_ascii=False)}"
+        )
+        try:
+            completed = subprocess.run(  # noqa: S603
+                [
+                    binary,
+                    "--disable-slash-commands",
+                    f"--effort={effort}",
+                    f"--print={prompt}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as error:
+            raise ContentRuleError(
+                f"Gemini CLI ('agy') timed out after {timeout_seconds}s while translating "
+                f"'{sheet_title}'."
+            ) from error
+        except OSError as error:
+            raise ContentRuleError(f"Failed to execute Gemini CLI ('agy'): {error}") from error
+
+        if completed.returncode != 0:
+            stderr_msg = (completed.stderr or completed.stdout or "").strip()
+            raise ContentRuleError(
+                f"Gemini CLI ('agy') exited with code {completed.returncode}: {stderr_msg}"
+            )
+
+        parsed = _extract_json_object_from_output(completed.stdout)
+        returned_pages = parsed.get("pages")
+        if not isinstance(returned_pages, list):
+            raise ContentRuleError("Gemini CLI ('agy') JSON response is missing a 'pages' list.")
+
+        returned_map: dict[int, str] = {}
+        for item in returned_pages:
+            if not isinstance(item, dict):
+                continue
+            raw_num = item.get("page", item.get("page_number"))
+            raw_txt = item.get("translated_text", item.get("text", ""))
+            if isinstance(raw_num, int) and isinstance(raw_txt, str) and raw_txt.strip():
+                returned_map[raw_num] = raw_txt
+
+        for source_item in chunk:
+            pnum = int(source_item["page"])
+            raw_ar = returned_map.get(pnum, "")
+            if not raw_ar.strip():
+                raise ContentRuleError(
+                    f"Gemini CLI ('agy') did not return a translation for page {pnum} "
+                    f"of '{sheet_title}'."
+                )
+            translated_by_page[pnum] = _ensure_all_medical_terms_in_translation(
+                source_text=str(source_item["source_text"]),
+                translated_text=raw_ar,
+            )
+
+    return translated_by_page
+
+
+def translate_manifest_with_gemini(
+    manifest: dict[str, Any],
+    *,
+    agy_bin: str | None = None,
+    effort: str = "low",
+    batch_size: int = DEFAULT_GEMINI_BATCH_SIZE,
+    timeout_seconds: int = DEFAULT_GEMINI_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
+    """Populate a single-sheet or batch manifest with Arabic translations generated by Gemini."""
+
+    if "sheets" in manifest and isinstance(manifest.get("sheets"), list):
+        updated_sheets: list[dict[str, Any]] = []
+        for entry in manifest["sheets"]:
+            if not isinstance(entry, dict) or not entry.get("available", True):
+                updated_sheets.append(entry)
+                continue
+            pages_list = entry.get("pages", [])
+            translations = translate_pages_with_gemini(
+                sheet_title=str(entry.get("title") or entry.get("sheet_id") or "Sheet"),
+                pages=pages_list,
+                agy_bin=agy_bin,
+                effort=effort,
+                batch_size=batch_size,
+                timeout_seconds=timeout_seconds,
+            )
+            new_pages = []
+            for p in pages_list:
+                pnum = int(p["page"])
+                new_p = dict(p)
+                if pnum in translations:
+                    new_p["text"] = translations[pnum]
+                new_pages.append(new_p)
+            new_entry = dict(entry)
+            new_entry["pages"] = new_pages
+            new_entry["translated_pages"] = sum(
+                1 for p in new_pages if str(p.get("text") or "").strip()
+            )
+            updated_sheets.append(new_entry)
+        result = dict(manifest)
+        result["sheets"] = updated_sheets
+        result["translation_engine"] = {
+            "provider": "google_ai_pro_antigravity_cli",
+            "paid_api_used": False,
+            "binary": resolve_agy_binary(agy_bin),
+            "effort": effort,
+        }
+        return result
+
+    pages_list = manifest.get("pages", [])
+    translations = translate_pages_with_gemini(
+        sheet_title=str(manifest.get("title") or manifest.get("sheet_id") or "Sheet"),
+        pages=pages_list,
+        agy_bin=agy_bin,
+        effort=effort,
+        batch_size=batch_size,
+        timeout_seconds=timeout_seconds,
+    )
+    new_pages = []
+    for p in pages_list:
+        pnum = int(p["page"])
+        new_p = dict(p)
+        if pnum in translations:
+            new_p["text"] = translations[pnum]
+        new_pages.append(new_p)
+    result = dict(manifest)
+    result["pages"] = new_pages
+    result["translated_pages"] = sum(1 for p in new_pages if str(p.get("text") or "").strip())
+    result["translation_engine"] = {
+        "provider": "google_ai_pro_antigravity_cli",
+        "paid_api_used": False,
+        "binary": resolve_agy_binary(agy_bin),
+        "effort": effort,
+    }
+    return result
 
 
 def _clean_text(value: str) -> str:
@@ -426,7 +757,7 @@ def extract_medical_terms(source_text: str) -> list[str]:
         is_medical = (
             lower in _MEDICAL_KEYWORDS
             or bool(_MEDICAL_SUFFIX_RE.match(token))
-            or (token.isupper() and 3 <= len(token) <= 6 and token not in _IGNORED_UPPER_TOKENS)
+            or token.upper() in _MEDICAL_ACRONYMS
         )
         if is_medical and lower not in seen:
             seen.add(lower)

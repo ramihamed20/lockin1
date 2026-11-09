@@ -34,6 +34,7 @@ from apps.content.sheet_translation_batch import (
     find_sheets_for_translation,
     format_preview_markdown,
     preview_translations,
+    translate_manifest_with_gemini,
 )
 from apps.content.sheet_translation_pilot import (
     PILOT_SHEET_TITLE,
@@ -51,12 +52,38 @@ class Command(BaseCommand):
     def add_arguments(self, parser: Any) -> None:
         parser.add_argument(
             "--action",
-            choices=("inspect", "extract", "preview", "save"),
+            choices=("inspect", "extract", "translate", "preview", "save"),
             default="inspect",
             help=(
                 "Operation mode: inspect sheets, extract source manifest, "
+                "translate PDF pages with Gemini via Antigravity CLI (agy) and generate preview, "
                 "preview translations, or save confirmed translations."
             ),
+        )
+        parser.add_argument(
+            "--translate-with-gemini",
+            action="store_true",
+            help=(
+                "Extract English text from PDF pages and translate automatically to Arabic "
+                "using Gemini via Antigravity CLI (Google AI Pro subscription, no paid API key)."
+            ),
+        )
+        parser.add_argument(
+            "--agy-bin",
+            default="",
+            help="Optional explicit path to the Antigravity CLI (agy) binary.",
+        )
+        parser.add_argument(
+            "--effort",
+            default="low",
+            choices=("low", "medium", "high"),
+            help="Gemini reasoning effort passed to Antigravity CLI (default: low).",
+        )
+        parser.add_argument(
+            "--batch-size",
+            type=int,
+            default=5,
+            help="Number of PDF pages translated per Gemini CLI invocation (default: 5).",
         )
         parser.add_argument(
             "--subject",
@@ -220,6 +247,66 @@ class Command(BaseCommand):
                     single_sheet_format=bool(options["single_format"]),
                 )
                 self._write_json(manifest, options["output"])
+                return
+
+            if action == "translate" or (
+                action == "preview" and bool(options["translate_with_gemini"])
+            ):
+                default_sheet_query = (
+                    PILOT_SHEET_TITLE if pilot_sheet is not None and not options["subject"] else ""
+                )
+                sheets = find_sheets_for_translation(
+                    subject_query=options["subject"],
+                    sheet_query=options["sheet"] or default_sheet_query,
+                    sheet_id=sheet_id,
+                    subject_id=subject_id,
+                    published_only=bool(options["published_only"]),
+                )
+                if not sheets:
+                    raise CommandError("No matching sheets found for Gemini translation.")
+                manifest = export_translation_manifest(
+                    sheets=sheets,
+                    edition=edition,
+                    extract_pdf_source=True,
+                    single_sheet_format=bool(options["single_format"]) or len(sheets) == 1,
+                )
+                raw_payload = translate_manifest_with_gemini(
+                    manifest,
+                    agy_bin=options["agy_bin"].strip() or None,
+                    effort=str(options["effort"]),
+                    batch_size=int(options["batch_size"]),
+                )
+                preview = preview_translations(
+                    raw=raw_payload,
+                    actor=actor,
+                    default_sheet_id=sheet_id,
+                    default_edition=edition,
+                )
+                if options["preview_markdown"].strip():
+                    md_path = Path(options["preview_markdown"].strip())
+                    md_path.parent.mkdir(parents=True, exist_ok=True)
+                    md_path.write_text(format_preview_markdown(preview), encoding="utf-8")
+
+                if options["output"].strip():
+                    out_path = Path(options["output"].strip())
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    out_path.write_text(
+                        json.dumps(
+                            {
+                                **raw_payload,
+                                "preview_token": preview["preview_token"],
+                                "preview": preview,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                        + "\n",
+                        encoding="utf-8",
+                    )
+                    self.stdout.write(json.dumps(preview, ensure_ascii=False, indent=2))
+                    return
+
+                self._write_json(preview, "")
                 return
 
             if action == "preview":

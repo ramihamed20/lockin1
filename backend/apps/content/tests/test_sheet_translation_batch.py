@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from django.core.management import CommandError, call_command
@@ -20,9 +22,11 @@ from apps.content.sheet_translation_batch import (
     find_sheets_for_translation,
     format_preview_markdown,
     preview_translations,
+    translate_manifest_with_gemini,
 )
 from apps.content.sheet_translation_pilot import (
     PILOT_ARABIC_TRANSLATIONS,
+    PILOT_PAGE_COUNT,
     PILOT_SHEET_TITLE,
     build_pilot_translation_payload,
     ensure_general_pathology_intro_pilot,
@@ -107,12 +111,18 @@ def test_pilot_general_pathology_introduction_university_preview_before_save(
     )
     assert manifest["format"] == SINGLE_FORMAT_V1
     assert manifest["edition"] == "university"
-    assert manifest["page_count"] == 4
-    assert len(manifest["pages"]) == 4
-    assert "Pathology" in manifest["pages"][0]["source_text"]
-    assert "Hypertrophy" in manifest["pages"][1]["source_text"]
-    assert "Ischemia" in manifest["pages"][2]["source_text"]
-    assert "Apoptosis" in manifest["pages"][3]["source_text"]
+    assert manifest["page_count"] == PILOT_PAGE_COUNT == 10
+    assert len(manifest["pages"]) == 10
+    assert "GENERAL PATHOLOGY" in manifest["pages"][0]["source_text"]
+    assert "Epidemiology" in manifest["pages"][1]["source_text"]
+    assert "Etiology" in manifest["pages"][2]["source_text"]
+    assert "Pathogenesis" in manifest["pages"][3]["source_text"]
+    assert "Prognosis" in manifest["pages"][4]["source_text"]
+    assert "Tuberculosis" in manifest["pages"][5]["source_text"]
+    assert "Autoimmune" in manifest["pages"][6]["source_text"]
+    assert "Neoplastic" in manifest["pages"][7]["source_text"]
+    assert "Iatrogenic" in manifest["pages"][8]["source_text"]
+    assert "Autopsy" in manifest["pages"][9]["source_text"]
 
     payload = build_pilot_translation_payload(sheet, edition="university")
     preview = preview_translations(raw=payload, actor=admin)
@@ -120,21 +130,21 @@ def test_pilot_general_pathology_introduction_university_preview_before_save(
     assert preview["saved"] is False
     assert preview["edition"] == "university"
     assert preview["sheet_count"] == 1
-    assert preview["total_pages"] == 4
-    assert preview["translated_count"] == 4
-    assert preview["changed_count"] == 4
+    assert preview["total_pages"] == 10
+    assert preview["translated_count"] == 10
+    assert preview["changed_count"] == 10
     assert preview["preview_token"]
     assert SheetPageTranslation.objects.count() == 0
 
     med_summary = preview["sheets"][0]["medical_terms_summary"]
     assert med_summary["all_source_medical_terms_preserved"] is True
     assert med_summary["missing_count"] == 0
-    assert med_summary["preserved_count"] >= 25
+    assert med_summary["preserved_count"] >= 40
 
     markdown = format_preview_markdown(preview)
     assert PILOT_SHEET_TITLE in markdown
     assert "لم يتم الحفظ في قاعدة البيانات بعد" in markdown
-    assert "Hypertrophy" in markdown
+    assert "Pathogenesis" in markdown
 
     with pytest.raises(ContentRuleError):
         build_pilot_translation_payload(sheet, edition="lockin")
@@ -156,13 +166,13 @@ def test_pilot_general_pathology_introduction_university_preview_before_save(
     )
     assert saved["mode"] == "saved"
     assert saved["saved"] is True
-    assert saved["translated_count"] == 4
+    assert saved["translated_count"] == 10
     assert (
         SheetPageTranslation.objects.filter(
             managed_file_id=payload["file_id"],
             checksum=payload["checksum"],
         ).count()
-        == 4
+        == 10
     )
     assert AuditRecord.objects.filter(
         action="content.sheet_translations_saved",
@@ -315,7 +325,7 @@ def test_translate_sheets_cli_command_end_to_end(tmp_path: Path) -> None:
     preview_json = json.loads(out.getvalue())
     assert preview_json["mode"] == "preview"
     assert preview_json["saved"] is False
-    assert preview_json["translated_count"] == 4
+    assert preview_json["translated_count"] == 10
     assert SheetPageTranslation.objects.count() == 0
     assert payload_file.exists()
     assert preview_md_file.exists()
@@ -340,7 +350,7 @@ def test_translate_sheets_cli_command_end_to_end(tmp_path: Path) -> None:
         )
     assert SheetPageTranslation.objects.count() == 0
 
-    # Saving with the signed preview_token persists all 4 pages.
+    # Saving with the signed preview_token persists all 10 pages.
     save_out = StringIO()
     call_command(
         "translate_sheets",
@@ -357,8 +367,8 @@ def test_translate_sheets_cli_command_end_to_end(tmp_path: Path) -> None:
     saved_json = json.loads(save_out.getvalue())
     assert saved_json["mode"] == "saved"
     assert saved_json["saved"] is True
-    assert saved_json["translated_count"] == 4
-    assert SheetPageTranslation.objects.count() == 4
+    assert saved_json["translated_count"] == 10
+    assert SheetPageTranslation.objects.count() == 10
 
     for page_num, expected_ar in PILOT_ARABIC_TRANSLATIONS.items():
         row = SheetPageTranslation.objects.get(page=page_num)
@@ -372,6 +382,95 @@ def test_translate_sheets_cli_command_end_to_end(tmp_path: Path) -> None:
         is_active=True,
     ).first()
     assert doc is not None
+
+
+def test_gemini_cli_translation_from_pdf_source_without_premade_arabic(
+    tmp_path: Path,
+) -> None:
+    admin = create_admin(email="gemini-admin@example.com")
+    sheet = ensure_general_pathology_intro_pilot(actor=admin)
+    manifest = export_translation_manifest(
+        sheets=[sheet],
+        edition="university",
+        extract_pdf_source=True,
+        single_sheet_format=True,
+    )
+    # Confirm extracted manifest has empty Arabic text (`text == ""`)
+    # and real English `source_text`.
+    assert len(manifest["pages"]) == 10
+    for page_row in manifest["pages"]:
+        assert page_row["text"] == ""
+        assert page_row["source_text"].strip() != ""
+
+    def fake_agy_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        prompt_arg = next(arg for arg in cmd if arg.startswith("--print="))
+        prompt_body = prompt_arg.split("INPUT_PAGES_JSON:\n", 1)[1]
+        input_pages = json.loads(prompt_body)
+        out_pages = []
+        for item in input_pages:
+            pno = int(item.get("page", item.get("page_number")))
+            terms = item["required_medical_terms"]
+            terms_str = ", ".join(f"({t})" for t in terms)
+            out_pages.append(
+                {
+                    "page": pno,
+                    "translated_text": (
+                        f"ترجمة عربية تلقائية عبر Gemini للصفحة {pno}: {terms_str}"
+                    ),
+                }
+            )
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout=json.dumps({"pages": out_pages}, ensure_ascii=False),
+            stderr="",
+        )
+
+    with (
+        patch(
+            "apps.content.sheet_translation_batch.resolve_agy_binary",
+            return_value="/usr/bin/agy",
+        ),
+        patch(
+            "apps.content.sheet_translation_batch.subprocess.run",
+            side_effect=fake_agy_run,
+        ) as mock_run,
+    ):
+        translated = translate_manifest_with_gemini(manifest, batch_size=5)
+        assert mock_run.call_count == 2
+        assert translated["translation_engine"]["provider"] == "google_ai_pro_antigravity_cli"
+        assert translated["translation_engine"]["paid_api_used"] is False
+        assert len(translated["pages"]) == 10
+        for page_row in translated["pages"]:
+            assert "ترجمة عربية تلقائية عبر Gemini" in page_row["text"]
+
+        out_json = tmp_path / "gemini_translated_payload.json"
+        out_md = tmp_path / "gemini_translated_preview.md"
+        cli_out = StringIO()
+        call_command(
+            "translate_sheets",
+            "--sheet-id",
+            str(sheet.id),
+            "--edition",
+            "university",
+            "--action",
+            "translate",
+            "--output",
+            str(out_json),
+            "--preview-markdown",
+            str(out_md),
+            stdout=cli_out,
+        )
+        preview_data = json.loads(cli_out.getvalue())
+        assert preview_data["mode"] == "preview"
+        assert preview_data["saved"] is False
+        assert preview_data["translated_count"] == 10
+        assert (
+            preview_data["sheets"][0]["medical_terms_summary"]["all_source_medical_terms_preserved"]
+            is True
+        )
+        assert SheetPageTranslation.objects.count() == 0
 
 
 def test_stale_revision_after_preview_blocks_save() -> None:

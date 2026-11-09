@@ -54,6 +54,12 @@
 - فحص تلقائي لكل صفحة للتحقق من بقاء المصطلحات الإنجليزية المستخرجة من `source_text` محفوظة داخل `translated_text`.
 - عدم الحفظ المباشر: يجب توليد معاينة موقّعة (`preview_token`) ومراجعتها قبل الحفظ النهائي، ولا يستخدم النظام أي API خارجي مدفوع تلقائيًا.
 
+### آلية عمل Gemini عبر اشتراك Google AI Pro (`agy`) دون API مدفوع
+
+- تستخدم أداة `manage.py translate_sheets --action translate` (أو `--translate-with-gemini`) أداة **Antigravity CLI (`agy`)** المثبتة محليًا والمرتبطة باشتراك **Google AI Pro** الخاص بك مباشرةً.
+- **لا يتم استخدام أي مفتاح Gemini API منفصل أو فوترة API مدفوعة (Zero Paid API Billing)**.
+- تقوم الأداة باستخراج النص الإنجليزي (`source_text`) والمصطلحات الطبية الإلزامية (`required_medical_terms`) لكل صفحة من ملف الـ PDF، ثم ترسلها على دفعات (`--batch-size 5`) إلى Gemini عبر `agy` لترجمتها تلقائيًا إلى العربية مع الحفاظ على جميع المصطلحات الطبية الإنجليزية والرسوم (`[Diagram]`) والجداول (`[Table]`) والأرقام، ثم تُنشئ معاينة كاملة (`preview_token` + تقرير Markdown) دون حفظ أي شيء في الإنتاج قبل المراجعة.
+
 ### أوامر سطر الأوامر (`manage.py translate_sheets`)
 
 1. **فحص الشيتات المتاحة لمادة أو شيت محدد**:
@@ -68,23 +74,35 @@
      --action extract \
      --output /tmp/pathology_manifest.json
    ```
-3. **إنتاج معاينة قبل الحفظ (مع رمز معاينة موقّع وتقرير Markdown)**:
+3. **الترجمة التلقائية الكاملة عبر Gemini (`--action translate`) وإنتاج معاينة قبل الحفظ دون إدخال ترجمة يدوية**:
+   ```bash
+   python manage.py translate_sheets \
+     --sheet "General Pathology — Introduction" \
+     --edition university \
+     --action translate \
+     --single-format \
+     --batch-size 5 \
+     --effort low \
+     --output /tmp/general_pathology_intro_gemini_translated.json \
+     --preview-markdown docs/previews/GENERAL_PATHOLOGY_INTRODUCTION_UNIVERSITY_PREVIEW_AR.md
+   ```
+4. **إنتاج معاينة لملف ترجمة JSON جاهز (مع رمز معاينة موقّع وتقرير Markdown)**:
    ```bash
    python manage.py translate_sheets \
      --sheet "General Pathology — Introduction" \
      --edition university \
      --action preview \
-     --input /tmp/general_pathology_intro_translations.json \
+     --input /tmp/general_pathology_intro_gemini_translated.json \
      --output /tmp/preview.json \
      --preview-markdown docs/previews/GENERAL_PATHOLOGY_INTRODUCTION_UNIVERSITY_PREVIEW_AR.md
    ```
-4. **الحفظ النهائي بعد اعتماد المعاينة (`preview_token`)**:
+5. **الحفظ النهائي بعد اعتماد المعاينة (`preview_token`)**:
    ```bash
    python manage.py translate_sheets \
      --sheet "General Pathology — Introduction" \
      --edition university \
      --action save \
-     --input /tmp/general_pathology_intro_translations.json \
+     --input /tmp/general_pathology_intro_gemini_translated.json \
      --preview-token "<PREVIEW_TOKEN>"
    ```
 
