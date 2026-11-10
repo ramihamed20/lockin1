@@ -10,6 +10,10 @@ Implemented for published catalog PDFs in the Focus reader. This version uses re
 - Help is scoped to document version, edition, study/summary view and actual PDF page. A null page applies to the whole sheet. Changing scope cancels old requests and writing. Draft, stale-version and out-of-range ideas are excluded.
 - The overlay is suppressed during quizzes, other reader panels, export, virtual pages, personal files and whiteboards. Failed content loads leave the reader usable.
 - Arabic/English, RTL, reduced motion, 44px controls, narrow screens and short landscape layouts are supported.
+- Incremental Starmo/Starsea polish keeps the **same approved original artwork**, animation rig and character picker. The profile character now has a third voluntary **Think / تفكير** expression alongside Wave and Celebrate.
+- The companion offers an optional **Quick study boost / تشجيع سريع** with five short, locally curated coaching prompts in Arabic and English. These prompts are explicitly labeled **general study tips, not page facts**; no AI call, auto-popup, new entitlement or unreviewed explanation is added.
+- A new **Quiet suggestions / اقتراحات هادئة** preference is stored per account on the same device: it hides only the floating teaser bubble, while the character, settings, saved ideas and actual page help remain tappable. It does not silently change PDF content or navigation.
+- Prepared idea navigation now includes an accessible mini-progress indicator (e.g. 2/10) without changing how a card is saved or resetting student study state. All additions respect reduced motion, original PNGs and existing phone/tablet layouts.
 
 ## Authoring
 
