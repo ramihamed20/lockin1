@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
