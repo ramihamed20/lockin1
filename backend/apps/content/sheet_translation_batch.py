@@ -369,6 +369,19 @@ _MEDICAL_ACRONYMS = frozenset(
     }
 )
 
+# Reject obvious clinically incorrect Enamel/Dentin labels even when the English
+# words are present. This is an additional guard, not a substitute for review.
+_WRONG_DENTAL_LABELS = (
+    re.compile(
+        r"\\bEnamel\\b\\s*\\(\\s*(?:ال)?عاج\\s*\\)|(?:ال)?عاج\\s*\\(\\s*Enamel\\s*\\)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\\bDentin(?:e)?\\b\\s*\\(\\s*(?:ال)?مينا\\s*\\)|(?:ال)?مينا\\s*\\(\\s*Dentin(?:e)?\\s*\\)",
+        re.IGNORECASE,
+    ),
+)
+
 DEFAULT_AGY_BINARY = "/home/lockin/.local/bin/agy"
 DEFAULT_GEMINI_BATCH_SIZE = 5
 DEFAULT_GEMINI_TIMEOUT_SECONDS = 180
@@ -424,6 +437,10 @@ def _ensure_all_medical_terms_in_translation(*, source_text: str, translated_tex
     cleaned_translation = _clean_text(translated_text)
     if not cleaned_translation:
         return ""
+    if any(pattern.search(cleaned_translation) for pattern in _WRONG_DENTAL_LABELS):
+        raise ContentRuleError(
+            "Incorrect dental equivalence: Enamel and Dentin must not be confused."
+        )
     _, missing_terms = check_medical_terms_preserved(
         source_text=source_text,
         translated_text=cleaned_translation,
