@@ -526,7 +526,7 @@ def test_dental_terms_preserved_verbatim_not_translated_to_wrong_anatomy() -> No
         )
     correct = _ensure_all_medical_terms_in_translation(
         source_text=source,
-        translated_text="==طبقة Enamel تحمي Dentin وPulp.== ويغطي Cementum الجذر.",
+        translated_text="==طبقة Enamel تحمي Dentin وPulp.== ويغطي Cementum جذر السن (root).",
     )
     assert "Enamel" in correct
     assert "عاج" not in correct
