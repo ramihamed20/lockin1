@@ -1470,14 +1470,32 @@ def apply_translations(
             sheet_states, sheet_summaries, strict=True
         ):
             effective_actor = _resolve_save_actor(actor, sheet)
-            updated_state = save_admin_translations(
-                actor=effective_actor,
-                sheet_id=sheet.id,
-                edition=edition,
-                file_id=source.file.id,
-                checksum=source.file.checksum_sha256,
-                pages=normalized_pages,
-            )
+            changed_pages = {
+                int(page["page"]) for page in summary["pages"] if page["changed"]
+            }
+            # Do not rewrite unchanged pages or insert empty rows for image-only pages.
+            if changed_pages:
+                updated_state = save_admin_translations(
+                    actor=effective_actor,
+                    sheet_id=sheet.id,
+                    edition=edition,
+                    file_id=source.file.id,
+                    checksum=source.file.checksum_sha256,
+                    pages=[
+                        page for page in normalized_pages
+                        if int(page["page"]) in changed_pages
+                    ],
+                )
+            else:
+                updated_state = {
+                    "file_id": str(source.file.id),
+                    "checksum": source.file.checksum_sha256,
+                    "page_count": source.page_count,
+                    "translated_pages": SheetPageTranslation.objects.filter(
+                        managed_file=source.file,
+                        checksum=source.file.checksum_sha256,
+                    ).exclude(translated_text="").count(),
+                }
             saved_sheets.append(
                 {
                     "sheet_id": str(sheet.id),
