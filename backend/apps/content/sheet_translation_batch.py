@@ -671,7 +671,7 @@ def translate_manifest_with_gemini(
         for page in pages_list
         if not str(page.get("text") or "").strip() and str(page.get("source_text") or "").strip()
     ]
-    translations: dict[int, str] = {}
+    translations = {}
     if pending_pages:
         translations = translate_pages_with_gemini(
             sheet_title=str(manifest.get("title") or manifest.get("sheet_id") or "Sheet"),
