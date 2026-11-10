@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID
 
 from django.core.management import BaseCommand, CommandError
+from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import User
 from apps.administration.catalog import Capability
@@ -22,9 +23,8 @@ from apps.content.companion_antigravity import (
     CompanionGenerationError,
     generate_companion_import,
 )
-from apps.content.study_assistance_views import AssistanceConflictError
-from rest_framework.exceptions import ValidationError
 from apps.content.models import LearningObject
+from apps.content.study_assistance_views import AssistanceConflictError
 
 
 def _private_json_file(path: str, payload: dict[str, Any]) -> None:
@@ -61,10 +61,15 @@ class Command(BaseCommand):
         parser.add_argument("--agy-bin", default="", help="Explicit Antigravity CLI binary.")
         parser.add_argument("--effort", default="low", choices=("low", "medium", "high"))
         parser.add_argument("--timeout", default=180, type=int, help="Seconds per 5-page batch.")
-        parser.add_argument("--output", required=True, help="Private JSON import file; must be new.")
+        parser.add_argument(
+            "--output", required=True, help="Private JSON import file; must be new."
+        )
         parser.add_argument(
             "--import-drafts", action="store_true",
-            help="Opt-in: add generated cards as unpublished drafts via signed import preview. Never publishes.",
+            help=(
+                "Add generated cards as unpublished drafts using the signed import "
+                "preview. Never publishes."
+            ),
         )
         parser.add_argument(
             "--report-output",
@@ -90,7 +95,11 @@ class Command(BaseCommand):
         if sheet is None:
             raise CommandError("The selected sheet was not found or is archived.")
         output_path = Path(options["output"]).expanduser()
-        report_path = Path(options["report_output"]).expanduser() if options["report_output"] else None
+        report_path = (
+            Path(options["report_output"]).expanduser()
+            if options["report_output"]
+            else None
+        )
         if output_path.exists() or (report_path and report_path.exists()):
             raise CommandError("An output file already exists. Choose new file paths.")
         if report_path and output_path.resolve() == report_path.resolve():
