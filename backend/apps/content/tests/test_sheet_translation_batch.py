@@ -517,6 +517,9 @@ def test_dental_terms_preserved_verbatim_not_translated_to_wrong_anatomy() -> No
     terms = extract_medical_terms(source)
     for term in ("Enamel", "Dentin", "Pulp", "Cementum"):
         assert term in terms
+    # Common slide typo must be normalized to the correct term in English.
+    assert "Enamel" in extract_medical_terms("enaml covers Dentin")
+    assert "enaml" not in extract_medical_terms("enaml covers Dentin")
 
     # The Arabic word عاج by itself must never count as preserving Enamel.
     with pytest.raises(ContentRuleError, match="Enamel"):
