@@ -41,6 +41,8 @@ export function companionPreferences(value) {
     character: value?.character === "girl" ? "girl" : "boy",
     motion: value?.motion !== false,
     hidden: value?.hidden === true,
+    // Quiet mode hides the suggestion bubble, not the companion or page help.
+    quiet: value?.quiet === true,
     // New phone sessions add the companion from the workspace + menu.
     phoneAdded: value?.phoneAdded === true,
     position: Number.isFinite(value?.position?.x) && Number.isFinite(value?.position?.y)
