@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Languages, X } from "lucide-react";
 import { useI18n } from "../../components/I18nProvider.jsx";
 import { getSheetTranslation } from "../../api/sheetTranslation.js";
+import { TranslationRichText } from "./TranslationRichText.jsx";
 import "./sheet-translation.css";
 
 export function SheetTranslationPanel({ documentId, page, onClose }) {
@@ -31,7 +32,7 @@ export function SheetTranslationPanel({ documentId, page, onClose }) {
       <button ref={closeRef} type="button" aria-label={t("common.close")} onClick={onClose}><X size={20} /></button></header>
     <div className="sheet-translation__body" aria-busy={state === "loading"}>
       {state === "ready" ? <><p className="sheet-translation__notice">{t("sheetTranslation.notice")}</p>
-        <div className="sheet-translation__text" lang="ar" dir="rtl">{current.data.translated_text}</div>
+        <TranslationRichText text={current.data.translated_text} />
         {current.data.source_text && <details><summary>{t("sheetTranslation.original")}</summary><div className="sheet-translation__text" lang="en" dir="ltr">{current.data.source_text}</div></details>}
       </> : <div role="status"><p>{t(`sheetTranslation.${state}`)}</p>{["error", "unavailable"].includes(state) && <button type="button" onClick={() => setRefresh((value) => value + 1)}>{t("sheetTranslation.check")}</button>}</div>}
     </div>
