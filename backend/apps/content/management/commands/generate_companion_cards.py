@@ -10,7 +10,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from django.core.management import BaseCommand, CommandError
 from rest_framework.exceptions import ValidationError
@@ -23,7 +23,7 @@ from apps.content.companion_antigravity import (
     CompanionGenerationError,
     generate_companion_import,
 )
-from apps.content.models import LearningObject
+from apps.content.models import LearningObject, StudyAssistanceIdea
 from apps.content.study_assistance_views import AssistanceConflictError
 
 
@@ -128,6 +128,25 @@ class Command(BaseCommand):
                 + ", ".join(map(str, report["pages_without_text"]))
             )
         if options["import_drafts"]:
+            # Never overwrite or unpublish existing student-visible cards.
+            # A direct draft import is only for new cards or existing drafts.
+            sheet_payload = payload["sheets"][0]
+            generated_ids = [
+                uuid5(
+                    NAMESPACE_URL,
+                    f"lockin:companion:{sheet.id}:"
+                    f"{sheet_payload['source_version_id']}:"
+                    f"{options['edition']}:{options['view']}:{card['key']}",
+                )
+                for card in sheet_payload["cards"]
+            ]
+            if StudyAssistanceIdea.objects.filter(
+                id__in=generated_ids, is_published=True
+            ).exists():
+                raise CommandError(
+                    "Direct draft import would modify published cards. "
+                    "Review this JSON manually in Content Studio instead."
+                )
             # A generated source is never automatically published. Staff review
             # and a later explicit publication action are still required.
             try:
