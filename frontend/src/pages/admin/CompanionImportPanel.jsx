@@ -31,7 +31,7 @@ export function CompanionImportPanel({ sheet, edition, view, onImported }) {
      '--max-cards 40',
      '--output /tmp/companion-'+targets[0].sheet_id.slice(0,8)+'-draft.json',
      '--report-output /tmp/companion-'+targets[0].sheet_id.slice(0,8)+'-review.json'
-    ].join(' \\\n  ')
+    ].join(' ')
   : '';
  function invalidate(){setPreview(null);setMessage('');}
  async function readFile(event){
