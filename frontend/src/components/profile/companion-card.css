@@ -7,6 +7,7 @@
 .profile-companion-stage .study-companion-character { inline-size: 190px; block-size: 190px; }
 .profile-companion-stage strong { font-size: 22px; }
 .profile-companion-emotes,.profile-companion-choices { display: flex; justify-content: center; gap: 10px; }
+.profile-companion-emotes { flex-wrap: wrap; }
 .profile-companion-emotes button { display: inline-flex; align-items: center; gap: 6px; }
 .profile-companion-emotes button,.profile-companion-choices button { min-block-size: 44px; border: 1px solid var(--border); border-radius: 14px; padding: 9px 15px; color: inherit; background: var(--surface-2); cursor: pointer; }
 .profile-companion-xp { display: grid; gap: 9px; font-size: 13px; }
