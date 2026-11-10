@@ -83,6 +83,11 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     if (!host) return undefined;
     let frame = 0;
     let studentInteracted = false;
+    // PDF.js may restore a saved scroll position after the initial 700ms settle.
+    // Watch late scroll restoration for a bounded window, without overriding
+    // intentional reader gestures or continuing to adjust during study.
+    const settleUntil = Date.now() + 6000;
+    const observedStages = [];
     // A restored reader can be scrolled 30-100px *past* its first page after
     // the grid changes shape. Align those small offsets at split setup, but
     // never override a scroll the student initiated in a visible pane.
@@ -96,6 +101,7 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     host.addEventListener("wheel", markInteraction, { passive: true, capture: true });
     host.addEventListener("touchstart", markInteraction, { passive: true, capture: true });
     host.addEventListener("pointerdown", markInteraction, true);
+    host.addEventListener("keydown", markInteraction, true);
     const alignTopEdges = () => {
       frame = 0;
       if (studentInteracted) return;
@@ -122,7 +128,14 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     for (const pane of host.querySelectorAll(".workspace-pane[data-split-slot]")) {
       resizeObserver.observe(pane);
       const stage = pane.querySelector(".workspace-v2-document-stage");
-      if (stage) resizeObserver.observe(stage);
+      if (stage) {
+        resizeObserver.observe(stage);
+        const onScroll = () => {
+          if (!studentInteracted && Date.now() < settleUntil) queueAlign();
+        };
+        stage.addEventListener("scroll", onScroll, { passive: true });
+        observedStages.push([stage, onScroll]);
+      }
       mutationObserver.observe(pane, { childList: true, subtree: true });
     }
     queueAlign();
@@ -130,11 +143,13 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
     return () => {
       resizeObserver.disconnect();
       mutationObserver.disconnect();
+      for (const [stage, onScroll] of observedStages) stage.removeEventListener("scroll", onScroll);
       settling.forEach(globalThis.clearTimeout);
       if (frame) globalThis.cancelAnimationFrame(frame);
       host.removeEventListener("wheel", markInteraction, true);
       host.removeEventListener("touchstart", markInteraction, true);
       host.removeEventListener("pointerdown", markInteraction, true);
+      host.removeEventListener("keydown", markInteraction, true);
     };
   }, [isMulti, slotIdentity]);
 
