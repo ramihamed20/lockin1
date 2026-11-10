@@ -1,0 +1,36 @@
+name: PR96 one-time companion command formatter
+
+on:
+  push:
+    branches:
+      - feat/ai-sheet-translation-20261109
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install pinned Ruff
+        run: python -m pip install ruff==0.15.21
+      - name: Format companion management command
+        run: |
+          ruff format backend/apps/content/management/commands/generate_companion_cards.py
+          ruff check backend/apps/content/management/commands/generate_companion_cards.py
+      - name: Commit formatting only to feature branch
+        run: |
+          git add backend/apps/content/management/commands/generate_companion_cards.py
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'style(companion): format protected draft import command'
+            git push origin "HEAD:refs/heads/feat/ai-sheet-translation-20261109"
+          fi
