@@ -151,3 +151,59 @@ def test_generated_json_output_is_private_and_never_silently_overwritten(
     with pytest.raises(CommandError):
         _private_json_file(str(path), {"schema_version": 2})
     assert json.loads(path.read_text(encoding="utf-8")) == {"schema_version": 1}
+
+
+from .test_study_assistance import context as context  # noqa: F401
+
+
+@pytest.mark.django_db
+def test_opt_in_import_creates_only_unpublished_companion_drafts(
+    context, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from django.core.management import call_command
+
+    from apps.content.models import StudyAssistanceIdea
+
+    from .test_assistance_import import payload as import_payload
+
+    document, *_ = context
+    sheet = document.version.learning_object
+    actor = sheet.owner
+    raw = import_payload(document)
+    review = {
+        "cards": 1,
+        "pages_with_text": 1,
+        "physical_page_count": 1,
+        "pages_without_text": [],
+        "pages_not_submitted": [],
+    }
+    monkeypatch.setattr(
+        "apps.content.management.commands.generate_companion_cards.generate_companion_import",
+        lambda **kwargs: (raw, review),
+    )
+    path = tmp_path / "generated.json"
+    call_command(
+        "generate_companion_cards",
+        "--sheet-id", str(sheet.id),
+        "--actor-email", actor.email,
+        "--output", str(path),
+        "--import-drafts",
+    )
+    assert path.is_file()
+    assert StudyAssistanceIdea.objects.count() == 1
+    record = StudyAssistanceIdea.objects.get()
+    assert record.is_published is False
+    assert record.question == "Short title"
+
+    # Repeating the same generated key does not create a second card.
+    call_command(
+        "generate_companion_cards",
+        "--sheet-id", str(sheet.id),
+        "--actor-email", actor.email,
+        "--output", str(tmp_path / "generated-again.json"),
+        "--import-drafts",
+    )
+    assert StudyAssistanceIdea.objects.count() == 1
+    record.refresh_from_db()
+    assert record.is_published is False
+    assert record.revision == 1
