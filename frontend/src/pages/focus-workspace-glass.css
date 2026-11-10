@@ -1153,12 +1153,57 @@ html.ix-hover .workspace-v2 .workspace-v2-page-number:hover,
 html.ix-hover .workspace-v2 .workspace-v2-page-navigator button:hover:not(:disabled) { color: var(--fx-text); background: var(--fx-fill-strong); }
 .workspace-v2 .workspace-v2-page-input input { height: 36px; border: 0; border-radius: 10px; color: var(--fx-text); background: var(--fx-fill-strong); font-size: 16px; }
 .workspace-v2 .workspace-v2-page-total { color: var(--fx-text-3); font-size: .8125rem; }
+/* Compact bottom controls for mouse/trackpad desktops only.
+   Keep the full-size touch targets on tablets and phones unchanged. */
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
-  .workspace-v2 .workspace-v2-zoom-bar { padding: 3px; border-radius: 999px; }
-  .workspace-v2 .workspace-v2-zoom-bar button { height: 32px; border-radius: 999px; color: var(--fx-text-2); font-size: .75rem; font-weight: 600; }
-  .workspace-v2 .workspace-v2-zoom-bar button:hover:not(:disabled) { color: var(--fx-text); background: var(--fx-fill-strong); }
-  .workspace-v2 .workspace-v2-zoom-bar output { color: var(--fx-text); font-size: .8125rem; font-weight: 600; }
-  .workspace-v2 .workspace-v2-zoom-bar-divider { background: var(--fx-hair); }
+  .workspace-v2 .workspace-v2-page-number {
+    min-height: 29px;
+    gap: 3px;
+    padding: 0 10px;
+    font-size: .7rem;
+  }
+  .workspace-v2 .workspace-v2-zoom-bar {
+    gap: 1px;
+    padding: 2px;
+    border-radius: 999px;
+  }
+  .workspace-v2 .workspace-v2-zoom-bar button {
+    min-width: 28px;
+    height: 28px;
+    gap: 3px;
+    padding: 0 5px;
+    border-radius: 999px;
+    color: var(--fx-text-2);
+    font-size: .6875rem;
+    font-weight: 600;
+  }
+  .workspace-v2 .workspace-v2-zoom-bar button svg {
+    width: 13px;
+    height: 13px;
+  }
+  .workspace-v2 .workspace-v2-zoom-bar button:hover:not(:disabled) {
+    color: var(--fx-text);
+    background: var(--fx-fill-strong);
+  }
+  .workspace-v2 .workspace-v2-zoom-bar output {
+    min-width: 40px;
+    color: var(--fx-text);
+    font-size: .7rem;
+    font-weight: 600;
+  }
+  .workspace-v2 .workspace-v2-zoom-bar-divider {
+    height: 16px;
+    margin-inline: 2px;
+    background: var(--fx-hair);
+  }
+  .workspace-v2 .workspace-v2-zoom-bar .workspace-v4-zoom-presets button {
+    min-width: 32px;
+    padding-inline: 5px;
+    font-size: .65rem;
+  }
+  .workspace-v2 .workspace-v2-zoom-bar .workspace-v4-zoom-fit span {
+    font-size: .65rem;
+  }
 }
 @media (pointer: coarse) {
   .workspace-v2 .workspace-v2-page-number { min-height: 44px; padding: 0 16px; }
