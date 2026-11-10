@@ -302,6 +302,7 @@ def test_admin_import_endpoint_subject_manifest_preview_and_confirm_flow(context
 
 
 def test_translate_sheets_cli_command_end_to_end(tmp_path: Path) -> None:
+    create_admin(email="cli-translation-admin@example.com")
     payload_file = tmp_path / "pilot_payload.json"
     preview_md_file = tmp_path / "pilot_preview.md"
     saved_out_file = tmp_path / "pilot_saved.json"
@@ -316,6 +317,8 @@ def test_translate_sheets_cli_command_end_to_end(tmp_path: Path) -> None:
         "university",
         "--action",
         "preview",
+        "--actor-email",
+        "cli-translation-admin@example.com",
         "--output",
         str(payload_file),
         "--preview-markdown",
@@ -361,7 +364,7 @@ def test_translate_sheets_cli_command_end_to_end(tmp_path: Path) -> None:
         "--preview-token",
         token,
         "--actor-email",
-        "admin@lockin.local",
+        "cli-translation-admin@example.com",
         "--output",
         str(saved_out_file),
         stdout=save_out,
