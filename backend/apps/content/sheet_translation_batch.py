@@ -776,7 +776,13 @@ def _normalize_extracted_page_text(raw_text: str) -> str:
         return ""
     lines = [re.sub(r"[ \t]+", " ", line).strip() for line in cleaned.splitlines()]
     compact_lines = [line for line in lines if line]
-    return "\n".join(compact_lines)[:MAX_TRANSLATION_LENGTH]
+    extracted = "\n".join(compact_lines)
+    if len(extracted) > MAX_TRANSLATION_LENGTH:
+        raise ContentRuleError(
+            "An extracted PDF page exceeds the supported text length; "
+            "split or review the page instead of silently cutting off its content."
+        )
+    return extracted
 
 
 def extract_pdf_pages_text(
