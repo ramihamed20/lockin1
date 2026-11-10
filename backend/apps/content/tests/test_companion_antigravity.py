@@ -136,6 +136,32 @@ def test_companion_rejects_unverifiable_card_content(page: int, quote: str, kind
         )
 
 
+def test_companion_rejects_swapped_dental_labels_and_missing_english_terms() -> None:
+    wrong_label = json.loads(response())
+    wrong_label["cards"][0]["explanation"] = "Enamel (عاج) تغطي تاج السن."
+    with pytest.raises(CompanionGenerationError, match="confuses"):
+        _parse_cards_response(
+            json.dumps(wrong_label, ensure_ascii=False),
+            pages={1: SOURCE},
+            budget=3,
+        )
+
+    missing_english = json.loads(response())
+    missing_english["cards"][0].update(
+        teaser="تذكير دراسي",
+        question="ما هي الطبقة الخارجية؟",
+        explanation="تغطي الطبقة الخارجية تاج السن.",
+        followup_question="أين تقع؟",
+        followup_answer="خارج السن.",
+    )
+    with pytest.raises(CompanionGenerationError, match="English medical"):
+        _parse_cards_response(
+            json.dumps(missing_english, ensure_ascii=False),
+            pages={1: SOURCE},
+            budget=3,
+        )
+
+
 def test_companion_rejects_excessive_card_output() -> None:
     with pytest.raises(CompanionGenerationError, match="within the limit"):
         _parse_cards_response(json.dumps({"cards": [{}, {}]}), pages={1: SOURCE}, budget=1)
