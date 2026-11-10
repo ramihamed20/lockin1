@@ -8,3 +8,34 @@
 .sheet-translation details { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border); }
 .sheet-translation summary { cursor: pointer; min-height: 44px; }
 @media (max-width: 600px), (max-height: 550px) { .sheet-translation { top: auto; bottom: calc(10px + env(safe-area-inset-bottom)); inset-inline: 10px; width: auto; max-height: 48%; } }
+
+/* Plain-text, reviewer-friendly emphasis: no injected HTML or inline styles. */
+.sheet-translation__medical-term {
+  display: inline;
+  direction: ltr;
+  unicode-bidi: isolate;
+  color: var(--brand, #2563eb);
+  font-weight: 650;
+  border-radius: 3px;
+}
+.sheet-translation__key-word { color: var(--text); font-weight: 750; }
+.sheet-translation__key-line {
+  color: inherit;
+  background: color-mix(in srgb, #f3c64d 23%, transparent);
+  border-radius: 5px;
+  padding: 1px 3px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.translation-editor__formatted-preview {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  max-height: 260px;
+  overflow: auto;
+}
+@media (prefers-contrast: more) {
+  .sheet-translation__medical-term { text-decoration: underline; text-underline-offset: 3px; }
+  .sheet-translation__key-line { outline: 1px solid currentColor; }
+}
