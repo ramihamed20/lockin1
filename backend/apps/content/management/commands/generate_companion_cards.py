@@ -32,9 +32,7 @@ def _private_json_file(path: str, payload: dict[str, Any]) -> None:
     target = Path(path).expanduser()
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
-        descriptor = os.open(
-            target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
-        )
+        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except OSError as exc:
         raise CommandError(f"Cannot create output file: {target}") from exc
     try:
@@ -65,7 +63,8 @@ class Command(BaseCommand):
             "--output", required=True, help="Private JSON import file; must be new."
         )
         parser.add_argument(
-            "--import-drafts", action="store_true",
+            "--import-drafts",
+            action="store_true",
             help=(
                 "Add generated cards as unpublished drafts using the signed import "
                 "preview. Never publishes."
@@ -96,9 +95,7 @@ class Command(BaseCommand):
             raise CommandError("The selected sheet was not found or is archived.")
         output_path = Path(options["output"]).expanduser()
         report_path = (
-            Path(options["report_output"]).expanduser()
-            if options["report_output"]
-            else None
+            Path(options["report_output"]).expanduser() if options["report_output"] else None
         )
         if output_path.exists() or (report_path and report_path.exists()):
             raise CommandError("An output file already exists. Choose new file paths.")
@@ -106,9 +103,13 @@ class Command(BaseCommand):
             raise CommandError("The JSON and review report must use different files.")
         try:
             payload, report = generate_companion_import(
-                sheet=sheet, edition=options["edition"], view=options["view"],
-                max_cards=options["max_cards"], agy_bin=options["agy_bin"] or None,
-                effort=options["effort"], timeout=options["timeout"],
+                sheet=sheet,
+                edition=options["edition"],
+                view=options["view"],
+                max_cards=options["max_cards"],
+                agy_bin=options["agy_bin"] or None,
+                effort=options["effort"],
+                timeout=options["timeout"],
             )
         except CompanionGenerationError as exc:
             raise CommandError(str(exc)) from exc
@@ -130,11 +131,12 @@ class Command(BaseCommand):
             # A generated source is never automatically published. Staff review
             # and a later explicit publication action are still required.
             try:
-                preview = import_cards(
-                    actor=actor, anchor_id=sheet.id, raw=payload, publish=False
-                )
+                preview = import_cards(actor=actor, anchor_id=sheet.id, raw=payload, publish=False)
                 result = import_cards(
-                    actor=actor, anchor_id=sheet.id, raw=payload, publish=False,
+                    actor=actor,
+                    anchor_id=sheet.id,
+                    raw=payload,
+                    publish=False,
                     token=preview["preview_token"],
                 )
             except (ValidationError, AssistanceConflictError) as exc:

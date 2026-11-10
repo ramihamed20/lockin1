@@ -90,7 +90,9 @@ def test_companion_generation_retains_source_page_and_strips_private_evidence(
         )
 
     payload, report = generate_companion_import(
-        sheet=FakeSheet(), edition="university", view="study",
+        sheet=FakeSheet(),
+        edition="university",
+        view="study",
         reader=lambda **kwargs: ({1: SOURCE}, 1),
         runner=fake_run,
     )
@@ -125,9 +127,7 @@ def test_companion_generation_retains_source_page_and_strips_private_evidence(
         (1, QUOTE, "invented_kind"),
     ],
 )
-def test_companion_rejects_unverifiable_card_content(
-    page: int, quote: str, kind: str
-) -> None:
+def test_companion_rejects_unverifiable_card_content(page: int, quote: str, kind: str) -> None:
     with pytest.raises(CompanionGenerationError):
         _parse_cards_response(
             response(page=page, quote=quote, kind=kind),
@@ -138,9 +138,7 @@ def test_companion_rejects_unverifiable_card_content(
 
 def test_companion_rejects_excessive_card_output() -> None:
     with pytest.raises(CompanionGenerationError, match="within the limit"):
-        _parse_cards_response(
-            json.dumps({"cards": [{}, {}]}), pages={1: SOURCE}, budget=1
-        )
+        _parse_cards_response(json.dumps({"cards": [{}, {}]}), pages={1: SOURCE}, budget=1)
 
 
 def test_generated_json_output_is_private_and_never_silently_overwritten(
@@ -183,9 +181,12 @@ def test_opt_in_import_creates_only_unpublished_companion_drafts(
     path = tmp_path / "generated.json"
     call_command(
         "generate_companion_cards",
-        "--sheet-id", str(sheet.id),
-        "--actor-email", actor.email,
-        "--output", str(path),
+        "--sheet-id",
+        str(sheet.id),
+        "--actor-email",
+        actor.email,
+        "--output",
+        str(path),
         "--import-drafts",
     )
     assert path.is_file()
@@ -197,9 +198,12 @@ def test_opt_in_import_creates_only_unpublished_companion_drafts(
     # Repeating the same generated key does not create a second card.
     call_command(
         "generate_companion_cards",
-        "--sheet-id", str(sheet.id),
-        "--actor-email", actor.email,
-        "--output", str(tmp_path / "generated-again.json"),
+        "--sheet-id",
+        str(sheet.id),
+        "--actor-email",
+        actor.email,
+        "--output",
+        str(tmp_path / "generated-again.json"),
         "--import-drafts",
     )
     assert StudyAssistanceIdea.objects.count() == 1
