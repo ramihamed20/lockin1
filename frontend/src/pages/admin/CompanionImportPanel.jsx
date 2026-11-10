@@ -21,6 +21,18 @@ export function CompanionImportPanel({ sheet, edition, view, onImported }) {
   return ()=>{controller.abort();fileSequence.current+=1;};
  },[open,sheet.id,edition,view,reload]);
  const targets=context?.sheets.filter(s=>mode==='all'||(mode==='one'?s.sheet_id===sheet.id:selected.includes(s.sheet_id)))||[];
+ const antigravityCommand=targets.length===1
+  ? [
+     'python manage.py generate_companion_cards',
+     '--sheet-id "'+targets[0].sheet_id+'"',
+     '--actor-email "YOUR_CONTENT_ADMIN_EMAIL"',
+     '--edition '+edition,
+     '--view '+view,
+     '--max-cards 40',
+     '--output /tmp/companion-'+targets[0].sheet_id.slice(0,8)+'-draft.json',
+     '--report-output /tmp/companion-'+targets[0].sheet_id.slice(0,8)+'-review.json'
+    ].join(' \\\n  ')
+  : '';
  function invalidate(){setPreview(null);setMessage('');}
  async function readFile(event){
   const file=event.target.files?.[0]; if(!file)return;
@@ -52,6 +64,12 @@ export function CompanionImportPanel({ sheet, edition, view, onImported }) {
   {context&&<fieldset disabled={busy}>
    <label className="field"><span>{c.selected}</span><select aria-label={c.selected} value={mode} onChange={event=>{setMode(event.target.value);setPrompt('');invalidate();}}><option value="one">{c.one}</option><option value="several">{c.several}</option><option value="all">{c.all}</option></select></label>
    {mode==='several'&&<div className="admin-assistance-import-sheets">{context.sheets.map(s=><label key={s.sheet_id}><input type="checkbox" checked={selected.includes(s.sheet_id)} onChange={event=>{setSelected(values=>event.target.checked?[...values,s.sheet_id]:values.filter(id=>id!==s.sheet_id));setPrompt('');invalidate();}}/>{s.title}</label>)}</div>}
+   {antigravityCommand&&<div className="admin-assistance-antigravity">
+    <strong>{c.antigravity}</strong>
+    <p>{c.antigravityHelp}</p>
+    <pre dir="ltr"><code>{antigravityCommand}</code></pre>
+    <button type="button" className="btn btn-soft" onClick={async()=>{setMessage(await copyTextToClipboard(antigravityCommand)?c.copied:c.copyFailed);}}>{c.antigravityCopy}</button>
+   </div>}
    <button type="button" className="btn btn-soft" disabled={!targets.length} onClick={async()=>{try{const value=buildCompanionPrompt(context,targets);setPrompt(value);setMessage(await copyTextToClipboard(value)?c.copied:c.copyFailed);}catch(error){setError(error.message);}}}>{c.prompt}</button>
    {prompt&&<textarea readOnly aria-label={c.prompt} value={prompt} rows={5} dir="ltr" />}
    <label className="field"><span>{c.file}</span><input type="file" accept=".json,application/json" onChange={event=>void readFile(event)} /></label>
