@@ -618,6 +618,7 @@ def translate_manifest_with_gemini(
 
     if "sheets" in manifest and isinstance(manifest.get("sheets"), list):
         updated_sheets: list[dict[str, Any]] = []
+        translation_ran = False
         for entry in manifest["sheets"]:
             if not isinstance(entry, dict) or not entry.get("available", True):
                 updated_sheets.append(entry)
@@ -639,6 +640,7 @@ def translate_manifest_with_gemini(
                     batch_size=batch_size,
                     timeout_seconds=timeout_seconds,
                 )
+                translation_ran = True
             new_pages = []
             for p in pages_list:
                 pnum = int(p["page"])
@@ -658,9 +660,9 @@ def translate_manifest_with_gemini(
         result = dict(manifest)
         result["sheets"] = updated_sheets
         result["translation_engine"] = {
-            "provider": "google_ai_pro_antigravity_cli",
+            "provider": "google_ai_pro_antigravity_cli" if translation_ran else "not_needed",
             "paid_api_used": False,
-            "binary": resolve_agy_binary(agy_bin),
+            "binary": resolve_agy_binary(agy_bin) if translation_ran else None,
             "effort": effort,
         }
         return result
@@ -695,9 +697,9 @@ def translate_manifest_with_gemini(
         int(p["page"]) for p in new_pages if not str(p.get("text") or "").strip()
     ]
     result["translation_engine"] = {
-        "provider": "google_ai_pro_antigravity_cli",
+        "provider": "google_ai_pro_antigravity_cli" if translations else "not_needed",
         "paid_api_used": False,
-        "binary": resolve_agy_binary(agy_bin),
+        "binary": resolve_agy_binary(agy_bin) if translations else None,
         "effort": effort,
     }
     return result
