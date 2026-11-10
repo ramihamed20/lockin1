@@ -141,8 +141,11 @@ def _parse_cards_response(raw: str, *, pages: dict[int, str], budget: int) -> li
             )
         terms = extract_medical_terms(quote)
         if terms and not any(
-            re.search(rf"(?<![A-Za-z0-9]){re.escape(term)}(?![A-Za-z0-9])",
-                      rendered_text, flags=re.IGNORECASE)
+            re.search(
+                rf"(?<![A-Za-z0-9]){re.escape(term)}(?![A-Za-z0-9])",
+                rendered_text,
+                flags=re.IGNORECASE,
+            )
             for term in terms
         ):
             raise CompanionGenerationError(
