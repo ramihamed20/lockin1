@@ -140,9 +140,7 @@ class Command(BaseCommand):
                 )
                 for card in sheet_payload["cards"]
             ]
-            if StudyAssistanceIdea.objects.filter(
-                id__in=generated_ids, is_published=True
-            ).exists():
+            if StudyAssistanceIdea.objects.filter(id__in=generated_ids, is_published=True).exists():
                 raise CommandError(
                     "Direct draft import would modify published cards. "
                     "Review this JSON manually in Content Studio instead."
