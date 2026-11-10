@@ -533,6 +533,16 @@ def test_dental_terms_preserved_verbatim_not_translated_to_wrong_anatomy() -> No
     )
     assert "Enamel" in correct
     assert "عاج" not in correct
+    with pytest.raises(ContentRuleError, match="Incorrect dental equivalence"):
+        _ensure_all_medical_terms_in_translation(
+            source_text=source,
+            translated_text="Enamel (عاج) تحمي Dentin وPulp ويغطي Cementum جذر السن (root).",
+        )
+    with pytest.raises(ContentRuleError, match="Incorrect dental equivalence"):
+        _ensure_all_medical_terms_in_translation(
+            source_text=source,
+            translated_text="Enamel تحمي Dentin (مينا) وPulp ويغطي Cementum (root).",
+        )
     preserved, missing = check_medical_terms_preserved(
         source_text="Enamel and Dentin",
         translated_text="Enamelworks with Dentin.",
