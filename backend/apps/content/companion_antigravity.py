@@ -44,7 +44,9 @@ def _normalize_evidence(text: str) -> str:
     return re.sub(r"\s+", " ", text).casefold().strip()
 
 
-def read_companion_pdf_pages(*, sheet: LearningObject, edition: str, view: str) -> tuple[dict[int, str], int]:
+def read_companion_pdf_pages(
+    *, sheet: LearningObject, edition: str, view: str
+) -> tuple[dict[int, str], int]:
     """Read only the ready asset actually opened in this edition and view."""
     version = sheet.current_version
     if version is None:
@@ -65,7 +67,8 @@ def read_companion_pdf_pages(*, sheet: LearningObject, edition: str, view: str) 
             page_count = len(reader.pages)
             if expected_count is not None and page_count != expected_count:
                 raise CompanionGenerationError(
-                    "PDF page count differs from the current edition metadata. Refresh the sheet first."
+                    "PDF page count differs from the current edition metadata. "
+                    "Refresh the sheet first."
                 )
             pages: dict[int, str] = {}
             for index, page in enumerate(reader.pages, start=1):
@@ -120,7 +123,7 @@ def _parse_cards_response(raw: str, *, pages: dict[int, str], budget: int) -> li
         if not isinstance(question, str) or not question.strip():
             raise CompanionGenerationError(f"Card {index} has no question or title.")
         signature = hashlib.sha256(
-            f"{page}|{kind}|{question.strip().casefold()}".encode("utf-8")
+            f"{page}|{kind}|{question.strip().casefold()}".encode()
         ).hexdigest()[:14]
         card: dict[str, Any] = {
             "key": f"agy-{page}-{signature}",
@@ -189,7 +192,9 @@ def _invoke_antigravity(*, pages: dict[int, str], budget: int, binary: str, effo
                 timeout=timeout,
             )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise CompanionGenerationError("Antigravity failed or timed out; nothing was saved.") from exc
+        raise CompanionGenerationError(
+            "Antigravity failed or timed out; nothing was saved."
+        ) from exc
     if completed.returncode:
         raise CompanionGenerationError("Antigravity exited unsuccessfully; nothing was saved.")
     events = []
@@ -207,11 +212,18 @@ def _invoke_antigravity(*, pages: dict[int, str], budget: int, binary: str, effo
     )
 
 
-def generate_companion_import(*, sheet: LearningObject, edition: str = "university",
-                              view: str = "study", max_cards: int = MAX_SHEET_CARDS,
-                              agy_bin: str | None = None, effort: str = "low",
-                              timeout: int = 180, runner: Callable[..., Any] = subprocess.run,
-                              reader: Callable[..., Any] = read_companion_pdf_pages) -> tuple[dict[str, Any], dict[str, Any]]:
+def generate_companion_import(
+    *,
+    sheet: LearningObject,
+    edition: str = "university",
+    view: str = "study",
+    max_cards: int = MAX_SHEET_CARDS,
+    agy_bin: str | None = None,
+    effort: str = "low",
+    timeout: int = 180,
+    runner: Callable[..., Any] = subprocess.run,
+    reader: Callable[..., Any] = read_companion_pdf_pages,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Build import-ready JSON and evidence report, without changing the database."""
     if not 1 <= max_cards <= MAX_SHEET_CARDS:
         raise CompanionGenerationError("Choose 1–40 cards per sheet.")
