@@ -514,9 +514,9 @@ def translate_pages_with_gemini(
             f"INPUT_PAGES_JSON:\n{json.dumps(chunk, ensure_ascii=False)}"
         )
         # stdin avoids exposing copyrighted/medical text in process arguments.
-        streamed_input = json.dumps(
-            {"event": "user", "message": {"content": prompt}}, ensure_ascii=False
-        ) + "\n"
+        streamed_input = (
+            json.dumps({"event": "user", "message": {"content": prompt}}, ensure_ascii=False) + "\n"
+        )
         # Never inherit Django database or production application secrets.
         safe_env_keys = (
             "HOME",
@@ -669,8 +669,7 @@ def translate_manifest_with_gemini(
     pending_pages = [
         page
         for page in pages_list
-        if not str(page.get("text") or "").strip()
-        and str(page.get("source_text") or "").strip()
+        if not str(page.get("text") or "").strip() and str(page.get("source_text") or "").strip()
     ]
     translations: dict[int, str] = {}
     if pending_pages:
@@ -1548,9 +1547,7 @@ def apply_translations(
             sheet_states, sheet_summaries, strict=True
         ):
             effective_actor = _resolve_save_actor(actor, sheet)
-            changed_pages = {
-                int(page["page"]) for page in summary["pages"] if page["changed"]
-            }
+            changed_pages = {int(page["page"]) for page in summary["pages"] if page["changed"]}
             # Do not rewrite unchanged pages or insert empty rows for image-only pages.
             if changed_pages:
                 updated_state = save_admin_translations(
@@ -1559,10 +1556,7 @@ def apply_translations(
                     edition=edition,
                     file_id=source.file.id,
                     checksum=source.file.checksum_sha256,
-                    pages=[
-                        page for page in normalized_pages
-                        if int(page["page"]) in changed_pages
-                    ],
+                    pages=[page for page in normalized_pages if int(page["page"]) in changed_pages],
                 )
             else:
                 updated_state = {
@@ -1572,7 +1566,9 @@ def apply_translations(
                     "translated_pages": SheetPageTranslation.objects.filter(
                         managed_file=source.file,
                         checksum=source.file.checksum_sha256,
-                    ).exclude(translated_text="").count(),
+                    )
+                    .exclude(translated_text="")
+                    .count(),
                 }
             saved_sheets.append(
                 {

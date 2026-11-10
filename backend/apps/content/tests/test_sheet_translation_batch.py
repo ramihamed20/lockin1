@@ -428,13 +428,17 @@ def test_gemini_cli_translation_from_pdf_source_without_premade_arabic(
         return subprocess.CompletedProcess(
             args=cmd,
             returncode=0,
-            stdout=json.dumps({
-                "event": "result",
-                "result": {
-                    "status": "SUCCESS",
-                    "response": json.dumps({"pages": out_pages}, ensure_ascii=False),
+            stdout=json.dumps(
+                {
+                    "event": "result",
+                    "result": {
+                        "status": "SUCCESS",
+                        "response": json.dumps({"pages": out_pages}, ensure_ascii=False),
+                    },
                 },
-            }, ensure_ascii=False) + "\n",
+                ensure_ascii=False,
+            )
+            + "\n",
             stderr="",
         )
 
@@ -615,10 +619,13 @@ def test_confirmed_save_does_not_touch_unchanged_translation_revisions() -> None
         list(SheetPageTranslation.objects.order_by("page").values_list("page", "revision"))
         == rows_before
     )
-    assert AuditRecord.objects.filter(
-        action="content.sheet_translations_saved",
-        target_id=str(sheet.id),
-    ).count() == audits_before
+    assert (
+        AuditRecord.objects.filter(
+            action="content.sheet_translations_saved",
+            target_id=str(sheet.id),
+        ).count()
+        == audits_before
+    )
 
 
 def test_long_extracted_pdf_page_is_not_silently_truncated() -> None:
