@@ -373,11 +373,11 @@ _MEDICAL_ACRONYMS = frozenset(
 # words are present. This is an additional guard, not a substitute for review.
 _WRONG_DENTAL_LABELS = (
     re.compile(
-        r"\\bEnamel\\b\\s*\\(\\s*(?:ال)?عاج\\s*\\)|(?:ال)?عاج\\s*\\(\\s*Enamel\\s*\\)",
+        r"\bEnamel\b\s*\(\s*(?:ال)?عاج\s*\)|(?:ال)?عاج\s*\(\s*Enamel\s*\)",
         re.IGNORECASE,
     ),
     re.compile(
-        r"\\bDentin(?:e)?\\b\\s*\\(\\s*(?:ال)?مينا\\s*\\)|(?:ال)?مينا\\s*\\(\\s*Dentin(?:e)?\\s*\\)",
+        r"\bDentin(?:e)?\b\s*\(\s*(?:ال)?مينا\s*\)|(?:ال)?مينا\s*\(\s*Dentin(?:e)?\s*\)",
         re.IGNORECASE,
     ),
 )
