@@ -17,10 +17,13 @@ from django.core.management import BaseCommand, CommandError
 from apps.accounts.models import User
 from apps.administration.catalog import Capability
 from apps.administration.permissions import has_operational_capability
+from apps.content.assistance_import import import_cards
 from apps.content.companion_antigravity import (
     CompanionGenerationError,
     generate_companion_import,
 )
+from apps.content.study_assistance_views import AssistanceConflictError
+from rest_framework.exceptions import ValidationError
 from apps.content.models import LearningObject
 
 
@@ -59,6 +62,10 @@ class Command(BaseCommand):
         parser.add_argument("--effort", default="low", choices=("low", "medium", "high"))
         parser.add_argument("--timeout", default=180, type=int, help="Seconds per 5-page batch.")
         parser.add_argument("--output", required=True, help="Private JSON import file; must be new.")
+        parser.add_argument(
+            "--import-drafts", action="store_true",
+            help="Opt-in: add generated cards as unpublished drafts via signed import preview. Never publishes.",
+        )
         parser.add_argument(
             "--report-output",
             default="",
@@ -110,7 +117,30 @@ class Command(BaseCommand):
                 "Warning: scanned/empty pages require separate review: "
                 + ", ".join(map(str, report["pages_without_text"]))
             )
-        self.stdout.write(
-            "No database changes. Open Content Studio > Study companion > "
-            "Import companion cards (JSON), preview, review and confirm as draft."
-        )
+        if options["import_drafts"]:
+            # A generated source is never automatically published. Staff review
+            # and a later explicit publication action are still required.
+            try:
+                preview = import_cards(
+                    actor=actor, anchor_id=sheet.id, raw=payload, publish=False
+                )
+                result = import_cards(
+                    actor=actor, anchor_id=sheet.id, raw=payload, publish=False,
+                    token=preview["preview_token"],
+                )
+            except (ValidationError, AssistanceConflictError) as exc:
+                raise CommandError(
+                    "Draft import was rejected. Review the JSON and import manually."
+                ) from exc
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Unpublished drafts imported: {result['imported']} "
+                    f"({result['changed_count']} changed). Review and publish in Content Studio."
+                )
+            )
+        else:
+            self.stdout.write(
+                "No database changes. Open Content Studio > Study companion > "
+                "Import companion cards (JSON), preview, review and confirm as draft. "
+                "Use --import-drafts to add unpublished cards explicitly."
+            )
