@@ -567,3 +567,37 @@ def test_batch_save_requires_explicit_authorized_actor() -> None:
             actor=None,
         )
     assert SheetPageTranslation.objects.count() == 0
+
+
+def test_confirmed_save_does_not_touch_unchanged_translation_revisions() -> None:
+    admin = create_admin(email="idempotent-translations@example.com")
+    sheet = ensure_general_pathology_intro_pilot(actor=admin)
+    payload = build_pilot_translation_payload(sheet)
+    preview = preview_translations(raw=payload, actor=admin)
+    apply_translations(raw=payload, preview_token=preview["preview_token"], actor=admin)
+
+    rows_before = list(SheetPageTranslation.objects.order_by("page").values_list("page", "revision"))
+    audits_before = AuditRecord.objects.filter(
+        action="content.sheet_translations_saved",
+        target_id=str(sheet.id),
+    ).count()
+
+    existing_manifest = export_translation_manifest(
+        sheets=[sheet],
+        edition="university",
+        extract_pdf_source=True,
+        single_sheet_format=True,
+    )
+    again = preview_translations(raw=existing_manifest, actor=admin)
+    assert again["changed_count"] == 0
+    saved_again = apply_translations(
+        raw=existing_manifest,
+        preview_token=again["preview_token"],
+        actor=admin,
+    )
+    assert saved_again["changed_count"] == 0
+    assert list(SheetPageTranslation.objects.order_by("page").values_list("page", "revision")) == rows_before
+    assert AuditRecord.objects.filter(
+        action="content.sheet_translations_saved",
+        target_id=str(sheet.id),
+    ).count() == audits_before
