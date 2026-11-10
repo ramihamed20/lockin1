@@ -606,3 +606,10 @@ def test_confirmed_save_does_not_touch_unchanged_translation_revisions() -> None
         action="content.sheet_translations_saved",
         target_id=str(sheet.id),
     ).count() == audits_before
+
+
+def test_long_extracted_pdf_page_is_not_silently_truncated() -> None:
+    from apps.content.sheet_translation_batch import _normalize_extracted_page_text
+
+    with pytest.raises(ContentRuleError, match="instead of silently cutting off"):
+        _normalize_extracted_page_text("A" * 60001)
