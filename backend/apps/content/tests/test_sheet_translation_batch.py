@@ -576,7 +576,9 @@ def test_confirmed_save_does_not_touch_unchanged_translation_revisions() -> None
     preview = preview_translations(raw=payload, actor=admin)
     apply_translations(raw=payload, preview_token=preview["preview_token"], actor=admin)
 
-    rows_before = list(SheetPageTranslation.objects.order_by("page").values_list("page", "revision"))
+    rows_before = list(
+        SheetPageTranslation.objects.order_by("page").values_list("page", "revision")
+    )
     audits_before = AuditRecord.objects.filter(
         action="content.sheet_translations_saved",
         target_id=str(sheet.id),
@@ -596,7 +598,10 @@ def test_confirmed_save_does_not_touch_unchanged_translation_revisions() -> None
         actor=admin,
     )
     assert saved_again["changed_count"] == 0
-    assert list(SheetPageTranslation.objects.order_by("page").values_list("page", "revision")) == rows_before
+    assert (
+        list(SheetPageTranslation.objects.order_by("page").values_list("page", "revision"))
+        == rows_before
+    )
     assert AuditRecord.objects.filter(
         action="content.sheet_translations_saved",
         target_id=str(sheet.id),
