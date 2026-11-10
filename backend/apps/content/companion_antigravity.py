@@ -23,6 +23,7 @@ from rest_framework.exceptions import ValidationError
 from .assistance_import import ImportSerializer, manifest
 from .edition_documents import edition_asset
 from .models import LearningObject
+from .services import ContentRuleError
 from .sheet_translation_batch import _extract_json_object_from_output, resolve_agy_binary
 from .study_assistance import AssistanceRuleError, scope_page_count
 
@@ -92,7 +93,7 @@ def _parse_cards_response(raw: str, *, pages: dict[int, str], budget: int) -> li
         raise CompanionGenerationError("Antigravity returned too much text.")
     try:
         parsed = _extract_json_object_from_output(raw)
-    except ValueError as exc:
+    except (ValueError, ContentRuleError) as exc:
         raise CompanionGenerationError("Antigravity returned invalid JSON.") from exc
     cards = parsed.get("cards")
     if not isinstance(cards, list) or len(cards) > budget:
@@ -125,6 +126,7 @@ def _parse_cards_response(raw: str, *, pages: dict[int, str], budget: int) -> li
             "key": f"agy-{page}-{signature}",
             "page": page,
             "kind": kind,
+            "_source_quote": quote.strip(),
         }
         for field in ("teaser", "question", "explanation"):
             card[field] = value.get(field)
@@ -232,6 +234,7 @@ def generate_companion_import(*, sheet: LearningObject, edition: str = "universi
         for i in range(0, len(available), MAX_PAGES_PER_CALL)
     ]
     generated: list[dict[str, Any]] = []
+    processed_pages: set[int] = set()
     for offset, chunk in enumerate(chunks):
         remaining = max_cards - len(generated)
         if remaining <= 0:
@@ -242,8 +245,17 @@ def generate_companion_import(*, sheet: LearningObject, edition: str = "universi
             pages=chunk, budget=budget, binary=binary, effort=effort,
             timeout=timeout, runner=runner
         ))
+        processed_pages.update(chunk)
     if not generated:
         raise CompanionGenerationError("No verifiable cards generated. Nothing was saved.")
+    evidence = [
+        {"key": card["key"], "page": card["page"], "source_quote": card["_source_quote"]}
+        for card in generated
+    ]
+    import_cards = [
+        {key: value for key, value in card.items() if key != "_source_quote"}
+        for card in generated
+    ]
     payload = {
         "schema_version": 1,
         "subject_id": context["subject_id"],
@@ -252,7 +264,7 @@ def generate_companion_import(*, sheet: LearningObject, edition: str = "universi
         "sheets": [{
             "sheet_id": str(sheet.id),
             "source_version_id": selected["source_version_id"],
-            "cards": generated,
+            "cards": import_cards,
         }],
     }
     serializer = ImportSerializer(data=payload)
@@ -270,7 +282,10 @@ def generate_companion_import(*, sheet: LearningObject, edition: str = "universi
         "physical_page_count": total,
         "pages_with_text": len(pages),
         "pages_without_text": [p for p in range(1, total + 1) if p not in pages],
-        "cards": len(generated),
+        "cards": len(import_cards),
+        "pages_processed_for_generation": len(processed_pages),
+        "pages_not_submitted": [p for p in sorted(pages) if p not in processed_pages],
+        "evidence": evidence,
         "status": "draft_needs_admin_review",
     }
     return payload, report
