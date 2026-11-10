@@ -278,6 +278,9 @@ _MEDICAL_KEYWORDS = frozenset(
 )
 
 # Preserve dental vocabulary in English; Enamel and Dentin are NOT synonyms.
+# Normalize common misspellings from lecture slides to the canonical English term.
+_DENTAL_SOURCE_TYPO_ALIASES = {"enaml": "Enamel", "enamal": "Enamel"}
+
 _DENTAL_TECHNICAL_TERMS = frozenset({
     "enamel", "dentin", "dentine", "cementum", "pulp", "gingiva", "gingival",
     "periodontal", "periodontium", "odontoblast", "ameloblast", "amelogenesis",
@@ -821,6 +824,7 @@ def extract_medical_terms(source_text: str) -> list[str]:
     terms: list[str] = []
     for match in _WORD_TOKEN_RE.finditer(source_text):
         token = match.group(0).strip("-")
+        token = _DENTAL_SOURCE_TYPO_ALIASES.get(token.lower(), token)
         lower = token.lower()
         if len(lower) < 3:
             continue
