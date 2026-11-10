@@ -91,6 +91,7 @@
      --sheet "General Pathology — Introduction" \
      --edition university \
      --action translate \
+     --actor-email "AUTHORIZED_ADMIN_EMAIL" \
      --single-format \
      --batch-size 5 \
      --effort low \
@@ -103,6 +104,7 @@
      --sheet "General Pathology — Introduction" \
      --edition university \
      --action preview \
+     --actor-email "AUTHORIZED_ADMIN_EMAIL" \
      --input /tmp/general_pathology_intro_gemini_translated.json \
      --output /tmp/preview.json \
      --preview-markdown docs/previews/GENERAL_PATHOLOGY_INTRODUCTION_UNIVERSITY_PREVIEW_AR.md
@@ -135,3 +137,7 @@
 الملف `sheet_translation_pilot.py` يولّد **PDF اصطناعيًا للاختبارات**. لا يعدّ هذا إثباتًا بأن النص مأخوذ من PDF الإنتاج الأصلي. يجب اختبار استخراج PDF حقيقي من التخزين الخاص في بيئة معزولة، مع مطابقة checksum وعدد الصفحات ومراجعة ناتج Gemini يدويًا قبل اعتماده.
 
 لا يحفظ `--action save` أي شيء دون مستخدم إدارة محدد صراحة باستخدام `--actor-email` وصلاحية `content.manage` ورمز معاينة صالح؛ لا يتم منح دور Administrator تلقائيًا لأي مستخدم.
+
+### هوية مراجعة الترجمة
+
+رمز المعاينة موقّع ومرتبط بهوية المسؤول الذي أصدره؛ لذلك يجب أن تستخدم خيارات `--actor-email` **نفس حساب الإدارة المخوّل** عند توليد المعاينة وعند الحفظ النهائي. معاينة لا تحدد حساب إدارة تُستخدم للفحص فقط، ولا يجوز اعتماد رمزها لحفظ الترجمات لاحقًا بهوية مختلفة. عدم وجود صفحات جديدة للترجمة لا يتطلب تثبيت أو تشغيل `agy`، وتعيد الأداة حالة `not_needed` دون محاولة اتصال بالوكيل.
