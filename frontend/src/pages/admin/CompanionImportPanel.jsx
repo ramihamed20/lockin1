@@ -69,7 +69,9 @@ export function CompanionImportPanel({ sheet, edition, view, onImported }) {
     <p>{c.antigravityHelp}</p>
     <pre dir="ltr"><code>{antigravityCommand}</code></pre>
     <button type="button" className="btn btn-soft" onClick={async()=>{setMessage(await copyTextToClipboard(antigravityCommand)?c.copied:c.copyFailed);}}>{c.antigravityCopy}</button>
-   </div>}
+    <small>{c.antigravityDraftHint}</small>
+    <button type="button" className="btn btn-soft" onClick={async()=>{setMessage(await copyTextToClipboard(antigravityCommand+' --import-drafts')?c.copied:c.copyFailed);}}>{c.antigravityDraftCopy}</button>
+   </div>
    <button type="button" className="btn btn-soft" disabled={!targets.length} onClick={async()=>{try{const value=buildCompanionPrompt(context,targets);setPrompt(value);setMessage(await copyTextToClipboard(value)?c.copied:c.copyFailed);}catch(error){setError(error.message);}}}>{c.prompt}</button>
    {prompt&&<textarea readOnly aria-label={c.prompt} value={prompt} rows={5} dir="ltr" />}
    <label className="field"><span>{c.file}</span><input type="file" accept=".json,application/json" onChange={event=>void readFile(event)} /></label>
