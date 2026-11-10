@@ -281,15 +281,49 @@ _MEDICAL_KEYWORDS = frozenset(
 # Normalize common misspellings from lecture slides to the canonical English term.
 _DENTAL_SOURCE_TYPO_ALIASES = {"enaml": "Enamel", "enamal": "Enamel"}
 
-_DENTAL_TECHNICAL_TERMS = frozenset({
-    "enamel", "dentin", "dentine", "cementum", "pulp", "gingiva", "gingival",
-    "periodontal", "periodontium", "odontoblast", "ameloblast", "amelogenesis",
-    "dentinogenesis", "hydroxyapatite", "dentinoenamel", "caries", "carious",
-    "occlusion", "occlusal", "incisal", "buccal", "lingual", "palatal",
-    "mesial", "distal", "cusp", "cusps", "periapical", "endodontic",
-    "periodontitis", "demineralization", "remineralization", "restoration",
-    "composite", "amalgam", "crown", "root", "apex", "adhesive",
-})
+_DENTAL_TECHNICAL_TERMS = frozenset(
+    {
+        "enamel",
+        "dentin",
+        "dentine",
+        "cementum",
+        "pulp",
+        "gingiva",
+        "gingival",
+        "periodontal",
+        "periodontium",
+        "odontoblast",
+        "ameloblast",
+        "amelogenesis",
+        "dentinogenesis",
+        "hydroxyapatite",
+        "dentinoenamel",
+        "caries",
+        "carious",
+        "occlusion",
+        "occlusal",
+        "incisal",
+        "buccal",
+        "lingual",
+        "palatal",
+        "mesial",
+        "distal",
+        "cusp",
+        "cusps",
+        "periapical",
+        "endodontic",
+        "periodontitis",
+        "demineralization",
+        "remineralization",
+        "restoration",
+        "composite",
+        "amalgam",
+        "crown",
+        "root",
+        "apex",
+        "adhesive",
+    }
+)
 
 _MEDICAL_SUFFIX_RE = re.compile(
     r"^[A-Za-z][A-Za-z0-9\-]{3,}"
@@ -468,8 +502,16 @@ def translate_pages_with_gemini(
         ) + "\n"
         # Never inherit Django database or production application secrets.
         safe_env_keys = (
-            "HOME", "PATH", "LANG", "LC_ALL", "USER", "LOGNAME",
-            "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "SSL_CERT_FILE", "SSL_CERT_DIR",
+            "HOME",
+            "PATH",
+            "LANG",
+            "LC_ALL",
+            "USER",
+            "LOGNAME",
+            "XDG_CONFIG_HOME",
+            "XDG_CACHE_HOME",
+            "SSL_CERT_FILE",
+            "SSL_CERT_DIR",
         )
         safe_env = {key: os.environ[key] for key in safe_env_keys if key in os.environ}
         try:
@@ -479,8 +521,10 @@ def translate_pages_with_gemini(
                         binary,
                         "--disable-slash-commands",
                         "--sandbox",
-                        "--input-format", "stream-json",
-                        "--output-format", "stream-json",
+                        "--input-format",
+                        "stream-json",
+                        "--output-format",
+                        "stream-json",
                         f"--effort={effort}",
                     ],
                     input=streamed_input,
@@ -563,18 +607,21 @@ def translate_manifest_with_gemini(
                 continue
             pages_list = entry.get("pages", [])
             pending_pages = [
-                page for page in pages_list
+                page
+                for page in pages_list
                 if not str(page.get("text") or "").strip()
                 and str(page.get("source_text") or "").strip()
             ]
-            translations = translate_pages_with_gemini(
-                sheet_title=str(entry.get("title") or entry.get("sheet_id") or "Sheet"),
-                pages=pending_pages,
-                agy_bin=agy_bin,
-                effort=effort,
-                batch_size=batch_size,
-                timeout_seconds=timeout_seconds,
-            ) if pending_pages else {}
+            translations: dict[int, str] = {}
+            if pending_pages:
+                translations = translate_pages_with_gemini(
+                    sheet_title=str(entry.get("title") or entry.get("sheet_id") or "Sheet"),
+                    pages=pending_pages,
+                    agy_bin=agy_bin,
+                    effort=effort,
+                    batch_size=batch_size,
+                    timeout_seconds=timeout_seconds,
+                )
             new_pages = []
             for p in pages_list:
                 pnum = int(p["page"])
@@ -603,18 +650,21 @@ def translate_manifest_with_gemini(
 
     pages_list = manifest.get("pages", [])
     pending_pages = [
-        page for page in pages_list
+        page
+        for page in pages_list
         if not str(page.get("text") or "").strip()
         and str(page.get("source_text") or "").strip()
     ]
-    translations = translate_pages_with_gemini(
-        sheet_title=str(manifest.get("title") or manifest.get("sheet_id") or "Sheet"),
-        pages=pending_pages,
-        agy_bin=agy_bin,
-        effort=effort,
-        batch_size=batch_size,
-        timeout_seconds=timeout_seconds,
-    ) if pending_pages else {}
+    translations: dict[int, str] = {}
+    if pending_pages:
+        translations = translate_pages_with_gemini(
+            sheet_title=str(manifest.get("title") or manifest.get("sheet_id") or "Sheet"),
+            pages=pending_pages,
+            agy_bin=agy_bin,
+            effort=effort,
+            batch_size=batch_size,
+            timeout_seconds=timeout_seconds,
+        )
     new_pages = []
     for p in pages_list:
         pnum = int(p["page"])
