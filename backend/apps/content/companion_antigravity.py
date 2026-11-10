@@ -24,7 +24,12 @@ from .assistance_import import ImportSerializer, manifest
 from .edition_documents import edition_asset
 from .models import LearningObject
 from .services import ContentRuleError
-from .sheet_translation_batch import _extract_json_object_from_output, resolve_agy_binary
+from .sheet_translation_batch import (
+    _WRONG_DENTAL_LABELS,
+    _extract_json_object_from_output,
+    extract_medical_terms,
+    resolve_agy_binary,
+)
 from .study_assistance import AssistanceRuleError, scope_page_count
 
 ALLOWED_KINDS = frozenset({"understand", "fact", "simplify", "memory", "connection", "organize"})
@@ -114,12 +119,35 @@ def _parse_cards_response(raw: str, *, pages: dict[int, str], budget: int) -> li
                 f"Card {index} evidence cannot be found on PDF page {page}."
             )
         kind = value.get("kind")
-        if kind not in ALLOWED_KINDS:
+        if not isinstance(kind, str) or kind not in ALLOWED_KINDS:
             raise CompanionGenerationError(f"Card {index} uses an unsupported kind.")
         # Deterministic identity makes re-imports update the same concept.
         question = value.get("question")
         if not isinstance(question, str) or not question.strip():
             raise CompanionGenerationError(f"Card {index} has no question or title.")
+        rendered_text = " ".join(
+            str(value.get(field) or "")
+            for field in (
+                "teaser",
+                "question",
+                "explanation",
+                "followup_question",
+                "followup_answer",
+            )
+        )
+        if any(pattern.search(rendered_text) for pattern in _WRONG_DENTAL_LABELS):
+            raise CompanionGenerationError(
+                f"Card {index} confuses the medical meanings of Enamel and Dentin."
+            )
+        terms = extract_medical_terms(quote)
+        if terms and not any(
+            re.search(rf"(?<![A-Za-z0-9]){re.escape(term)}(?![A-Za-z0-9])",
+                      rendered_text, flags=re.IGNORECASE)
+            for term in terms
+        ):
+            raise CompanionGenerationError(
+                f"Card {index} omitted source English medical terminology."
+            )
         signature = hashlib.sha256(
             f"{page}|{kind}|{question.strip().casefold()}".encode()
         ).hexdigest()[:14]
@@ -252,7 +280,10 @@ def generate_companion_import(
     pages, total = reader(sheet=sheet, edition=edition, view=view)
     if selected["page_count"] is not None and total != selected["page_count"]:
         raise CompanionGenerationError("Source page count changed during generation.")
-    binary = resolve_agy_binary(agy_bin)
+    try:
+        binary = resolve_agy_binary(agy_bin)
+    except ContentRuleError as exc:
+        raise CompanionGenerationError(str(exc)) from exc
     available = list(sorted(pages.items()))
     # Divide the permitted cards across every source chunk, not just the first pages.
     chunks = [
