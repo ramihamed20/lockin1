@@ -360,6 +360,8 @@ def test_translate_sheets_cli_command_end_to_end(tmp_path: Path) -> None:
         str(clean_payload_file),
         "--preview-token",
         token,
+        "--actor-email",
+        "admin@lockin.local",
         "--output",
         str(saved_out_file),
         stdout=save_out,
@@ -403,9 +405,12 @@ def test_gemini_cli_translation_from_pdf_source_without_premade_arabic(
         assert page_row["source_text"].strip() != ""
 
     def fake_agy_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        del kwargs
-        prompt_arg = next(arg for arg in cmd if arg.startswith("--print="))
-        prompt_body = prompt_arg.split("INPUT_PAGES_JSON:\n", 1)[1]
+        assert "--sandbox" in cmd
+        assert "--input-format" in cmd
+        assert "--print" not in " ".join(cmd)
+        streamed = json.loads(str(kwargs["input"]).strip())
+        assert streamed["event"] == "user"
+        prompt_body = streamed["message"]["content"].split("INPUT_PAGES_JSON:\n", 1)[1]
         input_pages = json.loads(prompt_body)
         out_pages = []
         for item in input_pages:
@@ -423,7 +428,13 @@ def test_gemini_cli_translation_from_pdf_source_without_premade_arabic(
         return subprocess.CompletedProcess(
             args=cmd,
             returncode=0,
-            stdout=json.dumps({"pages": out_pages}, ensure_ascii=False),
+            stdout=json.dumps({
+                "event": "result",
+                "result": {
+                    "status": "SUCCESS",
+                    "response": json.dumps({"pages": out_pages}, ensure_ascii=False),
+                },
+            }, ensure_ascii=False) + "\n",
             stderr="",
         )
 
@@ -495,3 +506,64 @@ def test_stale_revision_after_preview_blocks_save() -> None:
             actor=admin,
         )
     assert SheetPageTranslation.objects.count() == 1
+
+
+def test_dental_terms_preserved_verbatim_not_translated_to_wrong_anatomy() -> None:
+    from apps.content.sheet_translation_batch import (
+        _ensure_all_medical_terms_in_translation,
+    )
+
+    source = "Enamel protects Dentin and the Pulp. Cementum covers the root."
+    terms = extract_medical_terms(source)
+    for term in ("Enamel", "Dentin", "Pulp", "Cementum"):
+        assert term in terms
+
+    # The Arabic word عاج by itself must never count as preserving Enamel.
+    with pytest.raises(ContentRuleError, match="Enamel"):
+        _ensure_all_medical_terms_in_translation(
+            source_text=source,
+            translated_text="يحمي العاج الطبقة الداخلية (Dentin) وPulp وCementum.",
+        )
+    correct = _ensure_all_medical_terms_in_translation(
+        source_text=source,
+        translated_text="==طبقة Enamel تحمي Dentin وPulp.== ويغطي Cementum الجذر.",
+    )
+    assert "Enamel" in correct
+    assert "عاج" not in correct
+    preserved, missing = check_medical_terms_preserved(
+        source_text="Enamel and Dentin",
+        translated_text="Enamelworks with Dentin.",
+    )
+    assert "Enamel" in missing  # substring in another word is not valid
+    assert "Dentin" in preserved
+
+
+def test_gemini_skips_previously_translated_pages_without_running_cli() -> None:
+    source = {
+        "format": SINGLE_FORMAT_V1,
+        "sheet_id": "00000000-0000-0000-0000-000000000000",
+        "title": "Enamel",
+        "pages": [
+            {"page": 1, "source_text": "Enamel", "text": "ترجمة محفوظة: Enamel"},
+            {"page": 2, "source_text": "", "text": ""},
+        ],
+    }
+    with patch("apps.content.sheet_translation_batch.translate_pages_with_gemini") as translated:
+        result = translate_manifest_with_gemini(source)
+    translated.assert_not_called()
+    assert result["pages"][0]["text"] == "ترجمة محفوظة: Enamel"
+    assert result["untranslated_pages"] == [2]
+
+
+def test_batch_save_requires_explicit_authorized_actor() -> None:
+    admin = create_admin(email="must-identify-actor@example.com")
+    sheet = ensure_general_pathology_intro_pilot(actor=admin)
+    payload = build_pilot_translation_payload(sheet)
+    preview = preview_translations(raw=payload, actor=None)
+    with pytest.raises(ContentRuleError, match="explicitly authenticated"):
+        apply_translations(
+            raw=payload,
+            preview_token=preview["preview_token"],
+            actor=None,
+        )
+    assert SheetPageTranslation.objects.count() == 0
