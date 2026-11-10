@@ -236,3 +236,21 @@ def test_opt_in_import_creates_only_unpublished_companion_drafts(
     record.refresh_from_db()
     assert record.is_published is False
     assert record.revision == 1
+
+    # Direct generation must not silently unpublish a previously reviewed card.
+    record.is_published = True
+    record.save(update_fields=["is_published"])
+    with pytest.raises(CommandError, match="published cards"):
+        call_command(
+            "generate_companion_cards",
+            "--sheet-id",
+            str(sheet.id),
+            "--actor-email",
+            actor.email,
+            "--output",
+            str(tmp_path / "published-collision.json"),
+            "--import-drafts",
+        )
+    record.refresh_from_db()
+    assert record.is_published is True
+    assert StudyAssistanceIdea.objects.count() == 1
