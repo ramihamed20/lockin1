@@ -571,6 +571,8 @@ def test_gemini_skips_previously_translated_pages_without_running_cli() -> None:
     with patch("apps.content.sheet_translation_batch.translate_pages_with_gemini") as translated:
         result = translate_manifest_with_gemini(source)
     translated.assert_not_called()
+    assert result["translation_engine"]["provider"] == "not_needed"
+    assert result["translation_engine"]["binary"] is None
     assert result["pages"][0]["text"] == "ترجمة محفوظة: Enamel"
     assert result["untranslated_pages"] == [2]
 
