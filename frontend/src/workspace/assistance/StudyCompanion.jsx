@@ -181,11 +181,11 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
   const idea = reviewIdea || ideas[selected] || ideas[0];
   const motion = preferences.motion && !reduced;
   const characterMotion = useCompanionMotion(key + "/" + (idea?.id || ""), surface, motion && enabled && Boolean(idea));
+  const { phase: setCharacterPhase } = characterMotion;
   useEffect(() => {
-    // The same original artwork expresses a short welcome; no new sprites,
-    // API calls or background nudges are required.
-    if (surface === "nudge") characterMotion.phase("speaking");
-  }, [surface, characterMotion.phase]);
+    // The original artwork reacts only to a student-initiated coaching panel.
+    if (surface === "nudge") setCharacterPhase("speaking");
+  }, [surface, setCharacterPhase]);
 
   useEffect(() => {
     if (loadedScope.current !== key) {
