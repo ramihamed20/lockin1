@@ -17,6 +17,8 @@ from apps.content.companion_antigravity import (
 )
 from apps.content.management.commands.generate_companion_cards import _private_json_file
 
+from .test_study_assistance import context as context  # noqa: F401
+
 SUBJECT_ID = "00000000-0000-4000-8000-000000000001"
 SHEET_ID = "00000000-0000-4000-8000-000000000002"
 VERSION_ID = "00000000-0000-4000-8000-000000000003"
@@ -151,9 +153,6 @@ def test_generated_json_output_is_private_and_never_silently_overwritten(
     with pytest.raises(CommandError):
         _private_json_file(str(path), {"schema_version": 2})
     assert json.loads(path.read_text(encoding="utf-8")) == {"schema_version": 1}
-
-
-from .test_study_assistance import context as context  # noqa: F401
 
 
 @pytest.mark.django_db
