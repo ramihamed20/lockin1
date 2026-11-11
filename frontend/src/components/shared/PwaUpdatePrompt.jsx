@@ -23,8 +23,11 @@ export function PwaUpdatePrompt({ deferred = false }) {
   const reloadRequired = status === UPDATE_STATUS.RELOAD_REQUIRED;
   const activationFailed = status === UPDATE_STATUS.AVAILABLE && error === "activation-failed";
   const visible = status === UPDATE_STATUS.AVAILABLE || updating || reloadRequired;
-  const pending = usePendingRelease(status === UPDATE_STATUS.AVAILABLE && !activationFailed);
+  const checkingPendingRelease = status === UPDATE_STATUS.AVAILABLE && !activationFailed;
+  const pending = usePendingRelease(checkingPendingRelease);
   if (deferred || inImmersiveWorkspace || dismissed || !visible) return null;
+  // Wait for the policy before rendering so a silent build never flashes a card.
+  if (checkingPendingRelease && (pending === undefined || pending?.silentUpdate)) return null;
 
   const title = reloadRequired ? t("pwa.update.reloadTitle") : activationFailed ? t("pwa.update.paused") : pending ? t("pwa.update.titleVersion", { version: pending.version }) : t("pwa.update.title");
   const body = reloadRequired ? t("pwa.update.reloadBody") : activationFailed ? t("pwa.update.error") : updating ? t("pwa.update.applying") : pending ? whatsNewText(pending.summary, locale) : t("pwa.update.body");

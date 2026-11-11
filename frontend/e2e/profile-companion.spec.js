@@ -18,6 +18,8 @@ for(const [locale,width,height] of [['ar',390,844],['en',1024,768]]) test(`profi
  await girl.click();
  await card.getByRole('button',{name:locale==='ar'?'احتفال':'Celebrate',exact:true}).click();
  await expect(card.locator('.study-companion-character')).toHaveAttribute('data-state','saved');
+ await card.getByRole('button',{name:locale==='ar'?'تفكير':'Think',exact:true}).click();
+ await expect(card.locator('.study-companion-character')).toHaveAttribute('data-state','thinking');
  await expect(card.getByRole('progressbar')).toHaveAttribute('value','125');
  await page.reload();
  await expect(girl).toHaveAttribute('aria-pressed','true');

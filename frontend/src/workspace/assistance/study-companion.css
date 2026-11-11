@@ -438,3 +438,68 @@
   .study-companion-kind { margin-block-end: 9px; font-size: 11px; gap: 5px; }
   .study-companion-kind > span { min-block-size: 22px; padding: 2px 7px; }
 }
+
+/* Incremental companion polish: retain the original Starmo/Starsea sprites. */
+.study-companion-card-step {
+  display: inline-grid;
+  gap: 5px;
+  justify-items: center;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+.study-companion-card-step progress {
+  inline-size: 48px;
+  block-size: 4px;
+  border: 0;
+  border-radius: 999px;
+  accent-color: var(--accent-text);
+}
+.study-companion-card-step progress::-webkit-progress-bar {
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+.study-companion-card-step progress::-webkit-progress-value {
+  background: var(--accent-text);
+  border-radius: 999px;
+}
+.study-companion-bubble .study-companion-boost {
+  border-block-start: 1px solid var(--separator);
+  color: var(--accent-text);
+}
+.study-companion-nudge {
+  gap: 0;
+  max-block-size: min(460px, calc(100dvh - 155px));
+}
+.study-companion-nudge > .study-companion-nudge-source {
+  margin: 12px 18px 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.study-companion-nudge > .study-companion-nudge-text {
+  margin: 12px 18px 16px;
+  padding: 16px;
+  border: 1px solid var(--separator);
+  border-radius: 14px;
+  background: var(--surface-2);
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.study-companion-nudge > button {
+  min-block-size: 44px;
+}
+@media (max-width: 600px), (max-height: 550px) {
+  .study-companion-nudge {
+    inline-size: min(300px, calc(100vw - 24px));
+    max-block-size: calc(100dvh - 24px);
+  }
+  .study-companion-nudge > .study-companion-nudge-text {
+    margin-block: 8px;
+    margin-inline: 12px;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+}

@@ -1,4 +1,4 @@
-import { generalCompanionIdeas, companionReadyCopy, companionKindLabels } from "../../lib/companionTips.js";
+import { generalCompanionIdeas, companionReadyCopy, companionKindLabels, companionNudgeCopy, companionNudge } from "../../lib/companionTips.js";
 import "./study-companion.css";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -61,6 +61,7 @@ function companionPositionFromRatio(position, viewport) {
 function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionPhase, readyCopy, onRetry, loadFailed, onNext, onPrevious, cardNumber, cardCount }) {
   const { t, locale } = useI18n();
   const kindLabels = companionKindLabels[locale] || companionKindLabels.en;
+  const nudgeCopy = companionNudgeCopy[locale] || companionNudgeCopy.en;
   const [explaining, setExplaining] = useState(false);
   const [complete, setComplete] = useState(false);
   const [solution, setSolution] = useState(false);
@@ -89,7 +90,7 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
       {error && <p className="study-companion-error" role="alert">{error}</p>}
       <span className="study-companion-status" role="status">{explaining ? t(complete ? "studyCompanion.complete" : "studyCompanion.typing") : ""}</span>
     </div>
-    {cardCount > 1 && <nav className="study-companion-card-nav" aria-label={t("studyCompanion.name")}><button type="button" disabled={busy} onClick={onPrevious}>{t("common.previous")}</button><span dir="ltr">{cardNumber} / {cardCount}</span><button type="button" disabled={busy} onClick={onNext}>{t("common.next")}</button></nav>}
+    {cardCount > 1 && <nav className="study-companion-card-nav" aria-label={t("studyCompanion.name")}><button type="button" disabled={busy} onClick={onPrevious}>{t("common.previous")}</button><span className="study-companion-card-step" dir="ltr">{cardNumber} / {cardCount}<progress aria-label={nudgeCopy.cards} max={cardCount} value={cardNumber} /></span><button type="button" disabled={busy} onClick={onNext}>{t("common.next")}</button></nav>}
   </section>;
 }
 
@@ -97,7 +98,9 @@ function IdeaExplanation({ idea, motion, busy, error, onSave, onClose, onMotionP
 export default function StudyCompanion({ userId, documentId, versionId, edition = "university", view = "study", page, pageStart = 1, pageLimit = Infinity, active = true, portalRoot = null, phoneAddFromToolbar = false }) {
   const { t, direction, locale } = useI18n();
   const readyCopy = companionReadyCopy[locale] || companionReadyCopy.en;
+  const nudgeCopy = companionNudgeCopy[locale] || companionNudgeCopy.en;
   const [retry, setRetry] = useState(0);
+  const [nudgeIndex, setNudgeIndex] = useState(0);
   const reduced = useReducedMotion();
   const [preferences, setPreferences] = useCompanionPreferences(userId);
   const isPhone = usePhoneCompanionLayout();
@@ -178,10 +181,15 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
   const idea = reviewIdea || ideas[selected] || ideas[0];
   const motion = preferences.motion && !reduced;
   const characterMotion = useCompanionMotion(key + "/" + (idea?.id || ""), surface, motion && enabled && Boolean(idea));
+  const { phase: setCharacterPhase } = characterMotion;
+  useEffect(() => {
+    // The original artwork reacts only to a student-initiated coaching panel.
+    if (surface === "nudge") setCharacterPhase("speaking");
+  }, [surface, setCharacterPhase]);
 
   useEffect(() => {
     if (loadedScope.current !== key) {
-      setSurface(""); setReviewIdea(null); setSelected(0); setError(""); setBusy(false); saveRequest.current += 1;
+      setSurface(""); setReviewIdea(null); setSelected(0); setNudgeIndex(0); setError(""); setBusy(false); saveRequest.current += 1;
       loadedScope.current = key;
     }
     if (!enabled) { setSurface(""); return undefined; }
@@ -253,9 +261,10 @@ export default function StudyCompanion({ userId, documentId, versionId, edition 
       }}
       aria-label={t(idea ? "studyCompanion.open" : "studyCompanion.savedIdeas")} aria-expanded={surface === "idea" || surface === "saved"}><CompanionCharacter character={preferences.character} state={characterMotion.state} sequenceKey={characterMotion.sequenceKey} motion={motion} /></button>
     <button type="button" className="study-companion-preferences" onClick={() => setSurface(surface === "settings" ? "" : "settings")} aria-label={t("studyCompanion.settings")} aria-expanded={surface === "settings"}><Settings size={15} aria-hidden="true" /></button>
-    {!surface && idea && <div className="study-companion-bubble"><button type="button" onClick={() => setSurface("idea")}><Sparkles size={14} aria-hidden="true" /><strong dir="auto">{idea.teaser}</strong></button>{ideas.length > 1 && <button type="button" className="study-companion-next" onClick={() => { setSelected((selected + 1) % ideas.length); setError(""); }}><MoreHorizontal size={15} aria-hidden="true" />{t("studyCompanion.nextIdea")}</button>}</div>}
+    {!surface && idea && !preferences.quiet && <div className="study-companion-bubble"><button type="button" onClick={() => setSurface("idea")}><Sparkles size={14} aria-hidden="true" /><strong dir="auto">{idea.teaser}</strong></button>{ideas.length > 1 && <button type="button" className="study-companion-next" onClick={() => { setSelected((selected + 1) % ideas.length); setError(""); }}><MoreHorizontal size={15} aria-hidden="true" />{t("studyCompanion.nextIdea")}</button>}<button type="button" className="study-companion-next study-companion-boost" onClick={() => setSurface("nudge")}><Sparkles size={15} aria-hidden="true" />{nudgeCopy.action}</button></div>}
     {surface === "idea" && idea && <IdeaExplanation key={key + "/" + idea.id} idea={idea} motion={motion} busy={busy} error={error} onSave={() => void saveIdea()} onClose={close} onMotionPhase={characterMotion.phase} readyCopy={readyCopy} cardNumber={selected + 1} cardCount={reviewIdea ? 1 : ideas.length} onNext={() => { setSelected((selected + 1) % ideas.length); setError(""); }} onPrevious={() => { setSelected((selected + ideas.length - 1) % ideas.length); setError(""); }} loadFailed={Boolean(data.failed)} onRetry={() => setRetry(value => value + 1)} />}
-    {surface === "settings" && <section className="study-companion-options study-companion-settings" role="dialog" aria-modal="false" aria-label={t("studyCompanion.settings")}><header><strong>{t("studyCompanion.settings")}</strong><button type="button" onClick={close} aria-label={t("studyCompanion.close")}><X size={17} /></button></header><div className="study-companion-characters">{[["boy", boy], ["girl", girl]].map(([value, image]) => <button type="button" key={value} aria-pressed={preferences.character === value} onClick={() => setPreferences((current) => ({ ...current, character: value }))}><img src={image} alt="" /><span>{t("studyCompanion." + value)}</span></button>)}</div><button type="button" aria-pressed={preferences.motion} onClick={() => setPreferences((current) => ({ ...current, motion: !current.motion }))}>{t("studyCompanion.motion")}<span>{t(preferences.motion ? "studyCompanion.on" : "studyCompanion.off")}</span></button><button type="button" onClick={() => setSurface("saved")}><Bookmark size={16} aria-hidden="true" />{t("studyCompanion.savedIdeas")}</button><button type="button" onClick={() => { setSurface(""); setPreferences((current) => ({ ...current, hidden: true })); }}>{t("studyCompanion.hide")}</button></section>}
+    {surface === "settings" && <section className="study-companion-options study-companion-settings" role="dialog" aria-modal="false" aria-label={t("studyCompanion.settings")}><header><strong>{t("studyCompanion.settings")}</strong><button type="button" onClick={close} aria-label={t("studyCompanion.close")}><X size={17} /></button></header><div className="study-companion-characters">{[["boy", boy], ["girl", girl]].map(([value, image]) => <button type="button" key={value} aria-pressed={preferences.character === value} onClick={() => setPreferences((current) => ({ ...current, character: value }))}><img src={image} alt="" /><span>{t("studyCompanion." + value)}</span></button>)}</div><button type="button" aria-pressed={preferences.motion} onClick={() => setPreferences((current) => ({ ...current, motion: !current.motion }))}>{t("studyCompanion.motion")}<span>{t(preferences.motion ? "studyCompanion.on" : "studyCompanion.off")}</span></button><button type="button" onClick={() => setSurface("saved")}><Bookmark size={16} aria-hidden="true" />{t("studyCompanion.savedIdeas")}</button><button type="button" onClick={() => setSurface("nudge")}><Sparkles size={16} aria-hidden="true" />{nudgeCopy.action}</button><button type="button" role="switch" aria-checked={Boolean(preferences.quiet)} onClick={() => setPreferences((current) => ({ ...current, quiet: !current.quiet }))}>{nudgeCopy.quiet}<span>{preferences.quiet ? nudgeCopy.quietOn : nudgeCopy.quietOff}</span></button><button type="button" onClick={() => { setSurface(""); setPreferences((current) => ({ ...current, hidden: true })); }}>{t("studyCompanion.hide")}</button></section>}
+    {surface === "nudge" && <section className="study-companion-options study-companion-nudge" role="dialog" aria-modal="false" aria-label={nudgeCopy.title}><header><strong>{nudgeCopy.title}</strong><button type="button" onClick={close} aria-label={t("studyCompanion.close")}><X size={17} /></button></header><p className="study-companion-nudge-source">{nudgeCopy.source}</p><p className="study-companion-nudge-text" dir="auto">{companionNudge(locale, nudgeIndex + page - pageStart)}</p><button type="button" onClick={() => { setNudgeIndex((index) => index + 1); characterMotion.phase("speaking"); }}><Sparkles size={16} aria-hidden="true" />{nudgeCopy.next}</button><button type="button" onClick={() => setSurface("idea")}>{nudgeCopy.back}</button></section>}
     {surface === "saved" && <section className="study-companion-options study-companion-saved" role="dialog" aria-modal="false" aria-label={t("studyCompanion.savedIdeas")}><header><strong>{t("studyCompanion.savedIdeas")}</strong><button type="button" onClick={close} aria-label={t("studyCompanion.close")}><X size={17} /></button></header>{savedList.key !== key || savedList.loading ? <p role="status">{t("studyCompanion.loading")}</p> : savedList.failed ? <div><p role="alert">{t("studyCompanion.loadFailed")}</p><button type="button" className="btn btn-soft" onClick={() => setRetry(value => value + 1)}>{readyCopy.retry}</button></div> : savedList.ideas.length ? savedList.ideas.map((row) => <button type="button" key={row.id} onClick={() => chooseSaved(row)} dir="auto">{row.question}</button>) : <p>{t("studyCompanion.noSaved")}</p>}</section>}
   </div>, target);
 }

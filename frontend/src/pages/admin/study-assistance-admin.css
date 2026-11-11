@@ -32,3 +32,30 @@
 .admin-assistance-coverage strong { font-weight: 650; }
 .admin-assistance-coverage > span { color: var(--muted); }
 .admin-assistance-coverage > small { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+
+/* Antigravity CLI is an admin-side draft generator, not a browser-executed AI call. */
+.admin-assistance-antigravity {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.admin-assistance-antigravity strong { font-size: 13px; }
+.admin-assistance-antigravity p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.admin-assistance-antigravity pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--separator);
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 11px;
+  direction: ltr;
+}
+.admin-assistance-antigravity > button { justify-self: start; }

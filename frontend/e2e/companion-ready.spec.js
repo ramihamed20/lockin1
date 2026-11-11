@@ -334,3 +334,63 @@ test('prepared page help appears ahead of sheet-wide tips with kind and PDF page
  await expect(lesson.getByRole('heading',{name:'مراجعة عامة'})).toBeVisible();
  await expect(lesson.locator('.study-companion-kind')).toContainText('تنظيم');
 });
+
+
+test('Starmo keeps original appearance while a study boost and quiet mode work on phone', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => localStorage.setItem('lock-in.locale', 'en'));
+  await page.route('**/api/v1/catalog/documents/**', route => route.fulfill({
+    json: { version_id: 'test-version', results: [] }
+  }));
+  await page.goto('/e2e/fixtures/companion-ready/');
+  const pet = page.locator('.study-companion-pet');
+  await expect(pet.locator('.study-companion-character img')).toHaveCount(1);
+  const originalArt = await pet.locator('.study-companion-character img').getAttribute('src');
+  await page.locator('.study-companion-preferences').click();
+  await page.getByRole('button', { name: 'Quick study boost' }).click();
+  const nudge = page.locator('.study-companion-nudge');
+  await expect(nudge).toBeVisible();
+  await expect(nudge).toContainText('General study tip');
+  const first = await nudge.locator('.study-companion-nudge-text').innerText();
+  await nudge.getByRole('button', { name: 'Another tip' }).click();
+  await expect(nudge.locator('.study-companion-nudge-text')).not.toHaveText(first);
+  await nudge.getByRole('button', { name: 'Back to page help' }).click();
+  await expect(page.locator('.study-companion-panel')).toBeVisible();
+  await page.locator('.study-companion-panel header button').click();
+  await page.locator('.study-companion-preferences').click();
+  const quiet = page.getByRole('switch', { name: /Quiet suggestions/ });
+  await quiet.click();
+  await expect(quiet).toHaveAttribute('aria-checked', 'true');
+  await page.locator('.study-companion-settings header button').click();
+  await expect(page.locator('.study-companion-bubble')).toHaveCount(0);
+  await expect(pet).toBeVisible();
+  await expect(pet.locator('.study-companion-character img')).toHaveAttribute('src', originalArt);
+  await pet.click();
+  await expect(page.locator('.study-companion-panel')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.study-companion-bubble')).toHaveCount(0);
+  await page.locator('.study-companion-preferences').click();
+  await expect(page.getByRole('switch', { name: /Quiet suggestions/ })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('switch', { name: /Quiet suggestions/ }).click();
+  await page.locator('.study-companion-settings header button').click();
+  await expect(page.locator('.study-companion-bubble')).toBeVisible();
+});
+
+test('prepared learning cards show a small, accessible progress indicator', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => localStorage.setItem('lock-in.locale', 'en'));
+  await page.route('**/api/v1/catalog/documents/**', route => route.fulfill({
+    json: { version_id: 'test-version', results: [
+      idea, { ...idea, id: '22222222-2222-4222-8222-222222222222', question: 'Another reviewed idea' }
+    ] }
+  }));
+  await page.goto('/e2e/fixtures/companion-ready/');
+  await page.locator('.study-companion-pet').click();
+  const nav = page.locator('.study-companion-card-nav');
+  const progress = nav.getByRole('progressbar', { name: 'Idea progress' });
+  await expect(progress).toHaveAttribute('value', '1');
+  await expect(progress).toHaveAttribute('max', '2');
+  await nav.getByRole('button', { name: 'Next' }).click();
+  await expect(progress).toHaveAttribute('value', '2');
+});

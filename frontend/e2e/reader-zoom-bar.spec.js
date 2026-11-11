@@ -90,6 +90,18 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1920, height: 108
     const bar = page.getByRole("group", { name: "Zoom", exact: true });
     await expect(bar).toBeVisible();
     await expect(bar).toBeInViewport();
+
+    // Desktop's floating page count and zoom capsules stay unobtrusive,
+    // without shrinking the full-size touch controls on tablet/phone.
+    const zoomBounds = await bar.boundingBox();
+    const pageCount = page.locator(".workspace-v2-page-number");
+    const countBounds = await pageCount.boundingBox();
+    expect(zoomBounds).toBeTruthy();
+    expect(countBounds).toBeTruthy();
+    expect(zoomBounds.height).toBeLessThanOrEqual(36);
+    expect(zoomBounds.width).toBeLessThan(320);
+    expect(countBounds.height).toBeLessThanOrEqual(32);
+    expect(countBounds.height).toBeGreaterThanOrEqual(27);
     const output = bar.locator("output");
     const start = await readerScale(page);
 
@@ -135,6 +147,9 @@ for (const device of [
     await mockReader(page);
     await openReader(page);
     await expect(page.locator(".workspace-v2-zoom-bar")).toBeHidden();
+    const touchPageCount = await page.locator(".workspace-v2-page-number").boundingBox();
+    expect(touchPageCount).toBeTruthy();
+    expect(touchPageCount.height).toBeGreaterThanOrEqual(43);
     const fitWidth = await readerScale(page);
     await pinchBelowFitWidth(page);
     await expect.poll(() => readerScale(page)).toBeLessThan(fitWidth - .05);

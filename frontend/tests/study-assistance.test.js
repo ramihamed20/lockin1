@@ -48,11 +48,20 @@ test("account, edition, view, version and page have independent in-memory identi
 
 test("untrusted browser preferences contain only the permitted appearance choices", () => {
   assert.deepEqual(companionPreferences({ character: "admin", motion: "false", hidden: "true", token: "ignored" }), {
-    character: "boy", motion: true, hidden: false, phoneAdded: false, position: null
+    character: "boy", motion: true, hidden: false, quiet: false, phoneAdded: false, position: null
   });
   assert.deepEqual(companionPreferences({ character: "girl", motion: false, hidden: true }), {
-    character: "girl", motion: false, hidden: true, phoneAdded: false, position: null
+    character: "girl", motion: false, hidden: true, quiet: false, phoneAdded: false, position: null
   });
+});
+
+test("quiet companion preference is opt-in and remains isolated from account permissions", () => {
+  const preferences = companionPreferences({ character: "girl", quiet: true, token: "not-saved", roles: ["admin"] });
+  assert.deepEqual(preferences, {
+    character: "girl", motion: true, hidden: false, quiet: true, phoneAdded: false, position: null
+  });
+  assert.equal(companionPreferences({ quiet: "true" }).quiet, false);
+  assert.equal(companionPreferences({ hidden: true, quiet: true }).hidden, true);
 });
 
 test("writing preserves Arabic combining marks and emoji as graphemes", () => {

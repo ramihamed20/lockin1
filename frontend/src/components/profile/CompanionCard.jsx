@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { Hand, Sparkles } from "lucide-react";
+import { Hand, Lightbulb, Sparkles } from "lucide-react";
 import { useI18n } from "../I18nProvider.jsx";
 import { useCompanionPreferences } from "../../hooks/useCompanionPreferences.js";
 import { CompanionCharacter, companionCharacters } from "../../workspace/assistance/CompanionCharacter.jsx";
@@ -7,8 +7,8 @@ import "../../workspace/assistance/study-companion.css";
 import "./companion-card.css";
 
 const copy = {
-  ar: { title: "رفيقك الدراسي", choose: "اختر شخصيتك", hint: "يتطور مع نقاط دراستك", level: "المستوى", xp: "تقدم الرفيق", wave: "تحية", celebrate: "احتفال", tap: "اضغط للتحية", motion: "الحركة", unavailable: "تعذّر تحميل نقاط التقدم", local: "يُحفظ اختيارك على هذا الجهاز" },
-  en: { title: "Your study companion", choose: "Choose your character", hint: "Grows with your study XP", level: "Level", xp: "Companion progress", wave: "Wave", celebrate: "Celebrate", tap: "Tap to say hello", motion: "Motion", unavailable: "XP is unavailable", local: "Your choice is saved on this device" }
+  ar: { title: "رفيقك الدراسي", choose: "اختر شخصيتك", hint: "يتطور مع نقاط دراستك", level: "المستوى", xp: "تقدم الرفيق", wave: "تحية", celebrate: "احتفال", think: "تفكير", tap: "اضغط للتحية", motion: "الحركة", unavailable: "تعذّر تحميل نقاط التقدم", local: "يُحفظ اختيارك على هذا الجهاز" },
+  en: { title: "Your study companion", choose: "Choose your character", hint: "Grows with your study XP", level: "Level", xp: "Companion progress", wave: "Wave", celebrate: "Celebrate", think: "Think", tap: "Tap to say hello", motion: "Motion", unavailable: "XP is unavailable", local: "Your choice is saved on this device" }
 };
 const finite = (value) => Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
 
@@ -41,7 +41,7 @@ export function CompanionCard({ userId, xp, xpAvailable = true }) {
       <CompanionCharacter character={preferences.character} state={cue.state} sequenceKey={String(cue.sequence)} motion={motion} />
       <strong>{name}</strong>
     </button>
-    <div className="profile-companion-emotes"><button type="button" onClick={() => emote("invite")}><Hand size={16} aria-hidden="true" /> <span>{c.wave}</span></button><button type="button" onClick={() => emote("saved")}><Sparkles size={16} aria-hidden="true" /> <span>{c.celebrate}</span></button></div>
+    <div className="profile-companion-emotes"><button type="button" onClick={() => emote("invite")}><Hand size={16} aria-hidden="true" /> <span>{c.wave}</span></button><button type="button" onClick={() => emote("saved")}><Sparkles size={16} aria-hidden="true" /> <span>{c.celebrate}</span></button><button type="button" onClick={() => emote("thinking")}><Lightbulb size={16} aria-hidden="true" /> <span>{c.think}</span></button></div>
     <div className="profile-companion-xp"><div><span>{c.xp}</span><strong dir="ltr">{xpAvailable ? `${current} / ${target} XP` : "—"}</strong></div>{xpAvailable && target > 0 ? <progress aria-label={c.xp} value={current} max={target} /> : <p role="status">{c.unavailable}</p>}</div>
     <div className="profile-companion-choices" role="group" aria-label={c.choose}>{Object.entries(companionCharacters).map(([character, asset]) => <button key={character} type="button" aria-pressed={preferences.character === character} onClick={() => { setPreferences(current => ({ ...current, character })); emote("invite"); }}><img src={asset.still} alt="" /><span>{character === "girl" ? "Starsea" : "Starmo"}</span></button>)}</div>
     <footer><small>{c.local}</small><label><input type="checkbox" checked={preferences.motion} onChange={event => setPreferences(current => ({ ...current, motion: event.target.checked }))} />{c.motion}</label></footer>

@@ -64,7 +64,11 @@ from .study_assistance_views import (
     DocumentStudyAssistanceView,
     StudyAssistanceSavedView,
 )
-from .translation_views import AdminSheetTranslationView, DocumentTranslationView
+from .translation_views import (
+    AdminSheetTranslationImportView,
+    AdminSheetTranslationView,
+    DocumentTranslationView,
+)
 from .views import (
     ArchiveLearningObjectView,
     CatalogAddedSubjectCollectionView,
@@ -113,6 +117,11 @@ urlpatterns = [
         "operations/admin/content/sheets/<uuid:sheet_id>/assistance/<uuid:idea_id>",
         AdminStudyAssistanceDetailView.as_view(),
         name="admin-study-assistance-detail",
+    ),
+    path(
+        "operations/admin/content/sheets/<uuid:sheet_id>/translations/import",
+        AdminSheetTranslationImportView.as_view(),
+        name="admin-sheet-translations-import",
     ),
     path(
         "operations/admin/content/sheets/<uuid:sheet_id>/translations",

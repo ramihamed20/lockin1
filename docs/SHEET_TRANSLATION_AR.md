@@ -30,6 +30,14 @@
 
 الحدود: ملف JSON حتى 5 ميغابايت؛ حتى 1000 صفحة في الدفعة؛ 60000 حرف لكل نص صفحة؛ مليون حرف نصي في الدفعة. قسّم الملفات الكبيرة إلى دفعات.
 
+## تنسيق الترجمة الملونة دون HTML
+
+- ترجَم الشرح إلى العربية، لكن اترك مصطلحات الطب والأسنان باللغة الإنجليزية (مثل `Enamel` و`Dentin` و`Pulp` و`Cementum` و`Gingiva`). **Enamel** طبقة المينا وليس Dentin (العاج)؛ لا يُسمح باستبدال المصطلحين أو الخلط بينهما.
+- تظهر المصطلحات الإنجليزية بلون مميز تلقائيًا في لوحة ترجمة الطالب، حتى في الترجمات القديمة التي لا تحتوي على علامات تنسيق.
+- اكتب `==جملة علمية أساسية==` لتظليل الجملة، و`**مفهوم مهم**` لإظهاره بخط عريض. يُعرض النص كعناصر React نصية آمنة، ولا يُفسر أي HTML داخل الترجمة.
+- مثال: `==تغطي طبقة Enamel تاج السن.== توجد طبقة Dentin تحتها، وتحيط **Gingiva** بالسن.`
+- اختصر إبراز المعلومات إلى جملة أو ثلاث جمل محورية لكل صفحة، ولا تغيّر المعلومة العلمية بغرض التنسيق. يمكن معاينة التنسيق في محرر الإدارة قبل الحفظ.
+
 ## تجربة الطالب
 
 من المزيد في قارئ الشيت، افتح «الترجمة العربية». تتبع اللوحة الصفحة الحالية تلقائيًا، وتبقى صورة PDF الأصلية متاحة. عند غياب ترجمة الصفحة تظهر رسالة واضحة. تعرض اللوحة نصًا عربيًا كاملًا ولا تعيد رسم PDF. فتح الترجمات يحتاج اتصالًا؛ لا يتضمن هذا التغيير تنزيلها للاستخدام دون إنترنت.
@@ -42,6 +50,94 @@
 
 شغّل الترحيلات المعتادة عند نشر الإصدار. لا ينشر رفع الفرع الميزة على VPS تلقائيًا.
 
+## الترجمة الجماعية عبر Gemini وأداة `translate_sheets`
+
+يتيح نظام الترجمة الجماعية إعطاء أوامر مباشرة لـ Gemini مثل:
+«ترجم جميع شيتات Pathology واحفظها في الموقع» أو «ترجم شيت General Pathology — Introduction، نسخة University فقط، مع معاينة قبل الحفظ».
+
+### القواعد الطبية الإلزامية
+
+- ترجمة الشرح إلى العربية الأكاديمية الواضحة.
+- الإبقاء على جميع المصطلحات الطبية والعلمية والتشريحية والاختصارات الإنجليزية كما هي داخل النص (مثل `Pathology`, `Apoptosis`, `Necrosis`, `Hypertrophy`, `Hyperplasia`, `Atrophy`, `Metaplasia`, `Ischemia`, `Hypoxia`, `ATP`, `ROS`, `Caspases`, `Cytochrome c`).
+- فحص تلقائي لكل صفحة للتحقق من بقاء المصطلحات الإنجليزية المستخرجة من `source_text` محفوظة داخل `translated_text`. عند غياب مصطلح، **تفشل الترجمة** بدل إلحاق قائمة مصطلحات في نهاية الصفحة لإظهار نجاح زائف.
+- تُنشئ Gemini علامات تنسيق بسيطة للجمل المهمة `==...==` والكلمات `**...**`؛ وتبقى جميع المصطلحات الطبية والعلمية بالإنجليزية دون ترجمتها إلى مقابلات عربية.
+- تتخطى أداة Gemini الصفحات التي لديها ترجمة محفوظة، وتبلّغ عن الصفحات التي لا يمكن استخراج نص لها؛ لا تعني المعاينة نجاح الصفحات الفارغة أو المصورة ضوئيًا.
+- عدم الحفظ المباشر: يجب توليد معاينة موقّعة (`preview_token`) ومراجعتها قبل الحفظ النهائي، ولا يستخدم النظام أي API خارجي مدفوع تلقائيًا.
+
+### آلية عمل Gemini عبر اشتراك Google AI Pro (`agy`) دون API مدفوع
+
+- تستخدم أداة `manage.py translate_sheets --action translate` (أو `--translate-with-gemini`) أداة **Antigravity CLI (`agy`)** المثبتة محليًا والمرتبطة باشتراك **Google AI Pro** الخاص بك مباشرةً.
+- لا تتطلب أداة `agy` مفتاح Gemini API منفصلًا في هذا التدفق، لكنها تخضع لحدود استخدام اشتراك Google AI Pro وسياسات المنصة. لا تفترض أن عدد الشيتات أو تكاليفها غير محدود.
+- يجب تشغيل الوكيل في بيئة ترجمة منفصلة ذات صلاحيات دنيا؛ يتم تمرير نصوص الصفحات عبر `stdin` مع وضع `--sandbox`، دون تمرير أسرار تطبيق Django أو وضع نصوص الشيتات في وسيطات سطر الأوامر. ولا يُسمح بعمليات الإنتاج قبل المراجعة.
+- تقوم الأداة باستخراج النص الإنجليزي (`source_text`) والمصطلحات الطبية الإلزامية (`required_medical_terms`) لكل صفحة من ملف الـ PDF، ثم ترسلها على دفعات (`--batch-size 5`) إلى Gemini عبر `agy` لترجمتها تلقائيًا إلى العربية مع الحفاظ على جميع المصطلحات الطبية الإنجليزية والرسوم (`[Diagram]`) والجداول (`[Table]`) والأرقام، ثم تُنشئ معاينة كاملة (`preview_token` + تقرير Markdown) دون حفظ أي شيء في الإنتاج قبل المراجعة.
+
+### أوامر سطر الأوامر (`manage.py translate_sheets`)
+
+1. **فحص الشيتات المتاحة لمادة أو شيت محدد**:
+   ```bash
+   python manage.py translate_sheets --subject "Pathology" --edition university --action inspect
+   ```
+2. **استخراج نصوص PDF والمصطلحات الطبية لكل صفحة (Manifest)**:
+   ```bash
+   python manage.py translate_sheets \
+     --subject "Pathology" \
+     --edition university \
+     --action extract \
+     --output /tmp/pathology_manifest.json
+   ```
+3. **الترجمة التلقائية الكاملة عبر Gemini (`--action translate`) وإنتاج معاينة قبل الحفظ دون إدخال ترجمة يدوية**:
+   ```bash
+   python manage.py translate_sheets \
+     --sheet "General Pathology — Introduction" \
+     --edition university \
+     --action translate \
+     --actor-email "AUTHORIZED_ADMIN_EMAIL" \
+     --single-format \
+     --batch-size 5 \
+     --effort low \
+     --output /tmp/general_pathology_intro_gemini_translated.json \
+     --preview-markdown docs/previews/GENERAL_PATHOLOGY_INTRODUCTION_UNIVERSITY_PREVIEW_AR.md
+   ```
+4. **إنتاج معاينة لملف ترجمة JSON جاهز (مع رمز معاينة موقّع وتقرير Markdown)**:
+   ```bash
+   python manage.py translate_sheets \
+     --sheet "General Pathology — Introduction" \
+     --edition university \
+     --action preview \
+     --actor-email "AUTHORIZED_ADMIN_EMAIL" \
+     --input /tmp/general_pathology_intro_gemini_translated.json \
+     --output /tmp/preview.json \
+     --preview-markdown docs/previews/GENERAL_PATHOLOGY_INTRODUCTION_UNIVERSITY_PREVIEW_AR.md
+   ```
+5. **الحفظ النهائي بعد اعتماد المعاينة (`preview_token`)**:
+   ```bash
+   python manage.py translate_sheets \
+     --sheet "General Pathology — Introduction" \
+     --edition university \
+     --action save \
+     --input /tmp/general_pathology_intro_gemini_translated.json \
+     --preview-token "<PREVIEW_TOKEN>" \
+     --actor-email "AUTHORIZED_ADMIN_EMAIL"
+   ```
+
+### نقطة نهاية الاستيراد والمعاينة في الخادم
+
+- `GET /api/v1/operations/admin/content/sheets/<sheet_id>/translations/import?edition=university`
+  تُرجع قالب الشيت مع استخراج نص PDF (`source_text`) والمصطلحات الطبية المكتشفة لكل صفحة، وتدعم `?subject=<subject>` لاستخراج جميع شيتات المادة دفعة واحدة (`lockin_translation_batch_v1`).
+- `POST /api/v1/operations/admin/content/sheets/<sheet_id>/translations/import`
+  - عند الإرسال **دون `preview_token`** (أو مع `confirm: false`): يتحقق الخادم من الصلاحيات وبصمة الملف (`checksum`) ومراجعات الصفحات (`expected_revision`) والمصطلحات الطبية، ويُرجع معاينة كاملة (`saved: false`) مع `preview_token` موقّع دون تعديل قاعدة البيانات.
+  - عند الإرسال **مع `preview_token` و`confirm: true`**: يتحقق الخادم من تطابق البصمة والـ `preview_token` ويحفظ الترجمات ذريًا مع تسجيل حدث التدقيق.
+
 ## التحقق
 
-نجح 29 اختبارًا للخادم و37 اختبارًا للواجهة، مع فحص الأنواع والتنسيق وبناء الإنتاج. اختبار SQLite يثبت السلوك والصلاحيات ولا يثبت أقفال PostgreSQL تحت التزامن. لقطات الواجهة السابقة استخدمت بيانات تجريبية محلية، ولا تمثل اعتمادًا على أجهزة حقيقية أو إثبات نشر.
+نجح 27 اختبارًا لنظام ترجمة الشيتات في الخادم (`test_sheet_translation.py` و`test_sheet_translation_batch.py`) و37 اختبارًا للواجهة، مع فحص الأنواع (`mypy`) والتنسيق (`ruff`) وفحص Django. اختبار SQLite يثبت السلوك والصلاحيات ولا يثبت أقفال PostgreSQL تحت التزامن. لقطات الواجهة السابقة استخدمت بيانات تجريبية محلية، ولا تمثل اعتمادًا على أجهزة حقيقية أو إثبات نشر.
+
+### تجارب المصدر الفعلي وقيود التجربة
+
+الملف `sheet_translation_pilot.py` يولّد **PDF اصطناعيًا للاختبارات**. لا يعدّ هذا إثباتًا بأن النص مأخوذ من PDF الإنتاج الأصلي. يجب اختبار استخراج PDF حقيقي من التخزين الخاص في بيئة معزولة، مع مطابقة checksum وعدد الصفحات ومراجعة ناتج Gemini يدويًا قبل اعتماده.
+
+لا يحفظ `--action save` أي شيء دون مستخدم إدارة محدد صراحة باستخدام `--actor-email` وصلاحية `content.manage` ورمز معاينة صالح؛ لا يتم منح دور Administrator تلقائيًا لأي مستخدم.
+
+### هوية مراجعة الترجمة
+
+رمز المعاينة موقّع ومرتبط بهوية المسؤول الذي أصدره؛ لذلك يجب أن تستخدم خيارات `--actor-email` **نفس حساب الإدارة المخوّل** عند توليد المعاينة وعند الحفظ النهائي. معاينة لا تحدد حساب إدارة تُستخدم للفحص فقط، ولا يجوز اعتماد رمزها لحفظ الترجمات لاحقًا بهوية مختلفة. عدم وجود صفحات جديدة للترجمة لا يتطلب تثبيت أو تشغيل `agy`، وتعيد الأداة حالة `not_needed` دون محاولة اتصال بالوكيل.

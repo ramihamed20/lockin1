@@ -3,6 +3,7 @@ import { useI18n } from "../../components/I18nProvider.jsx";
 import { sheetTranslationAdminApi } from "../../api/sheetTranslation.js";
 import { MAX_TRANSLATION_FILE_BYTES, MAX_TRANSLATION_TEXT, parseTranslationImport, translationTemplate, translationWriteBody } from "../../lib/sheetTranslationImport.js";
 import { triggerDownload } from "../../workspace/catalog/exportDelivery.js";
+import { TranslationRichText } from "../../workspace/catalog/TranslationRichText.jsx";
 import "./sheet-translation-editor.css";
 
 export function SheetTranslationEditor({ sheetId, edition }) {
@@ -61,7 +62,8 @@ export function SheetTranslationEditor({ sheetId, edition }) {
     </div>
     <label>{t("sheetTranslationAdmin.fullPage", { page })}<textarea rows={15} lang="ar" dir="rtl" value={text} maxLength={MAX_TRANSLATION_TEXT} disabled={busy} placeholder={t("sheetTranslationAdmin.placeholder")} onChange={(event) => {
       const value = event.target.value; setDrafts((previous) => { const next = { ...previous }; if (value === (current?.text || "")) delete next[page]; else next[page] = value; return next; });
-    }} /></label><p className="translation-editor__hint">{t("sheetTranslationAdmin.clearHint")}</p>
+    }} /></label><p className="translation-editor__hint">{t("sheetTranslationAdmin.clearHint")} · ==جملة مهمة== لتظليلها، **كلمة مهمة** لإبرازها. المصطلحات الإنجليزية تظهر بلون مميز تلقائيًا.</p>
+    {text.trim() && <div className="translation-editor__formatted-preview"><strong>معاينة تنسيق الترجمة</strong><TranslationRichText text={text} /></div> }
     <div className="translation-editor__actions">
       <button type="button" className="btn btn-primary" disabled={busy || !dirty} onClick={() => void save(Object.entries(drafts).map(([number, value]) => ({ page: Number(number), text: value, source_text: rows.find((row) => row.page === Number(number))?.source_text || "" })))}>{busy ? t("sheetTranslationAdmin.saving") : t("sheetTranslationAdmin.saveDrafts", { count: dirty })}</button>
       {dirty > 0 && <button type="button" className="btn btn-soft" disabled={busy} onClick={() => setDrafts({})}>{t("sheetTranslationAdmin.discard")}</button>}

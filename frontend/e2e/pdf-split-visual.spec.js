@@ -157,6 +157,8 @@ for (const viewport of [
 
 test("one original shared toolbar controls two, three and four PDF cells", async ({ page }) => {
   test.setTimeout(120000);
+  // Make any unintended reader jump immediate while resizing with arrow keys.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await mkdir("output/playwright", { recursive: true });
   await openTwoSheets(page, 1180, 820);
   for (const [slug, title] of [["vitamin-3", "Vitamin -3"], ["range-probe", "Range probe"]]) {

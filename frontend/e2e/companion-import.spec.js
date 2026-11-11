@@ -19,7 +19,12 @@ test('JSON import previews before writing, supports multiple sheets and invalida
  });
  await page.goto('/e2e/fixtures/companion-import/');
  await page.getByText('Import companion cards (JSON)',{exact:true}).click();
+ await expect(page.getByText('Generate with Antigravity on your server')).toBeVisible();
+ await expect(page.locator('.admin-assistance-antigravity pre')).toContainText(sheetId);
+ await expect(page.locator('.admin-assistance-antigravity pre')).toContainText('--actor-email');
+ await page.getByRole('button',{name:'Copy server command'}).click();
  await page.getByRole('combobox',{name:'Select sheets',exact:true}).selectOption('all');
+ await expect(page.locator('.admin-assistance-antigravity')).toHaveCount(0);
  await page.getByRole('button',{name:'Copy prompt',exact:true}).click();
  await expect(page.getByRole('textbox',{name:'Copy prompt'})).toHaveValue(/version-2/);
  const payload={schema_version:1,subject_id:context.subject_id,edition:'university',view:'study',sheets:context.sheets.map(s=>({sheet_id:s.sheet_id,source_version_id:s.source_version_id,cards:[card]}))};
