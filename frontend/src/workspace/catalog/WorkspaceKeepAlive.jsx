@@ -309,7 +309,11 @@ export function WorkspaceKeepAlive({ user = null, Workspace }) {
       onLostPointerCapture={(event) => finishSplitDrag(event, axis)}
       onKeyDown={(event) => {
         const delta = splitResizeKeyDelta(event.key, splitIsRtlColumns(rows));
-        if (delta) { event.preventDefault(); set((value) => snapSplitPercent(value + delta)); }
+        if (!delta) return;
+        event.preventDefault();
+        // The reader also listens for arrow keys on window to turn pages.
+        event.stopPropagation();
+        set((value) => snapSplitPercent(value + delta));
       }}
     >
       <span className="workspace-split-grip" aria-hidden="true" />
