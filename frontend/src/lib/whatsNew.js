@@ -8,6 +8,9 @@ export const WHATS_NEW = {
   id: "0.1.5-2026-11-08",
   version: "0.1.5",
   date: "2026-11-08",
+  // This build installs when its existing tabs close. Future announced
+  // releases can omit this flag and give their notes a new id.
+  silentUpdate: true,
   summary: {
     en: "A more connected study experience, with cohort rankings and improvements to reading, planning and review.",
     ar: "تجربة دراسية أكثر ترابطًا، مع ترتيب الطلاب وتحسينات للقراءة والتخطيط والمراجعة."
@@ -109,7 +112,7 @@ function safeStorage() {
  * (the account joined after it shipped). "none": already seen.
  */
 export function whatsNewDecision({ seenId, dateJoined, release = WHATS_NEW }) {
-  if (seenId === release.id) return "none";
+  if (release.silentUpdate || seenId === release.id) return "none";
   const joined = Date.parse(dateJoined || "");
   const shipped = Date.parse(`${release.date}T00:00:00Z`);
   if (Number.isFinite(joined) && joined >= shipped) return "skip";
@@ -150,7 +153,10 @@ export function normalizeRelease(raw) {
     const audience = item?.audience === "dentistry" ? "dentistry" : "";
     return title && body ? [{ icon: cleanText(item?.icon) || "sparkles", ...(audience ? { audience } : {}), title, body }] : [];
   });
-  return items.length ? { id, version, date: cleanText(raw.date), summary, items } : null;
+  return items.length ? {
+    id, version, date: cleanText(raw.date), summary, items,
+    silentUpdate: raw.silentUpdate === true
+  } : null;
 }
 
 /**
@@ -159,10 +165,15 @@ export function normalizeRelease(raw) {
  */
 export async function fetchPendingRelease(url, fetchImpl = globalThis.fetch) {
   try {
-    const response = await fetchImpl(url, { cache: "no-store", credentials: "omit" });
+    const response = await fetchImpl(url, {
+      cache: "no-store",
+      credentials: "omit",
+      signal: globalThis.AbortSignal?.timeout?.(5000)
+    });
     if (!response.ok) return null;
     const release = normalizeRelease(await response.json());
-    return release && release.id !== WHATS_NEW.id ? release : null;
+    // Silent maintenance builds may intentionally keep the announcement id.
+    return release && (release.silentUpdate || release.id !== WHATS_NEW.id) ? release : null;
   } catch {
     return null;
   }

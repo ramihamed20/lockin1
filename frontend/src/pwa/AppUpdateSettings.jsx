@@ -51,7 +51,7 @@ export default function AppUpdateSettings({ user = null }) {
   const [titleKey, detailKey] = STATUS_COPY[status] || STATUS_COPY[UPDATE_STATUS.IDLE];
   const checked = lastCheckedLabel(t, locale, lastCheckedAt, now);
   const activationFailed = status === UPDATE_STATUS.AVAILABLE && error === "activation-failed";
-  const announced = status === UPDATE_STATUS.AVAILABLE && !activationFailed && pending;
+  const announced = status === UPDATE_STATUS.AVAILABLE && !activationFailed && pending && !pending.silentUpdate;
   const detail = activationFailed ? t("pwa.update.error") : announced ? whatsNewText(pending.summary, locale) : detailKey ? t(detailKey) : checked;
   const title = announced ? t("pwa.update.titleVersion", { version: pending.version }) : t(titleKey);
   const canApply = status === UPDATE_STATUS.AVAILABLE || status === UPDATE_STATUS.RELOAD_REQUIRED || status === UPDATE_STATUS.UPDATING;

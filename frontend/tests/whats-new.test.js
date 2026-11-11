@@ -29,12 +29,12 @@ test("an existing account sees the panel once, a new account never does", () => 
   assert.equal(whatsNewDecision({ seenId: "", dateJoined: "2026-11-01T09:00:00Z", release }), "skip");
 });
 
-test("updated 0.1.5 notes are shown to accounts that saw the earlier 0.1.5 announcement", () => {
+test("announced updates can reuse a package version; silent builds leave their notes in Settings", () => {
   assert.equal(WHATS_NEW.version, "0.1.5");
   assert.notEqual(WHATS_NEW.id, "0.1.5");
-  assert.equal(whatsNewDecision({ seenId: "0.1.5", dateJoined: "2026-10-01T12:00:00Z" }), "show");
-  assert.equal(whatsNewDecision({ seenId: WHATS_NEW.id, dateJoined: "2026-10-01T12:00:00Z" }), "none");
-  assert.equal(whatsNewDecision({ seenId: "", dateJoined: "2026-11-09T12:00:00Z" }), "skip");
+  const existingAccount = { seenId: "0.1.5", dateJoined: "2026-10-01T12:00:00Z" };
+  assert.equal(whatsNewDecision({ ...existingAccount, release: { ...WHATS_NEW, silentUpdate: false } }), "show");
+  assert.equal(whatsNewDecision({ ...existingAccount, release: { ...WHATS_NEW, silentUpdate: true } }), "none");
 });
 
 test("the seen version is remembered per account", () => {
@@ -83,11 +83,13 @@ test("notes fetched from the server are validated and trimmed", () => {
   assert.equal(release.summary.ar, "Faster");
 });
 
-test("a pending release is only reported when it differs from the running one", async () => {
+test("a pending release can opt out of announcements even with the same notes id", async () => {
   const reply = (body, ok = true) => async () => ({ ok, json: async () => body });
   const newer = { id: "9.9.9", version: "9.9.9", summary: { en: "s" }, items: [{ title: { en: "t" }, body: { en: "b" } }] };
   assert.equal((await fetchPendingRelease("/release-notes.json", reply(newer))).version, "9.9.9");
-  assert.equal(await fetchPendingRelease("/release-notes.json", reply(WHATS_NEW)), null);
+  assert.equal(await fetchPendingRelease("/release-notes.json", reply({ ...WHATS_NEW, silentUpdate: false })), null);
+  assert.equal(await fetchPendingRelease("/release-notes.json", reply({ ...WHATS_NEW, silentUpdate: "true" })), null);
+  assert.equal((await fetchPendingRelease("/release-notes.json", reply({ ...WHATS_NEW, silentUpdate: true }))).silentUpdate, true);
   assert.equal(await fetchPendingRelease("/release-notes.json", reply(newer, false)), null);
   assert.equal(await fetchPendingRelease("/release-notes.json", async () => { throw new Error("offline"); }), null);
   assert.equal(await fetchPendingRelease("/release-notes.json", async () => ({ ok: true, json: async () => { throw new Error("html"); } })), null);

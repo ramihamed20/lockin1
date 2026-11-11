@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { expect, test } from "@playwright/test";
 import { mockStudentApi } from "./helpers/mock-student-api.js";
+import { WHATS_NEW } from "../src/lib/whatsNew.js";
 
 /**
  * A new deployment reaches an open app through the real service worker.
@@ -67,7 +68,7 @@ async function discoverDeployment(page) {
  */
 async function startEdge(upstreamOrigin) {
   let suffix = "";
-  let announce = false;
+  let nextRelease = null;
   const workerRequests = [];
   // Serve each immutable fixture response once from the upstream. Window
   // loading and real worker precaching share it instead of flooding the same
@@ -84,9 +85,9 @@ async function startEdge(upstreamOrigin) {
     const { pathname } = new URL(request.url || "/", "http://edge.local");
     const requestedDeployment = suffix;
     if (pathname === "/service-worker.js") workerRequests.push({ startedAt: Date.now(), deployed: Boolean(requestedDeployment) });
-    if (pathname === "/release-notes.json" && requestedDeployment && announce) {
-      response.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-      response.end(JSON.stringify(NEXT_RELEASE));
+    if (pathname === "/release-notes.json" && requestedDeployment) {
+      response.writeHead(nextRelease ? 200 : 404, { "content-type": "application/json", "cache-control": "no-store" });
+      response.end(JSON.stringify(nextRelease));
       return;
     }
     try {
@@ -108,7 +109,10 @@ async function startEdge(upstreamOrigin) {
   return {
     origin: `http://127.0.0.1:${port}`,
     workerRequests,
-    deploy({ notes = false } = {}) { announce = notes; suffix = `\n// next deployment ${Date.now()}\n`; },
+    deploy({ notes = false, silent = false } = {}) {
+      nextRelease = silent ? { ...WHATS_NEW, silentUpdate: true } : notes ? NEXT_RELEASE : null;
+      suffix = `\n// next deployment ${Date.now()}\n`;
+    },
     close: () => new Promise((resolve) => {
       server.close(() => resolve(undefined));
       // Workers in the second window can still hold a precache connection.
@@ -231,12 +235,8 @@ test.describe("PWA updates", () => {
   });
 
   test("the update notification explains the release, and Settings explains it before updating", async ({ page }) => {
-    await page.addInitScript(() => { try { window.localStorage.setItem("lock-in.whats-new.e2e", "1"); } catch { /* private mode */ } });
     await prepare(page);
     await openControlled(page);
-    // The running build's own notes appear on first load; dismiss them.
-    await page.getByRole("dialog", { name: "What's new" }).getByRole("button", { name: "Got it" }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
     edge.deploy({ notes: true });
 
     await discoverDeployment(page);
@@ -254,34 +254,62 @@ test.describe("PWA updates", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     expect(await page.evaluate(() => sessionStorage.getItem("e2e-loads"))).toBe("1");
 
-    // Confirming applies the update with one reload, then the notes appear.
-    // The simulated new build shares this bundle, so forget that its notes were seen.
-    await page.evaluate(() => { for (const key of Object.keys(localStorage)) if (key.startsWith("lock-in.whats-new.seen:")) localStorage.removeItem(key); });
+    // Confirming applies the update with one reload.
     await page.locator("#settings-updates").getByRole("button", { name: "Update now" }).click();
     const reloaded = page.waitForEvent("load");
     await page.getByRole("dialog", { name: "Lock-in 9.9.9 is ready" }).getByRole("button", { name: "Update now" }).click();
     await reloaded;
-    await expect(page.getByRole("dialog", { name: "What's new" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("app-version")).toHaveText(/^\d+\.\d+\.\d+$/);
     expect(await page.evaluate(() => sessionStorage.getItem("e2e-loads")), "exactly one reload").toBe("2");
   });
 
-  test("updating from the notification applies at once and shows the notes after the reload", async ({ page }) => {
-    await page.addInitScript(() => { try { window.localStorage.setItem("lock-in.whats-new.e2e", "1"); } catch { /* private mode */ } });
+  test("updating from the notification applies at once", async ({ page }) => {
     await prepare(page);
     await openControlled(page);
-    await page.getByRole("dialog", { name: "What's new" }).getByRole("button", { name: "Got it" }).click();
     edge.deploy({ notes: true });
 
     await discoverDeployment(page);
     const prompt = page.locator(".pwa-update-prompt");
     await expect(prompt).toContainText("Lock-in 9.9.9 is available");
-    await page.evaluate(() => { for (const key of Object.keys(localStorage)) if (key.startsWith("lock-in.whats-new.seen:")) localStorage.removeItem(key); });
 
     const reloaded = page.waitForEvent("load");
     await prompt.getByRole("button", { name: "Update now" }).click();
     await reloaded;
-    await expect(page.getByRole("dialog", { name: "What's new" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("app-version")).toHaveText(/^\d+\.\d+\.\d+$/);
     expect(await page.evaluate(() => sessionStorage.getItem("e2e-loads")), "exactly one reload").toBe("2");
+  });
+
+  test("a silent release waits for open tabs to close and leaves manual updates available", async ({ page, context }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("lock-in.whats-new.e2e", "1");
+    });
+    await prepare(page);
+    await openControlled(page);
+    await expect(page.getByRole("dialog", { name: "What's new" })).toHaveCount(0);
+
+    edge.deploy({ silent: true });
+    const releaseResponse = page.waitForResponse(response => response.url().endsWith("/release-notes.json"));
+    await discoverDeployment(page);
+    expect((await (await releaseResponse).json()).silentUpdate).toBe(true);
+    await expect(page.locator(".pwa-update-prompt")).toHaveCount(0);
+    await expect(page.locator("#settings-updates").getByRole("button", { name: "Update now" })).toBeVisible();
+    expect(await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration();
+      return { waiting: registration?.waiting?.state, loads: sessionStorage.getItem("e2e-loads") };
+    })).toEqual({ waiting: "installed", loads: "1" });
+
+    await page.close();
+    const reopened = await context.newPage();
+    await prepare(reopened);
+    await openControlled(reopened);
+    await expect.poll(() => reopened.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration();
+      return Boolean(registration?.waiting);
+    })).toBe(false);
+    await expect(reopened.locator(".pwa-update-prompt")).toHaveCount(0);
+    await expect(reopened.getByRole("dialog", { name: "What's new" })).toHaveCount(0);
+    await reopened.getByRole("button", { name: "What's new" }).click();
+    await expect(reopened.getByRole("dialog", { name: "What's new" })).toBeVisible();
   });
 
   test("a check button held while an update arrives never applies it", async ({ page }) => {
