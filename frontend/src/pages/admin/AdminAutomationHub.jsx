@@ -5,7 +5,7 @@ import { managementApi } from "../../api/management.js";
 import { useAsyncData } from "../../hooks/useAsyncData.js";
 import { hasOperationalCapability } from "../../lib/authz.js";
 import { Icon } from "../../lib/icons.jsx";
-import { allQuestionsTotals, buildAllQuestionsPrompt, existingQuestionSets, parseAllQuestionsJson } from "../../lib/allQuestionsPrompt.js";
+import { buildAllQuestionsPrompt, existingQuestionSets, parseAllQuestionsJson } from "../../lib/allQuestionsPrompt.js";
 import { downloadAllQuestionsPrompt, readAllQuestionsFile } from "../../lib/allQuestionsImport.js";
 import { automationAgentInstructions, draftSheetPayload, validateAutomationFiles } from "../../lib/adminAutomation.js";
 import { ErrorPanel, LoadingPanel } from "../../components/ui/index.jsx";
@@ -40,7 +40,7 @@ function PipelineRow({ item, canQuestions, normalCount, referenceNotes, onPatch 
   async function validate(file) {
     if (!file || !canQuestions || !item.sheetId || pending) return;
     setPending("validate");
-    onPatch(item.id, { error: "", validation: null, payload: null });
+    onPatch(item.id, { error: "", validation: null, payload: null, validatedNormalCount: null });
     try {
       const payload = parseAllQuestionsJson(await readAllQuestionsFile(file));
       const context = await adminControlApi.allQuestionsContext(item.sheetId, "university");
@@ -56,7 +56,7 @@ function PipelineRow({ item, canQuestions, normalCount, referenceNotes, onPatch 
       };
       const validation = await adminControlApi.validateAllQuestions(item.sheetId, body, "university");
       if (!validation.valid) throw new Error("The JSON failed the Lock-in validation rules.");
-      onPatch(item.id, { payload, context, validation, message: "Validated against Lock-in. Confirm import to save Normal Questions as drafts." });
+      onPatch(item.id, { payload, context, validation, validatedNormalCount: normalCount, message: "Validated against Lock-in. Confirm import to save Normal Questions as drafts." });
     } catch (error) {
       const first = error?.payload?.errors?.[0];
       onPatch(item.id, { error: first?.message || error?.message || "Invalid question JSON." });
@@ -66,13 +66,13 @@ function PipelineRow({ item, canQuestions, normalCount, referenceNotes, onPatch 
   }
 
   async function save() {
-    if (!item.validation?.valid || !item.context || !item.payload || pending) return;
+    if (!item.validation?.valid || !item.context || !item.payload || pending || item.validatedNormalCount !== normalCount) return;
     setPending("save");
     try {
       const ctx = item.context;
       await adminControlApi.saveAllQuestions(item.sheetId, {
         payload: item.payload,
-        sheet_question_count: normalCount,
+        sheet_question_count: item.validatedNormalCount,
         excluded_start_pages: ctx.excluded_start_pages,
         excluded_end_pages: ctx.excluded_end_pages,
         settings_revision: ctx.settings_revision,
@@ -95,7 +95,7 @@ function PipelineRow({ item, canQuestions, normalCount, referenceNotes, onPatch 
         <Icon name="file-question" size={15}/>{pending === "validate" ? "Validating…" : "Validate returned JSON"}
         <input type="file" accept=".json,.txt,application/json,text/plain" disabled={Boolean(pending)} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void validate(file); }}/>
       </label>}
-      {item.validation?.valid && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={save}>Confirm draft import</button>}
+      {item.validation?.valid && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending) || item.validatedNormalCount !== normalCount} onClick={save}>{item.validatedNormalCount !== normalCount ? "Revalidate after count change" : "Confirm draft import"}</button>}
       <Link className="btn btn-soft compact" to={"/operations/admin/content?subject=" + encodeURIComponent(item.subjectId) + "&sheet=" + encodeURIComponent(item.sheetId)}>Open sheet</Link>
     </div>}
     {item.validation?.valid && <div className="admin2-safe-note">All Questions validated ({item.validation?.summary?.total_received ?? "?"} questions). Saving may update Active Study banks. This new draft sheet must be reviewed before student visibility.</div>}
@@ -145,7 +145,8 @@ export default function AdminAutomationHub({ operationsSession }) {
         error: "",
         message: "",
         payload: null,
-        validation: null
+        validation: null,
+        validatedNormalCount: null
       })));
     } catch (error) {
       setGlobalError(error.message || "Files could not be selected.");
