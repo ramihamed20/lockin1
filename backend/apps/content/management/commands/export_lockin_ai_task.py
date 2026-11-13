@@ -111,7 +111,9 @@ class Command(BaseCommand):
         title = sheet.current_version.title if sheet.current_version else str(sheet.pk)
         (target / "LECTURE_PAGES.txt").write_text(lecture_text, encoding="utf-8")
         (target / "PAST_EXAMS_REFERENCE.txt").write_text(
-            ("\n\n".join(reference_texts) if references else "No past-exam PDF references selected.\n"),
+            "\n\n".join(reference_texts)
+            if references
+            else "No past-exam PDF references selected.\n",
             encoding="utf-8",
         )
         manifest = {
