@@ -8,6 +8,7 @@ This branch upgrades **the existing** Creator Studio/Operations Admin, rather th
 - Cross-functional next-action links for students, subscriptions, payments, content, question banks, moderation, feedback, notifications, analytics, audit, exports, system and settings.
 - **Automation** workspace at \`/operations/admin/automation\`, available to users with \`content.view\`.
 - Upload a batch of up to **20 PDFs** (50 MB each) to an existing subject in **sequence**, using the same \`management/files\` and \`createSheet\` services as the old admin panel.
+- Automation rejects a PDF already attached as the primary file of a current, non-archived sheet in the same subject. It compares SHA-256 checksums and serializes concurrent Automation requests for that subject.
 - Every uploaded sheet is created with \`publish: false\`, \`notify_students: false\` and \`allow_download: false\`. It is never published automatically.
 - Download an AI task prompt derived from the existing All Questions backend planning contract, plus optional pasted past-exam question style (up to 6,000 chars).
 - Read-only Django command \`export_lockin_ai_task\` for text extraction from a sheet PDF and up to five explicitly selected reference PDFs. It does not invoke AI. Image-only pages are reported for manual visual review.
@@ -36,7 +37,7 @@ This branch upgrades **the existing** Creator Studio/Operations Admin, rather th
 6. For previous-year references on the VPS, append up to five \`--reference /path/to/authorized.pdf\` options.
 7. Open the exported text, task prompt and source PDFs in Antigravity **directly**. Request a single JSON output.
 8. Upload the returned JSON via **Validate returned JSON**. Fix any validation errors.
-9. Confirm the draft import. Verify factual correctness and any Active Study replacements in the sheet editor before separately publishing.
+9. Review the preview against the source PDF and correct any errors in the JSON before validating again. Confirm the draft import. Publish separately in Content after review.
 
 ## Development and verification
 

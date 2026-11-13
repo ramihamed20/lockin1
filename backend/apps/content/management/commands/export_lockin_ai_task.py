@@ -38,8 +38,7 @@ def _pages(reader: PdfReader, limit: int, *, label: str) -> tuple[str, list[int]
         if not content:
             unreadable.append(number)
             content = (
-                "[NO EXTRACTABLE TEXT: inspect this PDF page visually "
-                "before generating questions]"
+                "[NO EXTRACTABLE TEXT: inspect this PDF page visually before generating questions]"
             )
         chunks.append(f"=== PAGE {number} ===\n{content}")
     return "\n\n".join(chunks) + "\n", unreadable
@@ -55,9 +54,7 @@ def _reference_text(path: Path) -> tuple[str, dict[str, object]]:
         if source.read(5) != b"%PDF-":
             raise CommandError(f"Reference has no PDF signature: {path.name}")
         source.seek(0)
-        text, unreadable = _pages(
-            PdfReader(source, strict=False), MAX_PAGES, label="Reference"
-        )
+        text, unreadable = _pages(PdfReader(source, strict=False), MAX_PAGES, label="Reference")
     return text, {"name": path.name, "size_bytes": size, "unreadable_pages": unreadable}
 
 
@@ -148,7 +145,5 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Exported task package to: {target}"))
         if unreadable:
             self.stdout.write(
-                self.style.WARNING(
-                    f"Review {len(unreadable)} pages without extractable text."
-                )
+                self.style.WARNING(f"Review {len(unreadable)} pages without extractable text.")
             )

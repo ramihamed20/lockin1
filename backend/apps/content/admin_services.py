@@ -390,9 +390,26 @@ def create_sheet(
     publish: bool,
     notify_students: bool,
     allow_download: bool,
+    reject_duplicate_pdf: bool = False,
 ) -> LearningObject:
     if subject.kind != EducationNode.Kind.SUBJECT:
         raise ContentRuleError("Sheets must be created inside a subject.")
+    if reject_duplicate_pdf:
+        if publish or notify_students or allow_download:
+            raise ContentRuleError("Automation uploads must be private drafts.")
+        if not managed_file.pdf_page_count:
+            raise ContentRuleError("Upload a readable PDF with at least one page.")
+        # Concurrent Automation uploads into the same subject check the checksum
+        # under the same lock, even when each upload received a different file ID.
+        subject = EducationNode.objects.select_for_update().get(id=subject.id)
+        if LearningObjectAsset.objects.filter(
+            role=LearningObjectAsset.Role.PRIMARY,
+            managed_file__checksum_sha256=managed_file.checksum_sha256,
+            version__academic_node=subject,
+            version__current_for__archived_at__isnull=True,
+            version__current_for__isnull=False,
+        ).exists():
+            raise ContentConflictError("This PDF is already attached to a sheet in this subject.")
     sheet = create_learning_object(
         actor=actor,
         data=LearningObjectInput(

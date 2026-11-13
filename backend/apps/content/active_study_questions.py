@@ -50,7 +50,7 @@ def _question(value: Any, *, errors: list[dict[str, str]], path: str) -> dict[st
         _error(errors, path, "Each question must be a JSON object.")
         return {}
     question_type = value.get("type", "mcq")
-    if question_type not in {"mcq", "true_false"}:
+    if question_type not in ("mcq", "true_false"):
         _error(errors, f"{path}.type", "type must be mcq or true_false.")
         question_type = "mcq"
     allowed = {"type", "question", "correct_answer", "explanation"}
@@ -108,7 +108,7 @@ def _question(value: Any, *, errors: list[dict[str, str]], path: str) -> dict[st
             _error(errors, f"{path}.options", "Options must not duplicate the same text.")
 
     answer = value.get("correct_answer")
-    if answer not in {"A", "B", "C", "D"}:
+    if answer not in ("A", "B", "C", "D"):
         _error(errors, f"{path}.correct_answer", "correct_answer must be A, B, C, or D.")
         answer = ""
     return {

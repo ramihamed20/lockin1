@@ -530,6 +530,7 @@ class AdminSubjectSheetListView(_ContentPermissionView):
                 publish=bool(data["publish"]),
                 notify_students=bool(data["notify_students"]),
                 allow_download=bool(data["allow_download"]),
+                reject_duplicate_pdf=bool(data["reject_duplicate_pdf"]),
             )
         except ContentRuleError as error:
             _raise_rule(error)
@@ -923,6 +924,7 @@ class AdminSheetAllQuestionsView(_ContentPermissionView):
                     key: int(value) for key, value in data["expected_revisions"].items()
                 },
                 publish_sheet_questions=bool(data["publish_sheet_questions"]),
+                draft_sheet_revision=data.get("draft_sheet_revision"),
             )
         except AllQuestionsValidationError as error:
             return Response(error.as_dict(), status=status.HTTP_400_BAD_REQUEST)

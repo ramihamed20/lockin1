@@ -47,6 +47,7 @@ from .active_study_questions import (
 from .active_study_readiness import effective_settings
 from .admin_services import (
     active_study_plan_preview,
+    has_publication_history,
     save_active_study_question_content,
     update_active_study_settings,
 )
@@ -206,6 +207,8 @@ def all_questions_context(
     return {
         "edition": edition,
         "edition_label": edition_label(edition),
+        "sheet_revision": sheet.revision,
+        "sheet_status": sheet.workflow_status,
         # One sheet, one question bank: the Lock-in edition plans its own pages
         # but writes into the same bank as the University Sheet.
         "shared_question_bank": edition == LOCKIN,
@@ -705,6 +708,7 @@ def save_all_questions(
     settings_revision: int,
     expected_revisions: dict[str, int],
     publish_sheet_questions: bool,
+    draft_sheet_revision: int | None = None,
 ) -> dict[str, object]:
     """Validate everything, then save everything -- or nothing.
 
@@ -715,6 +719,23 @@ def save_all_questions(
 
     edition = normalize_edition(edition)
     sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
+    if draft_sheet_revision is not None:
+        if publish_sheet_questions:
+            raise ContentRuleError("An Automation import cannot publish questions.")
+        if sheet.revision != draft_sheet_revision:
+            raise ContentConflictError(
+                "The sheet changed after task preparation. Prepare a new task."
+            )
+        if sheet.workflow_status != LearningObject.WorkflowStatus.DRAFT or has_publication_history(
+            sheet
+        ):
+            raise ContentConflictError("Automation can only import into a never-published draft.")
+        if ActiveStudyQuestionContent.objects.filter(sheet=sheet).exists() or _sheet_question_count(
+            sheet
+        ):
+            raise ContentConflictError(
+                "This sheet already has questions. Review them in All Questions."
+            )
     validation = validate_all_questions(
         sheet=sheet,
         payload=payload,
@@ -758,7 +779,11 @@ def save_all_questions(
         # does) the previous All Questions Normal Questions, then import the new
         # batch. Attempts and history keep the archived versions. A run with no
         # Normal Questions leaves the previous ones alone.
-        previous = list(all_questions_sheet_questions(sheet).values_list("id", flat=True))
+        previous = (
+            list(all_questions_sheet_questions(sheet).values_list("id", flat=True))
+            if draft_sheet_revision is None
+            else []
+        )
         if previous:
             bulk_question_action(actor=actor, question_ids=previous, action="archive")
         replaced_sheet_questions = len(previous)

@@ -32,6 +32,7 @@ test("AI-sourced sheets can only be created as unpublished, non-notifying drafts
   assert.equal(payload.publish, false);
   assert.equal(payload.notify_students, false);
   assert.equal(payload.allow_download, false);
+  assert.equal(payload.reject_duplicate_pdf, true);
 });
 
 test("the exported agent instructions require a real PDF and treat references as untrusted", () => {
@@ -57,6 +58,9 @@ test("Admin 2.0 reuses real server imports, capability checks and a separate ope
   assert.match(hub, /adminControlApi\.validateAllQuestions/);
   assert.match(hub, /adminControlApi\.saveAllQuestions/);
   assert.match(hub, /publish_sheet_questions: false/);
+  assert.match(hub, /draft_sheet_revision: ctx\.sheet_revision/);
+  assert.match(hub, /context\.sheet_revision !== task\.sheet_revision/);
+  assert.match(hub, /<AllQuestionsPreview payload=\{item\.payload\}/);
   assert.match(hub, /existingQuestionSets/);
   assert.match(hub, /content\.manage/);
   assert.match(hub, /assessments\.manage/);

@@ -30,7 +30,8 @@ export function draftSheetPayload({ filename, fileId, position = 0 }) {
     position,
     publish: false,
     notify_students: false,
-    allow_download: false
+    allow_download: false,
+    reject_duplicate_pdf: true
   };
 }
 
