@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .automation_views import AutomationJobDetailView, AutomationJobListView
+from .question_review_views import QuestionReviewView
 from .reference_views import (
     SubjectReferenceHistoryView,
     SubjectReferenceListView,
@@ -42,6 +43,11 @@ urlpatterns = [
         "operations/admin/automation/subjects/<uuid:subject_id>/references/<uuid:reference_id>/pdf",
         SubjectReferencePDFView.as_view(),
         name="automation-reference-pdf",
+    ),
+    path(
+        "operations/admin/automation/jobs/<uuid:job_id>/questions",
+        QuestionReviewView.as_view(),
+        name="automation-question-review",
     ),
     path("operations/session", OperationsSessionView.as_view(), name="session"),
     path("operations/resources", OperationalResourceListView.as_view(), name="resources"),

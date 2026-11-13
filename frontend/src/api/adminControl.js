@@ -68,6 +68,10 @@ export const adminControlApi = {
   queueAutomationJob: (body) => request("/operations/admin/automation/jobs", { method: "POST", body }),
   controlAutomationJob: (jobId, action, expectedRevision) => request(`/operations/admin/automation/jobs/${id(jobId)}`, { method: "POST", body: { action, expected_revision: expectedRevision } }),
 
+  automationCandidate: (jobId, signal) => request(`/operations/admin/automation/jobs/${id(jobId)}/questions`, { signal }),
+  validateAutomationCandidate: (jobId, payload, expectedRevision) => request(`/operations/admin/automation/jobs/${id(jobId)}/questions`, { method: "PUT", body: allQuestionsRequestBody({ payload, expected_revision: expectedRevision }) }),
+  reviewAutomationCandidate: (jobId, action, expectedRevision) => request(`/operations/admin/automation/jobs/${id(jobId)}/questions`, { method: "POST", body: { action, expected_revision: expectedRevision } }),
+
   automationReferences: (subjectId, filters, signal) => request(`/operations/admin/automation/subjects/${id(subjectId)}/references` + buildQueryString(filters), { signal }),
   automationReferenceHistory: (subjectId, referenceId, signal) => request(`/operations/admin/automation/subjects/${id(subjectId)}/references/${id(referenceId)}/history`, { signal }),
   uploadAutomationReference: (subjectId, body) => request(`/operations/admin/automation/subjects/${id(subjectId)}/references`, { method: "POST", body }),

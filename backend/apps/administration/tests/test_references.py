@@ -15,6 +15,7 @@ from apps.audit.models import AuditRecord
 from apps.content.tests.test_sheet_editions import _pdf
 from apps.education.tests.helpers import create_admin, published_path
 from apps.files.models import ManagedFile
+from apps.files.tests.helpers import close_streamed
 
 pytestmark = pytest.mark.django_db
 
@@ -109,7 +110,7 @@ def test_reference_workflow_scope_checksum_search_history_and_private_pdf():
     download = client.get(f"{url}/{data['id']}/pdf")
     assert download.status_code == 200 and download["Cache-Control"] == "private, no-store"
     assert b"".join(download.streaming_content).startswith(b"%PDF")
-    assert download.streaming is True
+    close_streamed(download)
     client.force_authenticate(create_user())
     assert client.get(url).status_code == 403
     assert client.get(f"{url}/{data['id']}/pdf").status_code == 403

@@ -12,8 +12,14 @@ from apps.files.services import managed_file_delivery_ready
 
 from .catalog import Capability
 from .models import AutomationJob, SubjectReference
-from .pdf_extraction import MAX_REFERENCE_PAGES, ExtractedPage, PDFExtractionError, extract_pages
-from .references import commit_reference_pages
+from .pdf_extraction import (
+    MAX_LECTURE_PAGES,
+    MAX_REFERENCE_PAGES,
+    ExtractedPage,
+    PDFExtractionError,
+    extract_pages,
+)
+from .references import commit_reference_pages, relevant_reference_sections
 
 
 class AutomationBlocked(ValueError):
@@ -68,12 +74,29 @@ def prepare_question_task(job: AutomationJob) -> dict[str, Any]:
         raise AutomationBlocked(
             "stale_settings", "Active Study settings changed. Queue a fresh task."
         )
+    try:
+        pages = extract_pages(file, max_pages=MAX_LECTURE_PAGES)
+    except PDFExtractionError as error:
+        raise AutomationBlocked("lecture_unreadable", str(error)) from error
+    if len(pages) != context["total_pdf_pages"]:
+        raise AutomationBlocked(
+            "page_count_mismatch", "The planner page count differs from the lecture PDF."
+        )
+    version = sheet.current_version
+    if version is None or job.academic_subject_id is None:
+        raise AutomationBlocked("source_missing", "The source sheet or its subject is unavailable.")
+    references = relevant_reference_sections(
+        subject_id=job.academic_subject_id, lecture=pages, title=version.title
+    )
     return {
         "schema": "lockin.question_task.v1",
         "sheet_id": str(sheet.id),
         "source_sha256": file.checksum_sha256,
         "normal_count": normal_count,
         "plan": context,
+        "lecture_pages": pages,
+        "reference_sections": references,
+        "visual_review_pages": [page["page"] for page in pages if page["needs_visual_review"]],
     }
 
 

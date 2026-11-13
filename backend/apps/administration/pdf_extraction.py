@@ -77,3 +77,45 @@ def extract_pages(file: ManagedFile, *, max_pages: int) -> list[ExtractedPage]:
     if len(pages) != file.pdf_page_count:
         raise PDFExtractionError("The PDF page count differs from the uploaded file metadata.")
     return pages
+
+
+def export_page_images(file: ManagedFile, *, pages: list[int], target: Path) -> list[Path]:
+    """Operator-run only. Render selected physical pages into a private directory."""
+    import shutil
+
+    renderer = shutil.which("pdftoppm")
+    if renderer is None:
+        raise PDFExtractionError("Install Poppler on the operator machine to export images.")
+    numbers = sorted(set(pages))
+    if not 1 <= len(numbers) <= 8 or any(
+        not 1 <= page <= (file.pdf_page_count or 0) for page in numbers
+    ):
+        raise PDFExtractionError("Choose up to eight page numbers within the original PDF.")
+    with verified_pdf(file) as path, TemporaryDirectory(prefix="lockin-images-") as directory:
+        images = []
+        for page in numbers:
+            output = Path(directory) / f"page-{page:04d}"
+            try:
+                subprocess.run(  # noqa: S603 - fixed renderer and validated page numbers
+                    [
+                        sys.executable,
+                        "-I",
+                        str(EXTRACTOR),
+                        "--render",
+                        renderer,
+                        str(path),
+                        str(page),
+                        str(output),
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=15,
+                    check=True,
+                )
+            except (OSError, subprocess.SubprocessError) as error:
+                raise PDFExtractionError(f"Page {page} needs manual visual review.") from error
+            images.append(output.with_suffix(".png"))
+        target.mkdir(mode=0o700, parents=True, exist_ok=False)
+        for image in images:
+            shutil.copyfile(image, target / image.name)
+    return [target / image.name for image in images]

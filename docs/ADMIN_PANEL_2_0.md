@@ -104,3 +104,24 @@ page number. An isolated Linux subprocess limits extraction to 384 MiB of
 address space, 100 seconds of wall time, and 500 pages per reference. Each
 page contributes at most 3,000 characters to the index. Search uses PostgreSQL
 full-text search and filters by subject, type and topic tag.
+
+## Persistent question review
+
+Queue a task for a never-published draft from its subject's draft list. The
+worker uses the saved All Questions plan, verifies the lecture PDF checksum,
+and attaches excerpts from relevant indexed reference pages in that subject.
+The downloaded instructions include original page numbers and flag pages
+that require visual review. Use the original lecture PDF in Antigravity.
+
+Upload the returned All Questions JSON in the job, correct validation errors,
+and review the answers and explanations. Approval writes the reviewed
+candidate through existing services. Normal Questions remain drafts. Active
+Study banks become eligible only after the corresponding sheet is separately
+published, and Normal Questions have their own authorized publication action.
+
+If a flagged page needs a separate image, an authorized shell operator with
+Poppler can run `python manage.py export_automation_page_images JOB_UUID
+--page 2 --page 5 --output-dir NEW_PRIVATE_DIRECTORY`. The command renders
+up to eight original pages per run with bounded dimensions, memory and time.
+The review page links the task to its sheet. Medical interpretation remains
+part of the operator's visual review.

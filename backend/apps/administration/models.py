@@ -282,3 +282,29 @@ class SubjectReferencePage(models.Model):
 
     def __str__(self) -> str:
         return f"{self.reference_id}:{self.page}"
+
+
+class AutomationArtifact(models.Model):
+    class Kind(models.TextChoices):
+        QUESTION_CANDIDATE = "question_candidate", "Question candidate"
+
+    class Validation(models.TextChoices):
+        VALID = "valid", "Valid"
+        REJECTED = "rejected", "Rejected"
+
+    job = models.ForeignKey(AutomationJob, on_delete=models.CASCADE, related_name="artifacts")
+    artifact_type = models.CharField(max_length=24, choices=Kind.choices)
+    payload = models.JSONField()
+    checksum = models.CharField(max_length=64)
+    validation_status = models.CharField(max_length=10, choices=Validation.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("job", "artifact_type"), name="automation_artifact_type_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.job_id}:{self.artifact_type}"

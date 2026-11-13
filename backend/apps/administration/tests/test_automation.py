@@ -188,3 +188,168 @@ def test_concurrent_workers_only_claim_one_job():
         == 1
     )
     assert AuditRecord.objects.filter(action="automation.queued", actor=admin).count() == 2
+
+
+def page_document(plan, normal_count=2):
+    from apps.content.tests.test_all_questions import _question
+
+    active = {}
+    for row in plan["difficulties"]:
+        difficulty = row["difficulty"]
+        active[difficulty] = {
+            "pages": [
+                {"page": page, "questions": [_question(f"{difficulty}-page-{page}")]}
+                for page in row["page_numbers"]
+            ],
+            "final_exam": {
+                "questions": [
+                    _question(f"{difficulty}-final-{index}")
+                    for index in range(row["final_exam_questions"])
+                ]
+            },
+        }
+    return {
+        "active_study": active,
+        "sheet_questions": {"questions": [_question(f"normal-{i}") for i in range(normal_count)]},
+    }
+
+
+def test_question_job_validation_review_import_and_separate_publication():
+    from copy import deepcopy
+
+    from apps.content.models import LearningObject
+    from apps.questions.models import Question, QuestionImportBatch
+
+    admin, client, _, sheet_id = setup_draft()
+    job_id = enqueue(client, sheet_id).json()["id"]
+    call_command("run_automation_worker", once=True)
+    job = client.get(f"{JOBS}/{job_id}").json()
+    assert job["status"] == Status.READY_FOR_AI
+    assert job["output"]["visual_review_pages"] == [1, 2, 3, 4, 5, 6]
+    review = f"{JOBS}/{job_id}/questions"
+    response = client.post(review, {"action": "start", "expected_revision": job["revision"]})
+    assert response.status_code == 200
+    revision = response.json()["revision"]
+    document = page_document(job["output"]["plan"])
+    wrong = deepcopy(document)
+    wrong["active_study"]["easy"]["pages"][0]["page"] = 100
+    invalid = client.put(review, {"payload": wrong, "expected_revision": revision}, format="json")
+    assert invalid.status_code == 400
+    assert any("page" in error["path"] for error in invalid.json()["errors"])
+    wrong = deepcopy(document)
+    wrong["sheet_questions"]["questions"][0] = wrong["active_study"]["easy"]["pages"][0][
+        "questions"
+    ][0]
+    duplicate = client.put(review, {"payload": wrong, "expected_revision": revision}, format="json")
+    assert duplicate.status_code == 400
+    assert any("repeats" in error["message"] for error in duplicate.json()["errors"])
+    assert client.get(review).status_code == 404
+
+    validated = client.put(
+        review, {"payload": document, "expected_revision": revision}, format="json"
+    )
+    assert validated.status_code == 200, validated.json()
+    assert validated.json()["job"]["status"] == Status.NEEDS_REVIEW
+    candidate = client.get(review).json()
+    assert candidate["payload"] == document
+    assert QuestionImportBatch.objects.count() == 0
+    rejected = client.post(review, {"action": "reject", "expected_revision": candidate["revision"]})
+    assert rejected.status_code == 200
+    assert client.get(review).status_code == 404
+    validated = client.put(
+        review,
+        {"payload": document, "expected_revision": rejected.json()["revision"]},
+        format="json",
+    )
+    revision = validated.json()["job"]["revision"]
+    approved = client.post(review, {"action": "approve", "expected_revision": revision})
+    assert approved.status_code == 200, approved.json()
+    assert approved.json()["status"] == Status.COMPLETED
+    assert (
+        client.post(review, {"action": "approve", "expected_revision": revision}).status_code == 409
+    )
+    sheet = LearningObject.objects.get(id=sheet_id)
+    assert sheet.published_version_id is None
+    assert QuestionImportBatch.objects.count() == 1
+    assert set(Question.objects.values_list("workflow_status", flat=True)) == {"draft"}
+    assert (
+        AuditRecord.objects.filter(action="automation.candidate_approved", actor=admin).count() == 1
+    )
+
+    base = f"/api/v1/operations/admin/content/sheets/{sheet_id}"
+    student = APIClient()
+    student.force_authenticate(create_user())
+    response = student.get(f"/api/v1/focus/managed-active-study/sheets/{sheet_id}")
+    assert response.status_code == 400
+    assert "Active Study is not available for this sheet" in response.json()["error"]["message"]
+    assert (
+        student.post(
+            f"{base}/actions", {"action": "publish", "expected_revision": sheet.revision}
+        ).status_code
+        == 403
+    )
+    published = client.post(
+        f"{base}/actions", {"action": "publish", "expected_revision": sheet.revision}
+    )
+    assert published.status_code == 200, published.json()
+    assert AuditRecord.objects.filter(action="content.sheet_published", actor=admin).count() == 1
+    assert set(Question.objects.values_list("workflow_status", flat=True)) == {"draft"}
+
+
+def test_question_approval_rejects_changed_sheet():
+    _, client, _, sheet_id = setup_draft()
+    job_id = enqueue(client, sheet_id).json()["id"]
+    call_command("run_automation_worker", once=True)
+    job = client.get(f"{JOBS}/{job_id}").json()
+    review = f"{JOBS}/{job_id}/questions"
+    response = client.put(
+        review,
+        {"payload": page_document(job["output"]["plan"]), "expected_revision": job["revision"]},
+        format="json",
+    )
+    assert response.status_code == 200, response.json()
+    revision = response.json()["job"]["revision"]
+    changed = client.patch(
+        f"/api/v1/operations/admin/content/sheets/{sheet_id}",
+        {"title": "Changed lecture", "expected_revision": 1},
+        format="json",
+    )
+    assert changed.status_code == 200, changed.json()
+    assert (
+        client.post(review, {"action": "approve", "expected_revision": revision}).status_code == 409
+    )
+    assert client.get(f"{JOBS}/{job_id}").json()["status"] == Status.NEEDS_REVIEW
+
+
+def test_bounded_operator_image_export(tmp_path):
+    from shutil import which
+
+    from django.core.management.base import CommandError
+
+    if which("pdftoppm") is None:
+        pytest.skip("Optional operator tool Poppler is unavailable")
+    _, client, _, sheet_id = setup_draft()
+    job_id = enqueue(client, sheet_id).json()["id"]
+    call_command("run_automation_worker", once=True)
+    with pytest.raises(CommandError, match="within the original PDF"):
+        call_command(
+            "export_automation_page_images",
+            job_id,
+            "--page",
+            "7",
+            "--output-dir",
+            str(tmp_path / "invalid"),
+        )
+    target = tmp_path / "pages"
+    call_command(
+        "export_automation_page_images",
+        job_id,
+        "--page",
+        "2",
+        "--page",
+        "6",
+        "--output-dir",
+        str(target),
+    )
+    assert [path.name for path in sorted(target.iterdir())] == ["page-0002.png", "page-0006.png"]
+    assert (target / "page-0002.png").read_bytes().startswith(b"\x89PNG")

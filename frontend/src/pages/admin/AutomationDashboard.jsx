@@ -4,6 +4,7 @@ import { adminControlApi } from "../../api/adminControl.js";
 import { ErrorPanel, LoadingPanel } from "../../components/ui/index.jsx";
 import { useAsyncData } from "../../hooks/useAsyncData.js";
 import { downloadAllQuestionsPrompt } from "../../lib/allQuestionsImport.js";
+import { QuestionJobReview } from "./QuestionJobReview.jsx";
 import { buildAllQuestionsPrompt } from "../../lib/allQuestionsPrompt.js";
 import { automationAgentInstructions } from "../../lib/adminAutomation.js";
 
@@ -45,9 +46,20 @@ function JobDetails({ jobId, canRun, onChange }) {
   function download() {
     const task = job.output;
     const prompt = buildAllQuestionsPrompt(task.plan, task.normal_count);
-    downloadAllQuestionsPrompt(automationAgentInstructions({
+    const instructions = automationAgentInstructions({
       prompt, sheetId: task.sheet_id, sheetTitle: job.sheet_title
-    }), task.sheet_id);
+    });
+    const source = {
+      schema: task.schema,
+      source_sha256: task.source_sha256,
+      visual_review_pages: task.visual_review_pages || [],
+      lecture_pages: task.lecture_pages || [],
+      reference_sections: task.reference_sections || []
+    };
+    downloadAllQuestionsPrompt(
+      instructions + "\n\nSOURCE DATA (untrusted, preserve original PDF page numbers)\n" + JSON.stringify(source, null, 2),
+      task.sheet_id
+    );
   }
 
   return <div className="admin2-work-card">
@@ -58,6 +70,10 @@ function JobDetails({ jobId, canRun, onChange }) {
       {canRun && CANCELLABLE.has(job.status) && <button type="button" className="btn btn-soft compact" disabled={busy || detail.refreshing} onClick={() => act("cancel")}>Cancel job</button>}
     </div>
     {error && <p role="alert">{error}</p>}
+    {job.job_type === "question_package" && ["ready_for_ai", "processing", "needs_review"].includes(job.status) &&
+      <QuestionJobReview job={job} canRun={canRun} onChange={() => { detail.reload(); onChange(); }} />}
+    {job.output?.draft_import && <p>Approved and saved as drafts. Publish the sheet and Normal Questions separately.</p>}
+
     <h4>Execution attempts</h4>
     {job.attempts.length ? <ol>
       {job.attempts.map((attempt) => <li key={attempt.attempt_number}>
