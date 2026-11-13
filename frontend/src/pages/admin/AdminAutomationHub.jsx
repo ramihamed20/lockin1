@@ -4,6 +4,7 @@ import { adminControlApi } from "../../api/adminControl.js";
 import { managementApi } from "../../api/management.js";
 import { useAsyncData } from "../../hooks/useAsyncData.js";
 import { hasOperationalCapability } from "../../lib/authz.js";
+import { copyTextToClipboard } from "../../lib/clipboard.js";
 import { Icon } from "../../lib/icons.jsx";
 import { buildAllQuestionsPrompt, existingQuestionSets, parseAllQuestionsJson } from "../../lib/allQuestionsPrompt.js";
 import { downloadAllQuestionsPrompt, readAllQuestionsFile } from "../../lib/allQuestionsImport.js";
@@ -35,6 +36,13 @@ function PipelineRow({ item, canQuestions, normalCount, referenceNotes, onPatch 
     } finally {
       setPending("");
     }
+  }
+
+  async function copyExportCommand() {
+    if (!item.sheetId) return;
+    const command = "cd /home/lockin/lockin1/backend && python manage.py export_lockin_ai_task --sheet-id " + item.sheetId + " --output-dir /home/lockin/ai-tasks";
+    const copied = await copyTextToClipboard(command);
+    onPatch(item.id, { message: copied ? "Read-only VPS export command copied. Run it yourself from SSH after deploying the reviewed branch." : "Clipboard blocked. Open the sheet to copy its UUID and run the export manually." });
   }
 
   async function validate(file) {
@@ -91,6 +99,7 @@ function PipelineRow({ item, canQuestions, normalCount, referenceNotes, onPatch 
     <div className="admin2-row-head"><div><strong>{item.title}</strong><small>{item.fileName}</small></div><span className={"admin2-state is-" + item.status}>{item.status}</span></div>
     {item.sheetId && <div className="admin2-pipeline-actions">
       <button type="button" className="btn btn-soft compact" disabled={Boolean(pending)} onClick={prepare}><Icon name="file" size={15} />{pending === "prepare" ? "Preparing…" : "Download AI task"}</button>
+      <button type="button" className="btn btn-soft compact" disabled={Boolean(pending)} onClick={copyExportCommand}>Copy VPS PDF export</button>
       {canQuestions && item.status !== "imported" && <label className="admin2-json-file btn btn-soft compact">
         <Icon name="file-question" size={15}/>{pending === "validate" ? "Validating…" : "Validate returned JSON"}
         <input type="file" accept=".json,.txt,application/json,text/plain" disabled={Boolean(pending)} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void validate(file); }}/>
