@@ -1,0 +1,36 @@
+/* Admin 2.0: isolated styles, shared across all operator capabilities. */
+@layer app {
+.admin2-automation { display: grid; gap: 18px; min-width: 0; }
+.admin2-banner { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; padding: clamp(18px, 3vw, 28px); border-radius: 18px; background: var(--surface, var(--card, #fff)); border: 1px solid var(--line, #dedee4); }
+.admin2-banner h2 { margin: 5px 0 7px; font-size: clamp(1.25rem, 2.5vw, 1.75rem); }
+.admin2-banner p { margin: 0; max-width: 68ch; }
+.admin2-kicker { font-size: .74rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; color: var(--accent, #566acc); }
+.admin2-banner-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.admin2-workflow { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+.admin2-work-card { display: grid; gap: 12px; align-content: start; min-width: 0; padding: clamp(15px, 2vw, 22px); border: 1px solid var(--line, #dedee4); border-radius: 16px; background: var(--surface, var(--card, #fff)); }
+.admin2-work-card h3 { font-size: 1.03rem; margin: 0; }
+.admin2-work-card p { margin: 0; color: var(--soft, #616572); }
+.admin2-work-card .field { min-width: 0; }
+.admin2-work-card select, .admin2-work-card input, .admin2-work-card textarea { max-width: 100%; }
+.admin2-safe-note { color: var(--soft, #626779); font-size: .85rem; line-height: 1.5; }
+.admin2-error { color: var(--danger, #b42318); display: block; }
+.admin2-ok { color: var(--success, #18794e); display: block; }
+.admin2-pipeline,.admin2-drafts { padding: 0; margin: 0; display: grid; gap: 10px; list-style: none; }
+.admin2-pipeline-item { display: grid; gap: 11px; border: 1px solid var(--line, #dedee4); border-radius: 12px; padding: 12px; min-width: 0; }
+.admin2-row-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.admin2-row-head strong,.admin2-row-head small { display: block; overflow-wrap: anywhere; }
+.admin2-row-head small { margin-top: 3px; color: var(--soft, #626779); }
+.admin2-state { font-size: .75rem; padding: 5px 9px; border-radius: 999px; background: var(--surface-muted, #eee); text-transform: capitalize; }
+.admin2-state.is-draft,.admin2-state.is-imported { color: var(--success, #18794e); }
+.admin2-state.is-error { color: var(--danger, #b42318); }
+.admin2-pipeline-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.admin2-json-file { display: inline-flex; cursor: pointer; position: relative; align-items: center; gap: 5px; }
+.admin2-json-file input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.admin2-drafts li { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line, #dedee4); }
+.admin2-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0; }
+.admin2-actions-title { font-size: .79rem; color: var(--soft, #626779); font-weight: 650; margin-inline-end: 2px; }
+.admin2-actions a { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line, #dedee4); border-radius: 999px; padding: 7px 11px; text-decoration: none; font-size: .84rem; color: inherit; }
+.admin2-actions a:hover,.admin2-actions a:focus-visible { border-color: var(--accent, #566acc); }
+@media (max-width: 760px) { .admin2-workflow { grid-template-columns: minmax(0, 1fr); } .admin2-actions { padding: 6px 0; } }
+@media (prefers-reduced-motion: reduce) { .admin2-actions a { transition: none; } }
+}
