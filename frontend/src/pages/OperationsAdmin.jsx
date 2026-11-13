@@ -10,6 +10,8 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog.jsx";
 import { EmptyState, ErrorPanel, LoadingPanel, Page, RadioGroup, RadioOption, Tab, TabList } from "../components/ui/index.jsx";
 import { formatDateTime, formatNumber } from "../lib/i18n.js";
 import AdminContentManagement from "./AdminContentManagement.jsx";
+import AdminAutomationHub from "./admin/AdminAutomationHub.jsx";
+import Admin2ActionBar from "./admin/Admin2ActionBar.jsx";
 import PaymentsConsole from "./admin/PaymentsConsole.jsx";
 import SubscriptionsConsole from "./admin/SubscriptionsConsole.jsx";
 import ScopeAnalytics from "./admin/ScopeAnalytics.jsx";
@@ -66,6 +68,7 @@ const AREA_DESCRIPTIONS = {
   purchases: "Approve Libyana recharge cards and follow each payment to the access it grants.",
   subscriptions: "Student subscriptions, trials and plan pricing.",
   content: "Subjects, sheets, PDFs, summaries and Active Study.",
+  automation: "Prepare draft sheets and Lock-in-compliant question banks for operator-directed AI processing.",
   questions: "Question banks for every sheet.",
   notifications: "Campaigns sent to students.",
   feedback: "Ideas and requests students want built.",
@@ -79,7 +82,7 @@ const AREA_DESCRIPTIONS = {
 function StudioHeader({ active, allowed }) {
   const activeTab = allowed.find(([key]) => key === active);
   return <header className="studio-header">
-    <nav className="ui-breadcrumb" aria-label="Breadcrumb"><Link to="/operations/admin/overview">Creator Studio</Link><Icon name="chevron-right" size={14} /><span aria-current="page">{activeTab?.[1] || "Overview"}</span></nav>
+    <nav className="ui-breadcrumb" aria-label="Breadcrumb"><Link to="/operations/admin/overview">Admin Panel 2.0</Link><Icon name="chevron-right" size={14} /><span aria-current="page">{activeTab?.[1] || "Overview"}</span></nav>
     <h1>{activeTab?.[1] || "Overview"}</h1>
     {AREA_DESCRIPTIONS[active] && <p>{AREA_DESCRIPTIONS[active]}</p>}
   </header>;
@@ -366,6 +369,6 @@ export default function OperationsAdmin({ operationsSession }) {
   const active = allowed.some(([key]) => key === requested) ? requested : allowed[0]?.[0] || "overview";
   useEffect(() => { if (allowed.length && requested !== active) navigate(`/operations/admin/${active}`, { replace: true }); }, [active, allowed.length, navigate, requested]);
   const initialQuery = new URLSearchParams(location.search).get("q") || "";
-  const content = active === "overview" ? <Overview operationsSession={operationsSession} /> : active === "analytics" ? <Analytics /> : active === "users" ? <Users operationsSession={operationsSession} initialQuery={initialQuery} /> : active === "content" ? <><AdminContentManagement operationsSession={operationsSession} initialArea="sheets" /><LofiScenesPanel canManage={hasOperationalCapability(operationsSession, "content.manage")} /></> : active === "questions" ? <AdminContentManagement operationsSession={operationsSession} initialArea="questions" /> : active === "purchases" ? <PaymentsConsole canManage={hasOperationalCapability(operationsSession, "payments.manage")} /> : active === "subscriptions" ? <><SubscriptionsConsole canManage={hasOperationalCapability(operationsSession, "subscriptions.manage")} /><Plans operationsSession={operationsSession} /></> : active === "notifications" ? <Notifications operationsSession={operationsSession} /> : active === "feedback" ? <><SubjectRequestsInbox canManage={hasOperationalCapability(operationsSession, "moderation.manage")} /><FeedbackInbox canManage={hasOperationalCapability(operationsSession, "moderation.manage")} /></> : active === "reports" ? <ReportsCenter operationsSession={operationsSession} /> : active === "audit" ? <AuditLog /> : active === "settings" ? <SettingsArea operationsSession={operationsSession} /> : active === "system" ? <SystemStatus /> : active === "exports" ? <Exports /> : <ErrorPanel message="This Creator Studio area is not available for the current server permission." />;
-  return <Page title="Creator Studio" showHeading={false} headingHandled><div className="creator-studio-frame"><div className="creator-studio"><StudioHeader active={active} allowed={allowed} /><div className="creator-studio-content">{content}</div></div></div></Page>;
+  const content = active === "overview" ? <Overview operationsSession={operationsSession} /> : active === "analytics" ? <Analytics /> : active === "users" ? <Users operationsSession={operationsSession} initialQuery={initialQuery} /> : active === "content" ? <><AdminContentManagement operationsSession={operationsSession} initialArea="sheets" /><LofiScenesPanel canManage={hasOperationalCapability(operationsSession, "content.manage")} /></> : active === "automation" ? <AdminAutomationHub operationsSession={operationsSession} /> : active === "questions" ? <AdminContentManagement operationsSession={operationsSession} initialArea="questions" /> : active === "purchases" ? <PaymentsConsole canManage={hasOperationalCapability(operationsSession, "payments.manage")} /> : active === "subscriptions" ? <><SubscriptionsConsole canManage={hasOperationalCapability(operationsSession, "subscriptions.manage")} /><Plans operationsSession={operationsSession} /></> : active === "notifications" ? <Notifications operationsSession={operationsSession} /> : active === "feedback" ? <><SubjectRequestsInbox canManage={hasOperationalCapability(operationsSession, "moderation.manage")} /><FeedbackInbox canManage={hasOperationalCapability(operationsSession, "moderation.manage")} /></> : active === "reports" ? <ReportsCenter operationsSession={operationsSession} /> : active === "audit" ? <AuditLog /> : active === "settings" ? <SettingsArea operationsSession={operationsSession} /> : active === "system" ? <SystemStatus /> : active === "exports" ? <Exports /> : <ErrorPanel message="This Creator Studio area is not available for the current server permission." />;
+  return <Page title="Admin Panel 2.0" showHeading={false} headingHandled><div className="creator-studio-frame"><div className="creator-studio"><StudioHeader active={active} allowed={allowed} /><Admin2ActionBar active={active} operationsSession={operationsSession} /><div className="creator-studio-content">{content}</div></div></div></Page>;
 }
