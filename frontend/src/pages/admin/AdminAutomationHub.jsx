@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { generateIdempotencyKey } from "../../api/pagination.js";
 import { adminControlApi } from "../../api/adminControl.js";
 import { useAsyncData } from "../../hooks/useAsyncData.js";
 import { hasOperationalCapability } from "../../lib/authz.js";
@@ -9,6 +10,7 @@ import { buildAllQuestionsPrompt, existingQuestionSets, parseAllQuestionsJson } 
 import { downloadAllQuestionsPrompt, readAllQuestionsFile } from "../../lib/allQuestionsImport.js";
 import { automationAgentInstructions, sheetTitleFromFilename, validateAutomationFiles } from "../../lib/adminAutomation.js";
 import { ErrorPanel, LoadingPanel } from "../../components/ui/index.jsx";
+import { AutomationDashboard } from "./AutomationDashboard.jsx";
 import { AllQuestionsPreview } from "./AllQuestionsPreview.jsx";
 import "./admin-automation.css";
 
@@ -140,6 +142,10 @@ export default function AdminAutomationHub({ operationsSession }) {
   const [normal, setNormal] = useState("30");
   const [referenceNotes, setReferenceNotes] = useState("");
   const [reloadDrafts, setReloadDrafts] = useState(0);
+  const [jobRefresh, setJobRefresh] = useState(0);
+  const [queueing, setQueueing] = useState("");
+  const canViewJobs = hasOperationalCapability(operationsSession, "assessments.view");
+
   const drafts = useAsyncData(() => subjectId ? adminControlApi.subjectSheets(subjectId, { status: "draft" }) : Promise.resolve({ results: [] }), [subjectId, reloadDrafts]);
   const subjects = subjectsData.data?.results || [];
   const matches = subjects.filter((entry) => pathLabel(entry).toLowerCase().includes(query.toLowerCase())).slice(0, 250);
@@ -148,6 +154,24 @@ export default function AdminAutomationHub({ operationsSession }) {
 
   function patch(id, change) {
     setRows((current) => current.map((item) => item.id === id ? { ...item, ...change } : item));
+  }
+
+  async function queue(sheet) {
+    setQueueing(sheet.id);
+    setGlobalError("");
+    try {
+      await adminControlApi.queueAutomationJob({
+        job_type: "question_package",
+        sheet_id: sheet.id,
+        normal_count: normalCount,
+        idempotency_key: generateIdempotencyKey()
+      });
+      setJobRefresh((value) => value + 1);
+    } catch (error) {
+      setGlobalError(error.message || "Could not queue this sheet.");
+    } finally {
+      setQueueing("");
+    }
   }
 
   function onFiles(event) {
@@ -230,11 +254,12 @@ export default function AdminAutomationHub({ operationsSession }) {
       <h3>Current upload batch</h3>
       {rows.length ? <ul className="admin2-pipeline">{rows.map((item) => <PipelineRow key={item.id} item={item} canQuestions={canQuestions} normalCount={normalCount} referenceNotes={referenceNotes} onPatch={patch}/>)}</ul> : <p>No files in this session. Select a subject and upload PDFs to start.</p>}
     </section>
+    {canViewJobs && <AutomationDashboard subjects={subjects} refresh={jobRefresh} />}
     {subjectId && <section className="admin2-work-card">
       <h3>Drafts already on this subject</h3>
       <p>Open a saved draft to continue in the sheet editor.</p>
       {drafts.loading ? <LoadingPanel/> : drafts.error ? <ErrorPanel message={drafts.errorDetails || drafts.error} onRetry={drafts.reload}/> :
-        (drafts.data?.results || []).length ? <ul className="admin2-drafts">{drafts.data.results.slice(0, 30).map((sheet) => <li key={sheet.id}><span>{sheet.title}</span><Link to={"/operations/admin/content?subject=" + encodeURIComponent(subjectId) + "&sheet=" + encodeURIComponent(sheet.id)}>Open sheet</Link></li>)}</ul> : <p>No draft sheets for this subject.</p>}
+        (drafts.data?.results || []).length ? <ul className="admin2-drafts">{drafts.data.results.slice(0, 30).map((sheet) => <li key={sheet.id}><span>{sheet.title}</span>{canViewJobs && canQuestions && <button className="btn btn-soft compact" type="button" onClick={() => queue(sheet)} disabled={Boolean(queueing)}>{queueing === sheet.id ? "Queueing…" : "Queue AI task"}</button>}<Link to={"/operations/admin/content?subject=" + encodeURIComponent(subjectId) + "&sheet=" + encodeURIComponent(sheet.id)}>Open sheet</Link></li>)}</ul> : <p>No draft sheets for this subject.</p>}
     </section>}
   </div>;
 }

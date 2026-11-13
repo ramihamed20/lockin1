@@ -55,7 +55,7 @@ This branch upgrades **the existing** Creator Studio/Operations Admin, rather th
 - **2.3:** Deployment-ready optional AI engine adapters using officially supported service terms; scheduled background inference only where the provider allows that model of use.
 - **2.4:** Per-area workflow automations: subscription eligibility checks, pending payments, moderation triage, notification review and system-health alerts. Each irreversible action requires a confirmation and audit trail.
 
-No milestone 2.1–2.4 feature should be described as implemented in this branch.
+The sections below track the implementation and verification of subsequent milestones.
 
 ## Phase 1 device acceptance
 
@@ -77,3 +77,20 @@ in portrait and landscape, repeat these steps:
    a view-only account and check that write controls are unavailable.
 
 Record device, OS, browser, viewport orientation, branch SHA and each outcome.
+
+## Persistent automation jobs
+
+The dashboard loads persisted job status, filters and attempt history from
+`/api/v1/operations/admin/automation/jobs`. It starts with the question-package
+task and uses the existing All Questions planner. A job targets a single draft
+and captures its sheet and settings revisions. The operator starts Antigravity
+after downloading the prepared task.
+
+On an isolated environment, apply the new Administration migration through
+the regular release mechanism, then start one instance of
+`python manage.py run_automation_worker`. Use `--once` to process one job in
+a smoke test. The worker reclaims expired five-minute leases, fences stale
+results by claim revision and preserves up to three preparation attempts.
+Stop the worker before rolling back application code. The new tables can
+remain in place for a code rollback. Reversing the migration deletes job
+and attempt history, so export it first if it needs to be retained.

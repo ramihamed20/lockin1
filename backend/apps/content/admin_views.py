@@ -461,6 +461,7 @@ class AdminSubjectListView(_ContentPermissionView):
             results.append(
                 {
                     "id": str(subject.id),
+                    "source_node_id": str(source_node.id),
                     "title": subject.title,
                     "path": f"catalog/{subject.material_slug}",
                     "status": "published",

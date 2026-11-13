@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .automation_views import AutomationJobDetailView, AutomationJobListView
 from .views import (
     ContentDashboardView,
     OperationalResourceListView,
@@ -14,6 +15,14 @@ from .views import (
 app_name = "administration"
 
 urlpatterns = [
+    path(
+        "operations/admin/automation/jobs", AutomationJobListView.as_view(), name="automation-jobs"
+    ),
+    path(
+        "operations/admin/automation/jobs/<uuid:job_id>",
+        AutomationJobDetailView.as_view(),
+        name="automation-job",
+    ),
     path("operations/session", OperationsSessionView.as_view(), name="session"),
     path("operations/resources", OperationalResourceListView.as_view(), name="resources"),
     path("operations/dashboards/overview", OverviewDashboardView.as_view(), name="overview"),

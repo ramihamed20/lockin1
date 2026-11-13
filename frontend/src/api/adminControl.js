@@ -63,6 +63,11 @@ export const adminControlApi = {
   },
   audit: (options = {}) => request("/operations/audit" + buildQueryString({ page: options.page || 1, page_size: options.pageSize || 25, action: options.action, domain: options.domain })),
 
+  automationJobs: (filters = {}, signal) => request("/operations/admin/automation/jobs" + buildQueryString(filters), { signal }),
+  automationJob: (jobId, signal) => request(`/operations/admin/automation/jobs/${id(jobId)}`, { signal }),
+  queueAutomationJob: (body) => request("/operations/admin/automation/jobs", { method: "POST", body }),
+  controlAutomationJob: (jobId, action, expectedRevision) => request(`/operations/admin/automation/jobs/${id(jobId)}`, { method: "POST", body: { action, expected_revision: expectedRevision } }),
+
   contentSubjects: (options = {}) => request("/operations/admin/content/subjects" + buildQueryString({ q: options.query?.trim() })),
   subjectSheets(subjectId, options = {}) {
     return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets` + buildQueryString({ q: options.query?.trim(), status: options.status }));
