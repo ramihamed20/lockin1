@@ -18,6 +18,7 @@ from apps.content.admin_services import edition_primary_file
 from apps.content.editions import UNIVERSITY
 from apps.content.models import LearningObject
 from apps.files.models import ManagedFile
+from apps.files.services import managed_file_delivery_ready
 
 MAX_PDF_BYTES = 50 * 1024 * 1024
 MAX_PAGES = 200
@@ -83,8 +84,8 @@ class Command(BaseCommand):
             raise CommandError("This edition does not have a primary PDF.")
         if not 0 < file.size_bytes <= MAX_PDF_BYTES:
             raise CommandError("Primary PDF must not exceed 50 MB.")
-        if file.validation_status != ManagedFile.ValidationStatus.READY:
-            raise CommandError("Primary PDF has not passed validation.")
+        if not managed_file_delivery_ready(file):
+            raise CommandError("Primary PDF has not passed validation or its required scan.")
 
         with file.blob.open("rb") as source:
             reader = PdfReader(source, strict=False)

@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { adminControlApi } from "../../api/adminControl.js";
-import { managementApi } from "../../api/management.js";
 import { useAsyncData } from "../../hooks/useAsyncData.js";
 import { hasOperationalCapability } from "../../lib/authz.js";
 import { copyTextToClipboard } from "../../lib/clipboard.js";
 import { Icon } from "../../lib/icons.jsx";
 import { buildAllQuestionsPrompt, existingQuestionSets, parseAllQuestionsJson } from "../../lib/allQuestionsPrompt.js";
 import { downloadAllQuestionsPrompt, readAllQuestionsFile } from "../../lib/allQuestionsImport.js";
-import { automationAgentInstructions, draftSheetPayload, validateAutomationFiles } from "../../lib/adminAutomation.js";
+import { automationAgentInstructions, sheetTitleFromFilename, validateAutomationFiles } from "../../lib/adminAutomation.js";
 import { ErrorPanel, LoadingPanel } from "../../components/ui/index.jsx";
 import { AllQuestionsPreview } from "./AllQuestionsPreview.jsx";
 import "./admin-automation.css";
@@ -159,7 +158,7 @@ export default function AdminAutomationHub({ operationsSession }) {
         id: index + 1,
         file,
         fileName: file.name,
-        title: file.name.replace(/\.pdf$/i, "").replace(/_/g, " ").trim().slice(0, 220) || "Untitled sheet",
+        title: sheetTitleFromFilename(file.name),
         status: "queued",
         subjectId,
         sheetId: "",
@@ -182,16 +181,7 @@ export default function AdminAutomationHub({ operationsSession }) {
       if (item.sheetId) continue;
       patch(item.id, { status: "uploading", error: "", message: "" });
       try {
-        let fileId = item.fileId;
-        if (!fileId) {
-          const file = await managementApi.uploadFile({ kind: "pdf", file: item.file });
-          fileId = file.id;
-          patch(item.id, { fileId });
-        }
-        const sheet = await adminControlApi.createSheet(subjectId, draftSheetPayload({
-          filename: item.fileName,
-          fileId
-        }));
+        const sheet = await adminControlApi.uploadAutomationDraft(item.subjectId, item.title, item.file);
         patch(item.id, { status: "draft", sheetId: sheet.id, message: "PDF uploaded and sheet created as draft." });
       } catch (error) {
         patch(item.id, { status: "error", error: error.message || "Could not upload this PDF." });

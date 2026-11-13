@@ -23,6 +23,11 @@ class AdminSheetCreateSerializer(StrictSerializer):
     reject_duplicate_pdf = serializers.BooleanField(default=False)
 
 
+class AdminAutomationDraftUploadSerializer(StrictSerializer):
+    title = serializers.CharField(max_length=220, trim_whitespace=True)
+    pdf = serializers.FileField(write_only=True)
+
+
 class AdminSheetUpdateSerializer(StrictSerializer):
     expected_revision = serializers.IntegerField(min_value=1)
     title = serializers.CharField(max_length=220, trim_whitespace=True, required=False)

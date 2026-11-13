@@ -70,6 +70,12 @@ export const adminControlApi = {
   createSheet(subjectId, body) {
     return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets`, { method: "POST", body });
   },
+  uploadAutomationDraft(subjectId, title, file) {
+    const body = new FormData();
+    body.append("title", title);
+    body.append("pdf", file);
+    return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/automation-drafts`, { method: "POST", body });
+  },
   updateSheet(sheetId, body) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}`, { method: "PATCH", body });
   },

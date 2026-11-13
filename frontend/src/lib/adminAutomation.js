@@ -22,19 +22,6 @@ export function validateAutomationFiles(files) {
   return chosen;
 }
 
-export function draftSheetPayload({ filename, fileId, position = 0 }) {
-  return {
-    title: sheetTitleFromFilename(filename),
-    primary_file_id: fileId,
-    summary_file_id: null,
-    position,
-    publish: false,
-    notify_students: false,
-    allow_download: false,
-    reject_duplicate_pdf: true
-  };
-}
-
 export function automationAgentInstructions({ prompt, sheetTitle, sheetId, referenceNotes = "" }) {
   const reference = String(referenceNotes || "").trim().slice(0, 6000);
   return [

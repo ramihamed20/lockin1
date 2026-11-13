@@ -11,7 +11,8 @@ from rest_framework.test import APIClient
 from apps.accounts.tests.helpers import create_user
 from apps.administration.models import OperationalCapabilityAssignment
 from apps.audit.models import AuditRecord
-from apps.education.tests.helpers import create_admin, published_path
+from apps.education.tests.helpers import create_admin, pdf_upload, published_path
+from apps.files.models import ManagedFile
 from apps.files.services import create_managed_file
 from apps.questions.models import Question, QuestionImportBatch, QuestionVersion
 from apps.questions.services import (
@@ -820,3 +821,35 @@ def test_malformed_ai_question_returns_a_validation_error(field: str, value: obj
     document["sheet_questions"]["questions"][0][field] = value
     errors = _errors(_validate(client, base, document, normal=2))
     assert any(error["path"] == f"sheet_questions.questions[0].{field}" for error in errors)
+
+
+def test_automation_multipart_upload_creates_only_valid_drafts_and_audits() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    client = APIClient()
+    url = f"/api/v1/operations/admin/content/subjects/{subject.id}/automation-drafts"
+    client.force_authenticate(create_user())
+    denied = client.post(url, {"title": "Denied", "pdf": _pdf(6, "denied.pdf")})
+    assert denied.status_code == 403
+    client.force_authenticate(admin)
+
+    bad = client.post(url, {"title": "Bad", "pdf": pdf_upload()})
+    assert bad.status_code == 400
+    for count in (6, 8):
+        result = client.post(url, {"title": f"Lecture {count}", "pdf": _pdf(count, "lecture.pdf")})
+        assert result.status_code == 201, result.json()
+        data = result.json()
+        assert data["workflow_status"] == "draft"
+        assert data["subject_id"] == str(subject.id)
+        assert data["student_visible"] is False
+        assert AuditRecord.objects.filter(
+            action="content.sheet_created", actor=admin, target_id=data["id"]
+        ).exists()
+
+    duplicate = client.post(url, {"title": "Duplicate", "pdf": _pdf(6, "renamed.pdf")})
+    assert duplicate.status_code == 409
+    assert ManagedFile.objects.filter(owner=admin, kind=ManagedFile.Kind.PDF).count() == 2
+    rejected = client.post(
+        url, {"title": "Publish", "pdf": _pdf(9, "publish.pdf"), "publish": "true"}
+    )
+    assert rejected.status_code == 400

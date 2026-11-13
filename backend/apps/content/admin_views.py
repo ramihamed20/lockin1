@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Count, Model, Q, QuerySet
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -12,6 +13,7 @@ from rest_framework.exceptions import (
     PermissionDenied,
     ValidationError,
 )
+from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,7 +24,7 @@ from apps.administration.permissions import HasOperationalCapability, has_operat
 from apps.audit.models import AuditRecord
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
-from apps.files.services import managed_file_delivery_size
+from apps.files.services import FileValidationError, managed_file_delivery_size
 from apps.progress.models import Bookmark, LearningProgress
 from apps.questions.importing import QuestionImportValidationError
 from apps.questions.models import Question, QuestionImportBatch
@@ -37,6 +39,7 @@ from .admin_serializers import (
     AdminActiveStudySettingsSerializer,
     AdminAllQuestionsSaveSerializer,
     AdminAllQuestionsValidateSerializer,
+    AdminAutomationDraftUploadSerializer,
     AdminSheetActionSerializer,
     AdminSheetCreateSerializer,
     AdminSheetDeletePdfSerializer,
@@ -67,6 +70,7 @@ from .admin_services import (
     sheet_edition_summaries,
     update_active_study_settings,
     update_sheet,
+    upload_automation_draft,
     validate_active_study_question_content,
 )
 from .all_questions import (
@@ -532,6 +536,30 @@ class AdminSubjectSheetListView(_ContentPermissionView):
                 allow_download=bool(data["allow_download"]),
                 reject_duplicate_pdf=bool(data["reject_duplicate_pdf"]),
             )
+        except ContentRuleError as error:
+            _raise_rule(error)
+        return Response(serialize_sheet(sheet), status=status.HTTP_201_CREATED)
+
+
+class AdminAutomationDraftUploadView(_ContentPermissionView):
+    parser_classes = [MultiPartParser]
+
+    def post(self, request: Request, subject_id: UUID) -> Response:
+        _, subject = _catalog_subject_node(subject_id)
+        serializer = AdminAutomationDraftUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        upload = serializer.validated_data["pdf"]
+        if not isinstance(upload, UploadedFile):
+            raise ValidationError({"pdf": ["Choose a PDF file."]})
+        try:
+            sheet = upload_automation_draft(
+                actor=_user(request),
+                subject=subject,
+                upload=upload,
+                title=str(serializer.validated_data["title"]),
+            )
+        except FileValidationError as error:
+            raise ValidationError({"pdf": [str(error)]}) from error
         except ContentRuleError as error:
             _raise_rule(error)
         return Response(serialize_sheet(sheet), status=status.HTTP_201_CREATED)

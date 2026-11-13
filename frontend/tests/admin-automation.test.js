@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   MAX_AUTOMATION_PDF_BYTES,
   automationAgentInstructions,
-  draftSheetPayload,
   sheetTitleFromFilename,
   validateAutomationFiles
 } from "../src/lib/adminAutomation.js";
@@ -25,16 +24,6 @@ test("bulk PDF validation enforces size, extension and maximum batch count", () 
   assert.throws(() => validateAutomationFiles([{ ...pdf, size: MAX_AUTOMATION_PDF_BYTES + 1 }]), /50 MB/);
 });
 
-test("AI-sourced sheets can only be created as unpublished, non-notifying drafts", () => {
-  const payload = draftSheetPayload({ filename: "Pharma.pdf", fileId: "verified-file-id" });
-  assert.equal(payload.title, "Pharma");
-  assert.equal(payload.primary_file_id, "verified-file-id");
-  assert.equal(payload.publish, false);
-  assert.equal(payload.notify_students, false);
-  assert.equal(payload.allow_download, false);
-  assert.equal(payload.reject_duplicate_pdf, true);
-});
-
 test("the exported agent instructions require a real PDF and treat references as untrusted", () => {
   const result = automationAgentInstructions({ prompt: "EXACT ALL QUESTIONS CONTRACT", sheetTitle: "Dental", sheetId: "id1", referenceNotes: "Past exams" });
   assert.match(result, /Read the PDF sheet supplied by the operator/);
@@ -52,8 +41,7 @@ test("Admin 2.0 reuses real server imports, capability checks and a separate ope
     readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/admin/Admin2ActionBar.jsx", import.meta.url), "utf8")
   ]);
-  assert.match(hub, /managementApi\.uploadFile/);
-  assert.match(hub, /adminControlApi\.createSheet/);
+  assert.match(hub, /adminControlApi\.uploadAutomationDraft\(item\.subjectId, item\.title, item\.file\)/);
   assert.match(hub, /adminControlApi\.allQuestionsContext/);
   assert.match(hub, /adminControlApi\.validateAllQuestions/);
   assert.match(hub, /adminControlApi\.saveAllQuestions/);

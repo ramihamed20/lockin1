@@ -56,3 +56,24 @@ This branch upgrades **the existing** Creator Studio/Operations Admin, rather th
 - **2.4:** Per-area workflow automations: subscription eligibility checks, pending payments, moderation triage, notification review and system-health alerts. Each irreversible action requires a confirmation and audit trail.
 
 No milestone 2.1–2.4 feature should be described as implemented in this branch.
+
+## Phase 1 device acceptance
+
+Physical iPhone and iPad verification is pending. Use a staging-only content
+manager and disposable PDFs. On iPhone Safari in portrait, and on iPad Safari
+in portrait and landscape, repeat these steps:
+
+1. Open Automation in Arabic and English. Select a subject with a matching name
+   in a different university or year and verify the full destination before upload.
+2. Pick two valid PDFs in Files and upload them. Verify two draft rows with the
+   selected subject, no student notification and no visibility from a student account.
+3. Upload a renamed duplicate and then a malformed PDF. Verify distinct errors,
+   and that neither produces another sheet. Retry after correcting the input.
+4. Download an AI task and open it with its PDF. Use disposable sample JSON,
+   first invalid and then valid. Check the error and preview without overflow.
+5. Change the sheet revision from another session and verify the stale import is
+   rejected. Use a fresh draft for a successful import and verify audit history.
+6. Verify the sheet and Normal Questions remain drafts. Reopen Automation with
+   a view-only account and check that write controls are unavailable.
+
+Record device, OS, browser, viewport orientation, branch SHA and each outcome.
