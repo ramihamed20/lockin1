@@ -83,7 +83,9 @@ class Command(BaseCommand):
             raise CommandError("Primary PDF has not passed validation.")
 
         with file.blob.open("rb") as source:
-            lecture_text, unreadable = _pages(PdfReader(source, strict=False), MAX_PAGES, label="Lecture")
+            reader = PdfReader(source, strict=False)
+            page_count = len(reader.pages)
+            lecture_text, unreadable = _pages(reader, MAX_PAGES, label="Lecture")
 
         references = []
         reference_texts = []
@@ -111,7 +113,7 @@ class Command(BaseCommand):
             "edition": edition,
             "pdf_file_id": str(file.pk),
             "pdf_sha256": file.checksum_sha256,
-            "pdf_page_count": len(lecture_text.split("=== PAGE ")) - 1,
+            "pdf_page_count": page_count,
             "lecture_unreadable_pages": unreadable,
             "references": references,
             "generation_started": False,
