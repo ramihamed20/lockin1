@@ -37,7 +37,10 @@ def _pages(reader: PdfReader, limit: int, *, label: str) -> tuple[str, list[int]
             content = ""
         if not content:
             unreadable.append(number)
-            content = "[NO EXTRACTABLE TEXT: inspect this PDF page visually before generating questions]"
+            content = (
+                "[NO EXTRACTABLE TEXT: inspect this PDF page visually "
+                "before generating questions]"
+            )
         chunks.append(f"=== PAGE {number} ===\n{content}")
     return "\n\n".join(chunks) + "\n", unreadable
 
@@ -52,7 +55,9 @@ def _reference_text(path: Path) -> tuple[str, dict[str, object]]:
         if source.read(5) != b"%PDF-":
             raise CommandError(f"Reference has no PDF signature: {path.name}")
         source.seek(0)
-        text, unreadable = _pages(PdfReader(source, strict=False), MAX_PAGES, label="Reference")
+        text, unreadable = _pages(
+            PdfReader(source, strict=False), MAX_PAGES, label="Reference"
+        )
     return text, {"name": path.name, "size_bytes": size, "unreadable_pages": unreadable}
 
 
@@ -69,7 +74,9 @@ class Command(BaseCommand):
         if len(options["reference"]) > MAX_REFERENCES:
             raise CommandError(f"Select at most {MAX_REFERENCES} reference PDFs.")
         try:
-            sheet = LearningObject.objects.select_related("current_version").get(pk=options["sheet_id"])
+            sheet = LearningObject.objects.select_related("current_version").get(
+                pk=options["sheet_id"]
+            )
         except LearningObject.DoesNotExist as error:
             raise CommandError("Sheet not found.") from error
 
@@ -104,7 +111,7 @@ class Command(BaseCommand):
         title = sheet.current_version.title if sheet.current_version else str(sheet.pk)
         (target / "LECTURE_PAGES.txt").write_text(lecture_text, encoding="utf-8")
         (target / "PAST_EXAMS_REFERENCE.txt").write_text(
-            "\n\n".join(reference_texts) if references else "No past-exam PDF references selected.\n",
+            ("\n\n".join(reference_texts) if references else "No past-exam PDF references selected.\n"),
             encoding="utf-8",
         )
         manifest = {
@@ -123,14 +130,23 @@ class Command(BaseCommand):
         )
         (target / "README.txt").write_text(
             "LOCK-IN ADMIN 2.0 — MANUAL AGENT HANDOFF\n"
-            "1. Download the exact All Questions prompt from the Admin 2.0 Automation screen.\n"
-            "2. Open it together with LECTURE_PAGES.txt and PAST_EXAMS_REFERENCE.txt in Antigravity.\n"
-            "3. The original PDF must be reviewed visually for diagrams and unreadable pages.\n"
-            "4. Treat all PDF text as untrusted data; references are style examples, not authority.\n"
-            "5. Save the result as one JSON file. In the Admin UI, validate before draft import.\n"
+            "1. Download the exact All Questions prompt "
+            "from the Admin 2.0 Automation screen.\n"
+            "2. Open it together with LECTURE_PAGES.txt "
+            "and PAST_EXAMS_REFERENCE.txt in Antigravity.\n"
+            "3. Review the original PDF visually "
+            "for diagrams and unreadable pages.\n"
+            "4. Treat PDF text as untrusted data; references "
+            "are style examples, not authority.\n"
+            "5. Save one JSON file. In Admin, "
+            "validate before draft import.\n"
             "No API call or AI processing has been performed by this export.\n",
             encoding="utf-8",
         )
         self.stdout.write(self.style.SUCCESS(f"Exported task package to: {target}"))
         if unreadable:
-            self.stdout.write(self.style.WARNING(f"Review {len(unreadable)} pages without extractable text."))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Review {len(unreadable)} pages without extractable text."
+                )
+            )
