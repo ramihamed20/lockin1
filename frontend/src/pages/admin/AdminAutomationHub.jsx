@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { adminControlApi } from "../../api/adminControl.js";
 import { managementApi } from "../../api/management.js";
@@ -131,7 +131,7 @@ export default function AdminAutomationHub({ operationsSession }) {
   const [reloadDrafts, setReloadDrafts] = useState(0);
   const drafts = useAsyncData(() => subjectId ? adminControlApi.subjectSheets(subjectId, { status: "draft" }) : Promise.resolve({ results: [] }), [subjectId, reloadDrafts]);
   const subjects = subjectsData.data?.results || [];
-  const matches = useMemo(() => subjects.filter((entry) => pathLabel(entry).toLowerCase().includes(query.toLowerCase())).slice(0, 250), [subjects, query]);
+  const matches = subjects.filter((entry) => pathLabel(entry).toLowerCase().includes(query.toLowerCase())).slice(0, 250);
   const selected = subjects.find((entry) => entry.id === subjectId);
   const normalCount = Math.min(200, Math.max(0, Number.parseInt(normal || "0", 10) || 0));
 
