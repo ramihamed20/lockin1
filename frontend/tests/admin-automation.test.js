@@ -34,25 +34,23 @@ test("the exported agent instructions require a real PDF and treat references as
 });
 
 test("Admin 2.0 reuses real server imports, capability checks and a separate operator-driven AI handoff", async () => {
-  const [hub, areas, routes, operations, actionBar] = await Promise.all([
+  const [hub, areas, routes, operations, actionBar, review, dashboard] = await Promise.all([
     readFile(new URL("../src/pages/admin/AdminAutomationHub.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/studioAreas.js", import.meta.url), "utf8"),
     readFile(new URL("../src/lib/authz.js", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../src/pages/admin/Admin2ActionBar.jsx", import.meta.url), "utf8")
+    readFile(new URL("../src/pages/admin/Admin2ActionBar.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/admin/QuestionJobReview.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/pages/admin/AutomationDashboard.jsx", import.meta.url), "utf8")
   ]);
-  assert.match(hub, /adminControlApi\.uploadAutomationDraft\(item\.subjectId, item\.title, item\.file\)/);
-  assert.match(hub, /adminControlApi\.allQuestionsContext/);
-  assert.match(hub, /adminControlApi\.validateAllQuestions/);
-  assert.match(hub, /adminControlApi\.saveAllQuestions/);
-  assert.match(hub, /publish_sheet_questions: false/);
-  assert.match(hub, /draft_sheet_revision: ctx\.sheet_revision/);
-  assert.match(hub, /context\.sheet_revision !== task\.sheet_revision/);
-  assert.match(hub, /<AllQuestionsPreview payload=\{item\.payload\}/);
-  assert.match(hub, /existingQuestionSets/);
+  assert.match(hub, /adminControlApi\.uploadAutomationDraft\(subjectId, item\.title, item\.file\)/);
+  assert.match(hub, /adminControlApi\.queueAutomationJob/);
   assert.match(hub, /content\.manage/);
   assert.match(hub, /assessments\.manage/);
-  assert.match(hub, /This application does not invoke agy/);
+  assert.match(dashboard, /buildAllQuestionsPrompt\(task\.plan, task\.normal_count\)/);
+  assert.match(review, /adminControlApi\.validateAutomationCandidate/);
+  assert.match(review, /adminControlApi\.reviewAutomationCandidate/);
+  assert.match(review, /<AllQuestionsPreview payload=\{candidate\}/);
   assert.match(areas, /\["automation", "Automation", "content\.view"/);
   assert.match(routes, /path: "\/operations\/admin\/automation", capabilities: AUTOMATION_CAPABILITIES/);
   assert.match(operations, /AdminAutomationHub/);

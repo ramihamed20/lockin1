@@ -1,270 +1,162 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { generateIdempotencyKey } from "../../api/pagination.js";
 import { adminControlApi } from "../../api/adminControl.js";
-import { useAsyncData } from "../../hooks/useAsyncData.js";
-import { hasOperationalCapability } from "../../lib/authz.js";
-import { copyTextToClipboard } from "../../lib/clipboard.js";
-import { Icon } from "../../lib/icons.jsx";
-import { buildAllQuestionsPrompt, existingQuestionSets, parseAllQuestionsJson } from "../../lib/allQuestionsPrompt.js";
-import { downloadAllQuestionsPrompt, readAllQuestionsFile } from "../../lib/allQuestionsImport.js";
-import { automationAgentInstructions, sheetTitleFromFilename, validateAutomationFiles } from "../../lib/adminAutomation.js";
+import { generateIdempotencyKey } from "../../api/pagination.js";
 import { ErrorPanel, LoadingPanel } from "../../components/ui/index.jsx";
-import { ReferenceLibrary } from "./ReferenceLibrary.jsx";
+import { useAsyncData } from "../../hooks/useAsyncData.js";
+import { sheetTitleFromFilename, validateAutomationFiles } from "../../lib/adminAutomation.js";
+import { hasOperationalCapability } from "../../lib/authz.js";
 import { AutomationDashboard } from "./AutomationDashboard.jsx";
-import { AllQuestionsPreview } from "./AllQuestionsPreview.jsx";
+import { ReferenceLibrary } from "./ReferenceLibrary.jsx";
 import "./admin-automation.css";
 
 function pathLabel(item) {
   return [item.college_title, item.specialty_title, item.academic_year_title, item.title].filter(Boolean).join(" / ");
 }
 
-function PipelineRow({ item, canQuestions, normalCount, referenceNotes, onPatch }) {
-  const [pending, setPending] = useState("");
-  async function prepare() {
-    if (!item.sheetId || !canQuestions || pending) return;
-    setPending("prepare");
-    onPatch(item.id, { error: "", validation: null, payload: null, taskContext: null });
-    try {
-      const context = await adminControlApi.allQuestionsContext(item.sheetId, "university");
-      const existing = existingQuestionSets(context);
-      if (context.sheet_status !== "draft" || existing.replaced.length || existing.normalExisting) {
-        throw new Error("This sheet is unavailable for draft import. Open its All Questions editor to review it.");
-      }
-      const count = Math.min(normalCount, context.sheet_questions.max_count);
-      const prompt = buildAllQuestionsPrompt(context, count, { examStyle: referenceNotes });
-      downloadAllQuestionsPrompt(automationAgentInstructions({
-        prompt,
-        sheetTitle: item.title,
-        sheetId: item.sheetId,
-        referenceNotes
-      }), item.sheetId);
-      onPatch(item.id, { taskContext: context, taskNormalCount: count, message: "Task downloaded. Open it with the original PDF in Antigravity; no AI execution was started." });
-    } catch (error) {
-      onPatch(item.id, { error: error.message || "Failed to prepare task." });
-    } finally {
-      setPending("");
-    }
-  }
-
-  async function copyExportCommand() {
-    if (!item.sheetId) return;
-    const command = "cd /home/lockin/lockin1/backend && python manage.py export_lockin_ai_task --sheet-id " + item.sheetId + " --output-dir /home/lockin/ai-tasks";
-    const copied = await copyTextToClipboard(command);
-    onPatch(item.id, { message: copied ? "Read-only VPS export command copied. Run it yourself from SSH after deploying the reviewed branch." : "Clipboard blocked. Open the sheet to copy its UUID and run the export manually." });
-  }
-
-  async function validate(file) {
-    if (!file || !canQuestions || !item.sheetId || !item.taskContext || pending) return;
-    setPending("validate");
-    onPatch(item.id, { error: "", validation: null, payload: null });
-    try {
-      const payload = parseAllQuestionsJson(await readAllQuestionsFile(file));
-      const context = await adminControlApi.allQuestionsContext(item.sheetId, "university");
-      const task = item.taskContext;
-      if (context.sheet_revision !== task.sheet_revision || context.settings_revision !== task.settings_revision) {
-        throw new Error("The sheet or its settings changed. Download a fresh task and regenerate the questions.");
-      }
-      const existing = existingQuestionSets(context);
-      if (context.sheet_status !== "draft" || existing.replaced.length || existing.normalExisting) {
-        throw new Error("This sheet already has questions. Open its normal All Questions editor to review replacements safely.");
-      }
-      const body = {
-        payload,
-        sheet_question_count: item.taskNormalCount,
-        excluded_start_pages: context.excluded_start_pages,
-        excluded_end_pages: context.excluded_end_pages
-      };
-      const validation = await adminControlApi.validateAllQuestions(item.sheetId, body, "university");
-      if (!validation.valid) throw new Error("The JSON failed the Lock-in validation rules.");
-      onPatch(item.id, { payload, context, validation, message: "Structure checked. Review the questions against the source PDF before confirming the draft import." });
-    } catch (error) {
-      const first = error?.payload?.errors?.[0];
-      onPatch(item.id, { error: first?.message || error?.message || "Invalid question JSON." });
-    } finally {
-      setPending("");
-    }
-  }
-
-  async function save() {
-    if (!item.validation?.valid || !item.context || !item.payload || pending || !canQuestions) return;
-    setPending("save");
-    try {
-      const ctx = item.context;
-      await adminControlApi.saveAllQuestions(item.sheetId, {
-        payload: item.payload,
-        sheet_question_count: item.taskNormalCount,
-        draft_sheet_revision: ctx.sheet_revision,
-        excluded_start_pages: ctx.excluded_start_pages,
-        excluded_end_pages: ctx.excluded_end_pages,
-        settings_revision: ctx.settings_revision,
-        expected_revisions: Object.fromEntries(ctx.difficulties.map((row) => [row.difficulty, row.existing.revision])),
-        publish_sheet_questions: false
-      }, "university");
-      onPatch(item.id, { status: "imported", payload: null, context: null, validation: null, message: "Questions saved to the draft sheet. Review publication in Content." });
-    } catch (error) {
-      onPatch(item.id, { error: error?.message || "Could not save questions. Revalidate the current revision." });
-    } finally {
-      setPending("");
-    }
-  }
-
-  return <li className="admin2-pipeline-item">
-    <div className="admin2-row-head"><div><strong>{item.title}</strong><small>{item.fileName}</small></div><span className={"admin2-state is-" + item.status}>{item.status}</span></div>
-    {item.sheetId && <div className="admin2-pipeline-actions">
-      {canQuestions && item.status !== "imported" && <button type="button" className="btn btn-soft compact" disabled={Boolean(pending)} onClick={prepare}><Icon name="file" size={15} />{pending === "prepare" ? "Preparing…" : "Download AI task"}</button>}
-      <button type="button" className="btn btn-soft compact" disabled={Boolean(pending)} onClick={copyExportCommand}>Copy VPS PDF export</button>
-      {canQuestions && item.taskContext && item.status !== "imported" && <label className="admin2-json-file btn btn-soft compact">
-        <Icon name="file-question" size={15}/>{pending === "validate" ? "Validating…" : "Validate returned JSON"}
-        <input type="file" accept=".json,.txt,application/json,text/plain" disabled={Boolean(pending)} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; void validate(file); }}/>
-      </label>}
-      {canQuestions && item.validation?.valid && <button className="btn btn-primary compact" type="button" disabled={Boolean(pending)} onClick={save}>Confirm draft import</button>}
-      <Link className="btn btn-soft compact" to={"/operations/admin/content?subject=" + encodeURIComponent(item.subjectId) + "&sheet=" + encodeURIComponent(item.sheetId)}>Open sheet</Link>
-    </div>}
-    {item.validation?.valid && <AllQuestionsPreview payload={item.payload} />}
-    {item.message && <small role="status" className="admin2-ok">{item.message}</small>}
-    {item.error && <small role="alert" className="admin2-error">{item.error}</small>}
-  </li>;
-}
-
-/**
- * Admin 2.0 uses the real Django upload, sheet and All Questions endpoints.
- * This is an operator-directed pipeline, NOT a hidden Antigravity CLI wrapper.
- */
 export default function AdminAutomationHub({ operationsSession }) {
   const canViewContent = hasOperationalCapability(operationsSession, "content.view");
   const canManage = hasOperationalCapability(operationsSession, "content.manage");
-  const canQuestions = canManage && hasOperationalCapability(operationsSession, "assessments.manage");
-  const subjectsData = useAsyncData(() => canViewContent ? adminControlApi.contentSubjects({}) : Promise.resolve({ results: [] }), [canViewContent]);
+  const canQueue = canManage && hasOperationalCapability(operationsSession, "assessments.view")
+    && hasOperationalCapability(operationsSession, "assessments.manage");
+  const subjectsData = useAsyncData(
+    () => canViewContent ? adminControlApi.contentSubjects({}) : Promise.resolve({ results: [] }),
+    [canViewContent]
+  );
   const [query, setQuery] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [rows, setRows] = useState([]);
-  const [pending, setPending] = useState(false);
-  const [globalError, setGlobalError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [normal, setNormal] = useState("30");
-  const [referenceNotes, setReferenceNotes] = useState("");
-  const [reloadDrafts, setReloadDrafts] = useState(0);
   const [jobRefresh, setJobRefresh] = useState(0);
   const [queueing, setQueueing] = useState("");
-  const canViewQuestions = hasOperationalCapability(operationsSession, "assessments.view");
-
-  const drafts = useAsyncData(() => subjectId ? adminControlApi.subjectSheets(subjectId, { status: "draft" }) : Promise.resolve({ results: [] }), [subjectId, reloadDrafts]);
+  const [draftPage, setDraftPage] = useState(1);
+  const drafts = useAsyncData(
+    () => subjectId ? adminControlApi.subjectSheets(subjectId, { status: "draft", page: draftPage }) : Promise.resolve(null),
+    [subjectId, draftPage]
+  );
   const subjects = subjectsData.data?.results || [];
-  const matches = subjects.filter((entry) => pathLabel(entry).toLowerCase().includes(query.toLowerCase())).slice(0, 250);
+  const matches = subjects.filter((entry) => pathLabel(entry).toLowerCase().includes(query.trim().toLowerCase()));
   const selected = subjects.find((entry) => entry.id === subjectId);
-  const normalCount = Math.min(200, Math.max(0, Number.parseInt(normal || "0", 10) || 0));
 
   function patch(id, change) {
     setRows((current) => current.map((item) => item.id === id ? { ...item, ...change } : item));
   }
 
+  function chooseSubject(value) {
+    setSubjectId(value);
+    setDraftPage(1);
+    setRows([]);
+    setError("");
+    setMessage("");
+  }
+
   async function queue(sheet) {
+    if (queueing) return;
     setQueueing(sheet.id);
-    setGlobalError("");
+    setError("");
+    setMessage("");
     try {
       await adminControlApi.queueAutomationJob({
         job_type: "question_package",
         sheet_id: sheet.id,
-        normal_count: normalCount,
+        normal_count: Number(normal),
         idempotency_key: generateIdempotencyKey()
       });
       setJobRefresh((value) => value + 1);
-    } catch (error) {
-      setGlobalError(error.message || "Could not queue this sheet.");
+      setMessage(`${sheet.title} queued. Open Automation jobs to continue.`);
+    } catch (failure) {
+      setError(failure.message || "Could not queue this sheet.");
     } finally {
       setQueueing("");
     }
   }
 
-  function onFiles(event) {
-    setGlobalError("");
+  function chooseFiles(event) {
+    setError("");
     try {
       const files = validateAutomationFiles(event.target.files);
-      setRows(files.map((file, index) => ({
-        id: index + 1,
-        file,
-        fileName: file.name,
-        title: sheetTitleFromFilename(file.name),
-        status: "queued",
-        subjectId,
-        sheetId: "",
-        error: "",
-        message: "",
-        payload: null,
-        validation: null,
-        taskContext: null
+      setRows(files.map((file, id) => ({
+        id, file, title: sheetTitleFromFilename(file.name), sheetId: "", error: "", status: "queued"
       })));
-    } catch (error) {
-      setGlobalError(error.message || "Files could not be selected.");
+    } catch (failure) {
+      setError(failure.message || "Files could not be selected.");
     }
     event.target.value = "";
   }
 
   async function uploadDrafts() {
-    if (!canManage || !subjectId || pending || !rows.length) return;
-    setPending(true); setGlobalError("");
-    for (const item of rows) {
-      if (item.sheetId) continue;
-      patch(item.id, { status: "uploading", error: "", message: "" });
-      try {
-        const sheet = await adminControlApi.uploadAutomationDraft(item.subjectId, item.title, item.file);
-        patch(item.id, { status: "draft", sheetId: sheet.id, message: "PDF uploaded and sheet created as draft." });
-      } catch (error) {
-        patch(item.id, { status: "error", error: error.message || "Could not upload this PDF." });
+    if (!canManage || !subjectId || uploading) return;
+    setUploading(true);
+    setError("");
+    setMessage("");
+    try {
+      for (const item of rows) {
+        if (item.sheetId || item.status === "duplicate") continue;
+        patch(item.id, { status: "uploading", error: "" });
+        try {
+          const sheet = await adminControlApi.uploadAutomationDraft(subjectId, item.title, item.file);
+          patch(item.id, { status: "draft", sheetId: sheet.id });
+        } catch (failure) {
+          patch(item.id, {
+            status: failure.status === 409 ? "duplicate" : "error",
+            error: failure.message || "Could not upload this PDF."
+          });
+        }
       }
+    } finally {
+      setUploading(false);
+      drafts.reload();
     }
-    setPending(false);
-    setReloadDrafts((number) => number + 1);
   }
 
   if (!canViewContent) return <AutomationDashboard />;
-
   return <div className="admin2-automation">
-    <section className="admin2-banner">
-      <div><p className="admin2-kicker">ADMIN 2.0 / CONTENT PIPELINE</p><h2>Sheet-to-questions workspace</h2><p>Upload drafts in batches, prepare a Lock-in-compliant AI task, validate the returned JSON and import it without publishing Normal Questions.</p></div>
-      <div className="admin2-banner-links"><Link to="/operations/admin/content" className="btn btn-soft compact">Content library</Link><Link to="/operations/admin/questions" className="btn btn-soft compact">Question bank</Link></div>
-    </section>
     <div className="admin2-workflow">
       <section className="admin2-work-card">
-        <h3>1. Choose the exact academic location</h3>
-        <p>Subjects are loaded from the same Catalog used by the existing admin panel.</p>
+        <h3>Academic destination</h3>
         {subjectsData.loading && <LoadingPanel />}
-        {subjectsData.error && <ErrorPanel message={subjectsData.errorDetails || subjectsData.error} onRetry={subjectsData.reload}/>}
-        <label className="field"><span>Find a subject</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pathology / Year 2 / Tripoli"/></label>
-        <label className="field"><span>Destination</span><select value={subjectId} disabled={pending} onChange={(event) => { setSubjectId(event.target.value); setRows([]); }}>
-          <option value="">Choose existing subject</option>{matches.map((subject) => <option key={subject.id} value={subject.id}>{pathLabel(subject)}</option>)}
+        {subjectsData.error && <ErrorPanel message={subjectsData.errorDetails || subjectsData.error} onRetry={subjectsData.reload} />}
+        <label className="field"><span>Find a subject</span><input value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+        <label className="field"><span>Destination</span><select value={subjectId} disabled={uploading} onChange={(event) => chooseSubject(event.target.value)}>
+          <option value="">Choose an existing subject</option>
+          {selected && !matches.includes(selected) && <option value={selected.id}>{pathLabel(selected)}</option>}
+          {matches.map((subject) => <option key={subject.id} value={subject.id}>{pathLabel(subject)}</option>)}
         </select></label>
-        {selected && <small className="admin2-safe-note">Destination: {pathLabel(selected)}. Never inferred from a filename.</small>}
-        <h3>2. Upload one or more lecture PDFs</h3>
-        <label className="field"><span>PDF files (20 at a time, up to 50 MB each)</span><input type="file" accept=".pdf,application/pdf" multiple disabled={!canManage || pending || !subjectId} onChange={onFiles}/></label>
-        <p className="admin2-safe-note">Every file is created as <strong>Draft</strong>. Students are not notified and downloads are disabled.</p>
-        <button className="btn btn-primary" type="button" disabled={!canManage || !subjectId || pending || !rows.some((row) => !row.sheetId)} onClick={uploadDrafts}>{pending ? "Uploading sequentially…" : "Upload drafts"}</button>
-        {!canManage && <small>You need Content Manage permission to upload.</small>}
-        {globalError && <p className="admin2-error" role="alert">{globalError}</p>}
+        {canQueue && <label className="field"><span>Normal Questions for the next task</span><input type="number" min="0" max="200" step="1" value={normal} onChange={(event) => setNormal(event.target.value)} /></label>}
       </section>
-      <section className="admin2-work-card">
-        <h3>3. Prepare question generation</h3>
-        <p>The instruction file is generated from Lock-in’s current All Questions plan, rather than a guessed schema.</p>
-        <label className="field"><span>Normal Questions (0–200)</span><input type="number" min="0" max="200" value={normal} onChange={(event) => setNormal(event.target.value)}/></label>
-        <label className="field"><span>Previous years’ question style (optional)</span>
-          <textarea value={referenceNotes} maxLength={6000} rows={6} onChange={(event) => setReferenceNotes(event.target.value)} placeholder="Paste representative questions or exam style here. Use the original lecture for factual answers."/>
-        </label>
-        <div className="admin2-safe-note">Run the downloaded task yourself inside Antigravity with the actual PDF and any reference files. This application does not invoke agy, use paid AI APIs, or pretend that a model is running on the VPS.</div>
-        <h3>4. Validate and import results</h3>
-        <p>After Antigravity returns JSON, validate it against the existing backend. Import is a separate, explicit action; Normal Questions remain drafts.</p>
-      </section>
+      {canManage && <section className="admin2-work-card">
+        <h3>Upload lecture drafts</h3>
+        <label className="field"><span>PDF files (20 at a time, up to 50 MB each)</span><input type="file" accept=".pdf,application/pdf" multiple disabled={uploading || !subjectId} onChange={chooseFiles} /></label>
+        <button className="btn btn-primary" type="button" disabled={!subjectId || uploading || !rows.some((row) => !row.sheetId && row.status !== "duplicate")} onClick={uploadDrafts}>{uploading ? "Uploading…" : "Upload drafts"}</button>
+        {!!rows.length && <ul className="admin2-pipeline">{rows.map((item) => <li className="admin2-pipeline-item" key={item.id}>
+          <div className="admin2-row-head"><strong dir="auto">{item.title}</strong><span className="admin2-state">{item.status}</span></div>
+          {item.error && <small role="alert" className="admin2-error">{item.error}</small>}
+        </li>)}</ul>}
+      </section>}
     </div>
-    <section className="admin2-work-card">
-      <h3>Current upload batch</h3>
-      {rows.length ? <ul className="admin2-pipeline">{rows.map((item) => <PipelineRow key={item.id} item={item} canQuestions={canQuestions} normalCount={normalCount} referenceNotes={referenceNotes} onPatch={patch}/>)}</ul> : <p>No files in this session. Select a subject and upload PDFs to start.</p>}
-    </section>
+    {error && <p role="alert" className="admin2-error">{error}</p>}
+    {message && <p role="status">{message}</p>}
+    {selected && <section className="admin2-work-card">
+      <h3>Saved draft sheets</h3>
+      {drafts.loading ? <LoadingPanel /> : drafts.error ? <ErrorPanel message={drafts.errorDetails || drafts.error} onRetry={drafts.reload} /> :
+        drafts.data?.results.length ? <>
+          <ul className="admin2-drafts">{drafts.data.results.map((sheet) => <li key={sheet.id}>
+            <span dir="auto">{sheet.title}</span>
+            <div className="admin2-pipeline-actions">
+              {canQueue && <button className="btn btn-soft compact" type="button" onClick={() => queue(sheet)} disabled={Boolean(queueing) || normal === "" || !Number.isInteger(Number(normal)) || Number(normal) < 0 || Number(normal) > 200}>{queueing === sheet.id ? "Queueing…" : "Queue AI task"}</button>}
+              <Link to={`/operations/admin/content?subject=${encodeURIComponent(subjectId)}&sheet=${encodeURIComponent(sheet.id)}`}>Open sheet</Link>
+            </div>
+          </li>)}</ul>
+          <div className="admin2-pipeline-actions">
+            <button type="button" className="btn btn-soft compact" disabled={!drafts.data.previous} onClick={() => setDraftPage(draftPage - 1)}>Previous drafts</button>
+            <button type="button" className="btn btn-soft compact" disabled={!drafts.data.next} onClick={() => setDraftPage(draftPage + 1)}>Next drafts</button>
+          </div>
+        </> : <p>No draft sheets for this subject.</p>}
+    </section>}
     <AutomationDashboard subjects={subjects} refresh={jobRefresh} />
     {selected && <ReferenceLibrary key={selected.id} subjectId={selected.source_node_id || selected.id} canManage={canManage} onQueued={() => setJobRefresh((value) => value + 1)} />}
-    {subjectId && <section className="admin2-work-card">
-      <h3>Drafts already on this subject</h3>
-      <p>Open a saved draft to continue in the sheet editor.</p>
-      {drafts.loading ? <LoadingPanel/> : drafts.error ? <ErrorPanel message={drafts.errorDetails || drafts.error} onRetry={drafts.reload}/> :
-        (drafts.data?.results || []).length ? <ul className="admin2-drafts">{drafts.data.results.slice(0, 30).map((sheet) => <li key={sheet.id}><span>{sheet.title}</span>{canViewQuestions && canQuestions && <button className="btn btn-soft compact" type="button" onClick={() => queue(sheet)} disabled={Boolean(queueing)}>{queueing === sheet.id ? "Queueing…" : "Queue AI task"}</button>}<Link to={"/operations/admin/content?subject=" + encodeURIComponent(subjectId) + "&sheet=" + encodeURIComponent(sheet.id)}>Open sheet</Link></li>)}</ul> : <p>No draft sheets for this subject.</p>}
-    </section>}
   </div>;
 }

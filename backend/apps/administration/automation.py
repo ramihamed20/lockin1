@@ -92,6 +92,16 @@ def enqueue_job(
     subject_id: UUID | None = None,
     sheet_id: UUID | None = None,
 ) -> tuple[AutomationJob, bool]:
+    if TASKS[job_type].area:
+        User.objects.select_for_update().only("id").get(id=actor.id)
+        if (
+            AutomationJob.objects.filter(
+                requested_by=actor, job_type=job_type, status__in=(Status.QUEUED, Status.PREPARING)
+            )
+            .exclude(idempotency_key=idempotency_key)
+            .exists()
+        ):
+            raise AutomationConflict("An unfinished check of this type already exists.")
     try:
         with transaction.atomic():
             job, created = AutomationJob.objects.get_or_create(

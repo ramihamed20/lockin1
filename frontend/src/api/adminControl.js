@@ -78,7 +78,7 @@ export const adminControlApi = {
 
   contentSubjects: (options = {}) => request("/operations/admin/content/subjects" + buildQueryString({ q: options.query?.trim() })),
   subjectSheets(subjectId, options = {}) {
-    return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets` + buildQueryString({ q: options.query?.trim(), status: options.status }));
+    return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets` + buildQueryString({ q: options.query?.trim(), status: options.status, page: options.page }));
   },
   createSheet(subjectId, body) {
     return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets`, { method: "POST", body });

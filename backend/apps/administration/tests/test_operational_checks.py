@@ -39,6 +39,18 @@ def test_operational_task_persists_real_findings(kind):
     assert job["attempts"][0]["result"] == "succeeded"
 
 
+def test_running_a_check_is_idempotent_and_deduplicates_pending_jobs():
+    client = APIClient()
+    client.force_authenticate(create_admin())
+    body = {"job_type": "student_checks", "idempotency_key": str(uuid4())}
+    first = client.post(JOBS, body)
+    assert first.status_code == 201
+    replay = client.post(JOBS, body)
+    assert replay.status_code == 200
+    assert replay.json()["id"] == first.json()["id"]
+    assert client.post(JOBS, {**body, "idempotency_key": str(uuid4())}).status_code == 409
+
+
 def test_check_visibility_is_per_department_and_feedback_groups_verified_duplicates():
     operator = create_user(email="review@example.com")
     OperationalCapabilityAssignment.objects.create(user=operator, capability_id="moderation.view")

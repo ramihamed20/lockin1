@@ -1,61 +1,27 @@
-# Lock-in Admin Panel 2.0 — first deliverable
+# Lock-in Admin Panel 2.0
 
-This branch upgrades **the existing** Creator Studio/Operations Admin, rather than running another Django instance, database or SPA. It is intentionally a **safe foundation** for cross-functional automation, not a claim that every administrative action has been automated.
+Automation extends the existing Creator Studio and uses the same academic
+hierarchy, files, All Questions planner, publication controls and audit log.
 
-## Included
+## Operator workflow
 
-- **Admin Panel 2.0** heading and capability-gated navigation throughout the existing operational areas.
-- Cross-functional next-action links for students, subscriptions, payments, content, question banks, moderation, feedback, notifications, analytics, audit, exports, system and settings.
-- **Automation** workspace at \`/operations/admin/automation\`, available to users with \`content.view\`.
-- Upload a batch of up to **20 PDFs** (50 MB each) to an existing subject in **sequence**, using the same \`management/files\` and \`createSheet\` services as the old admin panel.
-- Automation rejects a PDF already attached as the primary file of a current, non-archived sheet in the same subject. It compares SHA-256 checksums and serializes concurrent Automation requests for that subject.
-- Every uploaded sheet is created with \`publish: false\`, \`notify_students: false\` and \`allow_download: false\`. It is never published automatically.
-- Download an AI task prompt derived from the existing All Questions backend planning contract, plus optional pasted past-exam question style (up to 6,000 chars).
-- Read-only Django command \`export_lockin_ai_task\` for text extraction from a sheet PDF and up to five explicitly selected reference PDFs. It does not invoke AI. Image-only pages are reported for manual visual review.
-- Validate the returned JSON through the existing \`all-questions/validate\` endpoint and require explicit confirmation before \`all-questions\` save with \`publish_sheet_questions: false\`.
-- Deny fast-path import when the sheet has existing questions, since normal All Questions save can replace Active Study/previously-generated question banks.
+1. Open **Automation**, select the exact university, specialty, year and
+   subject, then upload up to 20 lecture PDFs. Files upload in sequence, up to
+   50 MB each. The server checks the SHA-256 before storing each draft.
+2. Optionally add previous examinations or other references to that subject.
+   Wait for indexing to complete. Fix a blocked scan or invalid PDF before retrying.
+3. Choose the Normal Question count and queue a job from **Saved draft sheets**.
+   Open the job after it reaches **Ready for AI** and download the task.
+4. Open the downloaded task and original lecture PDF directly in Antigravity.
+   Inspect pages flagged for visual review. Request one All Questions JSON file.
+5. Upload the result in the job. Review the saved candidate and correct any
+   flagged errors. Approve the draft import after checking the source.
+6. Publish the sheet and Normal Questions through their existing authorized
+   publication controls. Review the audit log for the actor and action.
 
-## Boundaries and limitations
-
-1. **No automatic Antigravity invocation.** Consumer CLI is never called from the web application, service or cron. The operator uses Antigravity directly with the downloaded task and PDF.
-2. The upload batch list lives in the current browser session. Successful draft uploads persist in Django. Refreshing the browser clears the transient list, but the sheets remain accessible through the existing Content panel.
-3. The optional past-exam style field is not a durable reference library. The server-side export command accepts existing reference PDFs explicitly. A future revision can add a permissioned, subject-scoped reference catalog and persistent processing jobs.
-4. Text-only PDF extraction is not sufficient for tables, micrographs, or image-heavy medical slides. Visually inspect flagged pages and source citations before approval.
-5. The user must **review every generated question**. Schema validation checks structure and count; it does not prove factual correctness.
-6. There is no extra database, new service worker or background AI consumer. No production deployment occurs as part of this branch.
-7. No existing management endpoints, permissions or question bank schemas were replaced.
-
-## Operator walkthrough (after local staging review)
-
-1. Open Admin Panel 2.0 → **Automation**.
-2. Choose the exact existing university/specialty/year/subject; select lecture PDFs.
-3. Upload drafts and verify their titles in the Content list.
-4. In the batch, choose **Download AI task** for a sheet.
-5. If the agent is operating on the VPS, choose **Copy VPS PDF export**. The clipboard receives a command of this form:
-   \`cd /home/lockin/lockin1/backend && python manage.py export_lockin_ai_task --sheet-id <uuid> --output-dir /home/lockin/ai-tasks\`
-   This is an optional operator command. It requires the project's normal Django environment and read-only access to the selected document.
-6. For previous-year references on the VPS, append up to five \`--reference /path/to/authorized.pdf\` options.
-7. Open the exported text, task prompt and source PDFs in Antigravity **directly**. Request a single JSON output.
-8. Upload the returned JSON via **Validate returned JSON**. Fix any validation errors.
-9. Review the preview against the source PDF and correct any errors in the JSON before validating again. Confirm the draft import. Publish separately in Content after review.
-
-## Development and verification
-
-- No writes to production data or automatic publication.
-- Run \`node --test tests/admin-automation.test.js\` in \`frontend/\`.
-- Run the frontend lint, typecheck and build plus existing admin tests.
-- Exercise the flow with a staging account and a disposable sheet (normal PDFs, missing text, invalid JSON, and a valid All Questions payload).
-- Verify page counts, active study exclusions, two sheet editions and capability gates.
-- Verify existing questions cannot be silently replaced by automation.
-
-## Follow-up milestones
-
-- **2.1:** Durable PostgreSQL automation jobs, resume/retry, content checksums and idempotency, role-based approvals.
-- **2.2:** Durable scoped reference catalog, semantic topic matching and extraction of image-heavy pages on a separate bounded worker.
-- **2.3:** Deployment-ready optional AI engine adapters using officially supported service terms; scheduled background inference only where the provider allows that model of use.
-- **2.4:** Per-area workflow automations: subscription eligibility checks, pending payments, moderation triage, notification review and system-health alerts. Each irreversible action requires a confirmation and audit trail.
-
-The sections below track the implementation and verification of subsequent milestones.
+Operators can also run permission-scoped checks for their departments from
+the same dashboard. Student, finance, and moderation decisions use the
+existing authorized consoles.
 
 ## Phase 1 device acceptance
 
@@ -69,7 +35,7 @@ in portrait and landscape, repeat these steps:
    selected subject, no student notification and no visibility from a student account.
 3. Upload a renamed duplicate and then a malformed PDF. Verify distinct errors,
    and that neither produces another sheet. Retry after correcting the input.
-4. Download an AI task and open it with its PDF. Use disposable sample JSON,
+4. Queue a job, download the AI task and open it with its PDF. Use disposable sample JSON,
    first invalid and then valid. Check the error and preview without overflow.
 5. Change the sheet revision from another session and verify the stale import is
    rejected. Use a fresh draft for a successful import and verify audit history.
@@ -136,3 +102,57 @@ supported. Feedback grouping covers up to 250 recent submissions and detects
 normalized duplicates. Payment and subscription findings are flags for
 operator review. Campaign drafts use the existing composer. The dispatch
 screen previews the recipient count and asks for confirmation before sending.
+
+## Release and rollback
+
+- Migrations 0005–0008 add job, attempt, reference, reference-page and candidate
+  tables plus a PostgreSQL GIN search index. Existing educational records
+  need no backfill. Start one worker only after the migrations succeed.
+- Allow room for one temporary PDF of up to 50 MB and, when exporting images,
+  a separate temporary image set. The worker runs one bounded parser at a time
+  and holds no database transaction while extracting a PDF. Poppler is an
+  optional dependency on the machine used for the manual image command.
+- The base app image supplies the worker command. Start a single managed
+  process or one replica from the same tested image and settings as Django.
+  For a staging smoke test with an existing Compose project, run
+  `docker compose run --rm backend python manage.py run_automation_worker --once`
+  with the same staging Compose options used for the app. Verify the job's
+  attempt and audit records. Staging acceptance still requires a live worker,
+  synthetic accounts, representative PDFs and the device checks above.
+- On rollback, stop the worker and restore the previous app image. Keeping the
+  additive tables preserves history. Reverse the migrations only after backing
+  up job, reference and candidate records. Reversal removes database metadata
+  and leaves managed file objects for separately authorized cleanup.
+- Reference matching and feedback grouping are deterministic. Reviewers must
+  verify medical content and difficulty. The campaign preview confirms the
+  recipient count and checks it again on dispatch. Recipient membership is
+  calculated at dispatch, so equal-count membership changes are possible.
+
+## Verification commands
+
+Run the backend quality gate against isolated PostgreSQL and disposable
+media. The targeted acceptance set is:
+
+```bash
+cd backend
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy .
+python manage.py makemigrations --check --dry-run
+python -m pytest --no-cov apps/administration/tests apps/admin_control/tests \
+  apps/content/tests/test_all_questions.py \
+  apps/content/tests/test_admin_list_query_budget.py \
+  apps/content/tests/test_export_ai_task.py \
+  apps/content/tests/test_edition_active_study_flow.py \
+  apps/questions/tests/test_admin_content_management.py apps/files/tests/test_files.py
+```
+
+```bash
+cd frontend
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm check:bundle
+pnpm exec playwright test e2e/admin-automation-jobs.spec.js
+```

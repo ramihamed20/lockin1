@@ -218,7 +218,7 @@ def test_question_job_validation_review_import_and_separate_publication():
     from copy import deepcopy
 
     from apps.content.models import LearningObject
-    from apps.questions.models import Question, QuestionImportBatch
+    from apps.questions.models import Question, QuestionImportBatch, QuestionVersion
 
     admin, client, _, sheet_id = setup_draft()
     job_id = enqueue(client, sheet_id).json()["id"]
@@ -231,6 +231,7 @@ def test_question_job_validation_review_import_and_separate_publication():
     assert response.status_code == 200
     revision = response.json()["revision"]
     document = page_document(job["output"]["plan"])
+    document["sheet_questions"]["questions"][0].update(source_page=2, difficulty="easy")
     wrong = deepcopy(document)
     wrong["active_study"]["easy"]["pages"][0]["page"] = 100
     invalid = client.put(review, {"payload": wrong, "expected_revision": revision}, format="json")
@@ -244,6 +245,11 @@ def test_question_job_validation_review_import_and_separate_publication():
     assert duplicate.status_code == 400
     assert any("repeats" in error["message"] for error in duplicate.json()["errors"])
     assert client.get(review).status_code == 404
+    wrong = deepcopy(document)
+    wrong["sheet_questions"]["questions"][0]["source_page"] = 7
+    invalid = client.put(review, {"payload": wrong, "expected_revision": revision}, format="json")
+    assert invalid.status_code == 400
+    assert any(error["path"].endswith(".source_page") for error in invalid.json()["errors"])
 
     validated = client.put(
         review, {"payload": document, "expected_revision": revision}, format="json"
@@ -271,6 +277,7 @@ def test_question_job_validation_review_import_and_separate_publication():
     sheet = LearningObject.objects.get(id=sheet_id)
     assert sheet.published_version_id is None
     assert QuestionImportBatch.objects.count() == 1
+    assert QuestionVersion.objects.filter(source_page=2, difficulty="easy").count() == 1
     assert set(Question.objects.values_list("workflow_status", flat=True)) == {"draft"}
     assert (
         AuditRecord.objects.filter(action="automation.candidate_approved", actor=admin).count() == 1
@@ -294,6 +301,15 @@ def test_question_job_validation_review_import_and_separate_publication():
     assert published.status_code == 200, published.json()
     assert AuditRecord.objects.filter(action="content.sheet_published", actor=admin).count() == 1
     assert set(Question.objects.values_list("workflow_status", flat=True)) == {"draft"}
+    question_ids = [str(value) for value in Question.objects.values_list("id", flat=True)]
+    result = client.post(
+        "/api/v1/operations/admin/content/questions/bulk",
+        {"action": "publish", "question_ids": question_ids},
+        format="json",
+    )
+    assert result.status_code == 200, result.json()
+    assert set(Question.objects.values_list("workflow_status", flat=True)) == {"published"}
+    assert AuditRecord.objects.filter(action="questions.bulk_publish", actor=admin).exists()
 
 
 def test_question_approval_rejects_changed_sheet():

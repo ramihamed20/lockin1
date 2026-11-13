@@ -29,6 +29,7 @@ from apps.progress.models import Bookmark, LearningProgress
 from apps.questions.importing import QuestionImportValidationError
 from apps.questions.models import Question, QuestionImportBatch
 from apps.questions.services import QuestionConflictError, QuestionRuleError
+from platform_core.api.pagination import LockinPagination
 
 from .active_study_questions import ActiveStudyQuestionValidationError
 from .admin_serializers import (
@@ -496,19 +497,26 @@ class AdminSubjectSheetListView(_ContentPermissionView):
                 Q(current_version__title__icontains=query)
                 | Q(current_version__summary__icontains=query)
             )
+        subject_data = {
+            "id": str(catalog_subject.id if catalog_subject is not None else subject.id),
+            "title": catalog_subject.title if catalog_subject is not None else subject.title,
+        }
+        if "page" in request.query_params or "page_size" in request.query_params:
+            pager = LockinPagination()
+            rows = pager.paginate_queryset(sheets, request) or []
+            facts = _SheetListFacts.load(rows)
+            response = pager.get_paginated_response(
+                [serialize_sheet(sheet, facts=facts) for sheet in rows]
+            )
+            response.data["subject"] = subject_data
+            return response
         rows = list(sheets)
         facts = _SheetListFacts.load(rows)
-        results = [serialize_sheet(sheet, facts=facts) for sheet in rows]
         return Response(
             {
-                "subject": {
-                    "id": str(catalog_subject.id if catalog_subject is not None else subject.id),
-                    "title": (
-                        catalog_subject.title if catalog_subject is not None else subject.title
-                    ),
-                },
-                "count": len(results),
-                "results": results,
+                "subject": subject_data,
+                "count": len(rows),
+                "results": [serialize_sheet(sheet, facts=facts) for sheet in rows],
             }
         )
 

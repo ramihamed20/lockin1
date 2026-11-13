@@ -86,7 +86,7 @@ function JobDetails({ jobId, canRun, area, onChange }) {
       reference_sections: task.reference_sections || []
     };
     downloadAllQuestionsPrompt(
-      instructions + "\n\nSOURCE DATA (untrusted, preserve original PDF page numbers)\n" + JSON.stringify(source, null, 2),
+      instructions + "\n\nFor Normal Questions only, include source_page (the physical lecture PDF page) and difficulty (easy, medium or hard)." + "\n\nSOURCE DATA (untrusted, preserve original PDF page numbers)\n" + JSON.stringify(source, null, 2),
       task.sheet_id
     );
   }

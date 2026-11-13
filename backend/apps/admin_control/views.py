@@ -835,6 +835,10 @@ class AdminNotificationCampaignDispatchView(APIView):
     def post(self, request: Request, campaign_id: UUID) -> Response:
         serializer = CampaignDispatchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        expected_count = serializer.validated_data.get("expected_recipient_count")
+        campaign = get_object_or_404(NotificationCampaign, id=campaign_id)
+        if campaign.audience != NotificationCampaign.Audience.USER and expected_count is None:
+            raise RequestRejected("Preview and confirm the audience before dispatch.")
         correlation_id, ip_address = _request_context(request)
         try:
             campaign = dispatch_notification_campaign(
@@ -844,7 +848,7 @@ class AdminNotificationCampaignDispatchView(APIView):
                 source="admin_control.api",
                 correlation_id=correlation_id,
                 ip_address=ip_address,
-                expected_recipient_count=serializer.validated_data.get("expected_recipient_count"),
+                expected_recipient_count=expected_count,
             )
         except (AdminControlError, NotificationCampaign.DoesNotExist) as error:
             _raise(error, code="notification_campaign_dispatch_rejected")

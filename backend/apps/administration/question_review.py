@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import unicodedata
 from collections.abc import Iterator
 from typing import Any
@@ -118,7 +119,20 @@ def review_candidate(
     if job.input_manifest["normal_count"] == 0:
         payload = {**payload, "sheet_questions": {"questions": []}}
     check_generated_questions(payload, validation.summary)
-    canonical = json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
+    try:
+        canonical = json.dumps(
+            payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True, allow_nan=False
+        )
+    except (ValueError, RecursionError) as error:
+        raise AllQuestionsValidationError(
+            [{"path": "payload", "message": "Use finite values in the question document."}],
+            validation.summary,
+        ) from error
+    if re.search(r"(?<!\\)(?:\\\\)*\\u0000|[\ud800-\udfff]", canonical):
+        raise AllQuestionsValidationError(
+            [{"path": "payload", "message": "Remove unsupported characters from the JSON."}],
+            validation.summary,
+        )
     AutomationArtifact.objects.update_or_create(
         job=job,
         artifact_type=AutomationArtifact.Kind.QUESTION_CANDIDATE,

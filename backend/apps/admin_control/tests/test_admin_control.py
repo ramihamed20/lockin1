@@ -916,6 +916,10 @@ def test_campaign_audience_preview_is_permissioned_and_rejects_changed_counts():
     assert preview.status_code == 200
     count = preview.json()["recipient_count"]
     assert count >= 2
+    missing_confirmation = client.post(
+        f"{campaign}/dispatch", {"reason": "Dispatch without an audience preview."}, format="json"
+    )
+    assert missing_confirmation.status_code == 400
     client.force_authenticate(recipient)
     assert client.get(f"{campaign}/audience").status_code == 403
     client.force_authenticate(admin)
