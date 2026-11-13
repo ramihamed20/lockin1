@@ -94,3 +94,13 @@ results by claim revision and preserves up to three preparation attempts.
 Stop the worker before rolling back application code. The new tables can
 remain in place for a code rollback. Reversing the migration deletes job
 and attempt history, so export it first if it needs to be retained.
+
+## Subject references
+
+Choose the academic destination in Automation to open its reference library.
+PDFs are private managed files. Replacements retain each earlier revision.
+The worker checks the stored checksum before indexing text by original PDF
+page number. An isolated Linux subprocess limits extraction to 384 MiB of
+address space, 100 seconds of wall time, and 500 pages per reference. Each
+page contributes at most 3,000 characters to the index. Search uses PostgreSQL
+full-text search and filters by subject, type and topic tag.

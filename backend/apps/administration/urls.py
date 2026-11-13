@@ -1,6 +1,11 @@
 from django.urls import path
 
 from .automation_views import AutomationJobDetailView, AutomationJobListView
+from .reference_views import (
+    SubjectReferenceHistoryView,
+    SubjectReferenceListView,
+    SubjectReferencePDFView,
+)
 from .views import (
     ContentDashboardView,
     OperationalResourceListView,
@@ -22,6 +27,21 @@ urlpatterns = [
         "operations/admin/automation/jobs/<uuid:job_id>",
         AutomationJobDetailView.as_view(),
         name="automation-job",
+    ),
+    path(
+        "operations/admin/automation/subjects/<uuid:subject_id>/references",
+        SubjectReferenceListView.as_view(),
+        name="automation-references",
+    ),
+    path(
+        "operations/admin/automation/subjects/<uuid:subject_id>/references/<uuid:reference_id>/history",
+        SubjectReferenceHistoryView.as_view(),
+        name="automation-reference-history",
+    ),
+    path(
+        "operations/admin/automation/subjects/<uuid:subject_id>/references/<uuid:reference_id>/pdf",
+        SubjectReferencePDFView.as_view(),
+        name="automation-reference-pdf",
     ),
     path("operations/session", OperationsSessionView.as_view(), name="session"),
     path("operations/resources", OperationalResourceListView.as_view(), name="resources"),

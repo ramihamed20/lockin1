@@ -1,6 +1,8 @@
 import uuid
 
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVector
 from django.db import models
 
 
@@ -218,3 +220,65 @@ class AutomationAttempt(models.Model):
 
     def __str__(self) -> str:
         return f"{self.job_id}:{self.attempt_number}"
+
+
+class SubjectReference(models.Model):
+    class Kind(models.TextChoices):
+        PAST_EXAM = "past_exam", "Previous-year exam"
+        PROFESSOR_SAMPLE = "professor_sample", "Professor sample"
+        TEXTBOOK = "textbook", "Textbook"
+        SUPPLEMENT = "supplement", "Lecture supplement"
+        QUESTION_BANK = "question_bank", "Question bank"
+        ANSWER_KEY = "answer_key", "Answer key"
+        INSTRUCTIONS = "instructions", "Exam instructions"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    family_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    revision = models.PositiveIntegerField(default=1)
+    subject = models.ForeignKey("education.EducationNode", on_delete=models.PROTECT)
+    file = models.ForeignKey("files.ManagedFile", on_delete=models.PROTECT)
+    title = models.CharField(max_length=220)
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    tags = models.JSONField(default=list)
+    checksum = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    indexed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("subject", "checksum"), name="reference_subject_checksum_unique"
+            ),
+            models.UniqueConstraint(
+                fields=("family_id", "revision"), name="reference_family_revision_unique"
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=("subject", "kind", "-created_at"), name="reference_subject_kind_idx"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class SubjectReferencePage(models.Model):
+    reference = models.ForeignKey(SubjectReference, on_delete=models.CASCADE, related_name="pages")
+    page = models.PositiveIntegerField()
+    text = models.TextField()
+    needs_visual_review = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ("page",)
+        indexes = [
+            GinIndex(SearchVector("text", config="simple"), name="reference_page_search_idx")
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=("reference", "page"), name="reference_page_unique"),
+            models.CheckConstraint(condition=models.Q(page__gte=1), name="reference_page_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.reference_id}:{self.page}"

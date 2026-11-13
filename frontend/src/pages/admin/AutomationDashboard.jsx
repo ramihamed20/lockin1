@@ -106,7 +106,7 @@ export function AutomationDashboard({ subjects = [], refresh = 0 }) {
       {data.results.length ? <ul className="admin2-pipeline">{data.results.map((job) => {
         const type = data.task_types.find((item) => item.id === job.job_type);
         return <li className="admin2-pipeline-item" key={job.id}>
-          <div className="admin2-row-head"><div><strong>{job.sheet_title || type?.label}</strong><small>{job.subject_title} {timestamp(job.created_at)}</small></div><span className="admin2-state">{STATUSES[job.status]}</span></div>
+          <div className="admin2-row-head"><div><strong>{job.sheet_title || type?.label || job.job_type}</strong><small>{job.subject_title} {timestamp(job.created_at)}</small></div><span className="admin2-state">{STATUSES[job.status]}</span></div>
           {job.error_message && <p>{job.error_message}</p>}
           <div className="admin2-pipeline-actions">
             <button type="button" className="btn btn-soft compact" aria-expanded={selected === job.id} onClick={() => setSelected(selected === job.id ? "" : job.id)}>Job details</button>

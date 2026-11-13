@@ -138,6 +138,8 @@ class AutomationJobListView(AutomationView):
         kind = str(data["job_type"])
         if kind not in available_types(actor, write=True):
             raise PermissionDenied("The required operational permission is not assigned.")
+        if kind != "question_package":
+            raise RequestRejected("Start this task from its administration area.")
         sheet = get_object_or_404(
             LearningObject.objects.select_related("current_version__academic_node"),
             id=data["sheet_id"],

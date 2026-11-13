@@ -215,6 +215,19 @@ def finish_job(
     job = AutomationJob.objects.select_for_update().get(id=job_id)
     if job.status != Status.PREPARING or job.revision != claim_revision:
         return False
+    task = TASKS[job.job_type]
+    if task.commit_output is not None and result == Result.SUCCEEDED:
+        try:
+            with transaction.atomic():
+                output = task.commit_output(job, output)
+        except Exception:
+            logger.error("Automation job %s failed while saving its result.", job.id)
+            target, result, error, output = (
+                Status.FAILED,
+                Result.FAILED,
+                ("output_failed", "Could not save the job result. Retry this job."),
+                {},
+            )
     job.output_manifest = output
     transition(job, target, error=error)
     finish_attempt(job, result, error)
