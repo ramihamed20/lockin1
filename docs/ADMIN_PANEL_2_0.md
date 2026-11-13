@@ -125,3 +125,14 @@ Poppler can run `python manage.py export_automation_page_images JOB_UUID
 up to eight original pages per run with bounded dimensions, memory and time.
 The review page links the task to its sheet. Medical interpretation remains
 part of the operator's visual review.
+
+## Operational checks
+
+The same job dashboard can run role-scoped, deterministic reviews for student
+access, subscriptions, payments, notifications, feedback, moderation, analytics,
+and system health. Counts are computed from source rows. Identifiers are limited
+to 25 examples per rule, with links to existing authorized consoles where
+supported. Feedback grouping covers up to 250 recent submissions and detects
+normalized duplicates. Payment and subscription findings are flags for
+operator review. Campaign drafts use the existing composer. The dispatch
+screen previews the recipient count and asks for confirmation before sending.

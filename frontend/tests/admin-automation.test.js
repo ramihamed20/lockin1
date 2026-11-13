@@ -54,7 +54,7 @@ test("Admin 2.0 reuses real server imports, capability checks and a separate ope
   assert.match(hub, /assessments\.manage/);
   assert.match(hub, /This application does not invoke agy/);
   assert.match(areas, /\["automation", "Automation", "content\.view"/);
-  assert.match(routes, /path: "\/operations\/admin\/automation", capability: "content\.view"/);
+  assert.match(routes, /path: "\/operations\/admin\/automation", capabilities: AUTOMATION_CAPABILITIES/);
   assert.match(operations, /AdminAutomationHub/);
   assert.match(operations, /Admin2ActionBar/);
   assert.match(actionBar, /hasOperationalCapability/);

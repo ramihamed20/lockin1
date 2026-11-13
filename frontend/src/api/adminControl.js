@@ -279,8 +279,9 @@ export const adminControlApi = {
   createCampaign(body) {
     return request("/operations/admin/notifications/campaigns", { method: "POST", body: { ...body, reason: reason(body.reason) } });
   },
-  dispatchCampaign(campaignId, dispatchReason) {
-    return request(`/operations/admin/notifications/campaigns/${id(campaignId, "campaign identifier")}/dispatch`, { method: "POST", body: { reason: reason(dispatchReason) } });
+  campaignAudience: (campaignId) => request(`/operations/admin/notifications/campaigns/${id(campaignId, "campaign identifier")}/audience`),
+  dispatchCampaign(campaignId, dispatchReason, recipientCount = undefined) {
+    return request(`/operations/admin/notifications/campaigns/${id(campaignId, "campaign identifier")}/dispatch`, { method: "POST", body: { reason: reason(dispatchReason), expected_recipient_count: recipientCount } });
   },
 
   moderationReports(options = {}) {

@@ -27,9 +27,14 @@ const CURRENT_AUTHENTICATED_ROUTES = new Set([
   "/settings"
 ]);
 
+export const AUTOMATION_CAPABILITIES = [
+  "content.view", "users.view", "subscriptions.view", "payments.view",
+  "notifications.view", "moderation.view", "analytics.view", "system_health.view"
+];
+
 export const ROUTE_ACCESS_CONFIG = Object.freeze([
   { path: "/operations/admin/content", capability: "content.view" },
-  { path: "/operations/admin/automation", capability: "content.view" },
+  { path: "/operations/admin/automation", capabilities: AUTOMATION_CAPABILITIES },
   { path: "/operations/admin/questions", capability: "assessments.view" },
   { path: "/operations/admin", capability: "overview.view" },
   { path: "/operations/configuration", capability: "configuration.view" },

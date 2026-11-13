@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { adminControlApi } from "../api/adminControl.js";
 import { hasOperationalCapability } from "../lib/authz.js";
-import { STUDIO_AREAS } from "../lib/studioAreas.js";
+import { canOpenStudioArea, STUDIO_AREAS } from "../lib/studioAreas.js";
 import { Icon } from "../lib/icons.jsx";
 import { useAsyncData, useDebouncedValue } from "../hooks/useAsyncData.js";
 import { AdminDrawer } from "../components/shared/AdminDrawer.jsx";
@@ -296,12 +296,54 @@ function CampaignForm({ onSaved }) {
     if (form.audience === "plan_users") return { plan_code: form.plan_code.trim() };
     return {};
   }
-  async function submit(event) { event.preventDefault(); setPending(true); setError(null); try { await adminControlApi.createCampaign({ ...form, scheduled_for: form.scheduled_for ? new Date(form.scheduled_for).toISOString() : null, audience_filter: audienceFilter() }); onSaved(); } catch (requestError) { setError(requestError); } finally { setPending(false); } }
+  async function submit(event) { event.preventDefault(); setPending(true); setError(null); try { await adminControlApi.createCampaign({ audience: form.audience, title: form.title, body: form.body, send_in_app: form.send_in_app, send_email: form.send_email, reason: form.reason, scheduled_for: form.scheduled_for ? new Date(form.scheduled_for).toISOString() : null, audience_filter: audienceFilter() }); onSaved(); } catch (requestError) { setError(requestError); } finally { setPending(false); } }
   return <form className="panel operations-form" onSubmit={submit}><div className="panel-title"><h2>New campaign</h2><span>Real recipients only</span></div><label className="field"><span>Audience</span><select value={form.audience} onChange={(event) => update("audience", event.target.value)}>{[["all_users", "All active users"], ["active_subscribers", "Active subscribers"], ["expired_subscribers", "Expired subscribers"], ["trial_users", "Trial users"], ["creators", "Creators"], ["user", "One user"], ["selected_users", "Selected users"], ["plan_users", "Users on a plan"]].map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>{form.audience === "user" && <label className="field"><span>User UUID</span><input value={form.user_id} onChange={(event) => update("user_id", event.target.value)} required /></label>}{form.audience === "selected_users" && <label className="field"><span>User UUIDs</span><textarea value={form.user_ids} onChange={(event) => update("user_ids", event.target.value)} placeholder="One UUID per line or comma-separated" required /></label>}{form.audience === "plan_users" && <label className="field"><span>Plan code</span><input value={form.plan_code} onChange={(event) => update("plan_code", event.target.value)} required /></label>}<label className="field"><span>Title</span><input maxLength={160} value={form.title} onChange={(event) => update("title", event.target.value)} required /></label><label className="field"><span>Message</span><textarea maxLength={320} value={form.body} onChange={(event) => update("body", event.target.value)} required /></label><label className="field"><span>Scheduled delivery (optional)</span><input type="datetime-local" value={form.scheduled_for} onChange={(event) => update("scheduled_for", event.target.value)} /></label><label className="check-row"><input type="checkbox" checked={form.send_in_app} onChange={(event) => update("send_in_app", event.target.checked)} /> In-app notification</label><label className="check-row"><input type="checkbox" checked={form.send_email} onChange={(event) => update("send_email", event.target.checked)} /> Email where configured</label><label className="field"><span>Administrative reason</span><input minLength={8} value={form.reason} onChange={(event) => update("reason", event.target.value)} required /></label><Notice error={error} /><FormButton pending={pending}>Save campaign</FormButton></form>;
 }
-function CampaignRow({ campaign, canManage, onChanged }) { const [reason, setReason] = useState(""); const [error, setError] = useState(null); const [pending, setPending] = useState(false); const [confirm, setConfirm] = useState(false); async function dispatch() { setPending(true); setError(null); try { await adminControlApi.dispatchCampaign(campaign.id, reason); onChanged(); setConfirm(false); } catch (requestError) { setError(requestError); } finally { setPending(false); } } return <article className="operations-campaign"><div><h3>{campaign.title}</h3><p>{humanize(campaign.audience)} · {humanize(campaign.status)} · {campaign.delivered_count} delivered · {campaign.failed_count} failed</p><small>{campaign.body}</small></div>{canManage && ["draft", "scheduled"].includes(campaign.status) && <div><input aria-label={`Reason to dispatch ${campaign.title}`} minLength={8} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Dispatch reason" /><button className="btn btn-soft compact" type="button" disabled={reason.trim().length < 8 || pending} onClick={() => setConfirm(true)}>Dispatch</button><Notice error={error} /></div>}<ConfirmDialog busy={Boolean(pending)} open={confirm} title="Dispatch campaign" message="Lock-in will select the actual audience at dispatch time, track each delivery, and record the operation." confirmLabel={pending ? "Dispatching…" : "Dispatch"} onCancel={() => setConfirm(false)} onConfirm={dispatch} /></article>; }
+function CampaignRow({ campaign, canManage, onChanged }) {
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState(null);
+  const [pending, setPending] = useState("");
+  const [audience, setAudience] = useState(null);
+  async function preview() {
+    setPending("preview");
+    setError(null);
+    try {
+      setAudience(await adminControlApi.campaignAudience(campaign.id));
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setPending("");
+    }
+  }
+  async function dispatch() {
+    if (!audience) return;
+    setPending("dispatch");
+    setError(null);
+    try {
+      await adminControlApi.dispatchCampaign(campaign.id, reason, audience.recipient_count);
+      onChanged();
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setPending("");
+      setAudience(null);
+    }
+  }
+  return <article className="operations-campaign">
+    <div><h3>{campaign.title}</h3><p>{humanize(campaign.audience)} · {humanize(campaign.status)} · {campaign.delivered_count} delivered · {campaign.failed_count} failed</p><small>{campaign.body}</small></div>
+    {canManage && ["draft", "scheduled"].includes(campaign.status) && <div>
+      <input aria-label={`Reason to dispatch ${campaign.title}`} minLength={8} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Dispatch reason" />
+      <button className="btn btn-soft compact" type="button" disabled={reason.trim().length < 8 || Boolean(pending)} onClick={preview}>{pending === "preview" ? "Checking audience…" : "Preview and dispatch"}</button>
+      <Notice error={error} />
+    </div>}
+    <ConfirmDialog busy={Boolean(pending)} open={Boolean(audience)} title="Dispatch campaign"
+      message={`This campaign currently targets ${audience?.recipient_count ?? 0} recipients. Lock-in will record the dispatch and track each delivery.`}
+      confirmLabel={pending === "dispatch" ? "Dispatching…" : "Dispatch"}
+      onCancel={() => setAudience(null)} onConfirm={dispatch} />
+  </article>;
+}
 
-function AuditLog() { const [page, setPage] = useState(1); const [domain, setDomain] = useState(""); const data = useAsyncData(() => adminControlApi.audit({ page, domain }), [page, domain]); if (data.loading) return <LoadingPanel variant="admin-list" />; if (data.error) return <ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} />; return <section className="operations-workspace"><div className="creator-page-tools"><div><p>Immutable history</p><h2>Administrative activity</h2><span>Reasons and actors are recorded.</span></div><label className="field"><span>Domain</span><select value={domain} onChange={(event) => { setDomain(event.target.value); setPage(1); }}><option value="">All domains</option>{["accounts", "subscriptions", "payments", "content", "notifications", "configuration"].map((value) => <option value={value} key={value}>{humanize(value)}</option>)}</select></label></div><section className="creator-panel list-panel"><div className="creator-panel-heading"><div><p>Audit log</p><h2>Recorded actions</h2></div><span>{formatNumber(data.data.count)} records</span></div>{data.data.results.length ? data.data.results.map((record) => <article className="list-row" key={record.id}><span className="stat-icon"><Icon name="activity" /></span><div><h2>{humanize(record.action)}</h2><p>{record.actor_name || "System"} · {record.reason} · {shortDate(record.occurred_at)}</p></div><span className="pill">{record.domain}</span></article>) : <EmptyState title="No audit records" text="No audit event is visible for this filter and permission." />}</section><Pager page={page} count={data.data.count} onPage={setPage} /></section>; }
+function AuditLog() { const [page, setPage] = useState(1); const [domain, setDomain] = useState(""); const data = useAsyncData(() => adminControlApi.audit({ page, domain }), [page, domain]); if (data.loading) return <LoadingPanel variant="admin-list" />; if (data.error) return <ErrorPanel message={data.errorDetails || data.error} onRetry={data.reload} />; return <section className="operations-workspace"><div className="creator-page-tools"><div><p>Immutable history</p><h2>Administrative activity</h2><span>Reasons and actors are recorded.</span></div><label className="field"><span>Domain</span><select value={domain} onChange={(event) => { setDomain(event.target.value); setPage(1); }}><option value="">All domains</option>{["accounts", "subscriptions", "payments", "content", "notifications", "configuration", "automation"].map((value) => <option value={value} key={value}>{humanize(value)}</option>)}</select></label></div><section className="creator-panel list-panel"><div className="creator-panel-heading"><div><p>Audit log</p><h2>Recorded actions</h2></div><span>{formatNumber(data.data.count)} records</span></div>{data.data.results.length ? data.data.results.map((record) => <article className="list-row" key={record.id}><span className="stat-icon"><Icon name="activity" /></span><div><h2>{humanize(record.action)}</h2><p>{record.actor_name || "System"} · {record.reason} · {shortDate(record.occurred_at)}</p></div><span className="pill">{record.domain}</span></article>) : <EmptyState title="No audit records" text="No audit event is visible for this filter and permission." />}</section><Pager page={page} count={data.data.count} onPage={setPage} /></section>; }
 
 function ConfigurationEditor({ entry, onSaved }) {
   const [value, setValue] = useState(entry.value);
@@ -365,10 +407,10 @@ function PlanPriceEditor({ plans, onSaved }) {
 export default function OperationsAdmin({ operationsSession }) {
   const location = useLocation(); const navigate = useNavigate();
   const requested = location.pathname.split("/").filter(Boolean).at(-1);
-  const allowed = useMemo(() => TABS.filter(([, , capability]) => hasOperationalCapability(operationsSession, capability)), [operationsSession]);
+  const allowed = useMemo(() => TABS.filter(([key, , capability]) => canOpenStudioArea(operationsSession, key, capability)), [operationsSession]);
   const active = allowed.some(([key]) => key === requested) ? requested : allowed[0]?.[0] || "overview";
   useEffect(() => { if (allowed.length && requested !== active) navigate(`/operations/admin/${active}`, { replace: true }); }, [active, allowed.length, navigate, requested]);
   const initialQuery = new URLSearchParams(location.search).get("q") || "";
-  const content = active === "overview" ? <Overview operationsSession={operationsSession} /> : active === "analytics" ? <Analytics /> : active === "users" ? <Users operationsSession={operationsSession} initialQuery={initialQuery} /> : active === "content" ? <><AdminContentManagement operationsSession={operationsSession} initialArea="sheets" /><LofiScenesPanel canManage={hasOperationalCapability(operationsSession, "content.manage")} /></> : active === "automation" ? <AdminAutomationHub operationsSession={operationsSession} /> : active === "questions" ? <AdminContentManagement operationsSession={operationsSession} initialArea="questions" /> : active === "purchases" ? <PaymentsConsole canManage={hasOperationalCapability(operationsSession, "payments.manage")} /> : active === "subscriptions" ? <><SubscriptionsConsole canManage={hasOperationalCapability(operationsSession, "subscriptions.manage")} /><Plans operationsSession={operationsSession} /></> : active === "notifications" ? <Notifications operationsSession={operationsSession} /> : active === "feedback" ? <><SubjectRequestsInbox canManage={hasOperationalCapability(operationsSession, "moderation.manage")} /><FeedbackInbox canManage={hasOperationalCapability(operationsSession, "moderation.manage")} /></> : active === "reports" ? <ReportsCenter operationsSession={operationsSession} /> : active === "audit" ? <AuditLog /> : active === "settings" ? <SettingsArea operationsSession={operationsSession} /> : active === "system" ? <SystemStatus /> : active === "exports" ? <Exports /> : <ErrorPanel message="This Creator Studio area is not available for the current server permission." />;
+  const content = active === "overview" ? <Overview operationsSession={operationsSession} /> : active === "analytics" ? <Analytics /> : active === "users" ? <Users operationsSession={operationsSession} initialQuery={initialQuery} /> : active === "content" ? <><AdminContentManagement operationsSession={operationsSession} initialArea="sheets" /><LofiScenesPanel canManage={hasOperationalCapability(operationsSession, "content.manage")} /></> : active === "automation" ? <AdminAutomationHub operationsSession={operationsSession} /> : active === "questions" ? <AdminContentManagement operationsSession={operationsSession} initialArea="questions" /> : active === "purchases" ? <PaymentsConsole key={initialQuery} initialQuery={initialQuery} canManage={hasOperationalCapability(operationsSession, "payments.manage")} /> : active === "subscriptions" ? <><SubscriptionsConsole key={initialQuery} initialQuery={initialQuery} canManage={hasOperationalCapability(operationsSession, "subscriptions.manage")} /><Plans operationsSession={operationsSession} /></> : active === "notifications" ? <Notifications operationsSession={operationsSession} /> : active === "feedback" ? <><SubjectRequestsInbox canManage={hasOperationalCapability(operationsSession, "moderation.manage")} /><FeedbackInbox canManage={hasOperationalCapability(operationsSession, "moderation.manage")} /></> : active === "reports" ? <ReportsCenter operationsSession={operationsSession} /> : active === "audit" ? <AuditLog /> : active === "settings" ? <SettingsArea operationsSession={operationsSession} /> : active === "system" ? <SystemStatus /> : active === "exports" ? <Exports /> : <ErrorPanel message="This Creator Studio area is not available for the current server permission." />;
   return <Page title="Admin Panel 2.0" showHeading={false} headingHandled><div className="creator-studio-frame"><div className="creator-studio"><StudioHeader active={active} allowed={allowed} /><Admin2ActionBar active={active} operationsSession={operationsSession} /><div className="creator-studio-content">{content}</div></div></div></Page>;
 }

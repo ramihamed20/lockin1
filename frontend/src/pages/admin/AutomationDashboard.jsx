@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { generateIdempotencyKey } from "../../api/pagination.js";
 import { adminControlApi } from "../../api/adminControl.js";
 import { ErrorPanel, LoadingPanel } from "../../components/ui/index.jsx";
 import { useAsyncData } from "../../hooks/useAsyncData.js";
@@ -20,7 +21,35 @@ function timestamp(value) {
   return value ? new Date(value).toLocaleString() : "";
 }
 
-function JobDetails({ jobId, canRun, onChange }) {
+function findingLabel(key) {
+  return key.replaceAll("_", " ");
+}
+
+function OperationalFindings({ findings, area }) {
+  return <div className="admin2-work-card">
+    <h4>Findings</h4>
+    <ul className="admin2-pipeline">
+      {Object.entries(findings).map(([key, value]) => <li key={key}>
+        <strong className="admin2-finding-label">{findingLabel(key)}</strong>
+        {value && typeof value === "object" ? Array.isArray(value)
+          ? (value.length ? <ul>{value.map((row, index) => <li key={index}>{Object.entries(row).map(([field, entry]) => `${findingLabel(field)} ${entry}`).join(" · ")}</li>)}</ul> : <p>None</p>)
+          : "count" in value ? <>
+            <p>{value.count}</p>
+            {!!value.examples.length && <ul>{value.examples.map((row) => <li key={row.id}>
+              {["users", "subscriptions", "purchases"].includes(area)
+                ? <Link to={`/operations/admin/${area}?q=${encodeURIComponent(row.id)}`}>{row.id}</Link>
+                : <span>{row.id}</span>}
+              {row.status || row.reason ? ` · ${row.status || row.reason}` : ""}
+            </li>)}</ul>}
+          </> : <ul>{Object.entries(value).map(([label, count]) => <li key={label}>{findingLabel(label)} · {String(count)}</li>)}</ul>
+          : <p>{typeof value === "boolean" ? (value ? "Flagged for review" : "Clear") : String(value)}</p>}
+      </li>)}
+    </ul>
+    {area && <Link to={`/operations/admin/${area}`}>Open administration area</Link>}
+  </div>;
+}
+
+function JobDetails({ jobId, canRun, area, onChange }) {
   const detail = useAsyncData((signal) => adminControlApi.automationJob(jobId, signal), [jobId]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -74,6 +103,7 @@ function JobDetails({ jobId, canRun, onChange }) {
       <QuestionJobReview job={job} canRun={canRun} onChange={() => { detail.reload(); onChange(); }} />}
     {job.output?.draft_import && <p>Approved and saved as drafts. Publish the sheet and Normal Questions separately.</p>}
 
+    {job.output?.findings && <OperationalFindings findings={job.output.findings} area={area} />}
     <h4>Execution attempts</h4>
     {job.attempts.length ? <ol>
       {job.attempts.map((attempt) => <li key={attempt.attempt_number}>
@@ -87,17 +117,44 @@ function JobDetails({ jobId, canRun, onChange }) {
 export function AutomationDashboard({ subjects = [], refresh = 0 }) {
   const [filters, setFilters] = useState({ page: 1, status: "", job_type: "", subject: "", date_from: "", date_to: "" });
   const [selected, setSelected] = useState("");
+  const [check, setCheck] = useState("");
+  const [queueing, setQueueing] = useState(false);
+  const [queueError, setQueueError] = useState("");
   const jobs = useAsyncData((signal) => adminControlApi.automationJobs(filters, signal), [filters, refresh]);
   const data = jobs.data;
   function filter(name, value) {
     setSelected("");
     setFilters((current) => ({ ...current, [name]: value, page: name === "page" ? value : 1 }));
   }
+  async function queueCheck(event) {
+    event.preventDefault();
+    if (!check || queueing) return;
+    setQueueing(true);
+    setQueueError("");
+    try {
+      await adminControlApi.queueAutomationJob({ job_type: check, idempotency_key: generateIdempotencyKey() });
+      setFilters({ page: 1, status: "", job_type: check, subject: "", date_from: "", date_to: "" });
+      setSelected("");
+      jobs.reload();
+    } catch (error) {
+      setQueueError(error.message);
+    } finally {
+      setQueueing(false);
+    }
+  }
+  const checks = data?.task_types.filter((type) => type.area && type.can_run) || [];
   return <section className="admin2-work-card">
     <div className="admin2-row-head">
       <h3>Automation jobs</h3>
       <button type="button" className="btn btn-soft compact" onClick={jobs.reload}>Refresh jobs</button>
     </div>
+    {!!checks.length && <form className="admin2-pipeline-actions" onSubmit={queueCheck}>
+      <label className="field"><span>Operational check</span><select value={check} onChange={(event) => setCheck(event.target.value)}>
+        <option value="">Choose a check</option>{checks.map((type) => <option key={type.id} value={type.id}>{type.label}</option>)}
+      </select></label>
+      <button className="btn btn-primary compact" type="submit" disabled={!check || queueing}>{queueing ? "Queueing…" : "Run check"}</button>
+    </form>}
+    {queueError && <p role="alert">{queueError}</p>}
     <div className="admin2-workflow">
       <label className="field"><span>Status</span><select value={filters.status || ""} onChange={(event) => filter("status", event.target.value)}>
         <option value="">All statuses</option>{Object.entries(STATUSES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
@@ -128,7 +185,7 @@ export function AutomationDashboard({ subjects = [], refresh = 0 }) {
             <button type="button" className="btn btn-soft compact" aria-expanded={selected === job.id} onClick={() => setSelected(selected === job.id ? "" : job.id)}>Job details</button>
             {job.sheet_id && <Link to={`/operations/admin/content?subject=${job.subject_id}&sheet=${job.sheet_id}`}>Open sheet</Link>}
           </div>
-          {selected === job.id && <JobDetails jobId={job.id} canRun={type?.can_run} onChange={jobs.reload} />}
+          {selected === job.id && <JobDetails jobId={job.id} canRun={type?.can_run} area={type?.area} onChange={jobs.reload} />}
         </li>;
       })}</ul> : <p>No jobs match these filters.</p>}
       <div className="admin2-pipeline-actions">

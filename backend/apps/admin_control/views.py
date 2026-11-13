@@ -6,6 +6,7 @@ from uuid import UUID
 
 from django.db import transaction
 from django.db.models import QuerySet
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.request import Request
@@ -73,6 +74,7 @@ from .services import (
     force_user_logout,
     grant_access_override,
     manage_subscription,
+    preview_notification_audience,
     request_payment_status_correction,
     review_payment_status_correction,
     revoke_access_override,
@@ -817,6 +819,15 @@ class AdminNotificationCampaignListView(APIView):
         )
 
 
+class AdminNotificationCampaignAudienceView(APIView):
+    permission_classes = [HasOperationalCapability]
+    required_capability = Capability.NOTIFICATIONS_MANAGE
+
+    def get(self, request: Request, campaign_id: UUID) -> Response:
+        campaign = get_object_or_404(NotificationCampaign, id=campaign_id)
+        return Response(preview_notification_audience(campaign))
+
+
 class AdminNotificationCampaignDispatchView(APIView):
     permission_classes = [HasOperationalCapability]
     required_capability = Capability.NOTIFICATIONS_MANAGE
@@ -833,6 +844,7 @@ class AdminNotificationCampaignDispatchView(APIView):
                 source="admin_control.api",
                 correlation_id=correlation_id,
                 ip_address=ip_address,
+                expected_recipient_count=serializer.validated_data.get("expected_recipient_count"),
             )
         except (AdminControlError, NotificationCampaign.DoesNotExist) as error:
             _raise(error, code="notification_campaign_dispatch_rejected")

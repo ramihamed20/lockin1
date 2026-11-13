@@ -25,6 +25,8 @@
 .admin2-state.is-error { color: var(--danger, #b42318); }
 .admin2-pipeline-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .admin2-json-file { display: inline-flex; cursor: pointer; position: relative; align-items: center; gap: 5px; }
+.admin2-finding-label { text-transform: capitalize; }
+.admin2-json-file:focus-within { outline: 2px solid currentColor; outline-offset: 2px; }
 .admin2-json-file input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 .admin2-drafts li { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line, #dedee4); }
 .admin2-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0; }

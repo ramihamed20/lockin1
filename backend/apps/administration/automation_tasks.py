@@ -12,6 +12,7 @@ from apps.files.services import managed_file_delivery_ready
 
 from .catalog import Capability
 from .models import AutomationJob, SubjectReference
+from .operational_checks import CHECKS
 from .pdf_extraction import (
     MAX_LECTURE_PAGES,
     MAX_REFERENCE_PAGES,
@@ -36,6 +37,7 @@ class TaskDefinition:
     prepare: Callable[[AutomationJob], dict[str, Any]]
     success_status: str
     commit_output: Callable[[AutomationJob, dict[str, Any]], dict[str, Any]] | None = None
+    area: str = ""
 
 
 def sheet_task_context(sheet: LearningObject, normal_count: int) -> dict[str, Any]:
@@ -138,3 +140,22 @@ TASKS = {
         commit_output=persist_reference,
     ),
 }
+
+
+def prepare_operational_check(job: AutomationJob) -> dict[str, Any]:
+    return {"schema": "lockin.operational_check.v1", "findings": CHECKS[job.job_type][3]()}
+
+
+TASKS.update(
+    {
+        key: TaskDefinition(
+            label=label,
+            view_permissions=(permission,),
+            write_permissions=(),
+            prepare=prepare_operational_check,
+            success_status=AutomationJob.Status.COMPLETED,
+            area=area,
+        )
+        for key, (label, permission, area, _) in CHECKS.items()
+    }
+)

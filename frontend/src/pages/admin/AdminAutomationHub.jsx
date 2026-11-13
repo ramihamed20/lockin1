@@ -132,9 +132,10 @@ function PipelineRow({ item, canQuestions, normalCount, referenceNotes, onPatch 
  * This is an operator-directed pipeline, NOT a hidden Antigravity CLI wrapper.
  */
 export default function AdminAutomationHub({ operationsSession }) {
+  const canViewContent = hasOperationalCapability(operationsSession, "content.view");
   const canManage = hasOperationalCapability(operationsSession, "content.manage");
   const canQuestions = canManage && hasOperationalCapability(operationsSession, "assessments.manage");
-  const subjectsData = useAsyncData(() => adminControlApi.contentSubjects({}), []);
+  const subjectsData = useAsyncData(() => canViewContent ? adminControlApi.contentSubjects({}) : Promise.resolve({ results: [] }), [canViewContent]);
   const [query, setQuery] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [rows, setRows] = useState([]);
@@ -215,6 +216,8 @@ export default function AdminAutomationHub({ operationsSession }) {
     setPending(false);
     setReloadDrafts((number) => number + 1);
   }
+
+  if (!canViewContent) return <AutomationDashboard />;
 
   return <div className="admin2-automation">
     <section className="admin2-banner">

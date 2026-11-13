@@ -43,6 +43,11 @@ class QueueJob(StrictSerializer):
     idempotency_key = serializers.UUIDField()
 
 
+class QueueOperationalCheck(StrictSerializer):
+    job_type = serializers.CharField(max_length=40)
+    idempotency_key = serializers.UUIDField()
+
+
 class JobControl(StrictSerializer):
     expected_revision = serializers.IntegerField(min_value=1)
     action = serializers.ChoiceField(choices=("retry", "cancel"))
@@ -125,19 +130,44 @@ class AutomationJobListView(AutomationView):
         writable = available_types(actor, write=True)
         response.data["status_counts"] = counts
         response.data["task_types"] = [
-            {"id": key, "label": TASKS[key].label, "can_run": key in writable}
+            {
+                "id": key,
+                "label": TASKS[key].label,
+                "can_run": key in writable,
+                "area": TASKS[key].area,
+            }
             for key in available_types(actor)
         ]
         return response
 
     def post(self, request: Request) -> Response:
         actor = cast(User, request.user)
+        if not isinstance(request.data, dict):
+            raise RequestRejected("Provide one automation job object.")
+        initial = QueueOperationalCheck(
+            data={key: request.data.get(key) for key in ("job_type", "idempotency_key")}
+        )
+        initial.is_valid(raise_exception=True)
+        kind = initial.validated_data["job_type"]
+        if kind not in available_types(actor, write=True):
+            raise PermissionDenied("The required operational permission is not assigned.")
+        if TASKS[kind].area:
+            check_serializer = QueueOperationalCheck(data=request.data)
+            check_serializer.is_valid(raise_exception=True)
+            try:
+                job, created = enqueue_job(
+                    actor=actor,
+                    job_type=kind,
+                    idempotency_key=check_serializer.validated_data["idempotency_key"],
+                    input_manifest={},
+                )
+            except AutomationConflict as error:
+                raise JobConflict(str(error)) from error
+            return Response(job_data(job), status=201 if created else 200)
         serializer = QueueJob(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         kind = str(data["job_type"])
-        if kind not in available_types(actor, write=True):
-            raise PermissionDenied("The required operational permission is not assigned.")
         if kind != "question_package":
             raise RequestRejected("Start this task from its administration area.")
         sheet = get_object_or_404(
