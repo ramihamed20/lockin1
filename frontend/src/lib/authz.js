@@ -29,6 +29,7 @@ const CURRENT_AUTHENTICATED_ROUTES = new Set([
 
 export const ROUTE_ACCESS_CONFIG = Object.freeze([
   { path: "/operations/admin/content", capability: "content.view" },
+  { path: "/operations/admin/automation", capability: "content.view" },
   { path: "/operations/admin/questions", capability: "assessments.view" },
   { path: "/operations/admin", capability: "overview.view" },
   { path: "/operations/configuration", capability: "configuration.view" },
