@@ -20,7 +20,8 @@ from platform_core.api.serializers import StrictSerializer
 
 from .automation import AutomationConflict, available_types, control_job, enqueue_job
 from .automation_tasks import TASKS, AutomationBlocked, sheet_task_context
-from .models import AutomationJob
+from .models import AutomationJob, SubjectReference
+from .references import searchable_references
 
 
 class JobConflict(APIException):
@@ -82,7 +83,22 @@ def job_data(job: AutomationJob, *, detail: bool = False) -> dict[str, Any]:
                 "attempt_number", "started_at", "finished_at", "result", "error_details"
             )
         )
-        data["output"] = job.output_manifest
+        output = job.output_manifest
+        if job.job_type == "question_package" and (sections := output.get("reference_sections")):
+            available = searchable_references(
+                SubjectReference.objects.filter(
+                    subject_id=job.academic_subject_id,
+                    id__in=[section["reference_id"] for section in sections],
+                )
+            ).values_list("id", flat=True)
+            available_ids = {str(reference_id) for reference_id in available}
+            output = {
+                **output,
+                "reference_sections": [
+                    section for section in sections if section["reference_id"] in available_ids
+                ],
+            }
+        data["output"] = output
     return data
 
 

@@ -33,11 +33,23 @@ def current_references(*, subject_id: UUID) -> QuerySet[SubjectReference]:
     )
 
 
+def searchable_references(references: QuerySet[SubjectReference]) -> QuerySet[SubjectReference]:
+    references = references.filter(
+        indexed_at__isnull=False,
+        file__validation_status=ManagedFile.ValidationStatus.READY,
+    ).exclude(
+        file__scan_status__in=(ManagedFile.ScanStatus.QUARANTINED, ManagedFile.ScanStatus.FAILED)
+    )
+    if settings.CONTENT_REQUIRE_CLEAN_SCAN:
+        references = references.filter(file__scan_status=ManagedFile.ScanStatus.CLEAN)
+    return references
+
+
 def search_pages(
     references: QuerySet[SubjectReference], query: str
 ) -> QuerySet[SubjectReferencePage]:
     pages = SubjectReferencePage.objects.filter(
-        reference__in=references.filter(indexed_at__isnull=False).order_by()
+        reference__in=searchable_references(references).order_by()
     ).select_related("reference")
     if connection.vendor == "postgresql":
         vector = SearchVector("text", config="simple")
@@ -163,19 +175,7 @@ def relevant_reference_sections(
     keys = [word for word, _ in term_counts.most_common(8)]
     if not keys:
         return []
-    references = (
-        current_references(subject_id=subject_id)
-        .filter(indexed_at__isnull=False)
-        .exclude(
-            file__scan_status__in=(
-                ManagedFile.ScanStatus.QUARANTINED,
-                ManagedFile.ScanStatus.FAILED,
-            )
-        )
-        .filter(file__validation_status=ManagedFile.ValidationStatus.READY)
-    )
-    if settings.CONTENT_REQUIRE_CLEAN_SCAN:
-        references = references.filter(file__scan_status=ManagedFile.ScanStatus.CLEAN)
+    references = searchable_references(current_references(subject_id=subject_id))
     score: Combinable = Value(0, output_field=IntegerField())
     for word in keys:
         score += Case(

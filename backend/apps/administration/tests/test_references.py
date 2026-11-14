@@ -131,3 +131,51 @@ def test_indexing_rejects_modified_bytes():
     assert job.status == AutomationJob.Status.BLOCKED
     assert job.error_code == "reference_unreadable"
     assert not reference.pages.exists()
+
+
+def test_indexed_excerpt_is_withheld_after_quarantine():
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    client = APIClient()
+    client.force_authenticate(admin)
+    url = reference_url(subject)
+    sentence = "Vascular permeability increases during the inflammation response."
+    result = upload(client, url, text_pdf(sentence))
+    assert result.status_code == 201, result.json()
+    reference_id = result.json()["id"]
+    call_command("run_automation_worker", once=True)
+    assert len(client.get(f"{url}?q=permeability").json()["matches"]) == 1
+
+    draft = client.post(
+        f"/api/v1/operations/admin/content/subjects/{subject.id}/automation-drafts",
+        {"title": "Vascular permeability", "pdf": _pdf(6, "lecture.pdf")},
+    )
+    assert draft.status_code == 201, draft.json()
+    jobs = "/api/v1/operations/admin/automation/jobs"
+    queued = client.post(
+        jobs,
+        {
+            "job_type": "question_package",
+            "sheet_id": draft.json()["id"],
+            "normal_count": 0,
+            "idempotency_key": str(uuid4()),
+        },
+    )
+    assert queued.status_code == 201, queued.json()
+    call_command("run_automation_worker", once=True)
+    job_url = f"{jobs}/{queued.json()['id']}"
+    assert (
+        client.get(job_url).json()["output"]["reference_sections"][0]["reference_id"]
+        == reference_id
+    )
+
+    reference = SubjectReference.objects.get(id=reference_id)
+    ManagedFile.objects.filter(id=reference.file_id).update(
+        scan_status=ManagedFile.ScanStatus.QUARANTINED
+    )
+    search = client.get(f"{url}?q=permeability").json()
+    assert search["count"] == 0
+    assert search["matches"] == []
+    assert client.get(job_url).json()["output"]["reference_sections"] == []
+    assert client.get(f"{url}/{reference_id}/pdf").status_code == 404
+    assert not relevant_reference_sections(subject_id=subject.id, title="Permeability", lecture=[])
