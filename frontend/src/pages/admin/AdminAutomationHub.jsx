@@ -120,11 +120,11 @@ export default function AdminAutomationHub({ operationsSession }) {
         {subjectsData.loading && <LoadingPanel />}
         {subjectsData.error && <ErrorPanel message={subjectsData.errorDetails || subjectsData.error} onRetry={subjectsData.reload} />}
         <label className="field"><span>Find a subject</span><input value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-        <label className="field"><span>Destination</span><select value={subjectId} disabled={uploading} onChange={(event) => chooseSubject(event.target.value)}>
+        <div className="field"><label htmlFor="automation-subject">Destination</label><select id="automation-subject" value={subjectId} disabled={uploading} onChange={(event) => chooseSubject(event.target.value)}>
           <option value="">Choose an existing subject</option>
           {selected && !matches.includes(selected) && <option value={selected.id}>{pathLabel(selected)}</option>}
           {matches.map((subject) => <option key={subject.id} value={subject.id}>{pathLabel(subject)}</option>)}
-        </select></label>
+        </select></div>
         {canQueue && <label className="field"><span>Normal Questions for the next task</span><input type="number" min="0" max="200" step="1" value={normal} onChange={(event) => setNormal(event.target.value)} /></label>}
       </section>
       {canManage && <section className="admin2-work-card">

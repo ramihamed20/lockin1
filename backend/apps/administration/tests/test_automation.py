@@ -3,11 +3,13 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
+from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.db import close_old_connections, connection
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.accounts.roles import Role
 from apps.accounts.tests.helpers import create_user
 from apps.administration.automation import (
     MAX_ATTEMPTS,
@@ -162,6 +164,7 @@ def test_worker_retries_a_blocked_pdf_after_scan(settings):
 def test_concurrent_workers_only_claim_one_job():
     if connection.vendor != "postgresql":
         pytest.skip("PostgreSQL locking test")
+    Group.objects.get_or_create(name=Role.ADMINISTRATOR.value)
     admin, client, subject, first = setup_draft()
     second = client.post(
         f"/api/v1/operations/admin/content/subjects/{subject.id}/automation-drafts",
