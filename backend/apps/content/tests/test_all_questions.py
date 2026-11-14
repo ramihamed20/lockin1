@@ -8,8 +8,11 @@ from typing import Any
 import pytest
 from rest_framework.test import APIClient
 
+from apps.accounts.tests.helpers import create_user
+from apps.administration.models import OperationalCapabilityAssignment
 from apps.audit.models import AuditRecord
-from apps.education.tests.helpers import create_admin, published_path
+from apps.education.tests.helpers import create_admin, pdf_upload, published_path
+from apps.files.models import ManagedFile
 from apps.files.services import create_managed_file
 from apps.questions.models import Question, QuestionImportBatch, QuestionVersion
 from apps.questions.services import (
@@ -19,6 +22,7 @@ from apps.questions.services import (
     create_question,
 )
 
+from ..admin_services import create_sheet, edition_primary_file
 from ..models import ActiveStudyQuestionContent, ActiveStudySettings
 from .test_sheet_editions import _pdf, _sheet
 
@@ -682,3 +686,171 @@ def test_a_failed_import_restores_the_previous_all_questions_batch(monkeypatch) 
     assert _context(client, base)["sheet_questions"]["all_questions_count"] == 30
     easy = ActiveStudyQuestionContent.objects.get(sheet=sheet, difficulty="easy")
     assert easy.revision == 1
+
+
+def test_automation_save_preserves_draft_visibility_and_rejects_repeat() -> None:
+    _, sheet, client, base = _world(pages=6)
+    draft = create_sheet(
+        actor=sheet.owner,
+        subject=sheet.current_version.academic_node,
+        managed_file=edition_primary_file(sheet, "university"),
+        title="Automation draft",
+        summary="",
+        position=0,
+        publish=False,
+        notify_students=False,
+        allow_download=False,
+    )
+    # The fixture builder below generates the legacy parts format.
+    draft.active_study_page_bank_enabled = False
+    draft.save(update_fields=("active_study_page_bank_enabled",))
+    sheet = draft
+    base = f"/api/v1/operations/admin/content/sheets/{sheet.id}"
+    context = _context(client, base)
+    document = _document(context, normal=2)
+    options = {"normal": 2, "draft_sheet_revision": context["sheet_revision"]}
+    response = _save(client, base, document, context, publish_sheet_questions=True, **options)
+    assert response.status_code == 400, response.json()
+    assert not ActiveStudyQuestionContent.objects.filter(sheet=sheet).exists()
+
+    response = _save(client, base, document, context, publish_sheet_questions=False, **options)
+    assert response.status_code == 200, response.json()
+    sheet.refresh_from_db()
+    assert sheet.workflow_status == sheet.WorkflowStatus.DRAFT
+    assert sheet.published_version_id is None
+    assert ActiveStudyQuestionContent.objects.filter(sheet=sheet).count() == 3
+    assert (
+        list(
+            Question.objects.filter(import_batch__sheet=sheet).values_list(
+                "workflow_status", flat=True
+            )
+        )
+        == [Question.WorkflowStatus.DRAFT] * 2
+    )
+    retry = _save(client, base, document, context, publish_sheet_questions=False, **options)
+    assert retry.status_code == 409, retry.json()
+    assert QuestionImportBatch.objects.filter(sheet=sheet).count() == 1
+
+
+def test_automation_save_rejects_published_and_stale_sheets() -> None:
+    _, sheet, client, base = _world(pages=6)
+    context = _context(client, base)
+    document = _document(context, normal=0)
+    options = {"normal": 0, "publish_sheet_questions": False}
+    response = _save(
+        client, base, document, context, draft_sheet_revision=context["sheet_revision"], **options
+    )
+    assert response.status_code == 409, response.json()
+
+    response = client.post(
+        f"{base}/actions", {"action": "unpublish", "expected_revision": sheet.revision}
+    )
+    assert response.status_code == 200, response.json()
+    stale = _save(
+        client, base, document, context, draft_sheet_revision=context["sheet_revision"], **options
+    )
+    assert stale.status_code == 409, stale.json()
+    assert "changed after task preparation" in str(stale.json())
+    revised = _context(client, base)
+    previous = _save(
+        client, base, document, revised, draft_sheet_revision=revised["sheet_revision"], **options
+    )
+    assert previous.status_code == 409, previous.json()
+    assert not ActiveStudyQuestionContent.objects.filter(sheet=sheet).exists()
+
+
+def test_automation_sheet_upload_rejects_same_pdf_under_a_different_name() -> None:
+    admin, sheet, client, _ = _world(pages=6)
+    subject = sheet.current_version.academic_node
+    file = create_managed_file(owner=admin, upload=_pdf(6, "different.pdf"), kind="pdf")
+    assert file.checksum_sha256 == edition_primary_file(sheet, "university").checksum_sha256
+    payload = {
+        "title": "Duplicate",
+        "primary_file_id": str(file.id),
+        "reject_duplicate_pdf": True,
+    }
+    url = f"/api/v1/operations/admin/content/subjects/{subject.id}/sheets"
+    duplicate = client.post(url, payload, format="json")
+    assert duplicate.status_code == 409, duplicate.json()
+    assert "already attached" in str(duplicate.json())
+
+    file = create_managed_file(owner=admin, upload=_pdf(8, "new.pdf"), kind="pdf")
+    payload["primary_file_id"] = str(file.id)
+    published = client.post(url, {**payload, "publish": True}, format="json")
+    assert published.status_code == 400, published.json()
+    created = client.post(url, payload, format="json")
+    assert created.status_code == 201, created.json()
+    assert created.json()["workflow_status"] == "draft"
+
+
+def test_automation_upload_and_save_require_existing_write_capabilities() -> None:
+    _, sheet, client, base = _world(pages=6)
+    context = _context(client, base)
+    document = _document(context, normal=2)
+    viewer = create_user(email="view-only@example.com")
+    OperationalCapabilityAssignment.objects.create(user=viewer, capability_id="content.view")
+    client.force_authenticate(viewer)
+    subject = sheet.current_version.academic_node
+    response = client.post(
+        f"/api/v1/operations/admin/content/subjects/{subject.id}/sheets",
+        {},
+        format="json",
+    )
+    assert response.status_code == 403
+    assert _validate(client, base, document, normal=2).status_code == 403
+    options = {
+        "normal": 2,
+        "draft_sheet_revision": context["sheet_revision"],
+        "publish_sheet_questions": False,
+    }
+    assert _save(client, base, document, context, **options).status_code == 403
+
+    content_manager = create_user(email="content-manager@example.com")
+    OperationalCapabilityAssignment.objects.create(
+        user=content_manager, capability_id="content.manage"
+    )
+    client.force_authenticate(content_manager)
+    assert _save(client, base, document, context, **options).status_code == 403
+    assert not ActiveStudyQuestionContent.objects.filter(sheet=sheet).exists()
+
+
+@pytest.mark.parametrize("field,value", [("type", []), ("correct_answer", {"answer": "A"})])
+def test_malformed_ai_question_returns_a_validation_error(field: str, value: object) -> None:
+    _, _, client, base = _world(pages=6)
+    document = _document(_context(client, base), normal=2)
+    document["sheet_questions"]["questions"][0][field] = value
+    errors = _errors(_validate(client, base, document, normal=2))
+    assert any(error["path"] == f"sheet_questions.questions[0].{field}" for error in errors)
+
+
+def test_automation_multipart_upload_creates_only_valid_drafts_and_audits() -> None:
+    admin = create_admin()
+    _, subject, _ = published_path(admin=admin)
+    client = APIClient()
+    url = f"/api/v1/operations/admin/content/subjects/{subject.id}/automation-drafts"
+    client.force_authenticate(create_user())
+    denied = client.post(url, {"title": "Denied", "pdf": _pdf(6, "denied.pdf")})
+    assert denied.status_code == 403
+    client.force_authenticate(admin)
+
+    bad = client.post(url, {"title": "Bad", "pdf": pdf_upload()})
+    assert bad.status_code == 400
+    for count in (6, 8):
+        result = client.post(url, {"title": f"Lecture {count}", "pdf": _pdf(count, "lecture.pdf")})
+        assert result.status_code == 201, result.json()
+        data = result.json()
+        assert data["workflow_status"] == "draft"
+        assert data["subject_id"] == str(subject.id)
+        assert data["student_visible"] is False
+        assert AuditRecord.objects.filter(
+            action="content.sheet_created", actor=admin, target_id=data["id"]
+        ).exists()
+
+    duplicate = client.post(url, {"title": "Duplicate", "pdf": _pdf(6, "renamed.pdf")})
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"]["code"] == "duplicate_sheet_pdf"
+    assert ManagedFile.objects.filter(owner=admin, kind=ManagedFile.Kind.PDF).count() == 2
+    rejected = client.post(
+        url, {"title": "Publish", "pdf": _pdf(9, "publish.pdf"), "publish": "true"}
+    )
+    assert rejected.status_code == 400

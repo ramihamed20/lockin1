@@ -26,7 +26,7 @@ import { LockinIcon } from "../../lib/lockinIcons.jsx";
 import { getFeatureForNavigationPath, isFeatureComingSoon } from "../../lib/featureAvailability.js";
 import { acquireBodyScrollLock } from "../../lib/bodyScrollLock.js";
 import { useGlide, usePresence } from "../../lib/motion.js";
-import { STUDIO_AREAS, STUDIO_GROUPS, STUDIO_PRIMARY_AREAS, isStudioRoute, studioAreaFromPath } from "../../lib/studioAreas.js";
+import { canOpenStudioArea, STUDIO_AREAS, STUDIO_GROUPS, STUDIO_PRIMARY_AREAS, isStudioRoute, studioAreaFromPath } from "../../lib/studioAreas.js";
 
 // --- Brand ---
 
@@ -114,7 +114,7 @@ export function NavList({ tabIndex = undefined, onNavigate = undefined, user, op
 // the first. "Back to Lock-in" is always the first entry.
 
 function studioAreasFor(operationsSession) {
-  return STUDIO_AREAS.filter(([, , capability]) => hasOperationalCapability(operationsSession, capability));
+  return STUDIO_AREAS.filter(([key, , capability]) => canOpenStudioArea(operationsSession, key, capability));
 }
 
 export function StudioNavList({ operationsSession, tabIndex = undefined, onNavigate = undefined, className = "nav-list" }) {

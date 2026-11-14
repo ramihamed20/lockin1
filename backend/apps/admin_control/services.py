@@ -718,6 +718,13 @@ def _campaign_recipients(campaign: NotificationCampaign) -> QuerySet[User]:
     return users.none()
 
 
+def preview_notification_audience(campaign: NotificationCampaign) -> dict[str, object]:
+    return {
+        "audience": campaign.audience,
+        "recipient_count": _campaign_recipients(campaign).count(),
+    }
+
+
 def _email_is_configured() -> bool:
     backend = str(getattr(settings, "EMAIL_BACKEND", ""))
     return backend not in {
@@ -798,6 +805,7 @@ def dispatch_notification_campaign(
     source: str,
     correlation_id: UUID | None = None,
     ip_address: str = "",
+    expected_recipient_count: int | None = None,
 ) -> NotificationCampaign:
     clean_reason = _require_reason(reason)
     campaign = NotificationCampaign.objects.select_for_update().get(id=campaign_id)
@@ -808,6 +816,8 @@ def dispatch_notification_campaign(
         raise AdminControlError("This campaign cannot be dispatched in its current state.")
     recipients = _campaign_recipients(campaign)
     recipient_count = recipients.count()
+    if expected_recipient_count is not None and recipient_count != expected_recipient_count:
+        raise AdminControlError("The audience size changed. Preview and confirm it again.")
     maximum = int(get_configuration_value("notifications.max_campaign_recipients"))
     if recipient_count > maximum:
         raise AdminControlError(

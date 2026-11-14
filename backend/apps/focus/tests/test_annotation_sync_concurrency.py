@@ -5,18 +5,22 @@ from threading import Barrier
 from uuid import uuid4
 
 import pytest
+from django.contrib.auth.models import Group
 from django.db import close_old_connections
+
+from apps.accounts.roles import Role
+from apps.entitlements.models import EntitlementDefinition
 
 from .test_workspace import _client, _stroke, _workspace_fixture
 
 
 @pytest.mark.postgres
-# A transactional test runs against whatever the previous one left, and every
-# transactional test ends by flushing the database -- migration-seeded groups
-# included. serialized_rollback reloads that seed first, so this test no longer
-# depends on being the first transactional test in the run.
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@pytest.mark.django_db(transaction=True)
 def test_two_devices_conflict_then_replay_without_losing_either_addition() -> None:
+    Group.objects.get_or_create(name=Role.ADMINISTRATOR.value)
+    EntitlementDefinition.objects.get_or_create(
+        code="focus.workspace", defaults={"title": "Focus workspace"}
+    )
     _, student, _, version_id = _workspace_fixture()
     barrier = Barrier(2)
 

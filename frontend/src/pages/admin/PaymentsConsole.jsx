@@ -586,9 +586,9 @@ function PaymentDetail({ paymentId, canManage, onReviewed, onClose }) {
   );
 }
 
-export default function PaymentsConsole({ canManage }) {
-  const [status, setStatus] = useState("pending_review");
-  const [query, setQuery] = useState("");
+export default function PaymentsConsole({ canManage, initialQuery = "" }) {
+  const [status, setStatus] = useState(initialQuery ? "" : "pending_review");
+  const [query, setQuery] = useState(initialQuery);
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);

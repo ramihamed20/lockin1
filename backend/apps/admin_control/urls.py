@@ -6,6 +6,7 @@ from .views import (
     AdminEntitlementInspectionView,
     AdminEntitlementRevokeView,
     AdminManualPaymentReviewView,
+    AdminNotificationCampaignAudienceView,
     AdminNotificationCampaignDispatchView,
     AdminNotificationCampaignListView,
     AdminPlanActionView,
@@ -116,6 +117,11 @@ urlpatterns = [
         "operations/admin/notifications/campaigns",
         AdminNotificationCampaignListView.as_view(),
         name="notification-campaigns",
+    ),
+    path(
+        "operations/admin/notifications/campaigns/<uuid:campaign_id>/audience",
+        AdminNotificationCampaignAudienceView.as_view(),
+        name="notification-campaign-audience",
     ),
     path(
         "operations/admin/notifications/campaigns/<uuid:campaign_id>/dispatch",

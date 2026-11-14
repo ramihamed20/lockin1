@@ -1,4 +1,4 @@
-import { hasOperationalCapability } from "./authz.js";
+import { AUTOMATION_CAPABILITIES, hasOperationalCapability } from "./authz.js";
 import { normalizeSearchText } from "./globalSearch.js";
 
 /**
@@ -14,6 +14,7 @@ export const STUDIO_AREAS = [
   ["purchases", "Payments", "payments.view", "coins", "Students"],
   ["subscriptions", "Subscriptions", "subscriptions.view", "layers", "Students"],
   ["content", "Content", "content.view", "file", "Library"],
+  ["automation", "Automation", "content.view", "sparkles", "Library"],
   ["questions", "Questions", "assessments.view", "file-question", "Library"],
   ["notifications", "Notifications", "notifications.view", "bell", "Engagement"],
   ["feedback", "Suggestions", "moderation.view", "messages", "Engagement"],
@@ -23,6 +24,12 @@ export const STUDIO_AREAS = [
   ["system", "System", "system_health.view", "activity", "Platform"],
   ["settings", "Settings", "configuration.view", "settings", "Platform"]
 ];
+
+export function canOpenStudioArea(session, area, capability) {
+  return area === "automation"
+    ? AUTOMATION_CAPABILITIES.some((code) => hasOperationalCapability(session, code))
+    : hasOperationalCapability(session, capability);
+}
 
 /** Sidebar group order. */
 export const STUDIO_GROUPS = ["Workspace", "Students", "Library", "Engagement", "Platform"];
@@ -42,6 +49,7 @@ const AREA_ALIASES = {
   subscriptions: "plans trials expired renewals",
   users: "students accounts people",
   content: "sheets pdf subjects library summaries active study",
+  automation: "bulk pdf upload drafts ai question generation import workflow antigravity",
   questions: "question bank import json",
   audit: "activity log history",
   reports: "moderation reports",
@@ -65,7 +73,7 @@ export function studioSearchResults(query, operationsSession, subjects = []) {
   if (!needle) return [];
   const results = [];
   for (const [key, label, capability] of STUDIO_AREAS) {
-    if (!hasOperationalCapability(operationsSession, capability)) continue;
+    if (!canOpenStudioArea(operationsSession, key, capability)) continue;
     const haystack = normalizeSearchText(`${label} ${AREA_ALIASES[key] || ""}`);
     if (haystack.includes(needle)) {
       results.push({ type: "studio", title: label, subtitle: "Creator Studio", destination: `/operations/admin/${key}` });

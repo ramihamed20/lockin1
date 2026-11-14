@@ -273,6 +273,12 @@ def _workspace_video_duration(upload: UploadedFile, content_type: str) -> int:
 @transaction.atomic
 def create_managed_file(*, owner: User, upload: UploadedFile, kind: str) -> ManagedFile:
     validated = validate_upload(upload=upload, kind=kind)
+    return store_validated_upload(owner=owner, upload=upload, validated=validated)
+
+
+def store_validated_upload(
+    *, owner: User, upload: UploadedFile, validated: ValidatedUpload
+) -> ManagedFile:
     scan_required = bool(settings.CONTENT_REQUIRE_CLEAN_SCAN)
     now = timezone.now()
     return ManagedFile.objects.create(

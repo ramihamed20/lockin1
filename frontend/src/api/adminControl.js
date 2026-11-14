@@ -63,12 +63,31 @@ export const adminControlApi = {
   },
   audit: (options = {}) => request("/operations/audit" + buildQueryString({ page: options.page || 1, page_size: options.pageSize || 25, action: options.action, domain: options.domain })),
 
+  automationJobs: (filters = {}, signal) => request("/operations/admin/automation/jobs" + buildQueryString(filters), { signal }),
+  automationJob: (jobId, signal) => request(`/operations/admin/automation/jobs/${id(jobId)}`, { signal }),
+  queueAutomationJob: (body) => request("/operations/admin/automation/jobs", { method: "POST", body }),
+  controlAutomationJob: (jobId, action, expectedRevision) => request(`/operations/admin/automation/jobs/${id(jobId)}`, { method: "POST", body: { action, expected_revision: expectedRevision } }),
+
+  automationCandidate: (jobId, signal) => request(`/operations/admin/automation/jobs/${id(jobId)}/questions`, { signal }),
+  validateAutomationCandidate: (jobId, payload, expectedRevision) => request(`/operations/admin/automation/jobs/${id(jobId)}/questions`, { method: "PUT", body: allQuestionsRequestBody({ payload, expected_revision: expectedRevision }) }),
+  reviewAutomationCandidate: (jobId, action, expectedRevision) => request(`/operations/admin/automation/jobs/${id(jobId)}/questions`, { method: "POST", body: { action, expected_revision: expectedRevision } }),
+
+  automationReferences: (subjectId, filters, signal) => request(`/operations/admin/automation/subjects/${id(subjectId)}/references` + buildQueryString(filters), { signal }),
+  automationReferenceHistory: (subjectId, referenceId, signal) => request(`/operations/admin/automation/subjects/${id(subjectId)}/references/${id(referenceId)}/history`, { signal }),
+  uploadAutomationReference: (subjectId, body) => request(`/operations/admin/automation/subjects/${id(subjectId)}/references`, { method: "POST", body }),
+
   contentSubjects: (options = {}) => request("/operations/admin/content/subjects" + buildQueryString({ q: options.query?.trim() })),
   subjectSheets(subjectId, options = {}) {
-    return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets` + buildQueryString({ q: options.query?.trim(), status: options.status }));
+    return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets` + buildQueryString({ q: options.query?.trim(), status: options.status, page: options.page }));
   },
   createSheet(subjectId, body) {
     return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/sheets`, { method: "POST", body });
+  },
+  uploadAutomationDraft(subjectId, title, file) {
+    const body = new FormData();
+    body.append("title", title);
+    body.append("pdf", file);
+    return request(`/operations/admin/content/subjects/${id(subjectId, "subject identifier")}/automation-drafts`, { method: "POST", body });
   },
   updateSheet(sheetId, body) {
     return request(`/operations/admin/content/sheets/${id(sheetId, "sheet identifier")}`, { method: "PATCH", body });
@@ -260,8 +279,9 @@ export const adminControlApi = {
   createCampaign(body) {
     return request("/operations/admin/notifications/campaigns", { method: "POST", body: { ...body, reason: reason(body.reason) } });
   },
-  dispatchCampaign(campaignId, dispatchReason) {
-    return request(`/operations/admin/notifications/campaigns/${id(campaignId, "campaign identifier")}/dispatch`, { method: "POST", body: { reason: reason(dispatchReason) } });
+  campaignAudience: (campaignId) => request(`/operations/admin/notifications/campaigns/${id(campaignId, "campaign identifier")}/audience`),
+  dispatchCampaign(campaignId, dispatchReason, recipientCount = undefined) {
+    return request(`/operations/admin/notifications/campaigns/${id(campaignId, "campaign identifier")}/dispatch`, { method: "POST", body: { reason: reason(dispatchReason), expected_recipient_count: recipientCount } });
   },
 
   moderationReports(options = {}) {
