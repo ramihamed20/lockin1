@@ -244,6 +244,7 @@ class NotificationCampaignCreateSerializer(StrictSerializer):
 
 class CampaignDispatchSerializer(StrictSerializer):
     reason = serializers.CharField(min_length=8, max_length=500, trim_whitespace=True)
+    expected_recipient_count = serializers.IntegerField(min_value=0, required=False)
 
 
 class PlanPriceInputSerializer(StrictSerializer):

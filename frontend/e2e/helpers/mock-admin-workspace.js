@@ -42,6 +42,7 @@ export async function mockAdmin(page, { locale = "en", detailGate = null, detail
       if (detailGate) await detailGate;
       return json(detailStatus === 200 ? DETAIL : { error: { code: "server_error", message: "Synthetic detail failure" } }, detailStatus);
     }
+    if (pathname.endsWith("/automation/jobs")) return json({ count: 0, results: [], status_counts: {}, task_types: [] });
     if (pathname.endsWith("/lofi-scenes")) return json({ scenes: [], max_scenes: 12, min_seconds: 2, max_seconds: 300, max_bytes: 50 * 1024 * 1024, recommended: { width: 1920, height: 1080, alternative: "1280×720" } });
     return json({ count: 0, results: [], plans: [], editions: [] });
   });

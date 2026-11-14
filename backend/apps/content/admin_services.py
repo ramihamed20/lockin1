@@ -6,6 +6,7 @@ from functools import partial
 from typing import Any, TypedDict, cast
 from uuid import UUID
 
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
@@ -17,7 +18,11 @@ from apps.audit.services import record_audit
 from apps.discovery.indexing import remove_search_entry
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
-from apps.files.services import managed_file_delivery_size
+from apps.files.services import (
+    managed_file_delivery_size,
+    store_validated_upload,
+    validate_upload,
+)
 from apps.notifications.models import Notification
 from apps.notifications.services import create_notification
 
@@ -377,6 +382,55 @@ def _publish_current(*, actor: User, sheet: LearningObject) -> LearningObject:
     )
 
 
+class DuplicateSheetPDF(ContentConflictError):
+    pass
+
+
+def _reject_duplicate_sheet_pdf(subject: EducationNode, checksum: str) -> None:
+    if LearningObjectAsset.objects.filter(
+        role=LearningObjectAsset.Role.PRIMARY,
+        managed_file__checksum_sha256=checksum,
+        version__academic_node=subject,
+        version__current_for__archived_at__isnull=True,
+        version__current_for__isnull=False,
+    ).exists():
+        raise DuplicateSheetPDF("This PDF is already attached to a sheet in this subject.")
+
+
+def upload_automation_draft(
+    *, actor: User, subject: EducationNode, upload: UploadedFile, title: str
+) -> LearningObject:
+    validated = validate_upload(upload=upload, kind=ManagedFile.Kind.PDF)
+    if not validated.pdf_page_count:
+        raise ContentFieldError("Upload a readable PDF with at least one page.", field="pdf")
+    managed_file = None
+    try:
+        with transaction.atomic():
+            # Check before storing a blob. Concurrent automation uploads for
+            # this subject serialize here, regardless of the uploaded filename.
+            subject = EducationNode.objects.select_for_update().get(id=subject.id)
+            _reject_duplicate_sheet_pdf(subject, validated.checksum_sha256)
+            managed_file = store_validated_upload(owner=actor, upload=upload, validated=validated)
+            return create_sheet(
+                actor=actor,
+                subject=subject,
+                managed_file=managed_file,
+                title=title,
+                summary="",
+                position=0,
+                publish=False,
+                notify_students=False,
+                allow_download=False,
+            )
+    except Exception:
+        if managed_file is not None:
+            try:
+                managed_file.blob.delete(save=False)
+            except Exception:
+                logger.exception("Failed to clean up an uncommitted automation upload.")
+        raise
+
+
 @transaction.atomic
 def create_sheet(
     *,
@@ -390,9 +444,17 @@ def create_sheet(
     publish: bool,
     notify_students: bool,
     allow_download: bool,
+    reject_duplicate_pdf: bool = False,
 ) -> LearningObject:
     if subject.kind != EducationNode.Kind.SUBJECT:
         raise ContentRuleError("Sheets must be created inside a subject.")
+    if reject_duplicate_pdf:
+        if publish or notify_students or allow_download:
+            raise ContentRuleError("Automation uploads must be private drafts.")
+        if not managed_file.pdf_page_count:
+            raise ContentRuleError("Upload a readable PDF with at least one page.")
+        subject = EducationNode.objects.select_for_update().get(id=subject.id)
+        _reject_duplicate_sheet_pdf(subject, managed_file.checksum_sha256)
     sheet = create_learning_object(
         actor=actor,
         data=LearningObjectInput(

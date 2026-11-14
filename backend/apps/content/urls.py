@@ -6,6 +6,7 @@ from .added_subject_views import (
     AdminAddedSubjectRequestListView,
 )
 from .admin_views import (
+    AdminAutomationDraftUploadView,
     AdminSheetActionView,
     AdminSheetActiveStudyPreviewView,
     AdminSheetActiveStudyQuestionsView,
@@ -322,6 +323,11 @@ urlpatterns = [
         "operations/admin/content/subjects",
         AdminSubjectListView.as_view(),
         name="admin-subjects",
+    ),
+    path(
+        "operations/admin/content/subjects/<uuid:subject_id>/automation-drafts",
+        AdminAutomationDraftUploadView.as_view(),
+        name="admin-automation-draft-upload",
     ),
     path(
         "operations/admin/content/subjects/<uuid:subject_id>/sheets",

@@ -94,7 +94,7 @@ test("Content Studio uses the content capability rather than the overview capabi
   assert.equal(canAccessRoute(user, "/operations/admin/content", { capabilities: ["overview.view"] }), false);
 });
 
-test("Creator Studio follows the shared hidden visual-page-heading default", async () => {
+test("Admin Panel 2.0 follows the shared hidden visual-page-heading default", async () => {
   const [pageComponent, operationsPage] = await Promise.all([
     readFile(new URL("../src/components/ui/index.jsx", import.meta.url), "utf8"),
     readFile(new URL("../src/pages/OperationsAdmin.jsx", import.meta.url), "utf8")
@@ -104,7 +104,7 @@ test("Creator Studio follows the shared hidden visual-page-heading default", asy
   assert.match(pageComponent, /showHeading\s*&&\s*<header className="section-heading">/);
   // The Studio top bar renders the page's one <h1>, so the Page fallback
   // heading is switched off rather than duplicated.
-  assert.match(operationsPage, /<Page title="Creator Studio" showHeading=\{false\} headingHandled>/);
+  assert.match(operationsPage, /<Page title="Admin Panel 2.0" showHeading=\{false\} headingHandled>/);
   assert.match(operationsPage, /<header className="studio-header">[\s\S]*?<h1>/);
   assert.doesNotMatch(operationsPage, /Creator Studio" subtitle=/);
 });

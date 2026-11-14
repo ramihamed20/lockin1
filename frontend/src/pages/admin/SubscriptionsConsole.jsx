@@ -225,9 +225,9 @@ function SubscriptionDetail({ subscriptionId, canManage, onChanged, onClose }) {
   );
 }
 
-export default function SubscriptionsConsole({ canManage }) {
+export default function SubscriptionsConsole({ canManage, initialQuery = "" }) {
   const [status, setStatus] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);

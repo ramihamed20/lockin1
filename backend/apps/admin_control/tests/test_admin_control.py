@@ -892,3 +892,45 @@ def test_due_campaign_scheduler_reports_success_and_isolates_failures() -> None:
     assert dispatched.call_count == 2
     assert "Dispatched 1 campaign(s); 1 failed." in output.getvalue()
     assert "was not dispatched: campaign locked" in errors.getvalue()
+
+
+def test_campaign_audience_preview_is_permissioned_and_rejects_changed_counts():
+    admin = _admin()
+    recipient = create_user()
+    client = APIClient()
+    client.force_authenticate(admin)
+    base = "/api/v1/operations/admin/notifications/campaigns"
+    created = client.post(
+        base,
+        {
+            "audience": "all_users",
+            "title": "Synthetic notice",
+            "body": "Staging only.",
+            "reason": "Preview the current campaign audience.",
+        },
+        format="json",
+    )
+    assert created.status_code == 201
+    campaign = f"{base}/{created.json()['id']}"
+    preview = client.get(f"{campaign}/audience")
+    assert preview.status_code == 200
+    count = preview.json()["recipient_count"]
+    assert count >= 2
+    missing_confirmation = client.post(
+        f"{campaign}/dispatch", {"reason": "Dispatch without an audience preview."}, format="json"
+    )
+    assert missing_confirmation.status_code == 400
+    client.force_authenticate(recipient)
+    assert client.get(f"{campaign}/audience").status_code == 403
+    client.force_authenticate(admin)
+    create_user(email="new-audience@example.com")
+    rejected = client.post(
+        f"{campaign}/dispatch",
+        {
+            "reason": "Confirm the previewed audience.",
+            "expected_recipient_count": count,
+        },
+        format="json",
+    )
+    assert rejected.status_code == 400
+    assert NotificationCampaign.objects.get(id=created.json()["id"]).status == "draft"

@@ -20,6 +20,12 @@ class AdminSheetCreateSerializer(StrictSerializer):
     publish = serializers.BooleanField(default=False)
     notify_students = serializers.BooleanField(default=False)
     allow_download = serializers.BooleanField(default=False)
+    reject_duplicate_pdf = serializers.BooleanField(default=False)
+
+
+class AdminAutomationDraftUploadSerializer(StrictSerializer):
+    title = serializers.CharField(max_length=220, trim_whitespace=True)
+    pdf = serializers.FileField(write_only=True)
 
 
 class AdminSheetUpdateSerializer(StrictSerializer):
@@ -167,6 +173,7 @@ class AdminAllQuestionsSaveSerializer(AdminAllQuestionsValidateSerializer):
         child=serializers.IntegerField(min_value=0), allow_empty=True
     )
     publish_sheet_questions = serializers.BooleanField(default=True)
+    draft_sheet_revision = serializers.IntegerField(min_value=1, required=False)
 
     def validate_expected_revisions(self, value):  # type: ignore[no-untyped-def]
         unknown = sorted(set(value) - {"easy", "medium", "hard"})

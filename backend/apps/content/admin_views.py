@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Count, Model, Q, QuerySet
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -12,6 +13,7 @@ from rest_framework.exceptions import (
     PermissionDenied,
     ValidationError,
 )
+from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,11 +24,12 @@ from apps.administration.permissions import HasOperationalCapability, has_operat
 from apps.audit.models import AuditRecord
 from apps.education.models import EducationNode
 from apps.files.models import ManagedFile
-from apps.files.services import managed_file_delivery_size
+from apps.files.services import FileValidationError, managed_file_delivery_size
 from apps.progress.models import Bookmark, LearningProgress
 from apps.questions.importing import QuestionImportValidationError
 from apps.questions.models import Question, QuestionImportBatch
 from apps.questions.services import QuestionConflictError, QuestionRuleError
+from platform_core.api.pagination import LockinPagination
 
 from .active_study_questions import ActiveStudyQuestionValidationError
 from .admin_serializers import (
@@ -37,6 +40,7 @@ from .admin_serializers import (
     AdminActiveStudySettingsSerializer,
     AdminAllQuestionsSaveSerializer,
     AdminAllQuestionsValidateSerializer,
+    AdminAutomationDraftUploadSerializer,
     AdminSheetActionSerializer,
     AdminSheetCreateSerializer,
     AdminSheetDeletePdfSerializer,
@@ -47,6 +51,7 @@ from .admin_serializers import (
     AdminSheetUpdateSerializer,
 )
 from .admin_services import (
+    DuplicateSheetPDF,
     active_study_payload,
     active_study_plan_preview,
     active_study_question_content_payload,
@@ -67,6 +72,7 @@ from .admin_services import (
     sheet_edition_summaries,
     update_active_study_settings,
     update_sheet,
+    upload_automation_draft,
     validate_active_study_question_content,
 )
 from .all_questions import (
@@ -457,6 +463,7 @@ class AdminSubjectListView(_ContentPermissionView):
             results.append(
                 {
                     "id": str(subject.id),
+                    "source_node_id": str(source_node.id),
                     "title": subject.title,
                     "path": f"catalog/{subject.material_slug}",
                     "status": "published",
@@ -491,19 +498,26 @@ class AdminSubjectSheetListView(_ContentPermissionView):
                 Q(current_version__title__icontains=query)
                 | Q(current_version__summary__icontains=query)
             )
+        subject_data = {
+            "id": str(catalog_subject.id if catalog_subject is not None else subject.id),
+            "title": catalog_subject.title if catalog_subject is not None else subject.title,
+        }
+        if "page" in request.query_params or "page_size" in request.query_params:
+            pager = LockinPagination()
+            rows = pager.paginate_queryset(sheets, request) or []
+            facts = _SheetListFacts.load(rows)
+            response = pager.get_paginated_response(
+                [serialize_sheet(sheet, facts=facts) for sheet in rows]
+            )
+            response.data["subject"] = subject_data
+            return response
         rows = list(sheets)
         facts = _SheetListFacts.load(rows)
-        results = [serialize_sheet(sheet, facts=facts) for sheet in rows]
         return Response(
             {
-                "subject": {
-                    "id": str(catalog_subject.id if catalog_subject is not None else subject.id),
-                    "title": (
-                        catalog_subject.title if catalog_subject is not None else subject.title
-                    ),
-                },
-                "count": len(results),
-                "results": results,
+                "subject": subject_data,
+                "count": len(rows),
+                "results": [serialize_sheet(sheet, facts=facts) for sheet in rows],
             }
         )
 
@@ -530,7 +544,34 @@ class AdminSubjectSheetListView(_ContentPermissionView):
                 publish=bool(data["publish"]),
                 notify_students=bool(data["notify_students"]),
                 allow_download=bool(data["allow_download"]),
+                reject_duplicate_pdf=bool(data["reject_duplicate_pdf"]),
             )
+        except ContentRuleError as error:
+            _raise_rule(error)
+        return Response(serialize_sheet(sheet), status=status.HTTP_201_CREATED)
+
+
+class AdminAutomationDraftUploadView(_ContentPermissionView):
+    parser_classes = [MultiPartParser]
+
+    def post(self, request: Request, subject_id: UUID) -> Response:
+        _, subject = _catalog_subject_node(subject_id)
+        serializer = AdminAutomationDraftUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        upload = serializer.validated_data["pdf"]
+        if not isinstance(upload, UploadedFile):
+            raise ValidationError({"pdf": ["Choose a PDF file."]})
+        try:
+            sheet = upload_automation_draft(
+                actor=_user(request),
+                subject=subject,
+                upload=upload,
+                title=str(serializer.validated_data["title"]),
+            )
+        except FileValidationError as error:
+            raise ValidationError({"pdf": [str(error)]}) from error
+        except DuplicateSheetPDF as error:
+            raise AdminContentConflict(str(error), code="duplicate_sheet_pdf") from error
         except ContentRuleError as error:
             _raise_rule(error)
         return Response(serialize_sheet(sheet), status=status.HTTP_201_CREATED)
@@ -923,6 +964,7 @@ class AdminSheetAllQuestionsView(_ContentPermissionView):
                     key: int(value) for key, value in data["expected_revisions"].items()
                 },
                 publish_sheet_questions=bool(data["publish_sheet_questions"]),
+                draft_sheet_revision=data.get("draft_sheet_revision"),
             )
         except AllQuestionsValidationError as error:
             return Response(error.as_dict(), status=status.HTTP_400_BAD_REQUEST)

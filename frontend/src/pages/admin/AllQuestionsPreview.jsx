@@ -21,6 +21,8 @@ export function AllQuestionsPreview({ payload }) {
     </div>
     {question ? <article className="admin-all-questions-preview-card" dir="auto">
       <p><strong>{position}. {question.question}</strong></p>
+      {question.source_page && <p>{t("allQuestions.page", { number: question.source_page })}</p>}
+      {question.difficulty && <p>{t(`questions.difficulty.${question.difficulty}`)}</p>}
       {question.type === "true_false" ? <p>{t("allQuestions.true")} / {t("allQuestions.false")}</p> : <ol type="A">{["A", "B", "C", "D"].map((key) => <li key={key} className={key === question.correct_answer ? "is-correct" : ""}>{question.options?.[key]}</li>)}</ol>}
       <p><strong>{t("allQuestions.correct")}:</strong> {question.type === "true_false" ? t(question.correct_answer ? "allQuestions.true" : "allQuestions.false") : question.correct_answer}</p>
       <p><strong>{t("allQuestions.explanation")}:</strong> {question.explanation}</p>

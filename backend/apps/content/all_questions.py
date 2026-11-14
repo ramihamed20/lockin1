@@ -47,6 +47,7 @@ from .active_study_questions import (
 from .active_study_readiness import effective_settings
 from .admin_services import (
     active_study_plan_preview,
+    has_publication_history,
     save_active_study_question_content,
     update_active_study_settings,
 )
@@ -60,7 +61,7 @@ from .services import ContentConflictError, ContentRuleError
 MAX_REPORTED_ERRORS = 200
 DIFFICULTY_LABELS = {"easy": "Easy", "medium": "Medium", "hard": "Hard"}
 SHEET_QUESTIONS_LABEL = "Normal Questions"
-_PAGES = re.compile(r"^\s*(\d+)\s*(?:[-–—]\s*(\d+)\s*)?$")
+_PAGES = re.compile(r"^\s*(\d{1,5})\s*(?:[-–—]\s*(\d{1,5})\s*)?$")
 _INDEX = re.compile(r"\[(\d+)\]")
 
 # Stored on the version of every Normal Question All Questions imports. It is
@@ -206,6 +207,8 @@ def all_questions_context(
     return {
         "edition": edition,
         "edition_label": edition_label(edition),
+        "sheet_revision": sheet.revision,
+        "sheet_status": sheet.workflow_status,
         # One sheet, one question bank: the Lock-in edition plans its own pages
         # but writes into the same bank as the University Sheet.
         "shared_question_bank": edition == LOCKIN,
@@ -404,7 +407,7 @@ def _validate_difficulty(
 
 
 def _validate_sheet_questions(
-    raw: Any, *, expected: int, errors: list[dict[str, str]]
+    raw: Any, *, expected: int, start_page: int, end_page: int, errors: list[dict[str, str]]
 ) -> dict[str, object] | None:
     """Normal Questions in the A-D shape, returned as a ``lockin_questions_v1`` import."""
 
@@ -441,10 +444,39 @@ def _validate_sheet_questions(
             }
         )
     own_errors: list[dict[str, str]] = []
-    questions = [
-        validate_question_object(item, errors=own_errors, path=f"{prefix}.questions[{index}]")
-        for index, item in enumerate(raw_questions)
-    ]
+    questions = []
+    for index, item in enumerate(raw_questions):
+        path = f"{prefix}.questions[{index}]"
+        extra: dict[str, object] = {}
+        if isinstance(item, dict):
+            item = dict(item)
+            if "source_page" in item:
+                page = item.pop("source_page")
+                if (
+                    isinstance(page, bool)
+                    or not isinstance(page, int)
+                    or not (start_page <= page <= end_page)
+                ):
+                    own_errors.append(
+                        {
+                            "path": f"{path}.source_page",
+                            "message": f"Source page must be between {start_page} and {end_page}.",
+                        }
+                    )
+                else:
+                    extra["source_page"] = page
+            if "difficulty" in item:
+                difficulty = item.pop("difficulty")
+                if not isinstance(difficulty, str) or difficulty not in DIFFICULTY_LABELS:
+                    own_errors.append(
+                        {
+                            "path": f"{path}.difficulty",
+                            "message": "Difficulty must be easy, medium or hard.",
+                        }
+                    )
+                else:
+                    extra["difficulty"] = difficulty
+        questions.append({**validate_question_object(item, errors=own_errors, path=path), **extra})
     seen: set[str] = set()
     for index, question in enumerate(questions):
         normalized = " ".join(str(question.get("question", "")).split()).casefold()
@@ -468,6 +500,11 @@ def _validate_sheet_questions(
                     "question": question["question"],
                     "correct_answer": question["correct_answer"],
                     "explanation": question["explanation"],
+                    **{
+                        key: question[key]
+                        for key in ("source_page", "difficulty")
+                        if key in question
+                    },
                 }
                 if question.get("type") == "true_false"
                 else {
@@ -481,6 +518,11 @@ def _validate_sheet_questions(
                         cast(str, question["correct_answer"])
                     ],
                     "explanation": question["explanation"],
+                    **{
+                        key: question[key]
+                        for key in ("source_page", "difficulty")
+                        if key in question
+                    },
                 }
             )
             for question in questions
@@ -674,7 +716,11 @@ def validate_all_questions(
             if normalized is not None:
                 difficulty_payloads[str(row["difficulty"])] = normalized
         sheet_question_import = _validate_sheet_questions(
-            payload.get("sheet_questions"), expected=sheet_question_count, errors=errors
+            payload.get("sheet_questions"),
+            expected=sheet_question_count,
+            start_page=cast(int, context["effective_start_page"]),
+            end_page=cast(int, context["effective_end_page"]),
+            errors=errors,
         )
     summary = _summary(
         payload=payload,
@@ -705,6 +751,7 @@ def save_all_questions(
     settings_revision: int,
     expected_revisions: dict[str, int],
     publish_sheet_questions: bool,
+    draft_sheet_revision: int | None = None,
 ) -> dict[str, object]:
     """Validate everything, then save everything -- or nothing.
 
@@ -715,6 +762,23 @@ def save_all_questions(
 
     edition = normalize_edition(edition)
     sheet = LearningObject.objects.select_for_update().get(id=sheet_id)
+    if draft_sheet_revision is not None:
+        if publish_sheet_questions:
+            raise ContentRuleError("An Automation import cannot publish questions.")
+        if sheet.revision != draft_sheet_revision:
+            raise ContentConflictError(
+                "The sheet changed after task preparation. Prepare a new task."
+            )
+        if sheet.workflow_status != LearningObject.WorkflowStatus.DRAFT or has_publication_history(
+            sheet
+        ):
+            raise ContentConflictError("Automation can only import into a never-published draft.")
+        if ActiveStudyQuestionContent.objects.filter(sheet=sheet).exists() or _sheet_question_count(
+            sheet
+        ):
+            raise ContentConflictError(
+                "This sheet already has questions. Review them in All Questions."
+            )
     validation = validate_all_questions(
         sheet=sheet,
         payload=payload,
@@ -758,7 +822,11 @@ def save_all_questions(
         # does) the previous All Questions Normal Questions, then import the new
         # batch. Attempts and history keep the archived versions. A run with no
         # Normal Questions leaves the previous ones alone.
-        previous = list(all_questions_sheet_questions(sheet).values_list("id", flat=True))
+        previous = (
+            list(all_questions_sheet_questions(sheet).values_list("id", flat=True))
+            if draft_sheet_revision is None
+            else []
+        )
         if previous:
             bulk_question_action(actor=actor, question_ids=previous, action="archive")
         replaced_sheet_questions = len(previous)

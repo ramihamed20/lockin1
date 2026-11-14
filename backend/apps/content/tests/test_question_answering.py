@@ -11,6 +11,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from django.contrib.auth.models import Group
 from django.db import close_old_connections, connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
@@ -18,10 +19,11 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.accounts.roles import Role
 from apps.accounts.tests.helpers import create_user
 from apps.content.models import CatalogSubject, LearningObject
-from apps.education.models import StudentCohort
-from apps.education.tests.helpers import create_admin
+from apps.education.models import AcademicProgram, StudentCohort
+from apps.education.tests.helpers import create_admin, published_path
 from apps.entitlements.models import EntitlementDefinition, EntitlementGrant
 from apps.questions.admin_services import import_questions
 from apps.questions.answering import answer_question
@@ -400,20 +402,30 @@ def test_a_submission_that_loses_the_race_returns_the_recorded_answer() -> None:
 
 
 @pytest.mark.postgres
-# The fixture reads the migration-seeded education tree, and an earlier
-# transactional test will have flushed it. serialized_rollback reloads it first.
-@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+@pytest.mark.django_db(transaction=True)
 @override_settings(COHORT_CONTENT_ENFORCEMENT=True)
 def test_concurrent_submissions_record_one_answer_and_one_award() -> None:
-    """Real concurrent requests against PostgreSQL's unique index.
+    """Real concurrent requests against PostgreSQL's unique index."""
 
-    The fixture creates no CatalogSubject by hand: in a transactional test the
-    catalog projection runs on commit and has already created every branch.
-    """
-
-    fixture = _fixture()
-    sheet, student = fixture["zawiya_sheet"], fixture["zawiya_student"]
-    assert isinstance(sheet, LearningObject) and isinstance(student, User)
+    Group.objects.get_or_create(name=Role.ADMINISTRATOR.value)
+    EntitlementDefinition.objects.get_or_create(
+        code="content.premium", defaults={"title": "Premium content"}
+    )
+    admin = create_admin()
+    institution, subject, _ = published_path(admin=admin)
+    program = AcademicProgram.objects.create(code="answer-race", name_en="Test", name_ar="اختبار")
+    cohort = StudentCohort.objects.create(
+        program=program, code="year-2", name_en="Year 2", name_ar="السنة الثانية"
+    )
+    cohort.content_nodes.add(institution)
+    sheet = published_pdf(actor=admin, node=subject)
+    import_questions(
+        actor=admin,
+        sheet=sheet,
+        publish=True,
+        payload={"version": "lockin_questions_v1", "questions": [_question("Race", "easy")]},
+    )
+    student = _student("answer-race@example.com", cohort)
     question = _questions(_client(student), sheet)["easy"]
     url = f"/api/v1/catalog/sheets/{sheet.id}/questions/{question['id']}/answer"
     choices = [choice["id"] for choice in question["choices"]]

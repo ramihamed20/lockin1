@@ -208,7 +208,9 @@ def operational_users(
         .all()
     )
     if query:
-        users = users.filter(Q(email__istartswith=query) | Q(full_name__istartswith=query))
+        users = users.filter(
+            Q(id__iexact=query) | Q(email__istartswith=query) | Q(full_name__istartswith=query)
+        )
     if status in User.Status.values:
         users = users.filter(status=status)
     if role:
