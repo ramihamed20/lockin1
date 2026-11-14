@@ -101,7 +101,7 @@ export default function AdminAutomationHub({ operationsSession }) {
           patch(item.id, { status: "draft", sheetId: sheet.id });
         } catch (failure) {
           patch(item.id, {
-            status: failure.status === 409 ? "duplicate" : "error",
+            status: failure.code === "duplicate_sheet_pdf" ? "duplicate" : "error",
             error: failure.message || "Could not upload this PDF."
           });
         }

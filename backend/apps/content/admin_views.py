@@ -51,6 +51,7 @@ from .admin_serializers import (
     AdminSheetUpdateSerializer,
 )
 from .admin_services import (
+    DuplicateSheetPDF,
     active_study_payload,
     active_study_plan_preview,
     active_study_question_content_payload,
@@ -569,6 +570,8 @@ class AdminAutomationDraftUploadView(_ContentPermissionView):
             )
         except FileValidationError as error:
             raise ValidationError({"pdf": [str(error)]}) from error
+        except DuplicateSheetPDF as error:
+            raise AdminContentConflict(str(error), code="duplicate_sheet_pdf") from error
         except ContentRuleError as error:
             _raise_rule(error)
         return Response(serialize_sheet(sheet), status=status.HTTP_201_CREATED)

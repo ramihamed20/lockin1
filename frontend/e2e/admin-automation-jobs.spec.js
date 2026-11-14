@@ -51,7 +51,7 @@ test("batch upload and the saved draft queue use the same academic subject", asy
     if (url.pathname.endsWith("/automation-drafts")) {
       expect(url.pathname).toContain(subject.id);
       uploadCount += 1;
-      return route.fulfill({ status: uploadCount === 1 ? 201 : 409, json: uploadCount === 1 ? draft : { error: { code: "revision_conflict", message: "This PDF is already attached." } } });
+      return route.fulfill({ status: uploadCount === 1 ? 201 : 409, json: uploadCount === 1 ? draft : { error: { code: "duplicate_sheet_pdf", message: "This PDF is already attached to a sheet in this subject." } } });
     }
     return route.fulfill({ json: { results: uploadCount ? [draft] : [], count: uploadCount ? 1 : 0 } });
   });
@@ -70,7 +70,7 @@ test("batch upload and the saved draft queue use the same academic subject", asy
     { name: "Duplicate.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7") }
   ]);
   await page.getByRole("button", { name: "Upload drafts" }).click();
-  await expect(page.getByText("This PDF is already attached.")).toBeVisible();
+  await expect(page.getByText("هذا الملف مرفق مسبقًا بشيت في هذه المادة.")).toBeVisible();
   await page.getByRole("button", { name: "Queue AI task" }).click();
   await expect(page.getByText("New lecture queued. Open Automation jobs to continue.")).toBeVisible();
   expect(queueBody).toMatchObject({ job_type: "question_package", sheet_id: ID, normal_count: 30 });

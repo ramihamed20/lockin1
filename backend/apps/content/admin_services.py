@@ -382,6 +382,10 @@ def _publish_current(*, actor: User, sheet: LearningObject) -> LearningObject:
     )
 
 
+class DuplicateSheetPDF(ContentConflictError):
+    pass
+
+
 def _reject_duplicate_sheet_pdf(subject: EducationNode, checksum: str) -> None:
     if LearningObjectAsset.objects.filter(
         role=LearningObjectAsset.Role.PRIMARY,
@@ -390,7 +394,7 @@ def _reject_duplicate_sheet_pdf(subject: EducationNode, checksum: str) -> None:
         version__current_for__archived_at__isnull=True,
         version__current_for__isnull=False,
     ).exists():
-        raise ContentConflictError("This PDF is already attached to a sheet in this subject.")
+        raise DuplicateSheetPDF("This PDF is already attached to a sheet in this subject.")
 
 
 def upload_automation_draft(

@@ -848,6 +848,7 @@ def test_automation_multipart_upload_creates_only_valid_drafts_and_audits() -> N
 
     duplicate = client.post(url, {"title": "Duplicate", "pdf": _pdf(6, "renamed.pdf")})
     assert duplicate.status_code == 409
+    assert duplicate.json()["error"]["code"] == "duplicate_sheet_pdf"
     assert ManagedFile.objects.filter(owner=admin, kind=ManagedFile.Kind.PDF).count() == 2
     rejected = client.post(
         url, {"title": "Publish", "pdf": _pdf(9, "publish.pdf"), "publish": "true"}
