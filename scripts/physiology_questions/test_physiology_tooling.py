@@ -67,6 +67,17 @@ def _make_bank(offset: int, count: int) -> list[dict[str, object]]:
     return out
 
 
+def _build_tar(entries: list[tuple[str, bytes]]) -> io.BytesIO:
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w") as tf:
+        for name, raw in entries:
+            ti = tarfile.TarInfo(name=name)
+            ti.size = len(raw)
+            tf.addfile(ti, io.BytesIO(raw))
+    buf.seek(0)
+    return buf
+
+
 class PhysiologyToolingTests(unittest.TestCase):
     def test_exam_style_length_within_admin_cap(self) -> None:
         self.assertLessEqual(len(PHYSIOLOGY_EXAM_STYLE), 6000)
@@ -222,7 +233,7 @@ class PhysiologyToolingTests(unittest.TestCase):
         self.assertTrue(r_style.cross_duplicates)
         self.assertGreaterEqual(len(r_style.style_errors), 2)
 
-    def test_production_extractor_is_strictly_read_only_and_valid_python(self) -> None:
+    def test_production_extractor_is_strictly_read_only_and_compatible_with_models(self) -> None:
         src = (HERE / "inspect_and_export_physiology.py").read_text(encoding="utf-8")
         tree = ast.parse(src)
         forbidden_calls = {"save", "create", "update", "delete", "bulk_create", "bulk_update"}
@@ -241,12 +252,52 @@ class PhysiologyToolingTests(unittest.TestCase):
         self.assertEqual(found, [], msg=f"Unexpected DB write-like calls: {found}")
         self.assertNotIn("SECRET", src)
         self.assertNotIn("PASSWORD", src)
+        self.assertNotIn("cohort.slug", src)
 
-    def test_safe_tar_extractor_blocks_traversal_and_verifies_sha256(self) -> None:
+        # Verify actual Django model fields in this repo AND production lockin1 (main)
+        from apps.content.models import (
+            ActiveStudyQuestionContent,
+            ActiveStudySettings,
+            CatalogDocument,
+            CatalogSubject,
+            LearningObject,
+            LearningObjectAsset,
+            LearningObjectVersion,
+        )
+        from apps.education.models import AcademicProgram, EducationNode, StudentCohort
+        from apps.files.models import ManagedFile
+        from apps.questions.models import Question, QuestionVersion
+
+        cohort_fields = {f.name for f in StudentCohort._meta.get_fields()}
+        self.assertIn("code", cohort_fields)
+        self.assertIn("name_en", cohort_fields)
+        self.assertIn("program", cohort_fields)
+        self.assertNotIn("slug", cohort_fields)
+
+        program_fields = {f.name for f in AcademicProgram._meta.get_fields()}
+        self.assertTrue({"code", "name_en"}.issubset(program_fields))
+
+        node_fields = {f.name for f in EducationNode._meta.get_fields()}
+        self.assertTrue({"path", "title", "slug"}.issubset(node_fields))
+
+        subj_fields = {f.name for f in CatalogSubject._meta.get_fields()}
+        self.assertTrue({"id", "title", "slug", "material_slug", "is_active", "cohort", "source_node"}.issubset(subj_fields))
+
+        lo_fields = {f.name for f in LearningObject._meta.get_fields()}
+        self.assertTrue({"id", "workflow_status", "position", "current_version"}.issubset(lo_fields))
+        self.assertTrue({"academic_node", "content_type", "title"}.issubset({f.name for f in LearningObjectVersion._meta.get_fields()}))
+        self.assertTrue({"version", "managed_file", "role", "position"}.issubset({f.name for f in LearningObjectAsset._meta.get_fields()}))
+        self.assertTrue({"managed_file", "is_active", "sheet_slug"}.issubset({f.name for f in CatalogDocument._meta.get_fields()}))
+        self.assertTrue({"sheet", "edition", "enabled", "total_pdf_pages", "excluded_start_pages", "excluded_end_pages", "revision", "updated_at"}.issubset({f.name for f in ActiveStudySettings._meta.get_fields()}))
+        self.assertTrue({"sheet", "difficulty", "checkpoint_question_count", "final_exam_question_count", "revision", "updated_at"}.issubset({f.name for f in ActiveStudyQuestionContent._meta.get_fields()}))
+        self.assertTrue({"source_learning_object", "question", "question_type"}.issubset({f.name for f in QuestionVersion._meta.get_fields()}))
+        self.assertTrue({"current_version", "workflow_status"}.issubset({f.name for f in Question._meta.get_fields()}))
+        self.assertTrue({"id", "blob", "original_name", "checksum_sha256", "pdf_page_count"}.issubset({f.name for f in ManagedFile._meta.get_fields()}))
+
+    def test_safe_tar_extractor_atomicity_no_overwrite_and_error_cleanup(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp) / "production_pdfs"
             base.mkdir()
-            good_dest = base / "physiology_year1"
 
             # Outside allowed base must raise
             with self.assertRaises(ValueError):
@@ -254,47 +305,91 @@ class PhysiologyToolingTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_dest_dir(base, allowed_base=base)
 
-            # Build valid tar stream with manifest + pdf
+            # Empty stream must fail AND must NOT create destination directory or leftovers
+            empty_dest = base / "fail_empty"
+            with self.assertRaises(ValueError):
+                safe_unpack_and_verify(io.BytesIO(b""), empty_dest, allowed_base=base)
+            self.assertFalse(empty_dest.exists())
+            self.assertEqual(list(base.iterdir()), [])
+
+            # Partial stream missing live_physiology_report.json must fail cleanly with no leftovers
             pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\n"
             pdf_sha = hashlib.sha256(pdf_bytes).hexdigest()
             manifest_bytes = json.dumps(
                 {"files_count": 1, "files": [{"archive_name": "sheet1.pdf", "checksum": pdf_sha}]}
             ).encode("utf-8")
+            partial_dest = base / "fail_missing_report"
+            with self.assertRaises(FileNotFoundError):
+                safe_unpack_and_verify(
+                    _build_tar([("sheet1.pdf", pdf_bytes), ("manifest.json", manifest_bytes)]),
+                    partial_dest,
+                    allowed_base=base,
+                )
+            self.assertFalse(partial_dest.exists())
+            self.assertEqual(list(base.iterdir()), [])
 
-            buf = io.BytesIO()
-            with tarfile.open(fileobj=buf, mode="w") as tf:
-                for name, raw in (("sheet1.pdf", pdf_bytes), ("manifest.json", manifest_bytes)):
-                    ti = tarfile.TarInfo(name=name)
-                    ti.size = len(raw)
-                    tf.addfile(ti, io.BytesIO(raw))
-            buf.seek(0)
-            verified = safe_unpack_and_verify(buf, good_dest, allowed_base=base)
-            self.assertEqual(len(verified), 1)
-            self.assertEqual(verified[0]["sha256"], pdf_sha)
-
-            # Path traversal tar member must raise
-            bad_buf = io.BytesIO()
-            with tarfile.open(fileobj=bad_buf, mode="w") as tf:
-                ti = tarfile.TarInfo(name="../escape.pdf")
-                ti.size = len(pdf_bytes)
-                tf.addfile(ti, io.BytesIO(pdf_bytes))
-            bad_buf.seek(0)
+            # Path traversal tar member must raise and leave no destination dir
+            trav_dest = base / "fail_traversal"
             with self.assertRaises(ValueError):
-                safe_unpack_and_verify(bad_buf, good_dest, allowed_base=base)
+                safe_unpack_and_verify(
+                    _build_tar([("../escape.pdf", pdf_bytes)]),
+                    trav_dest,
+                    allowed_base=base,
+                )
+            self.assertFalse(trav_dest.exists())
 
-            # Corrupted SHA-256 must raise
+            # Corrupted SHA-256 must raise and leave no destination dir
             mismatch_manifest = json.dumps(
                 {"files_count": 1, "files": [{"archive_name": "sheet1.pdf", "checksum": "0" * 64}]}
             ).encode("utf-8")
-            bad_sha_buf = io.BytesIO()
-            with tarfile.open(fileobj=bad_sha_buf, mode="w") as tf:
-                for name, raw in (("sheet1.pdf", pdf_bytes), ("manifest.json", mismatch_manifest)):
-                    ti = tarfile.TarInfo(name=name)
-                    ti.size = len(raw)
-                    tf.addfile(ti, io.BytesIO(raw))
-            bad_sha_buf.seek(0)
+            bad_sha_dest = base / "fail_bad_sha"
             with self.assertRaises(ValueError):
-                safe_unpack_and_verify(bad_sha_buf, good_dest, allowed_base=base)
+                safe_unpack_and_verify(
+                    _build_tar(
+                        [
+                            ("sheet1.pdf", pdf_bytes),
+                            ("manifest.json", mismatch_manifest),
+                            ("live_physiology_report.json", b"{}"),
+                        ]
+                    ),
+                    bad_sha_dest,
+                    allowed_base=base,
+                )
+            self.assertFalse(bad_sha_dest.exists())
+            self.assertEqual(list(base.iterdir()), [])
+
+            # Valid extraction succeeds cleanly
+            good_dest = base / "physiology_year1"
+            verified = safe_unpack_and_verify(
+                _build_tar(
+                    [
+                        ("sheet1.pdf", pdf_bytes),
+                        ("manifest.json", manifest_bytes),
+                        ("live_physiology_report.json", b'{"dentistry_year1_subjects":[]}'),
+                    ]
+                ),
+                good_dest,
+                allowed_base=base,
+            )
+            self.assertEqual(len(verified), 1)
+            self.assertEqual(verified[0]["sha256"], pdf_sha)
+            self.assertTrue((good_dest / "sheet1.pdf").is_file())
+
+            # Re-running into non-empty directory must refuse overwrite and preserve existing files
+            (good_dest / "sheet1.pdf").write_bytes(b"existing-sentinel")
+            with self.assertRaises(FileExistsError):
+                safe_unpack_and_verify(
+                    _build_tar(
+                        [
+                            ("sheet1.pdf", pdf_bytes),
+                            ("manifest.json", manifest_bytes),
+                            ("live_physiology_report.json", b"{}"),
+                        ]
+                    ),
+                    good_dest,
+                    allowed_base=base,
+                )
+            self.assertEqual((good_dest / "sheet1.pdf").read_bytes(), b"existing-sentinel")
 
 
 if __name__ == "__main__":

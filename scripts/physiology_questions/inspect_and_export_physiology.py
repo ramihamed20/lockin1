@@ -4,10 +4,9 @@ Designed to run inside the production backend container via stdin:
   sudo docker compose ... exec -T backend python - < inspect_and_export_physiology.py
 
 Never writes to the database and never prints secrets, passwords, or keys.
-Streams a tar archive to stdout containing:
-  - live_physiology_report.json (latest live settings, modes, question counts)
-  - manifest.json (extracted PDFs metadata & SHA-256 checksums)
-  - extracted PDF files (SHA-256 verified)
+Builds and SHA-256-verifies the entire tar archive into a spooled temp buffer
+before writing anything to stdout, so failures emit zero partial tar output
+and exit non-zero.
 """
 
 from __future__ import annotations
@@ -55,9 +54,13 @@ def _safe_token(value: str, fallback: str) -> str:
 def _is_dentistry_year1(subject: CatalogSubject) -> bool:
     cohort = subject.cohort
     node = subject.source_node
+    program = cohort.program if cohort else None
     parts = [
         subject.material_slug or "",
-        cohort.slug if cohort else "",
+        cohort.code if cohort else "",
+        cohort.name_en if cohort else "",
+        program.code if program else "",
+        program.name_en if program else "",
         node.path if node else "",
         node.title if node else "",
     ]
@@ -144,7 +147,7 @@ def main() -> None:
             | Q(slug__icontains="physiology")
             | Q(material_slug__icontains="physiology")
         )
-        .select_related("cohort", "source_node")
+        .select_related("cohort", "cohort__program", "source_node")
         .order_by("material_slug")
     )
 
@@ -155,171 +158,190 @@ def main() -> None:
     }
     manifest_entries = []
     exported_file_ids = set()
+    export_errors: list[str] = []
 
-    tar = tarfile.open(fileobj=sys.stdout.buffer, mode="w|")
-
-    for subj in phys_subjects:
-        node = subj.source_node
-        subj_info = {
-            "subject_id": str(subj.id),
-            "title": subj.title,
-            "material_slug": subj.material_slug,
-            "is_active": subj.is_active,
-            "cohort_slug": subj.cohort.slug if subj.cohort else None,
-            "node_path": node.path if node else None,
-            "sheets": [],
-        }
-        if not _is_dentistry_year1(subj):
-            sheet_count = (
-                LearningObject.objects.filter(
-                    current_version__academic_node__path__startswith=node.path,
-                    current_version__content_type=LearningObjectVersion.ContentType.PDF,
-                ).count()
-                if node
-                else 0
-            )
-            subj_info["pdf_sheet_count"] = sheet_count
-            report["other_physiology_subjects"].append(subj_info)
-            continue
-
-        sheets = (
-            list(
-                LearningObject.objects.filter(
-                    current_version__academic_node__path__startswith=node.path,
-                    current_version__content_type=LearningObjectVersion.ContentType.PDF,
-                )
-                .select_related("current_version", "current_version__academic_node")
-                .order_by("position", "created_at")
-            )
-            if node
-            else []
-        )
-
-        for sheet in sheets:
-            version = sheet.current_version
-            title = version.title if version else str(sheet.id)
-            page_bank_enabled = getattr(sheet, "active_study_page_bank_enabled", None)
-            settings_rows = list(
-                ActiveStudySettings.objects.filter(sheet=sheet).order_by("edition")
-            )
-            editions_info = {}
-
-            for edition in (UNIVERSITY, LOCKIN):
-                managed = edition_primary_file(sheet, edition)
-                if not managed:
+    with tempfile.SpooledTemporaryFile(max_size=16 * 1024 * 1024) as tar_buffer:
+        with tarfile.open(fileobj=tar_buffer, mode="w") as tar:
+            for subj in phys_subjects:
+                cohort = subj.cohort
+                program = cohort.program if cohort else None
+                node = subj.source_node
+                subj_info = {
+                    "subject_id": str(subj.id),
+                    "title": subj.title,
+                    "material_slug": subj.material_slug,
+                    "is_active": subj.is_active,
+                    "cohort_code": cohort.code if cohort else None,
+                    "cohort_name_en": cohort.name_en if cohort else None,
+                    "program_code": program.code if program else None,
+                    "program_name_en": program.name_en if program else None,
+                    "node_path": node.path if node else None,
+                    "sheets": [],
+                }
+                if not _is_dentistry_year1(subj):
+                    sheet_count = (
+                        LearningObject.objects.filter(
+                            current_version__academic_node__path__startswith=node.path,
+                            current_version__content_type=LearningObjectVersion.ContentType.PDF,
+                        ).count()
+                        if node
+                        else 0
+                    )
+                    subj_info["pdf_sheet_count"] = sheet_count
+                    report["other_physiology_subjects"].append(subj_info)
                     continue
-                file_id = str(managed.id)
-                expected_sha = managed.checksum_sha256 or ""
-                page_count = managed.pdf_page_count or 0
-                clean_slug = _safe_token(subj.material_slug, "subject")
-                clean_title = _safe_token(title, "sheet")
-                archive_name = f"{clean_slug}__{edition}__{clean_title}__{file_id[:8]}.pdf"
-                if "/" in archive_name or "\\" in archive_name or ".." in archive_name:
-                    raise ValueError(f"Unsafe archive filename: {archive_name!r}")
 
-                actual_sha = ""
-                file_size = 0
-                export_error = None
-                if file_id not in exported_file_ids:
-                    try:
-                        digest = hashlib.sha256()
-                        with managed.blob.open("rb") as src, tempfile.SpooledTemporaryFile(
-                            max_size=16 * 1024 * 1024
-                        ) as tmp:
-                            for chunk in iter(lambda: src.read(1024 * 1024), b""):
-                                digest.update(chunk)
-                                tmp.write(chunk)
-                            actual_sha = digest.hexdigest()
-                            file_size = tmp.tell()
-                            if expected_sha and actual_sha != expected_sha:
-                                export_error = (
-                                    f"checksum_mismatch: expected {expected_sha}, got {actual_sha}"
-                                )
-                            else:
-                                item = tarfile.TarInfo(name=archive_name)
-                                item.size = file_size
-                                item.mode = 0o600
-                                tmp.seek(0)
-                                tar.addfile(item, tmp)
-                                exported_file_ids.add(file_id)
-                                manifest_entries.append(
-                                    {
-                                        "material_slug": subj.material_slug,
-                                        "sheet_id": str(sheet.id),
-                                        "sheet_title": title,
-                                        "edition": edition,
-                                        "file_id": file_id,
-                                        "original_name": managed.original_name or "",
-                                        "checksum": actual_sha,
-                                        "page_count": page_count,
-                                        "file_size": file_size,
-                                        "archive_name": archive_name,
-                                    }
-                                )
-                    except Exception as exc:
-                        export_error = str(exc)
+                sheets = (
+                    list(
+                        LearningObject.objects.filter(
+                            current_version__academic_node__path__startswith=node.path,
+                            current_version__content_type=LearningObjectVersion.ContentType.PDF,
+                        )
+                        .select_related("current_version", "current_version__academic_node")
+                        .order_by("position", "created_at")
+                    )
+                    if node
+                    else []
+                )
 
-                doc = CatalogDocument.objects.filter(managed_file=managed, is_active=True).first()
-                editions_info[edition] = {
-                    "file_id": file_id,
-                    "original_name": managed.original_name or "",
-                    "page_count": page_count,
-                    "checksum": expected_sha,
-                    "sheet_slug": doc.sheet_slug if doc else None,
-                    "archive_name": archive_name,
-                    "export_error": export_error,
-                }
+                for sheet in sheets:
+                    version = sheet.current_version
+                    title = version.title if version else str(sheet.id)
+                    page_bank_enabled = getattr(sheet, "active_study_page_bank_enabled", None)
+                    settings_rows = list(
+                        ActiveStudySettings.objects.filter(sheet=sheet).order_by("edition")
+                    )
+                    editions_info = {}
 
-            assets_meta = (
-                [
-                    {
-                        "role": asset.role,
-                        "position": asset.position,
-                        "file_id": str(asset.managed_file_id),
-                        "original_name": asset.managed_file.original_name or "",
-                        "page_count": asset.managed_file.pdf_page_count or 0,
-                    }
-                    for asset in LearningObjectAsset.objects.filter(version=version)
-                    .select_related("managed_file")
-                    .order_by("role", "position")
-                ]
-                if version
-                else []
-            )
-            subj_info["sheets"].append(
-                {
-                    "sheet_id": str(sheet.id),
-                    "title": title,
-                    "workflow_status": sheet.workflow_status,
-                    "position": sheet.position,
-                    "active_study_page_bank_enabled": page_bank_enabled,
-                    "inferred_mode": "pages" if page_bank_enabled else "parts",
-                    "active_study_settings": [
-                        _serialize_settings(s, page_bank_enabled=page_bank_enabled)
-                        for s in settings_rows
-                    ],
-                    "existing_questions": _question_summary(sheet),
-                    "assets": assets_meta,
-                    "editions": editions_info,
-                }
-            )
+                    for edition in (UNIVERSITY, LOCKIN):
+                        managed = edition_primary_file(sheet, edition)
+                        if not managed:
+                            continue
+                        file_id = str(managed.id)
+                        expected_sha = managed.checksum_sha256 or ""
+                        page_count = managed.pdf_page_count or 0
+                        clean_slug = _safe_token(subj.material_slug, "subject")
+                        clean_title = _safe_token(title, "sheet")
+                        archive_name = f"{clean_slug}__{edition}__{clean_title}__{file_id[:8]}.pdf"
+                        if "/" in archive_name or "\\" in archive_name or ".." in archive_name:
+                            raise ValueError(f"Unsafe archive filename: {archive_name!r}")
 
-        report["dentistry_year1_subjects"].append(subj_info)
+                        actual_sha = ""
+                        file_size = 0
+                        export_error = None
+                        if file_id not in exported_file_ids:
+                            try:
+                                digest = hashlib.sha256()
+                                with managed.blob.open("rb") as src, tempfile.SpooledTemporaryFile(
+                                    max_size=16 * 1024 * 1024
+                                ) as tmp:
+                                    for chunk in iter(lambda: src.read(1024 * 1024), b""):
+                                        digest.update(chunk)
+                                        tmp.write(chunk)
+                                    actual_sha = digest.hexdigest()
+                                    file_size = tmp.tell()
+                                    if expected_sha and actual_sha != expected_sha:
+                                        export_error = (
+                                            f"checksum_mismatch: expected {expected_sha}, got {actual_sha}"
+                                        )
+                                        export_errors.append(f"{archive_name}: {export_error}")
+                                    else:
+                                        item = tarfile.TarInfo(name=archive_name)
+                                        item.size = file_size
+                                        item.mode = 0o600
+                                        tmp.seek(0)
+                                        tar.addfile(item, tmp)
+                                        exported_file_ids.add(file_id)
+                                        manifest_entries.append(
+                                            {
+                                                "material_slug": subj.material_slug,
+                                                "sheet_id": str(sheet.id),
+                                                "sheet_title": title,
+                                                "edition": edition,
+                                                "file_id": file_id,
+                                                "original_name": managed.original_name or "",
+                                                "checksum": actual_sha,
+                                                "page_count": page_count,
+                                                "file_size": file_size,
+                                                "archive_name": archive_name,
+                                            }
+                                        )
+                            except Exception as exc:
+                                export_error = str(exc)
+                                export_errors.append(f"{archive_name}: {export_error}")
 
-    for fname, obj in (
-        ("live_physiology_report.json", report),
-        (
-            "manifest.json",
-            {"files_count": len(manifest_entries), "files": manifest_entries},
-        ),
-    ):
-        raw = json.dumps(obj, ensure_ascii=False, indent=2).encode("utf-8")
-        info = tarfile.TarInfo(name=fname)
-        info.size = len(raw)
-        info.mode = 0o600
-        tar.addfile(info, io.BytesIO(raw))
+                        doc = CatalogDocument.objects.filter(
+                            managed_file=managed, is_active=True
+                        ).first()
+                        editions_info[edition] = {
+                            "file_id": file_id,
+                            "original_name": managed.original_name or "",
+                            "page_count": page_count,
+                            "checksum": expected_sha,
+                            "sheet_slug": doc.sheet_slug if doc else None,
+                            "archive_name": archive_name,
+                            "export_error": export_error,
+                        }
 
-    tar.close()
+                    assets_meta = (
+                        [
+                            {
+                                "role": asset.role,
+                                "position": asset.position,
+                                "file_id": str(asset.managed_file_id),
+                                "original_name": asset.managed_file.original_name or "",
+                                "page_count": asset.managed_file.pdf_page_count or 0,
+                            }
+                            for asset in LearningObjectAsset.objects.filter(version=version)
+                            .select_related("managed_file")
+                            .order_by("role", "position")
+                        ]
+                        if version
+                        else []
+                    )
+                    subj_info["sheets"].append(
+                        {
+                            "sheet_id": str(sheet.id),
+                            "title": title,
+                            "workflow_status": sheet.workflow_status,
+                            "position": sheet.position,
+                            "active_study_page_bank_enabled": page_bank_enabled,
+                            "inferred_mode": "pages" if page_bank_enabled else "parts",
+                            "active_study_settings": [
+                                _serialize_settings(s, page_bank_enabled=page_bank_enabled)
+                                for s in settings_rows
+                            ],
+                            "existing_questions": _question_summary(sheet),
+                            "assets": assets_meta,
+                            "editions": editions_info,
+                        }
+                    )
+
+                report["dentistry_year1_subjects"].append(subj_info)
+
+            if export_errors:
+                raise RuntimeError(
+                    "One or more PDFs failed verification/read: " + "; ".join(export_errors)
+                )
+
+            for fname, obj in (
+                ("live_physiology_report.json", report),
+                (
+                    "manifest.json",
+                    {"files_count": len(manifest_entries), "files": manifest_entries},
+                ),
+            ):
+                raw = json.dumps(obj, ensure_ascii=False, indent=2).encode("utf-8")
+                info = tarfile.TarInfo(name=fname)
+                info.size = len(raw)
+                info.mode = 0o600
+                tar.addfile(info, io.BytesIO(raw))
+
+        tar_buffer.seek(0)
+        for chunk in iter(lambda: tar_buffer.read(1024 * 1024), b""):
+            sys.stdout.buffer.write(chunk)
+        sys.stdout.buffer.flush()
+
     sys.stderr.write(
         f"SUCCESS: Inspected {len(report['dentistry_year1_subjects'])} Dentistry Year-1 Physiology subject(s), "
         f"exported {len(manifest_entries)} PDF(s).\n"
