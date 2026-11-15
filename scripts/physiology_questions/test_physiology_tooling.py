@@ -4,7 +4,12 @@
 from __future__ import annotations
 
 import ast
+import hashlib
+import io
+import json
 import sys
+import tarfile
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -16,6 +21,10 @@ from build_physiology_prompt import (  # noqa: E402
     PHYSIOLOGY_EXAM_STYLE,
     build_context,
     build_prompt,
+)
+from safe_extract_tar_stream import (  # noqa: E402
+    safe_unpack_and_verify,
+    validate_dest_dir,
 )
 from validate_physiology_questions import validate_and_audit  # noqa: E402
 
@@ -232,6 +241,60 @@ class PhysiologyToolingTests(unittest.TestCase):
         self.assertEqual(found, [], msg=f"Unexpected DB write-like calls: {found}")
         self.assertNotIn("SECRET", src)
         self.assertNotIn("PASSWORD", src)
+
+    def test_safe_tar_extractor_blocks_traversal_and_verifies_sha256(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp) / "production_pdfs"
+            base.mkdir()
+            good_dest = base / "physiology_year1"
+
+            # Outside allowed base must raise
+            with self.assertRaises(ValueError):
+                validate_dest_dir(Path(tmp) / "outside", allowed_base=base)
+            with self.assertRaises(ValueError):
+                validate_dest_dir(base, allowed_base=base)
+
+            # Build valid tar stream with manifest + pdf
+            pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\n"
+            pdf_sha = hashlib.sha256(pdf_bytes).hexdigest()
+            manifest_bytes = json.dumps(
+                {"files_count": 1, "files": [{"archive_name": "sheet1.pdf", "checksum": pdf_sha}]}
+            ).encode("utf-8")
+
+            buf = io.BytesIO()
+            with tarfile.open(fileobj=buf, mode="w") as tf:
+                for name, raw in (("sheet1.pdf", pdf_bytes), ("manifest.json", manifest_bytes)):
+                    ti = tarfile.TarInfo(name=name)
+                    ti.size = len(raw)
+                    tf.addfile(ti, io.BytesIO(raw))
+            buf.seek(0)
+            verified = safe_unpack_and_verify(buf, good_dest, allowed_base=base)
+            self.assertEqual(len(verified), 1)
+            self.assertEqual(verified[0]["sha256"], pdf_sha)
+
+            # Path traversal tar member must raise
+            bad_buf = io.BytesIO()
+            with tarfile.open(fileobj=bad_buf, mode="w") as tf:
+                ti = tarfile.TarInfo(name="../escape.pdf")
+                ti.size = len(pdf_bytes)
+                tf.addfile(ti, io.BytesIO(pdf_bytes))
+            bad_buf.seek(0)
+            with self.assertRaises(ValueError):
+                safe_unpack_and_verify(bad_buf, good_dest, allowed_base=base)
+
+            # Corrupted SHA-256 must raise
+            mismatch_manifest = json.dumps(
+                {"files_count": 1, "files": [{"archive_name": "sheet1.pdf", "checksum": "0" * 64}]}
+            ).encode("utf-8")
+            bad_sha_buf = io.BytesIO()
+            with tarfile.open(fileobj=bad_sha_buf, mode="w") as tf:
+                for name, raw in (("sheet1.pdf", pdf_bytes), ("manifest.json", mismatch_manifest)):
+                    ti = tarfile.TarInfo(name=name)
+                    ti.size = len(raw)
+                    tf.addfile(ti, io.BytesIO(raw))
+            bad_sha_buf.seek(0)
+            with self.assertRaises(ValueError):
+                safe_unpack_and_verify(bad_sha_buf, good_dest, allowed_base=base)
 
 
 if __name__ == "__main__":

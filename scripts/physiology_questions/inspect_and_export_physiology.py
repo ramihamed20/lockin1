@@ -30,7 +30,7 @@ import django  # noqa: E402
 
 django.setup()
 
-from django.db.models import F  # noqa: E402
+from django.db.models import F, Q  # noqa: E402
 
 from apps.content.active_study import plan_payload  # noqa: E402
 from apps.content.admin_services import edition_primary_file  # noqa: E402
@@ -41,9 +41,15 @@ from apps.content.models import (  # noqa: E402
     CatalogDocument,
     CatalogSubject,
     LearningObject,
+    LearningObjectAsset,
     LearningObjectVersion,
 )
 from apps.questions.models import QuestionVersion  # noqa: E402
+
+
+def _safe_token(value: str, fallback: str) -> str:
+    cleaned = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in (value or "")).strip("_")
+    return cleaned or fallback
 
 
 def _is_dentistry_year1(subject: CatalogSubject) -> bool:
@@ -72,18 +78,19 @@ def _serialize_settings(setting: ActiveStudySettings, *, page_bank_enabled: bool
     plan = None
     if total:
         try:
-            plan = plan_payload(
-                total_pdf_pages=total,
-                excluded_start_pages=excl_start,
-                excluded_end_pages=excl_end,
-                questions_per_checkpoint=questions_per_checkpoint,
-                final_exam_questions=final_exam_questions,
-                **(
-                    {"page_question_bank": bool(page_bank_enabled)}
-                    if "page_question_bank" in plan_payload.__code__.co_varnames
-                    else {}
-                ),
-            )
+            plan_kwargs: dict[str, object] = {
+                "total_pdf_pages": total,
+                "excluded_start_pages": excl_start,
+                "excluded_end_pages": excl_end,
+            }
+            accepted = plan_payload.__code__.co_varnames
+            if "questions_per_checkpoint" in accepted:
+                plan_kwargs["questions_per_checkpoint"] = questions_per_checkpoint
+            if "final_exam_questions" in accepted:
+                plan_kwargs["final_exam_questions"] = final_exam_questions
+            if "page_question_bank" in accepted:
+                plan_kwargs["page_question_bank"] = bool(page_bank_enabled)
+            plan = plan_payload(**plan_kwargs)
         except Exception as exc:
             plan = {"plan_error": str(exc)}
     return {
@@ -132,7 +139,11 @@ def _question_summary(sheet: LearningObject) -> dict:
 
 def main() -> None:
     phys_subjects = list(
-        CatalogSubject.objects.filter(title__icontains="physiology")
+        CatalogSubject.objects.filter(
+            Q(title__icontains="physiology")
+            | Q(slug__icontains="physiology")
+            | Q(material_slug__icontains="physiology")
+        )
         .select_related("cohort", "source_node")
         .order_by("material_slug")
     )
@@ -200,13 +211,11 @@ def main() -> None:
                 file_id = str(managed.id)
                 expected_sha = managed.checksum_sha256 or ""
                 page_count = managed.pdf_page_count or 0
-                clean_slug = "".join(
-                    c if c.isalnum() or c in ("-", "_") else "_" for c in subj.material_slug
-                ).strip("_")
-                clean_title = "".join(
-                    c if c.isalnum() or c in ("-", "_") else "_" for c in title
-                ).strip("_")
+                clean_slug = _safe_token(subj.material_slug, "subject")
+                clean_title = _safe_token(title, "sheet")
                 archive_name = f"{clean_slug}__{edition}__{clean_title}__{file_id[:8]}.pdf"
+                if "/" in archive_name or "\\" in archive_name or ".." in archive_name:
+                    raise ValueError(f"Unsafe archive filename: {archive_name!r}")
 
                 actual_sha = ""
                 file_size = 0
@@ -261,6 +270,22 @@ def main() -> None:
                     "export_error": export_error,
                 }
 
+            assets_meta = (
+                [
+                    {
+                        "role": asset.role,
+                        "position": asset.position,
+                        "file_id": str(asset.managed_file_id),
+                        "original_name": asset.managed_file.original_name or "",
+                        "page_count": asset.managed_file.pdf_page_count or 0,
+                    }
+                    for asset in LearningObjectAsset.objects.filter(version=version)
+                    .select_related("managed_file")
+                    .order_by("role", "position")
+                ]
+                if version
+                else []
+            )
             subj_info["sheets"].append(
                 {
                     "sheet_id": str(sheet.id),
@@ -274,6 +299,7 @@ def main() -> None:
                         for s in settings_rows
                     ],
                     "existing_questions": _question_summary(sheet),
+                    "assets": assets_meta,
                     "editions": editions_info,
                 }
             )
