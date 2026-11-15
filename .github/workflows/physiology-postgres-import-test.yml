@@ -70,6 +70,18 @@ jobs:
         run: python -m pytest -v ../scripts/physiology_questions/test_physiology_tooling.py
       - name: Import all 4 Physiology JSON payloads into isolated PostgreSQL
         run: python scripts/physiology_questions/verify_postgres_import.py
+      - name: Verify isolated PostgreSQL backup and standalone restore
+        run: |
+          set -euo pipefail
+          DUMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$DUMP_DIR"' EXIT
+          DUMP_FILE="$DUMP_DIR/ci-lockin.dump"
+          docker exec "${{ job.services.postgres.id }}" \
+            pg_dump --username lockin_owner --dbname lockin_test --format=custom --compress=9 --no-owner --no-acl \
+            > "$DUMP_FILE"
+          test -s "$DUMP_FILE"
+          (cd "$DUMP_DIR" && sha256sum "$(basename "$DUMP_FILE")" > "$(basename "$DUMP_FILE").sha256")
+          LOCKIN_VERIFY_STANDALONE=true bash scripts/production/verify-postgres-restore.sh "$DUMP_FILE"
       - name: Backend All-Questions & Active-Study PostgreSQL tests
         working-directory: backend
         run: >-

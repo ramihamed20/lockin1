@@ -14,8 +14,9 @@ echo "==> [Layer 1/2] Full PostgreSQL logical backup (no writes to production DB
 PG_DUMP_FILE="$(sudo bash "$LIVE_ROOT/scripts/production/backup-postgres.sh" "$ENV_FILE" "$BACKUP_DIR")"
 echo "    Created dump: $PG_DUMP_FILE"
 
-echo "==> Verifying PostgreSQL dump SHA-256 & restore integrity into temporary DB..."
-sudo bash "$LIVE_ROOT/scripts/production/verify-postgres-restore.sh" "$PG_DUMP_FILE" "$ENV_FILE"
+echo "==> Verifying PostgreSQL dump SHA-256 & restore integrity in isolated container..."
+sudo env LOCKIN_VERIFY_STANDALONE=true \
+  bash "$LIVE_ROOT/scripts/production/verify-postgres-restore.sh" "$PG_DUMP_FILE" "$ENV_FILE"
 
 echo "==> [Layer 2/2] Collecting read-only Physiology pre-deploy state & JSON rollback snapshot..."
 SNAPSHOT_FILE="$BACKUP_DIR/physiology_predeploy_snapshot.json"

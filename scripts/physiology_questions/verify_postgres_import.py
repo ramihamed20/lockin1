@@ -190,10 +190,15 @@ def main() -> int:
                 f"backend_max_at_15={expected_capacity}), put=200 (3 active_study banks, {pub_normal} published normal Qs), stale_lock=409"
             )
 
-        # Round-trip verification of pre-deploy snapshot + atomic rollback (empty + non-empty overwrite)
+        # Round-trip & conflict verification of pre-deploy snapshot + atomic rollback
         sys.path.insert(0, str(HERE))
-        from predeploy_check_and_backup_physiology import collect_predeploy_snapshot
-        from rollback_physiology_import import rollback_from_snapshot
+        from predeploy_check_and_backup_physiology import (
+            collect_postimport_manifest,
+            collect_predeploy_snapshot,
+        )
+        from rollback_physiology_import import RollbackConflictError, rollback_from_snapshot
+        from apps.focus.models import ActiveStudyRun
+        from apps.questions.models import QuestionImportBatch, QuestionOption, QuestionVersion
         from apps.questions.tests.helpers import published_question
 
         rb_sheet = create_sheet(
@@ -216,7 +221,7 @@ def main() -> int:
         rb_payload_bytes = (OUT_DIR / "02_cell_junction_4e76d4c0_all_questions.json").read_bytes()
         rb_base = f"/api/v1/operations/admin/content/sheets/{rb_sheet.id}"
 
-        # Case A: pre-import snapshot on sheet with no settings/banks + 1 manual question
+        # Case A: pre-import snapshot on fresh sheet + post-import manifest + rollback by import_batch_id
         snap_a = collect_predeploy_snapshot(
             sheet_specs=[("Rollback Check", str(rb_sheet.id))],
             archived_intro_id=None,
@@ -227,7 +232,7 @@ def main() -> int:
             {"expected_revision": 0, "enabled": True, "excluded_start_pages": 1, "excluded_end_pages": 1},
             format="json",
         ).status_code == 200
-        assert client.put(
+        put_a = client.put(
             f"{rb_base}/all-questions",
             {
                 "payload_file": SimpleUploadedFile("rb.json", rb_payload_bytes, content_type="application/json"),
@@ -239,20 +244,24 @@ def main() -> int:
                 "publish_sheet_questions": "true",
             },
             format="multipart",
-        ).status_code == 200
-        manual_q.refresh_from_db()
-        assert manual_q.workflow_status == Question.WorkflowStatus.PUBLISHED
+        )
+        assert put_a.status_code == 200, put_a.json()
+        batch_a_id = put_a.json()["sheet_question_batch_id"]
+        manifest_a = collect_postimport_manifest(snap_a)
+        assert manifest_a["manifest"]["sheets"][str(rb_sheet.id)]["sheet_question_batch_id"] == batch_a_id
 
         # Dry-run rollback must not alter DB
-        dry_res = rollback_from_snapshot(snap_a, apply=False)
+        dry_res = rollback_from_snapshot(snap_a, apply=False, post_import_manifest=manifest_a)
         assert dry_res["applied"] is False
+        assert dry_res["actions"][0]["target_import_batch_id"] == batch_a_id
         assert ActiveStudyQuestionContent.objects.filter(sheet=rb_sheet).count() == 3
 
-        # Apply rollback Case A -> 0 banks, 0 settings, 30 imported retired, 1 manual stays published
-        apply_a = rollback_from_snapshot(snap_a, apply=True)
+        # Apply rollback Case A -> retires batch_a ONLY, marks batch UNDONE, preserves manual_q
+        apply_a = rollback_from_snapshot(snap_a, apply=True, post_import_manifest=manifest_a)
         assert apply_a["applied"] is True
         assert ActiveStudyQuestionContent.objects.filter(sheet=rb_sheet).count() == 0
         assert ActiveStudySettings.objects.filter(sheet=rb_sheet).count() == 0
+        assert QuestionImportBatch.objects.get(id=batch_a_id).status == QuestionImportBatch.Status.UNDONE
         assert Question.objects.filter(
             current_version__source_learning_object=rb_sheet,
             workflow_status=Question.WorkflowStatus.PUBLISHED,
@@ -260,8 +269,15 @@ def main() -> int:
         manual_q.refresh_from_db()
         assert manual_q.workflow_status == Question.WorkflowStatus.PUBLISHED
 
-        # Case B: seed v1 import -> snapshot -> overwrite v2 -> rollback restores v1 exact banks & un-archives v1 Qs
-        assert client.put(
+        # Cannot roll back an already-undone batch a second time
+        try:
+            rollback_from_snapshot(snap_a, apply=False, target_batch_ids={str(rb_sheet.id): batch_a_id})
+            raise AssertionError("Expected RollbackConflictError for already-undone batch")
+        except RollbackConflictError:
+            pass
+
+        # Case B: seed v1 -> snapshot -> overwrite v2 AND simulate hard deletions of old bank, settings, and Question
+        put_b1 = client.put(
             f"{rb_base}/all-questions",
             {
                 "payload_file": SimpleUploadedFile("rb1.json", rb_payload_bytes, content_type="application/json"),
@@ -273,15 +289,21 @@ def main() -> int:
                 "publish_sheet_questions": "true",
             },
             format="multipart",
-        ).status_code == 200
-        v1_bank_rev = ActiveStudyQuestionContent.objects.get(sheet=rb_sheet, difficulty="easy").revision
+        )
+        assert put_b1.status_code == 200
+        batch_b1_id = put_b1.json()["sheet_question_batch_id"]
+        v1_easy_bank = ActiveStudyQuestionContent.objects.get(sheet=rb_sheet, difficulty="easy")
+        v1_bank_rev = v1_easy_bank.revision
+        v1_easy_payload_copy = json.loads(json.dumps(v1_easy_bank.payload))
+
         snap_b = collect_predeploy_snapshot(
             sheet_specs=[("Rollback Check", str(rb_sheet.id))],
             archived_intro_id=None,
         )
         assert snap_b["snapshot"]["target_sheets"][0]["existing_questions_summary"]["will_be_archived_all_questions_count"] == 30
+
         ctx_b = client.get(f"{rb_base}/all-questions").json()
-        assert client.put(
+        put_b2 = client.put(
             f"{rb_base}/all-questions",
             {
                 "payload_file": SimpleUploadedFile("rb2.json", rb_payload_bytes, content_type="application/json"),
@@ -293,18 +315,252 @@ def main() -> int:
                 "publish_sheet_questions": "true",
             },
             format="multipart",
-        ).status_code == 200
-        assert ActiveStudyQuestionContent.objects.get(sheet=rb_sheet, difficulty="easy").revision == v1_bank_rev + 1
+        )
+        assert put_b2.status_code == 200
+        batch_b2_id = put_b2.json()["sheet_question_batch_id"]
 
-        apply_b = rollback_from_snapshot(snap_b, apply=True)
-        assert apply_b["actions"][0]["retired_newly_imported_questions"] == 30
-        assert apply_b["actions"][0]["restored_previously_archived_questions"] == 30
-        assert ActiveStudyQuestionContent.objects.get(sheet=rb_sheet, difficulty="easy").revision == v1_bank_rev
+        # Simulate destructive deletion of old settings, old bank, and one backed-up v1 Question/Version/Options
+        ActiveStudySettings.objects.filter(sheet=rb_sheet).delete()
+        ActiveStudyQuestionContent.objects.filter(sheet=rb_sheet, difficulty="easy").delete()
+        doomed_q = Question.objects.filter(import_batch_id=batch_b1_id).order_by("id").first()
+        assert doomed_q is not None
+        doomed_q_id = doomed_q.id
+        doomed_prompt = doomed_q.current_version.prompt
+        doomed_opt_count = doomed_q.current_version.options.count()
+        doomed_q.current_version = None
+        doomed_q.published_version = None
+        doomed_q.save(update_fields=("current_version", "published_version"))
+        QuestionOption.objects.filter(version__question=doomed_q).delete()
+        QuestionVersion.objects.filter(question=doomed_q).delete()
+        doomed_q.delete()
+        assert not Question.objects.filter(id=doomed_q_id).exists()
+
+        apply_b = rollback_from_snapshot(snap_b, apply=True, target_batch_ids={str(rb_sheet.id): batch_b2_id})
+        act_b = apply_b["actions"][0]
+        assert act_b["retired_newly_imported_questions"] == 30
+        assert act_b["restored_previously_archived_questions"] == 29
+        assert act_b["recreated_deleted_questions"] == 1
+        assert "easy" in act_b["recreated_deleted_banks"]
+        assert any(op.startswith("recreate:university:") for op in act_b["settings_ops"])
+
+        restored_easy = ActiveStudyQuestionContent.objects.get(sheet=rb_sheet, difficulty="easy")
+        assert restored_easy.revision == v1_bank_rev
+        assert restored_easy.payload == v1_easy_payload_copy
+        assert ActiveStudySettings.objects.get(sheet=rb_sheet, edition="university").excluded_start_pages == 1
+        recreated_q = Question.objects.get(id=doomed_q_id)
+        assert recreated_q.workflow_status == Question.WorkflowStatus.PUBLISHED
+        assert recreated_q.current_version.prompt == doomed_prompt
+        assert recreated_q.current_version.options.count() == doomed_opt_count
         assert Question.objects.filter(
             current_version__source_learning_object=rb_sheet,
             workflow_status=Question.WorkflowStatus.PUBLISHED,
-        ).count() == 31  # 30 restored v1 all_questions + 1 untouched manual Q
-        print(f"OK [{connection.vendor}] predeploy snapshot + dry-run/apply rollback round-trip verified")
+        ).count() == 31
+
+        # Case C: Concurrent / post-import modification & failure guards (all must raise RollbackConflictError & keep DB untouched)
+        snap_c = collect_predeploy_snapshot(
+            sheet_specs=[("Rollback Check", str(rb_sheet.id))],
+            archived_intro_id=None,
+        )
+        ctx_c = client.get(f"{rb_base}/all-questions").json()
+        put_c1 = client.put(
+            f"{rb_base}/all-questions",
+            {
+                "payload_file": SimpleUploadedFile("rc1.json", rb_payload_bytes, content_type="application/json"),
+                "sheet_question_count": "30",
+                "excluded_start_pages": "1",
+                "excluded_end_pages": "1",
+                "settings_revision": str(ctx_c["settings_revision"]),
+                "expected_revisions": json.dumps(snap_c["snapshot"]["target_sheets"][0]["expected_revisions"]),
+                "publish_sheet_questions": "true",
+            },
+            format="multipart",
+        )
+        assert put_c1.status_code == 200
+        batch_c1_id = put_c1.json()["sheet_question_batch_id"]
+        manifest_c1 = collect_postimport_manifest(snap_c)
+
+        # C1: Concurrent/post-import ActiveStudySettings PATCH -> RollbackConflictError (with & without manifest)
+        cur_set_rev = ActiveStudySettings.objects.get(sheet=rb_sheet, edition="university").revision
+        assert client.patch(
+            f"{rb_base}/active-study",
+            {"expected_revision": cur_set_rev, "enabled": False},
+            format="json",
+        ).status_code == 200
+        for kw in ({"post_import_manifest": manifest_c1}, {}):
+            try:
+                rollback_from_snapshot(snap_c, apply=True, **kw)
+                raise AssertionError("Expected RollbackConflictError on post-import settings edit")
+            except RollbackConflictError:
+                pass
+        # Revert test tweak via ORM revision reset? Better: use fresh sheet Case D for remaining failure tests cleanly!
+
+        # Case D: Fresh sheet isolated failure & PostgreSQL concurrent edit checks
+        fail_sheet = create_sheet(
+            actor=admin,
+            subject=subject,
+            managed_file=create_managed_file(
+                owner=admin, upload=make_pdf(5, "Failure Guards.pdf"), kind="pdf"
+            ),
+            title="Failure Guards",
+            summary="",
+            position=100,
+            publish=True,
+            notify_students=False,
+            allow_download=False,
+        )
+        fail_base = f"/api/v1/operations/admin/content/sheets/{fail_sheet.id}"
+        snap_d = collect_predeploy_snapshot(
+            sheet_specs=[("Failure Guards", str(fail_sheet.id))],
+            archived_intro_id=None,
+        )
+        put_d1 = client.put(
+            f"{fail_base}/all-questions",
+            {
+                "payload_file": SimpleUploadedFile("d1.json", rb_payload_bytes, content_type="application/json"),
+                "sheet_question_count": "30",
+                "excluded_start_pages": "1",
+                "excluded_end_pages": "1",
+                "settings_revision": "0",
+                "expected_revisions": json.dumps({"easy": 0, "medium": 0, "hard": 0}),
+                "publish_sheet_questions": "true",
+            },
+            format="multipart",
+        )
+        assert put_d1.status_code == 200
+        batch_d1_id = put_d1.json()["sheet_question_batch_id"]
+        manifest_d1 = collect_postimport_manifest(snap_d)
+
+        # D1: Post-import bank edit (both manifest & non-manifest)
+        easy_d = ActiveStudyQuestionContent.objects.get(sheet=fail_sheet, difficulty="easy")
+        easy_d.revision += 1
+        easy_d.save(update_fields=("revision", "updated_at"))
+        for kw in ({"post_import_manifest": manifest_d1}, {}):
+            try:
+                rollback_from_snapshot(snap_d, apply=True, **kw)
+                raise AssertionError("Expected RollbackConflictError on bank edit")
+            except RollbackConflictError:
+                pass
+        easy_d.revision -= 1
+        easy_d.save(update_fields=("revision",))
+
+        # D2: Post-import student ActiveStudyRun activity -> RollbackConflictError
+        ActiveStudyRun.objects.create(
+            user=admin,
+            sheet=fail_sheet,
+            material_slug="phys",
+            sheet_slug="failure-guards",
+            difficulty="easy",
+            edition="university",
+            status="active",
+            page_count=5,
+            plan_signature={"mode": "pages"},
+        )
+        try:
+            rollback_from_snapshot(snap_d, apply=True, post_import_manifest=manifest_d1)
+            raise AssertionError("Expected RollbackConflictError on post-import student ActiveStudyRun")
+        except RollbackConflictError:
+            pass
+        ActiveStudyRun.objects.filter(sheet=fail_sheet).delete()
+
+        # D3: Post-import edit to an imported Question -> RollbackConflictError
+        target_q = Question.objects.filter(import_batch_id=batch_d1_id).first()
+        orig_rev = target_q.revision
+        target_q.revision += 1
+        target_q.save(update_fields=("revision",))
+        try:
+            rollback_from_snapshot(snap_d, apply=True, post_import_manifest=manifest_d1)
+            raise AssertionError("Expected RollbackConflictError on edited batch question")
+        except RollbackConflictError:
+            pass
+        target_q.revision = orig_rev
+        target_q.save(update_fields=("revision",))
+
+        # D4: Second PUT /all-questions batch -> RollbackConflictError (multi-batch ambiguity & target_batch_id mismatch)
+        ctx_d2 = client.get(f"{fail_base}/all-questions").json()
+        put_d2 = client.put(
+            f"{fail_base}/all-questions",
+            {
+                "payload_file": SimpleUploadedFile("d2.json", rb_payload_bytes, content_type="application/json"),
+                "sheet_question_count": "30",
+                "excluded_start_pages": "1",
+                "excluded_end_pages": "1",
+                "settings_revision": str(ctx_d2["settings_revision"]),
+                "expected_revisions": json.dumps({"easy": 1, "medium": 1, "hard": 1}),
+                "publish_sheet_questions": "true",
+            },
+            format="multipart",
+        )
+        assert put_d2.status_code == 200
+        try:
+            rollback_from_snapshot(snap_d, apply=True, target_batch_ids={str(fail_sheet.id): batch_d1_id})
+            raise AssertionError("Expected RollbackConflictError when 2nd batch exists")
+        except RollbackConflictError:
+            pass
+        # Verify rollback aborted atomically and batch_d2 remains PUBLISHED
+        assert Question.objects.filter(
+            import_batch_id=put_d2.json()["sheet_question_batch_id"],
+            workflow_status=Question.WorkflowStatus.PUBLISHED,
+        ).count() == 30
+
+        # D5: Multi-connection PostgreSQL concurrent modification check
+        if connection.vendor == "postgresql":
+            import psycopg
+            from django.db import connections
+
+            pg_cfg = connections["default"].settings_dict
+            pg_sheet = create_sheet(
+                actor=admin,
+                subject=subject,
+                managed_file=create_managed_file(
+                    owner=admin, upload=make_pdf(5, "PG Concurrency.pdf"), kind="pdf"
+                ),
+                title="PG Concurrency",
+                summary="",
+                position=101,
+                publish=True,
+                notify_students=False,
+                allow_download=False,
+            )
+            pg_base = f"/api/v1/operations/admin/content/sheets/{pg_sheet.id}"
+            snap_pg = collect_predeploy_snapshot(
+                sheet_specs=[("PG Concurrency", str(pg_sheet.id))],
+                archived_intro_id=None,
+            )
+            put_pg = client.put(
+                f"{pg_base}/all-questions",
+                {
+                    "payload_file": SimpleUploadedFile("pg.json", rb_payload_bytes, content_type="application/json"),
+                    "sheet_question_count": "30",
+                    "excluded_start_pages": "1",
+                    "excluded_end_pages": "1",
+                    "settings_revision": "0",
+                    "expected_revisions": json.dumps({"easy": 0, "medium": 0, "hard": 0}),
+                    "publish_sheet_questions": "true",
+                },
+                format="multipart",
+            )
+            assert put_pg.status_code == 200
+            manifest_pg = collect_postimport_manifest(snap_pg)
+            with psycopg.connect(
+                dbname=pg_cfg["NAME"],
+                user=pg_cfg["USER"],
+                password=pg_cfg["PASSWORD"],
+                host=pg_cfg["HOST"],
+                port=pg_cfg["PORT"],
+            ) as conn2:
+                conn2.execute(
+                    "UPDATE content_activestudyquestioncontent SET revision = revision + 1 "
+                    "WHERE sheet_id = %s AND difficulty = 'medium'",
+                    (str(pg_sheet.id),),
+                )
+                conn2.commit()
+            try:
+                rollback_from_snapshot(snap_pg, apply=True, post_import_manifest=manifest_pg)
+                raise AssertionError("Expected RollbackConflictError after concurrent PG connection commit")
+            except RollbackConflictError:
+                pass
+
+        print(f"OK [{connection.vendor}] predeploy snapshot + lossless recreate + batch_id/conflict guards verified")
         return 0
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

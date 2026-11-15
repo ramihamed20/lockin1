@@ -424,19 +424,43 @@ class PredeployAndRollbackSafetyTests(unittest.TestCase):
 
     def test_rollback_rejects_tampered_snapshot_sha256(self) -> None:
         from predeploy_check_and_backup_physiology import _canonical_sha256
-        from rollback_physiology_import import verify_snapshot_envelope
+        from rollback_physiology_import import (
+            RollbackConflictError,
+            verify_postimport_manifest,
+            verify_snapshot_envelope,
+        )
 
         payload = {"generated_at_utc": "2026-11-15T13:00:00+00:00", "target_sheets": []}
-        envelope = {"snapshot_sha256": _canonical_sha256(payload), "snapshot": payload}
+        snap_sha = _canonical_sha256(payload)
+        envelope = {"snapshot_sha256": snap_sha, "snapshot": payload}
         self.assertEqual(verify_snapshot_envelope(envelope), payload)
 
-        tampered = {"snapshot_sha256": envelope["snapshot_sha256"], "snapshot": {"target_sheets": ["x"]}}
+        tampered = {"snapshot_sha256": snap_sha, "snapshot": {"target_sheets": ["x"]}}
         with self.assertRaises(ValueError):
             verify_snapshot_envelope(tampered)
+
+        manifest_body = {"snapshot_sha256": snap_sha, "sheets": {}}
+        manifest_env = {"manifest_sha256": _canonical_sha256(manifest_body), "manifest": manifest_body}
+        self.assertEqual(verify_postimport_manifest(manifest_env, snap_sha), manifest_body)
+
+        wrong_snap_manifest = {"snapshot_sha256": "0" * 64, "sheets": {}}
+        wrong_env = {
+            "manifest_sha256": _canonical_sha256(wrong_snap_manifest),
+            "manifest": wrong_snap_manifest,
+        }
+        with self.assertRaises(RollbackConflictError):
+            verify_postimport_manifest(wrong_env, snap_sha)
 
         source = (HERE / "rollback_physiology_import.py").read_text(encoding="utf-8")
         self.assertIn("transaction.atomic()", source)
         self.assertIn("default is dry-run", source)
+        self.assertIn("import_batch_id=target_batch.id", source)
+        self.assertNotIn("created_at__gte=cutoff", source)
+
+    def test_live_predeploy_script_enforces_isolated_standalone_restore(self) -> None:
+        live_sh = (HERE / "predeploy_physiology_live.sh").read_text(encoding="utf-8")
+        self.assertIn("LOCKIN_VERIFY_STANDALONE=true", live_sh)
+        self.assertIn("verify-postgres-restore.sh", live_sh)
 
 
 if __name__ == "__main__":
