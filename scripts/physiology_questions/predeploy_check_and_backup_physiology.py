@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+"""Read-only pre-deployment audit & JSON rollback snapshot for Year-1 Physiology.
+
+Usage inside production container (strictly read-only, zero DB writes):
+  sudo docker compose --env-file /home/lockin/lockin1/.env.production \
+    -f /home/lockin/lockin1/compose.production.yaml \
+    exec -T backend python - < predeploy_check_and_backup_physiology.py \
+    > physiology_predeploy_snapshot.json
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import sys
+from datetime import datetime, timezone
+from typing import Any
+
+TARGET_SHEETS = [
+    ("01. The Cell", "35923940-c141-44f6-bc49-acd4869577c0"),
+    ("02. Cell Junction", "4e76d4c0-c3ee-4a69-a5b2-1d51479d1cc1"),
+    ("03. Cell Membrane", "b6b6f3e8-1ec1-4b4f-af41-131b8faaa758"),
+    ("04. Homeostasis", "06c3f406-cc1f-400b-86ee-308a41dbc03d"),
+]
+ARCHIVED_INTRO_ID = "766bc7a1-12df-4086-b3e4-1e0150809cd9"
+
+
+def _canonical_sha256(obj: Any) -> str:
+    raw = json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def collect_predeploy_snapshot(
+    sheet_specs: list[tuple[str, str]] | None = None,
+    *,
+    archived_intro_id: str | None = ARCHIVED_INTRO_ID,
+) -> dict[str, Any]:
+    """Collect a read-only pre-deployment state and rollback snapshot."""
+
+    from apps.content.all_questions import all_questions_sheet_questions
+    from apps.content.models import (
+        ActiveStudyQuestionContent,
+        ActiveStudySettings,
+        LearningObject,
+    )
+    from apps.focus.models import ActiveStudyRun
+    from apps.questions.models import Question, QuestionAnswer
+
+    specs = sheet_specs if sheet_specs is not None else TARGET_SHEETS
+    sheets_out: list[dict[str, Any]] = []
+    warnings: list[str] = []
+
+    for label, sid in specs:
+        sheet = LearningObject.objects.select_related("current_version").filter(id=sid).first()
+        if sheet is None:
+            warnings.append(f"Missing target sheet {label} ({sid})")
+            sheets_out.append({"label": label, "sheet_id": sid, "exists": False})
+            continue
+
+        settings_rows = list(ActiveStudySettings.objects.filter(sheet=sheet).order_by("edition"))
+        settings_backup = [
+            {
+                "id": str(s.id),
+                "edition": s.edition,
+                "enabled": s.enabled,
+                "total_pdf_pages": s.total_pdf_pages,
+                "source_version_id": str(s.source_version_id) if s.source_version_id else None,
+                "excluded_start_pages": s.excluded_start_pages,
+                "excluded_end_pages": s.excluded_end_pages,
+                "questions_per_checkpoint": s.questions_per_checkpoint,
+                "final_exam_questions": s.final_exam_questions,
+                "revision": s.revision,
+                "updated_at": s.updated_at.isoformat(),
+            }
+            for s in settings_rows
+        ]
+        uni_setting = next((s for s in settings_rows if s.edition == "university"), None)
+
+        content_rows = list(
+            ActiveStudyQuestionContent.objects.filter(sheet=sheet).order_by("difficulty")
+        )
+        content_backup = [
+            {
+                "id": str(c.id),
+                "difficulty": c.difficulty,
+                "payload": c.payload,
+                "plan_signature": c.plan_signature,
+                "source_version_id": str(c.source_version_id) if c.source_version_id else None,
+                "checkpoint_question_count": c.checkpoint_question_count,
+                "final_exam_question_count": c.final_exam_question_count,
+                "revision": c.revision,
+                "created_by_id": str(c.created_by_id),
+                "updated_by_id": str(c.updated_by_id),
+                "updated_at": c.updated_at.isoformat(),
+            }
+            for c in content_rows
+        ]
+        expected_revisions = {"easy": 0, "medium": 0, "hard": 0}
+        for c in content_rows:
+            expected_revisions[c.difficulty] = c.revision
+
+        all_sheet_qs = list(
+            Question.objects.filter(current_version__source_learning_object=sheet)
+            .select_related("current_version", "import_batch")
+            .order_by("created_at", "id")
+        )
+        by_status: dict[str, int] = {}
+        for q in all_sheet_qs:
+            by_status[q.workflow_status] = by_status.get(q.workflow_status, 0) + 1
+
+        will_archive_qs = list(all_questions_sheet_questions(sheet))
+        will_archive_ids = [str(q.id) for q in will_archive_qs]
+        will_archive_backup = [
+            {
+                "id": str(q.id),
+                "workflow_status": q.workflow_status,
+                "revision": q.revision,
+                "import_batch_id": str(q.import_batch_id) if q.import_batch_id else None,
+                "published_at": q.published_at.isoformat() if q.published_at else None,
+                "retired_at": q.retired_at.isoformat() if q.retired_at else None,
+                "answer_count": QuestionAnswer.objects.filter(question=q).count(),
+            }
+            for q in will_archive_qs
+        ]
+        total_answers_on_sheet = QuestionAnswer.objects.filter(
+            question__current_version__source_learning_object=sheet
+        ).count()
+
+        runs = ActiveStudyRun.objects.filter(sheet=sheet)
+        run_counts = {
+            "total": runs.count(),
+            "active": runs.filter(status="active").count(),
+            "completed": runs.filter(status="completed").count(),
+            "abandoned": runs.filter(status="abandoned").count(),
+        }
+
+        if will_archive_ids:
+            warnings.append(
+                f"{label}: {len(will_archive_ids)} existing all_questions normal Qs will be soft-archived."
+            )
+        if content_rows:
+            warnings.append(
+                f"{label}: {len(content_rows)} existing ActiveStudyQuestionContent bank(s) will be overwritten."
+            )
+        if run_counts["active"] > 0:
+            warnings.append(
+                f"{label}: {run_counts['active']} active student ActiveStudyRun(s) exist."
+            )
+
+        sheets_out.append(
+            {
+                "label": label,
+                "sheet_id": str(sheet.id),
+                "exists": True,
+                "title": sheet.current_version.title if sheet.current_version else label,
+                "workflow_status": sheet.workflow_status,
+                "active_study_page_bank_enabled": sheet.active_study_page_bank_enabled,
+                "expected_settings_revision_university": uni_setting.revision if uni_setting else 0,
+                "expected_revisions": expected_revisions,
+                "active_study_settings_backup": settings_backup,
+                "active_study_content_backup": content_backup,
+                "existing_questions_summary": {
+                    "total_all_statuses": len(all_sheet_qs),
+                    "by_workflow_status": by_status,
+                    "will_be_archived_all_questions_count": len(will_archive_ids),
+                    "untouched_other_questions_count": len(all_sheet_qs) - len(will_archive_ids),
+                    "total_student_answers_on_sheet": total_answers_on_sheet,
+                },
+                "will_archive_questions_backup": will_archive_backup,
+                "active_study_runs": run_counts,
+            }
+        )
+
+    intro_summary = None
+    if archived_intro_id:
+        intro = LearningObject.objects.select_related("current_version").filter(id=archived_intro_id).first()
+        if intro:
+            intro_summary = {
+                "sheet_id": str(intro.id),
+                "title": intro.current_version.title if intro.current_version else "Introduction",
+                "workflow_status": intro.workflow_status,
+                "active_study_page_bank_enabled": intro.active_study_page_bank_enabled,
+                "normal_questions_total": Question.objects.filter(
+                    current_version__source_learning_object=intro
+                ).count(),
+            }
+
+    snapshot = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "schema_version": 1,
+        "read_only": True,
+        "target_sheets": sheets_out,
+        "excluded_archived_intro": intro_summary,
+        "warnings": warnings,
+    }
+    return {
+        "snapshot_sha256": _canonical_sha256(snapshot),
+        "snapshot": snapshot,
+    }
+
+
+def main() -> int:
+    os.environ.setdefault(
+        "DJANGO_SETTINGS_MODULE",
+        os.environ.get("DJANGO_SETTINGS_MODULE", "config.settings.production"),
+    )
+    import django
+
+    django.setup()
+    envelope = collect_predeploy_snapshot()
+    sys.stdout.write(json.dumps(envelope, indent=2, ensure_ascii=False) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

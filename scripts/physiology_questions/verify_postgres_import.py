@@ -189,6 +189,122 @@ def main() -> int:
                 f"OK [{connection.vendor}] {title}: validate=200 (valid=True, received={expected_received}, "
                 f"backend_max_at_15={expected_capacity}), put=200 (3 active_study banks, {pub_normal} published normal Qs), stale_lock=409"
             )
+
+        # Round-trip verification of pre-deploy snapshot + atomic rollback (empty + non-empty overwrite)
+        sys.path.insert(0, str(HERE))
+        from predeploy_check_and_backup_physiology import collect_predeploy_snapshot
+        from rollback_physiology_import import rollback_from_snapshot
+        from apps.questions.tests.helpers import published_question
+
+        rb_sheet = create_sheet(
+            actor=admin,
+            subject=subject,
+            managed_file=create_managed_file(
+                owner=admin, upload=make_pdf(5, "Rollback Check.pdf"), kind="pdf"
+            ),
+            title="Rollback Check",
+            summary="",
+            position=99,
+            publish=True,
+            notify_students=False,
+            allow_download=False,
+        )
+        manual_q = published_question(actor=admin, node=subject, prompt="Manual physiology stem")
+        manual_q.current_version.source_learning_object = rb_sheet
+        manual_q.current_version.save(update_fields=("source_learning_object",))
+
+        rb_payload_bytes = (OUT_DIR / "02_cell_junction_4e76d4c0_all_questions.json").read_bytes()
+        rb_base = f"/api/v1/operations/admin/content/sheets/{rb_sheet.id}"
+
+        # Case A: pre-import snapshot on sheet with no settings/banks + 1 manual question
+        snap_a = collect_predeploy_snapshot(
+            sheet_specs=[("Rollback Check", str(rb_sheet.id))],
+            archived_intro_id=None,
+        )
+        assert snap_a["snapshot"]["target_sheets"][0]["existing_questions_summary"]["untouched_other_questions_count"] == 1
+        assert client.patch(
+            f"{rb_base}/active-study",
+            {"expected_revision": 0, "enabled": True, "excluded_start_pages": 1, "excluded_end_pages": 1},
+            format="json",
+        ).status_code == 200
+        assert client.put(
+            f"{rb_base}/all-questions",
+            {
+                "payload_file": SimpleUploadedFile("rb.json", rb_payload_bytes, content_type="application/json"),
+                "sheet_question_count": "30",
+                "excluded_start_pages": "1",
+                "excluded_end_pages": "1",
+                "settings_revision": "1",
+                "expected_revisions": json.dumps({"easy": 0, "medium": 0, "hard": 0}),
+                "publish_sheet_questions": "true",
+            },
+            format="multipart",
+        ).status_code == 200
+        manual_q.refresh_from_db()
+        assert manual_q.workflow_status == Question.WorkflowStatus.PUBLISHED
+
+        # Dry-run rollback must not alter DB
+        dry_res = rollback_from_snapshot(snap_a, apply=False)
+        assert dry_res["applied"] is False
+        assert ActiveStudyQuestionContent.objects.filter(sheet=rb_sheet).count() == 3
+
+        # Apply rollback Case A -> 0 banks, 0 settings, 30 imported retired, 1 manual stays published
+        apply_a = rollback_from_snapshot(snap_a, apply=True)
+        assert apply_a["applied"] is True
+        assert ActiveStudyQuestionContent.objects.filter(sheet=rb_sheet).count() == 0
+        assert ActiveStudySettings.objects.filter(sheet=rb_sheet).count() == 0
+        assert Question.objects.filter(
+            current_version__source_learning_object=rb_sheet,
+            workflow_status=Question.WorkflowStatus.PUBLISHED,
+        ).count() == 1
+        manual_q.refresh_from_db()
+        assert manual_q.workflow_status == Question.WorkflowStatus.PUBLISHED
+
+        # Case B: seed v1 import -> snapshot -> overwrite v2 -> rollback restores v1 exact banks & un-archives v1 Qs
+        assert client.put(
+            f"{rb_base}/all-questions",
+            {
+                "payload_file": SimpleUploadedFile("rb1.json", rb_payload_bytes, content_type="application/json"),
+                "sheet_question_count": "30",
+                "excluded_start_pages": "1",
+                "excluded_end_pages": "1",
+                "settings_revision": "0",
+                "expected_revisions": json.dumps({"easy": 0, "medium": 0, "hard": 0}),
+                "publish_sheet_questions": "true",
+            },
+            format="multipart",
+        ).status_code == 200
+        v1_bank_rev = ActiveStudyQuestionContent.objects.get(sheet=rb_sheet, difficulty="easy").revision
+        snap_b = collect_predeploy_snapshot(
+            sheet_specs=[("Rollback Check", str(rb_sheet.id))],
+            archived_intro_id=None,
+        )
+        assert snap_b["snapshot"]["target_sheets"][0]["existing_questions_summary"]["will_be_archived_all_questions_count"] == 30
+        ctx_b = client.get(f"{rb_base}/all-questions").json()
+        assert client.put(
+            f"{rb_base}/all-questions",
+            {
+                "payload_file": SimpleUploadedFile("rb2.json", rb_payload_bytes, content_type="application/json"),
+                "sheet_question_count": "30",
+                "excluded_start_pages": "1",
+                "excluded_end_pages": "1",
+                "settings_revision": str(ctx_b["settings_revision"]),
+                "expected_revisions": json.dumps(snap_b["snapshot"]["target_sheets"][0]["expected_revisions"]),
+                "publish_sheet_questions": "true",
+            },
+            format="multipart",
+        ).status_code == 200
+        assert ActiveStudyQuestionContent.objects.get(sheet=rb_sheet, difficulty="easy").revision == v1_bank_rev + 1
+
+        apply_b = rollback_from_snapshot(snap_b, apply=True)
+        assert apply_b["actions"][0]["retired_newly_imported_questions"] == 30
+        assert apply_b["actions"][0]["restored_previously_archived_questions"] == 30
+        assert ActiveStudyQuestionContent.objects.get(sheet=rb_sheet, difficulty="easy").revision == v1_bank_rev
+        assert Question.objects.filter(
+            current_version__source_learning_object=rb_sheet,
+            workflow_status=Question.WorkflowStatus.PUBLISHED,
+        ).count() == 31  # 30 restored v1 all_questions + 1 untouched manual Q
+        print(f"OK [{connection.vendor}] predeploy snapshot + dry-run/apply rollback round-trip verified")
         return 0
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

@@ -392,5 +392,52 @@ class PhysiologyToolingTests(unittest.TestCase):
             self.assertEqual((good_dest / "sheet1.pdf").read_bytes(), b"existing-sentinel")
 
 
+class PredeployAndRollbackSafetyTests(unittest.TestCase):
+    def test_predeploy_script_is_strictly_read_only_and_covers_target_sheets(self) -> None:
+        from predeploy_check_and_backup_physiology import (
+            ARCHIVED_INTRO_ID,
+            TARGET_SHEETS,
+            _canonical_sha256,
+        )
+
+        self.assertEqual(
+            [sid for _, sid in TARGET_SHEETS],
+            [
+                "35923940-c141-44f6-bc49-acd4869577c0",
+                "4e76d4c0-c3ee-4a69-a5b2-1d51479d1cc1",
+                "b6b6f3e8-1ec1-4b4f-af41-131b8faaa758",
+                "06c3f406-cc1f-400b-86ee-308a41dbc03d",
+            ],
+        )
+        self.assertEqual(ARCHIVED_INTRO_ID, "766bc7a1-12df-4086-b3e4-1e0150809cd9")
+
+        source = (HERE / "predeploy_check_and_backup_physiology.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        write_attrs = {"save", "create", "update", "delete", "bulk_create", "bulk_update", "get_or_create"}
+        called_attrs = {
+            node.func.attr
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        }
+        self.assertEqual(called_attrs & write_attrs, set())
+        self.assertEqual(len(_canonical_sha256({"ok": True})), 64)
+
+    def test_rollback_rejects_tampered_snapshot_sha256(self) -> None:
+        from predeploy_check_and_backup_physiology import _canonical_sha256
+        from rollback_physiology_import import verify_snapshot_envelope
+
+        payload = {"generated_at_utc": "2026-11-15T13:00:00+00:00", "target_sheets": []}
+        envelope = {"snapshot_sha256": _canonical_sha256(payload), "snapshot": payload}
+        self.assertEqual(verify_snapshot_envelope(envelope), payload)
+
+        tampered = {"snapshot_sha256": envelope["snapshot_sha256"], "snapshot": {"target_sheets": ["x"]}}
+        with self.assertRaises(ValueError):
+            verify_snapshot_envelope(tampered)
+
+        source = (HERE / "rollback_physiology_import.py").read_text(encoding="utf-8")
+        self.assertIn("transaction.atomic()", source)
+        self.assertIn("default is dry-run", source)
+
+
 if __name__ == "__main__":
     unittest.main()
