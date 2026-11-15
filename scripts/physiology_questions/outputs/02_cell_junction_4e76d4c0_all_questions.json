@@ -1,0 +1,2921 @@
+{
+  "active_study": {
+    "easy": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Cell junctions connect plasma membranes to neighboring cells or to the:",
+              "options": {
+                "A": "Mitochondrial matrix",
+                "B": "Extracellular matrix (ECM)",
+                "C": "Nuclear pore",
+                "D": "Golgi cisterna"
+              },
+              "correct_answer": "B",
+              "explanation": "Cell junctions anchor cells either to adjacent cells or to the surrounding ECM."
+            },
+            {
+              "type": "mcq",
+              "question": "The THREE functional classes of cell junctions are occluding, communicating, and:",
+              "options": {
+                "A": "Anchoring",
+                "B": "Secretory",
+                "C": "Oxidative",
+                "D": "Pinocytic"
+              },
+              "correct_answer": "A",
+              "explanation": "Junctions fall into occluding, communicating, and anchoring functional classes."
+            },
+            {
+              "type": "mcq",
+              "question": "An example of an OCCLUDING junction is the:",
+              "options": {
+                "A": "Gap junction",
+                "B": "Desmosome",
+                "C": "Tight junction",
+                "D": "Chemical synapse"
+              },
+              "correct_answer": "C",
+              "explanation": "Tight junctions represent the classic occluding junction class."
+            },
+            {
+              "type": "mcq",
+              "question": "Communicating junctions include gap junctions and:",
+              "options": {
+                "A": "Tight junctions",
+                "B": "Hemidesmosomes",
+                "C": "Focal adhesions",
+                "D": "Chemical synapses"
+              },
+              "correct_answer": "D",
+              "explanation": "Gap junctions and chemical synapses both transmit signals between cells."
+            },
+            {
+              "type": "mcq",
+              "question": "Tight junctions are typically located near which surface of epithelial cells:",
+              "options": {
+                "A": "Basal lamina",
+                "B": "Apical region",
+                "C": "Nuclear envelope",
+                "D": "Mitochondrial crista"
+              },
+              "correct_answer": "B",
+              "explanation": "Adjacent epithelial cell membranes meet closely at tight junctions near the apical pole."
+            },
+            {
+              "type": "mcq",
+              "question": "The 'fence' role of a tight junction prevents free mixing between apical and:",
+              "options": {
+                "A": "Basolateral regions",
+                "B": "Extracellular matrix fibers",
+                "C": "Nuclear pores",
+                "D": "Cytoplasmic ribosomes"
+              },
+              "correct_answer": "A",
+              "explanation": "As a fence, tight junctions keep apical and basolateral membrane proteins and lipids separate."
+            },
+            {
+              "type": "true_false",
+              "question": "Tight junctions restrict paracellular movement through the space between adjacent cells.",
+              "correct_answer": true,
+              "explanation": "By acting as a barrier or gate, tight junctions regulate movement between adjacent epithelial cells."
+            },
+            {
+              "type": "true_false",
+              "question": "Desmosomes are classified functionally as communicating junctions.",
+              "correct_answer": false,
+              "explanation": "Desmosomes belong to anchoring junctions providing mechanical strength."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "In brain capillaries, tight junctions between endothelial cells are central to the:",
+              "options": {
+                "A": "Myelin sheath",
+                "B": "Renal glomerulus pore",
+                "C": "Blood-brain barrier",
+                "D": "Intercalated disc"
+              },
+              "correct_answer": "C",
+              "explanation": "Endothelial tight junctions form the structural basis of the blood-brain barrier."
+            },
+            {
+              "type": "mcq",
+              "question": "An alternative anatomical name for a gap junction is:",
+              "options": {
+                "A": "Desmosome",
+                "B": "Synaptic cleft",
+                "C": "Basal lamina",
+                "D": "Nexus"
+              },
+              "correct_answer": "D",
+              "explanation": "Gap junctions are also referred to as nexus junctions."
+            },
+            {
+              "type": "mcq",
+              "question": "A gap junction directly links adjacent cells via short aqueous channels connecting their:",
+              "options": {
+                "A": "Nuclei",
+                "B": "Cytoplasm",
+                "C": "Mitochondrial matrices",
+                "D": "Golgi cisternae"
+              },
+              "correct_answer": "B",
+              "explanation": "Aligned channel proteins directly bridge the cytoplasm of neighboring cells."
+            },
+            {
+              "type": "mcq",
+              "question": "Each half of a gap junction channel unit in one cell membrane is called a:",
+              "options": {
+                "A": "Connexon",
+                "B": "Desmosome",
+                "C": "Hemidesmosome",
+                "D": "Glycocalyx"
+              },
+              "correct_answer": "A",
+              "explanation": "A connexon is the membrane channel unit assembled from connexin subunits."
+            },
+            {
+              "type": "mcq",
+              "question": "The protein subunits that assemble to form a connexon are called:",
+              "options": {
+                "A": "Actins",
+                "B": "Tubulins",
+                "C": "Connexins",
+                "D": "Integrins"
+              },
+              "correct_answer": "C",
+              "explanation": "Connexon channels are built from connexin proteins."
+            },
+            {
+              "type": "mcq",
+              "question": "Gap junctions assist rapid electrical coordination especially in:",
+              "options": {
+                "A": "Bone osteocytes only",
+                "B": "Cardiac muscle",
+                "C": "Mature red blood cells",
+                "D": "Keratinized hair shafts"
+              },
+              "correct_answer": "B",
+              "explanation": "Cardiac muscle cells rely on gap junctions for rapid cell-to-cell electrical spread."
+            },
+            {
+              "type": "mcq",
+              "question": "At a chemical synapse, the presynaptic neuron releases a signaling molecule called a:",
+              "options": {
+                "A": "Connexon",
+                "B": "Phospholipid",
+                "C": "Catalase",
+                "D": "Neurotransmitter"
+              },
+              "correct_answer": "D",
+              "explanation": "Chemical synapses signal by releasing neurotransmitter across an extracellular cleft."
+            },
+            {
+              "type": "mcq",
+              "question": "The extracellular space between presynaptic and postsynaptic membranes at a chemical synapse is a:",
+              "options": {
+                "A": "Synaptic cleft",
+                "B": "Connexon pore",
+                "C": "Paracellular seal",
+                "D": "Basal lamina"
+              },
+              "correct_answer": "A",
+              "explanation": "Chemical synapses transmit across a small extracellular cleft rather than an open cytoplasmic channel."
+            },
+            {
+              "type": "true_false",
+              "question": "Gap junctions preferentially permit large protein macromolecules to pass freely between cells.",
+              "correct_answer": false,
+              "explanation": "Gap junction channels favor ions and small low-molecular-weight molecules rather than large proteins."
+            },
+            {
+              "type": "true_false",
+              "question": "Tight junctions help maintain epithelial cell polarity.",
+              "correct_answer": true,
+              "explanation": "By limiting domain mixing, tight junctions help keep distinct functions on opposite cell faces."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Anchoring junctions specialize in resisting pulling and:",
+              "options": {
+                "A": "Osmotic pressure only",
+                "B": "Stretching forces",
+                "C": "Genetic mutation",
+                "D": "Active ATP pumping"
+              },
+              "correct_answer": "B",
+              "explanation": "Anchoring junctions mechanically reinforce tissues against pulling and stretching."
+            },
+            {
+              "type": "mcq",
+              "question": "Which anchoring junction links ACTIN filaments from cell to cell:",
+              "options": {
+                "A": "Desmosome",
+                "B": "Hemidesmosome",
+                "C": "Adherens junction",
+                "D": "Focal adhesion"
+              },
+              "correct_answer": "C",
+              "explanation": "Adherens junctions anchor actin frameworks of neighboring cells together."
+            },
+            {
+              "type": "mcq",
+              "question": "Which anchoring junction links ACTIN filaments from a cell to the extracellular matrix:",
+              "options": {
+                "A": "Focal adhesion",
+                "B": "Adherens junction",
+                "C": "Desmosome",
+                "D": "Gap junction"
+              },
+              "correct_answer": "A",
+              "explanation": "Focal adhesions attach intracellular actin filaments to extracellular matrix components."
+            },
+            {
+              "type": "mcq",
+              "question": "Desmosomes connect the CYTOSKELETAL filaments known as:",
+              "options": {
+                "A": "Actin microfilaments",
+                "B": "Tubulin microtubules",
+                "C": "Collagen strands",
+                "D": "Intermediate filaments"
+              },
+              "correct_answer": "D",
+              "explanation": "Desmosomes link intermediate filaments of two adjacent cells."
+            },
+            {
+              "type": "mcq",
+              "question": "Which anchoring junction attaches a single cell to its supporting BASAL LAMINA:",
+              "options": {
+                "A": "Desmosome",
+                "B": "Hemidesmosome",
+                "C": "Adherens junction",
+                "D": "Tight junction"
+              },
+              "correct_answer": "B",
+              "explanation": "Hemidesmosomes anchor epithelial basal surfaces to the basal lamina via intermediate filaments."
+            },
+            {
+              "type": "mcq",
+              "question": "In tissues exposed to strong mechanical strain, such as skin, cell-to-cell strength is provided by:",
+              "options": {
+                "A": "Tight junctions",
+                "B": "Gap junctions",
+                "C": "Chemical synapses",
+                "D": "None of the above"
+              },
+              "correct_answer": "D",
+              "explanation": "Desmosomes strongly anchor intermediate filaments between neighboring skin cells; none of the listed non-anchoring options provide cell-to-cell tensile strength."
+            },
+            {
+              "type": "mcq",
+              "question": "According to the chapter memory frame, which junction means 'share':",
+              "options": {
+                "A": "Gap junction",
+                "B": "Tight junction",
+                "C": "Adherens junction",
+                "D": "Hemidesmosome"
+              },
+              "correct_answer": "A",
+              "explanation": "Tight junctions seal, gap junctions share signals, and anchoring junctions grip."
+            },
+            {
+              "type": "mcq",
+              "question": "Which pair of anchoring junctions BOTH link to INTERMEDIATE FILAMENTS:",
+              "options": {
+                "A": "Adherens and focal adhesion",
+                "B": "Tight and gap junctions",
+                "C": "Desmosome and hemidesmosome",
+                "D": "Focal adhesion and desmosome"
+              },
+              "correct_answer": "C",
+              "explanation": "Both desmosomes (cell-cell) and hemidesmosomes (cell-basal lamina) use intermediate filaments."
+            },
+            {
+              "type": "true_false",
+              "question": "Adherens junctions connect a cell directly to the basal lamina rather than to another cell.",
+              "correct_answer": false,
+              "explanation": "Adherens junctions connect one cell to another; focal adhesions and hemidesmosomes attach to ECM/basal lamina."
+            },
+            {
+              "type": "true_false",
+              "question": "Hemidesmosomes resemble half of a desmosome because they anchor only one cell to its basal lamina.",
+              "correct_answer": true,
+              "explanation": "Hemidesmosomes anchor one cell's intermediate filaments to the basal lamina."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "Specialized contact sites joining cells to adjacent cells or ECM are called:",
+            "options": {
+              "A": "Ribosomes",
+              "B": "Cell junctions",
+              "C": "Cristae",
+              "D": "Lysosomes"
+            },
+            "correct_answer": "B",
+            "explanation": "Cell junctions mediate sealing, communication, or attachment between cells and matrix."
+          },
+          {
+            "type": "mcq",
+            "question": "Which functional class restricts movement through spaces BETWEEN adjacent cells:",
+            "options": {
+              "A": "Occluding",
+              "B": "Communicating",
+              "C": "Anchoring",
+              "D": "Pinocytic"
+            },
+            "correct_answer": "A",
+            "explanation": "Occluding (tight) junctions restrict paracellular passage between adjacent cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Which functional class allows signals or small solutes to pass between cells:",
+            "options": {
+              "A": "Occluding",
+              "B": "Communicating",
+              "C": "Anchoring",
+              "D": "Exocytic"
+            },
+            "correct_answer": "B",
+            "explanation": "Communicating junctions include gap junctions and chemical synapses."
+          },
+          {
+            "type": "mcq",
+            "question": "Which functional class reinforces tissue mechanically by attaching cells or ECM:",
+            "options": {
+              "A": "Occluding",
+              "B": "Communicating",
+              "C": "Anchoring",
+              "D": "Translational"
+            },
+            "correct_answer": "C",
+            "explanation": "Anchoring junctions resist pulling and stretching forces."
+          },
+          {
+            "type": "mcq",
+            "question": "Tight junctions are located primarily near which end of epithelial cells:",
+            "options": {
+              "A": "Basal lamina only",
+              "B": "Nuclear center",
+              "C": "Extracellular fluid",
+              "D": "Apical part"
+            },
+            "correct_answer": "D",
+            "explanation": "Tight junctions seal adjacent membranes near the apical region."
+          },
+          {
+            "type": "mcq",
+            "question": "Limiting paracellular movement between epithelial cells describes the tight junction's:",
+            "options": {
+              "A": "Synaptic cleft role",
+              "B": "Barrier or gate role",
+              "C": "Catalytic role",
+              "D": "Connexon role"
+            },
+            "correct_answer": "B",
+            "explanation": "Tight junctions act as a gate controlling movement through intercellular spaces."
+          },
+          {
+            "type": "mcq",
+            "question": "Preventing membrane proteins and lipids from diffusing between apical and basolateral zones describes the tight junction's:",
+            "options": {
+              "A": "Fence role",
+              "B": "Channel role",
+              "C": "Anchoring role",
+              "D": "Secretory role"
+            },
+            "correct_answer": "A",
+            "explanation": "The fence function restricts lateral mixing of apical and basolateral components."
+          },
+          {
+            "type": "mcq",
+            "question": "Maintaining distinct functions at opposite faces of an epithelial cell is called:",
+            "options": {
+              "A": "Autophagy",
+              "B": "Exocytosis",
+              "C": "Polarity",
+              "D": "Necrosis"
+            },
+            "correct_answer": "C",
+            "explanation": "Tight junctions support epithelial polarity across apical and basolateral faces."
+          },
+          {
+            "type": "mcq",
+            "question": "Selected vascular barriers in the brain rely on tight junctions to form the:",
+            "options": {
+              "A": "Cardiac syncytium",
+              "B": "Blood-brain barrier",
+              "C": "Synaptic cleft",
+              "D": "Basal lamina"
+            },
+            "correct_answer": "B",
+            "explanation": "Tight junctions between brain endothelial cells limit entry of blood solutes into neural tissue."
+          },
+          {
+            "type": "mcq",
+            "question": "An epithelial barrier famous for tight junctions regulating nutrient/fluid movement between gut cells is the:",
+            "options": {
+              "A": "Intestinal mucosa",
+              "B": "Skeletal tendon",
+              "C": "Mature RBC membrane",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Intestinal mucosa, renal tubules, and brain capillaries rely on tight junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "Gap junctions are also known by the term:",
+            "options": {
+              "A": "Desmosome",
+              "B": "Synapse",
+              "C": "Focal plaque",
+              "D": "Nexus"
+            },
+            "correct_answer": "D",
+            "explanation": "Nexus is an alternative name for gap junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "Particles that are EXCLUDED from passing rapidly through narrow gap junction channels are:",
+            "options": {
+              "A": "Small ions",
+              "B": "Low-molecular-weight messengers",
+              "C": "Large proteins",
+              "D": "Small metabolites"
+            },
+            "correct_answer": "C",
+            "explanation": "Gap junctions favor small ions and metabolites rather than large protein macromolecules."
+          },
+          {
+            "type": "mcq",
+            "question": "What forms when two neighboring cell membranes align their connexons end-to-end:",
+            "options": {
+              "A": "An extracellular cleft widens",
+              "B": "A direct cytoplasmic pore",
+              "C": "Intermediate filaments bind basal lamina",
+              "D": "Apical lipids mix freely"
+            },
+            "correct_answer": "B",
+            "explanation": "Aligned connexons bridge adjacent cytoplasms directly."
+          },
+          {
+            "type": "mcq",
+            "question": "Connexons are assembled from protein subunits called:",
+            "options": {
+              "A": "Connexins",
+              "B": "Actins",
+              "C": "Tubulins",
+              "D": "Catalases"
+            },
+            "correct_answer": "A",
+            "explanation": "Connexin proteins assemble to form each connexon unit."
+          },
+          {
+            "type": "mcq",
+            "question": "Gap junctions primarily allow passage of:",
+            "options": {
+              "A": "Intact organelles",
+              "B": "Large plasma proteins",
+              "C": "Whole chromosomes",
+              "D": "Ions and small signaling molecules"
+            },
+            "correct_answer": "D",
+            "explanation": "Small aqueous gap junction pores favor ions and low-molecular-weight messengers."
+          },
+          {
+            "type": "mcq",
+            "question": "Coordination of neighboring epithelial activity via gap junctions occurs in heart and portions of:",
+            "options": {
+              "A": "Mature red blood cells",
+              "B": "Intestinal epithelium",
+              "C": "Keratinized nail beds",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Gap junctions operate in cardiac muscle and tissues including intestinal epithelium."
+          },
+          {
+            "type": "mcq",
+            "question": "In a chemical synapse, communication across the extracellular space occurs via:",
+            "options": {
+              "A": "Connexons",
+              "B": "Actin filaments",
+              "C": "Neurotransmitter",
+              "D": "Lipid micelles"
+            },
+            "correct_answer": "C",
+            "explanation": "Presynaptic neurons release neurotransmitter across a small extracellular cleft."
+          },
+          {
+            "type": "mcq",
+            "question": "Chemical synapses can connect a neuron to another neuron or to a:",
+            "options": {
+              "A": "Muscle fiber",
+              "B": "Lysosome",
+              "C": "Red blood cell",
+              "D": "Nuclear pore"
+            },
+            "correct_answer": "A",
+            "explanation": "Chemical synapses relay impulses neuron-to-neuron or nerve-to-muscle."
+          },
+          {
+            "type": "mcq",
+            "question": "Receptors for released neurotransmitters are located on the:",
+            "options": {
+              "A": "Mitochondrial matrix",
+              "B": "Receiving (postsynaptic) cell",
+              "C": "Golgi cis face",
+              "D": "Basal lamina alone"
+            },
+            "correct_answer": "B",
+            "explanation": "Receptors on the receiving cell detect neurotransmitters across the cleft."
+          },
+          {
+            "type": "mcq",
+            "question": "Unlike occluding or communicating junctions, anchoring junctions specialize in:",
+            "options": {
+              "A": "Closing paracellular water gaps",
+              "B": "Direct ion syncytium conduction",
+              "C": "Neurotransmitter vesicle release",
+              "D": "Mechanical tissue attachment"
+            },
+            "correct_answer": "D",
+            "explanation": "Anchoring junctions mechanically stabilize tissues exposed to stretch."
+          },
+          {
+            "type": "mcq",
+            "question": "Which anchoring junction attaches two neighboring cells through ACTIN rather than intermediate filaments:",
+            "options": {
+              "A": "Adherens junction",
+              "B": "Desmosome",
+              "C": "Focal adhesion",
+              "D": "Hemidesmosome"
+            },
+            "correct_answer": "A",
+            "explanation": "Adherens junctions couple actin frameworks between neighboring cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Which junction anchors epithelial cell ACTIN to surrounding extracellular components:",
+            "options": {
+              "A": "Adherens junction",
+              "B": "Desmosome",
+              "C": "Focal adhesion",
+              "D": "Hemidesmosome"
+            },
+            "correct_answer": "C",
+            "explanation": "Focal adhesions anchor cell actin filaments to extracellular matrix."
+          },
+          {
+            "type": "mcq",
+            "question": "Which anchoring junction links cell to cell via INTERMEDIATE filaments:",
+            "options": {
+              "A": "Adherens junction",
+              "B": "Desmosome",
+              "C": "Focal adhesion",
+              "D": "Hemidesmosome"
+            },
+            "correct_answer": "B",
+            "explanation": "Desmosomes connect intermediate filaments across neighboring cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Which anchoring junction links cell to BASAL LAMINA via intermediate filaments:",
+            "options": {
+              "A": "Hemidesmosome",
+              "B": "Desmosome",
+              "C": "Adherens junction",
+              "D": "Focal adhesion"
+            },
+            "correct_answer": "A",
+            "explanation": "Hemidesmosomes secure basal epithelial surfaces to the basal lamina."
+          },
+          {
+            "type": "mcq",
+            "question": "Cardiac intercalated discs and skin both feature cell-to-cell anchoring by:",
+            "options": {
+              "A": "Tight junctions only",
+              "B": "Adherens junctions",
+              "C": "Hemidesmosomes",
+              "D": "Chemical synapses"
+            },
+            "correct_answer": "B",
+            "explanation": "Adherens junctions operate in skin and cardiac intercalated discs."
+          },
+          {
+            "type": "mcq",
+            "question": "Attachment of epithelial cells to surrounding ECM is a study example of:",
+            "options": {
+              "A": "Gap junctions",
+              "B": "Chemical synapses",
+              "C": "Tight junctions",
+              "D": "Focal adhesions"
+            },
+            "correct_answer": "D",
+            "explanation": "Focal adhesions anchor epithelial cells to the ECM."
+          },
+          {
+            "type": "mcq",
+            "question": "Skin exposed to strong mechanical strain relies heavily on cell-to-cell:",
+            "options": {
+              "A": "Focal adhesions",
+              "B": "Chemical synapses",
+              "C": "Desmosomes",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "Desmosomes resist mechanical strain in skin via intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Which anchoring junction sits at the BASAL surface of epithelial cells:",
+            "options": {
+              "A": "Hemidesmosome",
+              "B": "Tight junction",
+              "C": "Gap junction",
+              "D": "Chemical synapse"
+            },
+            "correct_answer": "A",
+            "explanation": "Hemidesmosomes anchor basal epithelial membranes to the basal lamina."
+          },
+          {
+            "type": "mcq",
+            "question": "In the chapter memory frame, 'seal' corresponds to:",
+            "options": {
+              "A": "Gap junction",
+              "B": "Tight junction",
+              "C": "Desmosome",
+              "D": "Focal adhesion"
+            },
+            "correct_answer": "B",
+            "explanation": "Seal = tight; share = gap; grip = anchoring."
+          },
+          {
+            "type": "mcq",
+            "question": "In the chapter memory frame, 'grip another cell' includes:",
+            "options": {
+              "A": "Focal adhesion or hemidesmosome",
+              "B": "Tight or gap junction",
+              "C": "Adherens or desmosome",
+              "D": "Synapse or connexon"
+            },
+            "correct_answer": "C",
+            "explanation": "Adherens junctions and desmosomes are the two cell-to-cell anchoring junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "In the chapter memory frame, 'grip the matrix' includes:",
+            "options": {
+              "A": "Adherens or desmosome",
+              "B": "Tight or gap junction",
+              "C": "Gap or chemical synapse",
+              "D": "Focal adhesion or hemidesmosome"
+            },
+            "correct_answer": "D",
+            "explanation": "Focal adhesions and hemidesmosomes anchor cells to matrix/basal lamina."
+          },
+          {
+            "type": "mcq",
+            "question": "The space between adjacent epithelial cells is termed the:",
+            "options": {
+              "A": "Cytoplasmic tunnel",
+              "B": "Paracellular space",
+              "C": "Intracellular matrix",
+              "D": "Synaptic vesicle"
+            },
+            "correct_answer": "B",
+            "explanation": "Tight junctions restrict paracellular movement between neighboring cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Which communicating junction does NOT rely on cytoplasmic channels:",
+            "options": {
+              "A": "Chemical synapse",
+              "B": "Gap junction",
+              "C": "Nexus",
+              "D": "Connexon pair"
+            },
+            "correct_answer": "A",
+            "explanation": "Chemical synapses transmit signals across an extracellular cleft without cytoplasmic continuity."
+          },
+          {
+            "type": "mcq",
+            "question": "Which cytoskeletal component links to BOTH adherens junctions and focal adhesions:",
+            "options": {
+              "A": "Intermediate filaments",
+              "B": "Tubulin microtubules",
+              "C": "Actin filaments",
+              "D": "Collagen strands"
+            },
+            "correct_answer": "C",
+            "explanation": "Both adherens junctions and focal adhesions anchor actin filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Which cytoskeletal component links to BOTH desmosomes and hemidesmosomes:",
+            "options": {
+              "A": "Actin filaments",
+              "B": "Intermediate filaments",
+              "C": "Microtubules",
+              "D": "Glycolipids"
+            },
+            "correct_answer": "B",
+            "explanation": "Both desmosomes and hemidesmosomes anchor intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Besides cardiac muscle, gap junctions also function in portions of:",
+            "options": {
+              "A": "Extracellular collagen only",
+              "B": "Basal lamina fibers",
+              "C": "Nuclear chromatin",
+              "D": "Intestinal epithelium"
+            },
+            "correct_answer": "D",
+            "explanation": "Gap junctions occur in cardiac muscle and tissues such as intestinal epithelium."
+          },
+          {
+            "type": "mcq",
+            "question": "Keeping neighboring epithelial cells closely coordinated represents which tight junction benefit:",
+            "options": {
+              "A": "Tissue stability",
+              "B": "Mitotic spindle assembly",
+              "C": "ATP synthesis",
+              "D": "Phagocytosis"
+            },
+            "correct_answer": "A",
+            "explanation": "Tight junctions promote tissue stability alongside barrier and polarity functions."
+          },
+          {
+            "type": "mcq",
+            "question": "Which junction type acts directly at nerve-muscle communication:",
+            "options": {
+              "A": "Tight junction",
+              "B": "Chemical synapse",
+              "C": "Desmosome",
+              "D": "Hemidesmosome"
+            },
+            "correct_answer": "B",
+            "explanation": "Nerve-muscle communication occurs via chemical synapses."
+          },
+          {
+            "type": "mcq",
+            "question": "Which protein forms the individual subunits inside each connexon:",
+            "options": {
+              "A": "Connexin",
+              "B": "Actin",
+              "C": "Keratin",
+              "D": "Catalase"
+            },
+            "correct_answer": "A",
+            "explanation": "Connexin proteins assemble to form a connexon."
+          },
+          {
+            "type": "mcq",
+            "question": "A hemidesmosome anchors one epithelial cell rather than two neighboring cells, resembling:",
+            "options": {
+              "A": "A double tight junction",
+              "B": "Two aligned connexons",
+              "C": "Half of a desmosome",
+              "D": "A presynaptic terminal"
+            },
+            "correct_answer": "C",
+            "explanation": "Hemidesmosomes look like half a desmosome attached to the basal lamina."
+          },
+          {
+            "type": "true_false",
+            "question": "All four anchoring junction types connect one cell directly to a neighboring cell.",
+            "correct_answer": false,
+            "explanation": "Focal adhesions and hemidesmosomes anchor cells to ECM or basal lamina."
+          },
+          {
+            "type": "true_false",
+            "question": "Tight junctions help preserve distinct apical and basolateral epithelial membrane regions.",
+            "correct_answer": true,
+            "explanation": "Their fence role prevents apical-basolateral component mixing."
+          },
+          {
+            "type": "true_false",
+            "question": "Gap junctions require neurotransmitters to cross an extracellular cleft.",
+            "correct_answer": false,
+            "explanation": "Gap junctions pass ions and small molecules directly between cytoplasms; chemical synapses use neurotransmitters."
+          },
+          {
+            "type": "true_false",
+            "question": "Connexons are channel units formed from connexin proteins in gap junctions.",
+            "correct_answer": true,
+            "explanation": "Adjacent cells align connexons made of connexins."
+          },
+          {
+            "type": "true_false",
+            "question": "Desmosomes connect actin microfilaments between neighboring cells.",
+            "correct_answer": false,
+            "explanation": "Desmosomes connect intermediate filaments; adherens junctions connect actin."
+          },
+          {
+            "type": "true_false",
+            "question": "Chemical synapses form continuous aqueous tunnels directly joining presynaptic and postsynaptic cytoplasm.",
+            "correct_answer": false,
+            "explanation": "Chemical synapses signal across an extracellular cleft rather than an open cytoplasmic channel."
+          },
+          {
+            "type": "true_false",
+            "question": "Tight junctions in brain capillary endothelium contribute to the blood-brain barrier.",
+            "correct_answer": true,
+            "explanation": "Endothelial tight junctions restrict entry of substances from blood into brain tissue."
+          },
+          {
+            "type": "true_false",
+            "question": "Hemidesmosomes attach cells to the basal lamina using intermediate filaments.",
+            "correct_answer": true,
+            "explanation": "Hemidesmosomes couple basal intermediate filaments to the basal lamina."
+          },
+          {
+            "type": "true_false",
+            "question": "Tight junctions promote epithelial tissue stability by keeping neighboring cells closely coordinated.",
+            "correct_answer": true,
+            "explanation": "Alongside sealing and polarity, tight junctions stabilize coordinated epithelial layers."
+          },
+          {
+            "type": "true_false",
+            "question": "Cell junctions are absent from tissues because cells always function as completely isolated units.",
+            "correct_answer": false,
+            "explanation": "Tissue cells rely on specialized junctions to seal, signal, and anchor together."
+          }
+        ]
+      }
+    },
+    "medium": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why can tight junctions be described as BOTH a 'gate' and a 'fence':",
+              "options": {
+                "A": "They release neurotransmitters and pump Na+ outward",
+                "B": "They control paracellular passage between cells and stop apical-basolateral protein mixing",
+                "C": "They connect actin filaments to ECM",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "The gate role limits paracellular diffusion while the fence role preserves membrane domain separation."
+            },
+            {
+              "type": "mcq",
+              "question": "If tight junctions in an epithelium became leaky, which movement would increase FIRST:",
+              "options": {
+                "A": "Gap junction connexon gating",
+                "B": "Endocytic vesicle fusion",
+                "C": "Synaptic neurotransmitter breakdown",
+                "D": "Unregulated water and ion flow between adjacent cells (paracellular)"
+              },
+              "correct_answer": "D",
+              "explanation": "Tight junctions specifically seal the paracellular space between adjacent cell membranes."
+            },
+            {
+              "type": "mcq",
+              "question": "Which junction class matches BOTH 'support passage of signals' AND 'small substances between cells':",
+              "options": {
+                "A": "Communicating junctions",
+                "B": "Occluding junctions",
+                "C": "Anchoring junctions",
+                "D": "Hemidesmosomes"
+              },
+              "correct_answer": "A",
+              "explanation": "Communicating junctions (gap junctions and chemical synapses) pass signals or small solutes."
+            },
+            {
+              "type": "mcq",
+              "question": "Which junction belongs to the ANCHORING class:",
+              "options": {
+                "A": "Adherens junction",
+                "B": "Tight junction",
+                "C": "Gap junction",
+                "D": "A and C"
+              },
+              "correct_answer": "A",
+              "explanation": "Adherens junctions are anchoring junctions, whereas tight junctions are occluding and gap junctions are communicating."
+            },
+            {
+              "type": "mcq",
+              "question": "Disruption of the FENCE property of epithelial tight junctions directly allows:",
+              "options": {
+                "A": "Intermediate filaments to detach from basal lamina",
+                "B": "Connexons to carry large proteins",
+                "C": "Apical and basolateral membrane proteins/lipids to mix freely",
+                "D": "Presynaptic clefts to open"
+              },
+              "correct_answer": "C",
+              "explanation": "The fence role keeps apical membrane proteins and lipids from diffusing into the basolateral domain."
+            },
+            {
+              "type": "mcq",
+              "question": "Comparing a barrier junction vs a signal-sharing junction highlights which pair:",
+              "options": {
+                "A": "Desmosome vs Hemidesmosome",
+                "B": "Tight junction vs Gap junction",
+                "C": "Adherens vs Focal adhesion",
+                "D": "Gap junction vs Chemical synapse"
+              },
+              "correct_answer": "B",
+              "explanation": "Tight junctions seal barriers, whereas gap junctions share signals directly."
+            },
+            {
+              "type": "true_false",
+              "question": "Cell junctions never attach cells to extracellular matrix; they only connect adjacent cells.",
+              "correct_answer": false,
+              "explanation": "Focal adhesions and hemidesmosomes specifically attach cells to ECM or basal lamina."
+            },
+            {
+              "type": "true_false",
+              "question": "Tight junctions regulate water, ion, and solute movement across the space between neighboring cells.",
+              "correct_answer": true,
+              "explanation": "They form an apical seal governing paracellular permeability."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "How does a tight junction differ fundamentally from a membrane transport protein:",
+              "options": {
+                "A": "Tight junctions use ATP whereas channels do not",
+                "B": "Tight junctions control movement BETWEEN cells; transport proteins control movement THROUGH a membrane",
+                "C": "Transport proteins block all ions between cells",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Tight junctions govern paracellular passage while membrane transporters govern transcellular passage."
+            },
+            {
+              "type": "mcq",
+              "question": "Which organs/tissues rely heavily on TIGHT JUNCTIONS for selective barriers:",
+              "options": {
+                "A": "Intestinal mucosa and renal tubules",
+                "B": "Brain capillary endothelium (blood-brain barrier)",
+                "C": "Cardiac gap syncytium alone",
+                "D": "A and B"
+              },
+              "correct_answer": "D",
+              "explanation": "Intestinal mucosa, renal tubules, and brain capillaries depend on tight junctions."
+            },
+            {
+              "type": "mcq",
+              "question": "Why must ions passing through a gap junction NOT enter the extracellular fluid first:",
+              "options": {
+                "A": "Tight junctions dissolve extracellular fluid completely",
+                "B": "Synaptic vesicles swallow extracellular ions",
+                "C": "Aligned connexons create a direct aqueous cytoplasm-to-cytoplasm tunnel",
+                "D": "Connexins convert ions into neurotransmitters"
+              },
+              "correct_answer": "C",
+              "explanation": "Connexons in adjacent membranes align end-to-end to bridge two cytoplasms directly."
+            },
+            {
+              "type": "mcq",
+              "question": "Which statement CORRECTLY contrasts a gap junction with a chemical synapse:",
+              "options": {
+                "A": "Chemical synapses use connexons; gap junctions use postsynaptic receptors",
+                "B": "Gap junctions connect only neurons to muscle",
+                "C": "Chemical synapses pass ions through an open cytosolic tunnel",
+                "D": "Gap junctions provide direct cytoplasmic exchange; chemical synapses release neurotransmitter across an extracellular cleft"
+              },
+              "correct_answer": "D",
+              "explanation": "Gap junctions allow direct cytoplasmic continuity, whereas chemical synapses bridge an extracellular cleft via receptors."
+            },
+            {
+              "type": "mcq",
+              "question": "Why are SMALL metabolites and ions able to cross gap junctions while large proteins cannot:",
+              "options": {
+                "A": "Connexon pore diameter limits passage to low-molecular-weight substances",
+                "B": "Gap junctions use ATP-driven endocytosis",
+                "C": "Large proteins belong only to ECM",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Gap junction channels are narrow aqueous pores favoring low-molecular-weight solutes."
+            },
+            {
+              "type": "mcq",
+              "question": "If a genetic defect removes connexin expression from cardiac muscle, which consequence follows directly:",
+              "options": {
+                "A": "Blood-brain barrier endothelial cells open paracellularly",
+                "B": "Synchronized electrical wave conduction slows or fails",
+                "C": "Basal epidermal cells detach from basal lamina",
+                "D": "Neuromuscular synaptic clefts fuse into syncytia"
+              },
+              "correct_answer": "B",
+              "explanation": "Loss of connexins prevents functional gap junctions needed for cardiac electrical spread."
+            },
+            {
+              "type": "mcq",
+              "question": "At a neuromuscular or interneuronal chemical synapse, directional signaling requires:",
+              "options": {
+                "A": "Bidirectional connexin alignment across clefts",
+                "B": "Desmosomal intermediate filaments across axons",
+                "C": "Presynaptic neurotransmitter release to postsynaptic receptors",
+                "D": "Tight-junction fence polarity across vesicles"
+              },
+              "correct_answer": "C",
+              "explanation": "Presynaptic release across a cleft activates receiving-cell receptors."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does a polarized epithelial cell rely on tight junctions alongside membrane carriers:",
+              "options": {
+                "A": "Tight junctions lock apical vs basolateral domain separation",
+                "B": "Tight junctions pump glucose actively with ATP hydrolysis",
+                "C": "Tight junctions synthesize nuclear chromosomal DNA",
+                "D": "Tight junctions link actin directly to collagen matrix"
+              },
+              "correct_answer": "A",
+              "explanation": "Polarity keeps transport functions distinct between luminal (apical) and basolateral faces."
+            },
+            {
+              "type": "true_false",
+              "question": "Removing tight junctions between kidney tubule cells compromises paracellular solute control.",
+              "correct_answer": true,
+              "explanation": "Renal tubular epithelia depend on tight junctions to restrict unregulated paracellular flow."
+            },
+            {
+              "type": "true_false",
+              "question": "Tissue stability under tight junctions isolates neighboring cells from one another.",
+              "correct_answer": false,
+              "explanation": "Tight junctions help keep neighboring epithelial cells closely coordinated."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which pairing correctly links an ACTIN-based junction with its attachment target:",
+              "options": {
+                "A": "Adherens = cell to ECM; Focal adhesion = cell to cell",
+                "B": "Adherens = cell to cell; Focal adhesion = cell to ECM",
+                "C": "Both connect cell to basal lamina",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Adherens junctions grip neighboring cells via actin; focal adhesions grip the ECM via actin."
+            },
+            {
+              "type": "mcq",
+              "question": "Where do ADHERENS JUNCTIONS provide notable mechanical coordination:",
+              "options": {
+                "A": "Brain capillary blood-brain barrier",
+                "B": "Presynaptic neurotransmitter vesicles",
+                "C": "Nucleolar pores",
+                "D": "Skin and cardiac intercalated discs"
+              },
+              "correct_answer": "D",
+              "explanation": "Adherens junctions are prominent in skin and cardiac intercalated discs."
+            },
+            {
+              "type": "mcq",
+              "question": "Comparing DESMOSOMES and ADHERENS JUNCTIONS, both attach cell to cell, but desmosomes use:",
+              "options": {
+                "A": "Actin filaments rather than intermediate filaments",
+                "B": "Intermediate filaments rather than actin filaments",
+                "C": "Tubulin cilia rather than fibrous proteins",
+                "D": "Connexons rather than cadherins"
+              },
+              "correct_answer": "B",
+              "explanation": "Both are cell-to-cell anchoring junctions; adherens link actin while desmosomes link intermediate filaments."
+            },
+            {
+              "type": "mcq",
+              "question": "Why would a defect in HEMIDESMOSOMES weaken an epithelium differently from a defect in desmosomes:",
+              "options": {
+                "A": "It halts rapid electrical spread across cardiac muscle",
+                "B": "It opens paracellular water leaks at the apical border",
+                "C": "It detaches basal cells from basal lamina rather than cell-to-cell",
+                "D": "It breaks actin attachments inside cardiac intercalated discs"
+              },
+              "correct_answer": "C",
+              "explanation": "Hemidesmosomes anchor basal cells to basal lamina, whereas desmosomes anchor cells to one another."
+            },
+            {
+              "type": "mcq",
+              "question": "Which TWO junctions grip the extracellular matrix or basal lamina:",
+              "options": {
+                "A": "Focal adhesion and hemidesmosome",
+                "B": "Adherens junction and desmosome",
+                "C": "Tight junction and gap junction",
+                "D": "Desmosome and focal adhesion"
+              },
+              "correct_answer": "A",
+              "explanation": "Focal adhesions (actin -> ECM) and hemidesmosomes (intermediate filaments -> basal lamina) anchor cells to matrix."
+            },
+            {
+              "type": "mcq",
+              "question": "Which TWO junctions grip another cell using anchoring proteins:",
+              "options": {
+                "A": "Focal adhesion and hemidesmosome",
+                "B": "Tight junction and focal adhesion",
+                "C": "Gap junction and hemidesmosome",
+                "D": "Adherens junction and desmosome"
+              },
+              "correct_answer": "D",
+              "explanation": "Adherens junctions and desmosomes connect cell to neighboring cell."
+            },
+            {
+              "type": "mcq",
+              "question": "Which example highlights where FOCAL ADHESIONS operate:",
+              "options": {
+                "A": "Electrical coupling of cardiac myocytes",
+                "B": "Attachment of epithelial cells to the extracellular matrix",
+                "C": "Neurotransmitter signaling across clefts",
+                "D": "Apical barrier sealing in renal tubules"
+              },
+              "correct_answer": "B",
+              "explanation": "Focal adhesions link epithelial cell actin frameworks to the ECM."
+            },
+            {
+              "type": "mcq",
+              "question": "If a tissue lacks INTERMEDIATE FILAMENTS, which pair of junctions loses its cytoskeletal link:",
+              "options": {
+                "A": "Desmosomes and hemidesmosomes",
+                "B": "Adherens junctions and focal adhesions",
+                "C": "Tight junctions and gap junctions",
+                "D": "Chemical synapses and connexons"
+              },
+              "correct_answer": "A",
+              "explanation": "Both desmosomes and hemidesmosomes anchor into intermediate filaments."
+            },
+            {
+              "type": "true_false",
+              "question": "Focal adhesions use intermediate filaments to anchor epithelial cells to the extracellular matrix.",
+              "correct_answer": false,
+              "explanation": "Focal adhesions link actin filaments to ECM; hemidesmosomes link intermediate filaments to basal lamina."
+            },
+            {
+              "type": "true_false",
+              "question": "Cytoskeletal linkage (actin vs intermediate filaments) is a key criterion for distinguishing anchoring junctions.",
+              "correct_answer": true,
+              "explanation": "Anchoring junctions are classified by both attachment target (cell vs matrix) and cytoskeletal link."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "Why is the blood-brain barrier compromised if endothelial TIGHT JUNCTIONS break down:",
+            "options": {
+              "A": "Connexons stop releasing neurotransmitters",
+              "B": "Basal lamina detaches from skeletal muscle",
+              "C": "Paracellular spaces between capillary endothelial cells open to blood solutes",
+              "D": "Actin microfilaments convert into tubulin"
+            },
+            "correct_answer": "C",
+            "explanation": "Endothelial tight junctions normally restrict paracellular passage from blood to neural tissue."
+          },
+          {
+            "type": "mcq",
+            "question": "Which junction pair shares ACTIN linkage yet differs in cell-to-cell vs cell-to-matrix attachment:",
+            "options": {
+              "A": "Desmosome and hemidesmosome",
+              "B": "Adherens junction and focal adhesion",
+              "C": "Tight junction and gap junction",
+              "D": "Adherens junction and desmosome"
+            },
+            "correct_answer": "B",
+            "explanation": "Adherens (cell-cell) and focal adhesion (cell-ECM) both anchor actin filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can cardiac muscle cells transmit action potentials rapidly from cell to cell:",
+            "options": {
+              "A": "Gap junction connexons allow ions to pass directly between cytoplasms",
+              "B": "Tight junctions pump Na+ across paracellular clefts",
+              "C": "Desmosomes release neurotransmitters into the myocardium",
+              "D": "Hemidesmosomes link actin to basal lamina"
+            },
+            "correct_answer": "A",
+            "explanation": "Gap junctions electrically couple cardiomyocytes via direct cytoplasmic ion channels."
+          },
+          {
+            "type": "mcq",
+            "question": "Comparing a tight junction with a membrane transport protein, which route does the tight junction control:",
+            "options": {
+              "A": "Facilitated diffusion THROUGH a lipid bilayer",
+              "B": "Active pumping THROUGH an integral ATPase",
+              "C": "Vesicular endocytosis across the apical surface",
+              "D": "Movement BETWEEN adjacent cells (paracellular)"
+            },
+            "correct_answer": "D",
+            "explanation": "Tight junctions govern the space between cells; transporters govern movement across a cell membrane."
+          },
+          {
+            "type": "mcq",
+            "question": "Which combination describes TWO consequences of losing tight junctions in renal tubules:",
+            "options": {
+              "A": "Uncontrolled paracellular leakage of water and ions",
+              "B": "Failure of intermediate filaments in skin",
+              "C": "Loss of epithelial apical-basolateral polarity",
+              "D": "A and C"
+            },
+            "correct_answer": "D",
+            "explanation": "Tight junctions provide both the paracellular gate and the polarity fence in renal epithelium."
+          },
+          {
+            "type": "mcq",
+            "question": "A signaling junction uses receptor binding after chemical release across a narrow gap rather than direct cytoplasmic coupling; this describes:",
+            "options": {
+              "A": "Gap junction (nexus)",
+              "B": "Chemical synapse",
+              "C": "Tight junction",
+              "D": "Adherens junction"
+            },
+            "correct_answer": "B",
+            "explanation": "Chemical synapses transmit via neurotransmitters released across an extracellular cleft to postsynaptic receptors."
+          },
+          {
+            "type": "mcq",
+            "question": "Why are large cytoplasmic proteins excluded from passing through gap junctions:",
+            "options": {
+              "A": "Gap junctions lack aqueous centers",
+              "B": "Postsynaptic cleft enzymes digest proteins",
+              "C": "Connexon channels are narrow pores favoring low-molecular-weight ions and messengers",
+              "D": "Tight junctions fence them out"
+            },
+            "correct_answer": "C",
+            "explanation": "Small channel diameter restricts passage to ions and small metabolites."
+          },
+          {
+            "type": "mcq",
+            "question": "Which junction connects to INTERMEDIATE filaments AND attaches cell-to-cell:",
+            "options": {
+              "A": "Desmosome",
+              "B": "Hemidesmosome",
+              "C": "Adherens junction",
+              "D": "Focal adhesion"
+            },
+            "correct_answer": "A",
+            "explanation": "Desmosomes are cell-to-cell intermediate-filament anchors."
+          },
+          {
+            "type": "mcq",
+            "question": "Which junction connects to INTERMEDIATE filaments AND attaches cell-to-basal lamina:",
+            "options": {
+              "A": "Desmosome",
+              "B": "Hemidesmosome",
+              "C": "Adherens junction",
+              "D": "Focal adhesion"
+            },
+            "correct_answer": "B",
+            "explanation": "Hemidesmosomes anchor basal epithelial cells to basal lamina via intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "If a disease destroys DESMOSOMES in skin, the MOST likely tissue defect is:",
+            "options": {
+              "A": "Loss of blood-brain barrier occlusion",
+              "B": "Failure of neuromuscular neurotransmitter release",
+              "C": "Weakened cell-to-cell resistance against mechanical strain",
+              "D": "Blocked apical glucose transport"
+            },
+            "correct_answer": "C",
+            "explanation": "Skin desmosomes transmit mechanical strain across adjacent cells through intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement about communicating junctions is TRUE:",
+            "options": {
+              "A": "Gap junctions join cytoplasm directly; chemical synapses cross a cleft",
+              "B": "Both signaling modes require open connexin pores",
+              "C": "Both occur exclusively inside nervous system synapses",
+              "D": "Neither functions inside cardiac or skeletal muscle"
+            },
+            "correct_answer": "A",
+            "explanation": "Gap junctions use connexons; chemical synapses use neurotransmitters across a cleft."
+          },
+          {
+            "type": "mcq",
+            "question": "Which TWO tissues from the chapter exemplify cell-to-cell ADHERENS JUNCTIONS:",
+            "options": {
+              "A": "Brain capillaries and renal tubules",
+              "B": "Skin and cardiac intercalated discs",
+              "C": "Basal lamina and synaptic cleft",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Adherens junctions anchor neighboring actin networks in skin and cardiac intercalated discs."
+          },
+          {
+            "type": "mcq",
+            "question": "How do FOCAL ADHESIONS differ from HEMIDESMOSOMES:",
+            "options": {
+              "A": "Focal adhesions connect cell to cell whereas hemidesmosomes connect ECM to nucleus",
+              "B": "Focal adhesions seal paracellular water whereas hemidesmosomes pass ions",
+              "C": "Focal adhesions link actin to ECM whereas hemidesmosomes link intermediate filaments to basal lamina",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "Both anchor cells to extracellular substrates, but via actin vs intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "In intestinal mucosa, which pair of junctions serves paracellular sealing and cytoplasmic sharing respectively:",
+            "options": {
+              "A": "Desmosome and focal adhesion",
+              "B": "Chemical synapse and hemidesmosome",
+              "C": "Adherens and desmosome",
+              "D": "Tight junction and gap junction"
+            },
+            "correct_answer": "D",
+            "explanation": "Intestinal epithelium uses tight junctions for sealing/polarity and gap junctions in portions for coordination."
+          },
+          {
+            "type": "mcq",
+            "question": "Which functional outcome belongs to the FENCE property of tight junctions rather than the barrier property:",
+            "options": {
+              "A": "Preventing apical receptors from diffusing into the basolateral membrane",
+              "B": "Blocking water leakage between two neighboring cells",
+              "C": "Attaching epithelial cells to basal lamina",
+              "D": "Coupling cardiac action potentials"
+            },
+            "correct_answer": "A",
+            "explanation": "The fence restricts lateral mobility of membrane proteins and lipids within the plasma membrane."
+          },
+          {
+            "type": "mcq",
+            "question": "Which structural feature is ABSENT in a chemical synapse:",
+            "options": {
+              "A": "Presynaptic neurotransmitter release",
+              "B": "Connexon cytoplasmic bridge",
+              "C": "Extracellular synaptic cleft",
+              "D": "Receiving-cell receptors"
+            },
+            "correct_answer": "B",
+            "explanation": "Chemical synapses lack direct cytoplasmic connexon channels."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do epithelia under mechanical pull depend on anchoring junctions rather than tight junctions alone:",
+            "options": {
+              "A": "Tight junctions contain no proteins",
+              "B": "Anchoring junctions generate ATP",
+              "C": "Tight junctions only exist in nerve tissue",
+              "D": "Anchoring junctions tie into intracellular actin or intermediate filaments to resist stretch"
+            },
+            "correct_answer": "D",
+            "explanation": "Cytoskeleton-linked anchoring junctions resist mechanical pulling and stretching."
+          },
+          {
+            "type": "mcq",
+            "question": "Which anchoring junction attaches a basal epithelial cell specifically to its underlying BASAL LAMINA via intermediate filaments:",
+            "options": {
+              "A": "Desmosome",
+              "B": "Tight junction",
+              "C": "Hemidesmosome",
+              "D": "B and C"
+            },
+            "correct_answer": "C",
+            "explanation": "Hemidesmosomes anchor basal cells to basal lamina via intermediate filaments, whereas desmosomes link cell to cell and tight junctions occlude."
+          },
+          {
+            "type": "mcq",
+            "question": "When neighboring cells behave as a coordinated functional group via rapid ion spread, they rely on:",
+            "options": {
+              "A": "Hemidesmosomes",
+              "B": "Gap junctions",
+              "C": "Tight-junction fences",
+              "D": "Focal adhesions"
+            },
+            "correct_answer": "B",
+            "explanation": "Gap junctions synchronize neighboring cells by passing ions and small messengers directly."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell-to-cell junction located near the APICAL face that limits paracellular solute flow is:",
+            "options": {
+              "A": "Tight junction",
+              "B": "Hemidesmosome",
+              "C": "Focal adhesion",
+              "D": "Chemical synapse"
+            },
+            "correct_answer": "A",
+            "explanation": "Tight junctions form apical occluding seals."
+          },
+          {
+            "type": "mcq",
+            "question": "Which comparison correctly matches junction name and cytoskeletal partner:",
+            "options": {
+              "A": "Desmosome — actin filaments",
+              "B": "Adherens — actin filaments",
+              "C": "Hemidesmosome — actin filaments",
+              "D": "Focal adhesion — intermediate filaments"
+            },
+            "correct_answer": "B",
+            "explanation": "Adherens and focal adhesions link actin; desmosomes and hemidesmosomes link intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "What aligns across adjacent membranes to assemble one functional gap junction channel:",
+            "options": {
+              "A": "Two connexons (one from each cell)",
+              "B": "Two desmosomal basal laminae",
+              "C": "Two presynaptic clefts",
+              "D": "Two actin filaments directly"
+            },
+            "correct_answer": "A",
+            "explanation": "Each cell contributes a connexon built of connexins that aligns with its neighbor's connexon."
+          },
+          {
+            "type": "mcq",
+            "question": "Loss of FOCAL ADHESIONS specifically weakens:",
+            "options": {
+              "A": "Blood-brain barrier paracellular seal",
+              "B": "Apical-basolateral lipid separation",
+              "C": "Epithelial attachment of actin cytoskeleton to extracellular matrix",
+              "D": "Rapid cardiac electrical conduction"
+            },
+            "correct_answer": "C",
+            "explanation": "Focal adhesions attach intracellular actin frameworks to ECM components."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement about tissue coordination is FALSE:",
+            "options": {
+              "A": "Communicating junctions pass signals or small metabolites",
+              "B": "Anchoring junctions resist pulling and stretching",
+              "C": "Occluding junctions govern movement between cells",
+              "D": "Cell junctions make tissues act as completely independent isolated cells"
+            },
+            "correct_answer": "D",
+            "explanation": "Cell junctions integrate cells into coordinated tissues rather than isolated units."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pair represents two DIFFERENT functional classes of cell junctions:",
+            "options": {
+              "A": "Desmosome and adherens junction",
+              "B": "Tight junction (occluding) and desmosome (anchoring)",
+              "C": "Gap junction and chemical synapse",
+              "D": "Focal adhesion and hemidesmosome"
+            },
+            "correct_answer": "B",
+            "explanation": "Tight junctions are occluding whereas desmosomes are anchoring."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is 'half a desmosome' an apt description of a hemidesmosome:",
+            "options": {
+              "A": "It connects intermediate filaments of only one cell to basal lamina instead of two cells together",
+              "B": "It connects actin to ECM with half the proteins",
+              "C": "It connects half of a connexon to cytoplasm",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Desmosomes bridge two cells; hemidesmosomes anchor one cell's basal surface to basal lamina."
+          },
+          {
+            "type": "mcq",
+            "question": "Which intercellular communication mode crosses an extracellular space rather than avoiding ECF:",
+            "options": {
+              "A": "Gap junction",
+              "B": "Nexus",
+              "C": "Chemical synapse",
+              "D": "Connexon pore"
+            },
+            "correct_answer": "C",
+            "explanation": "Chemical synapses release neurotransmitter into an extracellular cleft; gap junctions bypass ECF."
+          },
+          {
+            "type": "mcq",
+            "question": "Which phrase best summarizes the three main roles of cell junctions:",
+            "options": {
+              "A": "Digest organelles, make ATP, and transcribe RNA",
+              "B": "Seal gaps, share signals, and grip neighbors or matrix",
+              "C": "Condense chromatin, divide cells, and detoxify drugs",
+              "D": "Only move large proteins into the nucleus"
+            },
+            "correct_answer": "B",
+            "explanation": "Junctions seal (tight), share (gap/synapse), and mechanically grip (anchoring)."
+          },
+          {
+            "type": "mcq",
+            "question": "In which location are HEMIDESMOSOMES concentrated:",
+            "options": {
+              "A": "Apical border of epithelial cells",
+              "B": "Cardiac gap junctions",
+              "C": "Presynaptic nerve terminals",
+              "D": "Basal surface of epithelial cells"
+            },
+            "correct_answer": "D",
+            "explanation": "Hemidesmosomes sit basally to anchor epithelium to basal lamina."
+          },
+          {
+            "type": "mcq",
+            "question": "If an antibody blocks neurotransmitter receptors on a muscle fiber, it disrupts signaling at a:",
+            "options": {
+              "A": "Chemical synapse",
+              "B": "Gap junction",
+              "C": "Tight junction",
+              "D": "Desmosome"
+            },
+            "correct_answer": "A",
+            "explanation": "Receptor-mediated nerve-muscle communication takes place across a chemical synapse."
+          },
+          {
+            "type": "mcq",
+            "question": "Which junction prevents cholesterol/membrane proteins from migrating freely between apical and basolateral membranes:",
+            "options": {
+              "A": "Focal adhesion",
+              "B": "Tight junction",
+              "C": "Desmosome",
+              "D": "Gap junction"
+            },
+            "correct_answer": "B",
+            "explanation": "Tight junctions act as a lateral membrane fence preserving polarity."
+          },
+          {
+            "type": "mcq",
+            "question": "Which type of molecule moves MOST readily through gap junctions:",
+            "options": {
+              "A": "Whole mitochondria",
+              "B": "Large structural glycoproteins",
+              "C": "Ions and small metabolites",
+              "D": "Extracellular collagen fibers"
+            },
+            "correct_answer": "C",
+            "explanation": "Gap junctions accommodate low-molecular-weight ions and small signaling messengers."
+          },
+          {
+            "type": "mcq",
+            "question": "Which anchoring junction connects ACTIN microfilaments from one cell directly to a neighboring cell:",
+            "options": {
+              "A": "Adherens junction",
+              "B": "Tight junction",
+              "C": "Hemidesmosome",
+              "D": "A and B"
+            },
+            "correct_answer": "A",
+            "explanation": "Adherens junctions link actin cell-to-cell, whereas tight junctions are occluding and hemidesmosomes bind basal lamina."
+          },
+          {
+            "type": "mcq",
+            "question": "Which specialized site joins cardiac muscle cells end-to-end with adherens mechanical junctions and gap junctions:",
+            "options": {
+              "A": "Basal lamina",
+              "B": "Synaptic cleft",
+              "C": "Apical microvillus",
+              "D": "Intercalated disc"
+            },
+            "correct_answer": "D",
+            "explanation": "Cardiac intercalated discs couple myocytes both mechanically (adherens) and electrically (gap junctions)."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement about gap junctions in the heart is ACCURATE:",
+            "options": {
+              "A": "They anchor cardiomyocytes solely to extracellular matrix",
+              "B": "They facilitate rapid spread of electrical activity across coupled cardiac cells",
+              "C": "They block all ion movement between cardiac fibers",
+              "D": "They require synaptic cleft acetylcholine at every cardiac intercalated disc"
+            },
+            "correct_answer": "B",
+            "explanation": "Cardiac gap junctions allow direct ionic spread for synchronized contraction."
+          },
+          {
+            "type": "mcq",
+            "question": "When distinguishing desmosomes from adherens junctions, one examines whether the junction binds:",
+            "options": {
+              "A": "ECM vs basal lamina",
+              "B": "Neurotransmitters vs hormones",
+              "C": "Intermediate filaments vs actin filaments",
+              "D": "Apical vs nuclear pores"
+            },
+            "correct_answer": "C",
+            "explanation": "Desmosomes bind intermediate filaments while adherens junctions bind actin."
+          },
+          {
+            "type": "mcq",
+            "question": "Which structure lies immediately beneath the basal surface anchored by hemidesmosomes:",
+            "options": {
+              "A": "Basal lamina",
+              "B": "Apical lumen",
+              "C": "Synaptic cleft",
+              "D": "Nuclear envelope"
+            },
+            "correct_answer": "A",
+            "explanation": "Hemidesmosomes attach basal epithelial surfaces to the basal lamina."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell-to-cell communicating channel made of connexin proteins in both opposing membranes is a:",
+            "options": {
+              "A": "Chemical synapse",
+              "B": "Gap junction",
+              "C": "Tight junction",
+              "D": "Focal adhesion"
+            },
+            "correct_answer": "B",
+            "explanation": "Aligned connexin-based connexons form gap junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement is TRUE regarding focal adhesions:",
+            "options": {
+              "A": "They connect intermediate filaments of adjacent skin cells",
+              "B": "They seal brain capillaries",
+              "C": "They emit neurotransmitters",
+              "D": "They connect intracellular actin frameworks to extracellular matrix"
+            },
+            "correct_answer": "D",
+            "explanation": "Focal adhesions mediate cell-to-ECM actin anchorage."
+          },
+          {
+            "type": "mcq",
+            "question": "Which junction allows epithelial cells to maintain distinct functions on two opposite faces:",
+            "options": {
+              "A": "Tight junction",
+              "B": "Gap junction",
+              "C": "Hemidesmosome",
+              "D": "Chemical synapse"
+            },
+            "correct_answer": "A",
+            "explanation": "Epithelial polarity relies on the fence and barrier properties of tight junctions."
+          },
+          {
+            "type": "true_false",
+            "question": "Adherens junctions are limited exclusively to epithelial cells attaching to basal lamina.",
+            "correct_answer": false,
+            "explanation": "Adherens junctions attach cell to cell in tissues such as skin and cardiac intercalated discs."
+          },
+          {
+            "type": "true_false",
+            "question": "Gap junctions enable ions to travel directly from one cell's cytoplasm to another without entering ECF.",
+            "correct_answer": true,
+            "explanation": "Connexons form continuous aqueous tunnels bridging adjacent cytoplasms."
+          },
+          {
+            "type": "true_false",
+            "question": "Tight junctions and membrane transport proteins control the exact same physical pathway across a cell.",
+            "correct_answer": false,
+            "explanation": "Tight junctions control movement between cells; transport proteins control movement through membranes."
+          },
+          {
+            "type": "true_false",
+            "question": "Desmosomes and hemidesmosomes both attach into intermediate filaments of the cytoskeleton.",
+            "correct_answer": true,
+            "explanation": "Desmosomes link two cells' intermediate filaments; hemidesmosomes link one cell's intermediate filaments to basal lamina."
+          },
+          {
+            "type": "true_false",
+            "question": "Chemical synapses form open cytoplasmic channels through connexon subunits.",
+            "correct_answer": false,
+            "explanation": "Chemical synapses signal across an extracellular cleft without cytoplasmic tunnels."
+          },
+          {
+            "type": "true_false",
+            "question": "In the brain, tight junctions between capillary endothelial cells form a major element of the blood-brain barrier.",
+            "correct_answer": true,
+            "explanation": "Endothelial tight junctions restrict paracellular passage from blood to neural tissue."
+          },
+          {
+            "type": "true_false",
+            "question": "A connexon is composed of actin filaments bundled together.",
+            "correct_answer": false,
+            "explanation": "Connexons are assembled from connexin proteins."
+          },
+          {
+            "type": "true_false",
+            "question": "Adherens junctions operate in tissues such as skin and cardiac intercalated discs.",
+            "correct_answer": true,
+            "explanation": "Adherens junctions link neighboring cell actin frameworks in skin and cardiac intercalated discs."
+          },
+          {
+            "type": "true_false",
+            "question": "Loss of the tight-junction fence promotes mixing of apical and basolateral membrane components.",
+            "correct_answer": true,
+            "explanation": "The fence preserves membrane domain segregation for cell polarity."
+          },
+          {
+            "type": "true_false",
+            "question": "Gap junctions commonly transmit large macromolecular proteins freely across adjacent cells.",
+            "correct_answer": false,
+            "explanation": "Small pore size favors low-molecular-weight ions and messengers rather than large proteins."
+          }
+        ]
+      }
+    },
+    "hard": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "An epithelial sheet has intact mechanical strength and rapid intercellular signaling, yet solutes leak freely between lateral cell borders; which junction failed:",
+              "options": {
+                "A": "Desmosome",
+                "B": "Occluding (tight) junction",
+                "C": "Gap junction",
+                "D": "Hemidesmosome"
+              },
+              "correct_answer": "B",
+              "explanation": "Occluding tight junctions are uniquely responsible for sealing the paracellular space between adjacent cells."
+            },
+            {
+              "type": "mcq",
+              "question": "Suppose a toxin selectively disrupts ONLY the fence function of tight junctions while keeping the paracellular gate partially sealed; what occurs:",
+              "options": {
+                "A": "Intermediate filaments detach from ECM",
+                "B": "Cardiomyocytes lose connexon coupling",
+                "C": "Apical transport proteins drift into basolateral membrane domains",
+                "D": "Synaptic vesicles fuse prematurely"
+              },
+              "correct_answer": "C",
+              "explanation": "The fence function prevents lateral diffusion and mixing between apical and basolateral membrane domains."
+            },
+            {
+              "type": "mcq",
+              "question": "If an epithelial sheet suffers BOTH paracellular fluid leakage AND failure of rapid neighboring ion spread while keeping physical tensile attachment, which two functional junction classes failed:",
+              "options": {
+                "A": "Anchoring and communicating classes, while occluding seals persisted",
+                "B": "Only hemidesmosomal anchoring, sparing occluding and communicating paths",
+                "C": "Basement-membrane collagen alone, leaving occluding and communicating intact",
+                "D": "Occluding and communicating classes, while anchoring junctions persisted"
+              },
+              "correct_answer": "D",
+              "explanation": "Paracellular leakage signals occluding (tight junction) loss and lost ion sharing signals communicating (gap junction) loss, while anchoring resists pull."
+            },
+            {
+              "type": "mcq",
+              "question": "If a single tissue must BOTH seal its lumen AND resist stretching forces, why is no single junction class sufficient:",
+              "options": {
+                "A": "Every communicating junction seals apical spaces without pores",
+                "B": "Occluding junctions seal gaps, whereas anchoring junctions resist stretch",
+                "C": "All anchoring junctions form open channels for electrical current",
+                "D": "Tight junctions attach directly into basal lamina matrix"
+              },
+              "correct_answer": "B",
+              "explanation": "Different junction classes fulfill barrier sealing, communication, or mechanical attachment."
+            },
+            {
+              "type": "mcq",
+              "question": "Why can a single epithelial tissue require BOTH occluding AND anchoring junctions:",
+              "options": {
+                "A": "Tight junctions seal apical paracellular routes while anchoring junctions resist mechanical stretch",
+                "B": "Tight junctions transmit nerve impulses while anchoring junctions pump ATP",
+                "C": "Anchoring junctions block membrane lipids from mixing",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Barrier sealing and tensile resistance serve complementary epithelial requirements."
+            },
+            {
+              "type": "mcq",
+              "question": "When apical and basolateral membrane proteins intermix despite intact cellular energy stores, which directional epithelial capability collapses FIRST:",
+              "options": {
+                "A": "Intermediate filament anchoring to basal lamina plaques",
+                "B": "Vesicular neurotransmitter exocytosis at motor clefts",
+                "C": "Polarized directional absorption and secretion across opposite faces",
+                "D": "None of the above"
+              },
+              "correct_answer": "C",
+              "explanation": "Losing apical-basolateral separation destroys epithelial polarity required for directional transepithelial transport."
+            },
+            {
+              "type": "true_false",
+              "question": "A cell junction may connect a plasma membrane to extracellular matrix rather than to a second cell.",
+              "correct_answer": true,
+              "explanation": "Focal adhesions and hemidesmosomes anchor cells directly to ECM or basal lamina."
+            },
+            {
+              "type": "true_false",
+              "question": "Occluding tight junctions facilitate rapid electrical wave propagation between adjacent cardiac cells.",
+              "correct_answer": false,
+              "explanation": "Communicating gap junctions mediate rapid electrical coupling; tight junctions seal barriers."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why does the blood-brain barrier depend on TIGHT JUNCTIONS rather than gap junctions between brain capillary endothelial cells:",
+              "options": {
+                "A": "Gap junctions occur exclusively in epidermal layers of skin",
+                "B": "Tight junctions block paracellular leakage, whereas gap junctions pass solutes",
+                "C": "Tight junctions secrete inhibitory neurotransmitters into plasma",
+                "D": "Brain endothelial cells lack plasma membrane transport proteins"
+              },
+              "correct_answer": "B",
+              "explanation": "Endothelial tight junctions limit blood-to-brain paracellular access."
+            },
+            {
+              "type": "mcq",
+              "question": "A mutation alters CONNEXIN proteins so two neighboring membranes fail to align their channels; which structure cannot assemble:",
+              "options": {
+                "A": "Functional gap junction (nexus) connexon channels",
+                "B": "Apical tight-junction barriers",
+                "C": "Desmosomal intermediate plaques",
+                "D": "Presynaptic chemical vesicles"
+              },
+              "correct_answer": "A",
+              "explanation": "Connexins assemble into connexons that align across adjacent membranes to form gap junctions."
+            },
+            {
+              "type": "mcq",
+              "question": "Which experimental distinction separates paracellular transport from transcellular carrier transport:",
+              "options": {
+                "A": "Both pass solutes directly through aligned connexon channels",
+                "B": "Transport proteins seal spaces between neighboring cells apically",
+                "C": "Tight junctions move glucose via presynaptic synaptic clefts",
+                "D": "Tight junctions gate space between cells; carriers move solutes across membranes"
+              },
+              "correct_answer": "D",
+              "explanation": "Exam comparisons distinguish intercellular space control (tight junctions) from transmembrane transport."
+            },
+            {
+              "type": "mcq",
+              "question": "Why do cardiac muscle cells contract as a coordinated unit while skeletal neuromuscular transmission requires neurotransmitters:",
+              "options": {
+                "A": "Cardiac muscle uses hemidesmosomes for electrical spread",
+                "B": "Nerve-muscle synapses align connexons between cytoplasm",
+                "C": "Cardiac muscle uses direct cytoplasmic gap junctions, whereas nerve-muscle junctions use chemical synapses across a cleft",
+                "D": "Skeletal fibers are fused via tight junctions"
+              },
+              "correct_answer": "C",
+              "explanation": "Cardiac cells couple electrically via gap junctions; motor neurons signal muscle via chemical synapses."
+            },
+            {
+              "type": "mcq",
+              "question": "If a fluorescent dye of HIGH molecular weight (large protein) is injected into one cell connected by gap junctions, it typically:",
+              "options": {
+                "A": "Diffuses instantly across connexons into neighbors",
+                "B": "Remains restricted because connexon pores favor low-molecular-weight ions and small messengers",
+                "C": "Exits via apical tight junctions",
+                "D": "Crosses via chemical synaptic vesicles"
+              },
+              "correct_answer": "B",
+              "explanation": "Gap junctions favor small ions and metabolites rather than large proteins."
+            },
+            {
+              "type": "mcq",
+              "question": "If a toxin blocks postsynaptic receptors without disrupting presynaptic membranes, which junction loses signal transmission:",
+              "options": {
+                "A": "Chemical synapse",
+                "B": "Gap junction (nexus)",
+                "C": "Tight junction",
+                "D": "Desmosome"
+              },
+              "correct_answer": "A",
+              "explanation": "Chemical synapses bridge an extracellular cleft using neurotransmitters and receiving-cell receptors, whereas gap junctions pass ions directly."
+            },
+            {
+              "type": "mcq",
+              "question": "Which tissue specifically relies on tight junctions to guard selective compartmentalization between blood and parenchyma:",
+              "options": {
+                "A": "Intestinal mucosa and renal tubules",
+                "B": "Skin stratum corneum gap syncytium",
+                "C": "Synaptic neuromuscular cleft",
+                "D": "A and C"
+              },
+              "correct_answer": "A",
+              "explanation": "Intestinal mucosa, renal tubules, and blood-brain barrier endothelium depend on tight junctions, unlike synaptic clefts."
+            },
+            {
+              "type": "mcq",
+              "question": "In a chemical synapse vs a gap junction, signal propagation across a gap junction is direct because:",
+              "options": {
+                "A": "Neurotransmitters bind apical tight junctions",
+                "B": "Ions and small second messengers move directly from one cell's cytoplasm into the next",
+                "C": "Interstitial fluid amplifies connexin voltage",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Aligned connexons directly couple adjacent cytoplasmic compartments without an extracellular gap."
+            },
+            {
+              "type": "true_false",
+              "question": "In tissues with gap junctions, small signaling molecules must exit into interstitial fluid before entering the adjacent cell.",
+              "correct_answer": false,
+              "explanation": "Gap junctions transfer ions and small messengers directly between cytoplasms without entering ECF."
+            },
+            {
+              "type": "true_false",
+              "question": "Both gap junctions and chemical synapses belong to the communicating class of cell junctions despite having different structures.",
+              "correct_answer": true,
+              "explanation": "Both transfer signals between cells: one via direct channels, the other via synaptic cleft neurotransmitters."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "A blistering disorder separates basal epithelial cells cleanly from the underlying BASAL LAMINA while lateral cell-to-cell junctions remain intact; which junction is defective:",
+              "options": {
+                "A": "Desmosome",
+                "B": "Adherens junction",
+                "C": "Gap junction",
+                "D": "Hemidesmosome"
+              },
+              "correct_answer": "D",
+              "explanation": "Hemidesmosomes specifically anchor the basal surface of epithelial cells to the basal lamina."
+            },
+            {
+              "type": "mcq",
+              "question": "Which 2×2 classification matrix of anchoring junctions is COMPLETELY accurate:",
+              "options": {
+                "A": "Cell-cell: Focal adhesion (actin), Hemidesmosome (intermediate); Cell-matrix: Adherens (actin), Desmosome (intermediate)",
+                "B": "Cell-cell: Adherens (intermediate), Desmosome (actin); Cell-matrix: Focal adhesion (intermediate), Hemidesmosome (actin)",
+                "C": "Cell-cell: Adherens (actin), Desmosome (intermediate); Cell-matrix: Focal adhesion (actin), Hemidesmosome (intermediate)",
+                "D": "None of the above"
+              },
+              "correct_answer": "C",
+              "explanation": "Target (cell-cell vs cell-matrix) and filament (actin vs intermediate) uniquely classify all four anchoring junctions."
+            },
+            {
+              "type": "mcq",
+              "question": "In cardiac intercalated discs, which anchoring junction links ACTIN frameworks of adjacent heart cells:",
+              "options": {
+                "A": "Hemidesmosome",
+                "B": "Adherens junction",
+                "C": "Focal adhesion",
+                "D": "Tight junction"
+              },
+              "correct_answer": "B",
+              "explanation": "Adherens junctions operate in skin and cardiac intercalated discs to connect adjacent actin frameworks."
+            },
+            {
+              "type": "mcq",
+              "question": "All of the following anchoring junctions attach to the EXTRACELLULAR MATRIX or basal lamina EXCEPT:",
+              "options": {
+                "A": "Focal adhesion",
+                "B": "Hemidesmosome",
+                "C": "Cell-to-ECM actin plaques",
+                "D": "Adherens junction and desmosome"
+              },
+              "correct_answer": "D",
+              "explanation": "Adherens junctions and desmosomes are cell-to-cell attachments, not cell-to-matrix."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does a desmosome require BOTH sides (two adjacent cells) whereas a hemidesmosome is 'half' that arrangement:",
+              "options": {
+                "A": "A desmosome couples intermediate filaments of two cells, whereas a hemidesmosome couples one cell's intermediate filaments to basal lamina",
+                "B": "A hemidesmosome lacks any cytoskeletal filaments",
+                "C": "A desmosome links actin to ECM while hemidesmosome links tubulin to blood",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Hemidesmosomes anchor a single cell to its basal lamina rather than linking two neighboring cells."
+            },
+            {
+              "type": "mcq",
+              "question": "If a chemical selectively severs ACTIN filaments while sparing intermediate filaments, which TWO anchoring junctions fail:",
+              "options": {
+                "A": "Desmosomes and hemidesmosomes",
+                "B": "Desmosomes and adherens junctions",
+                "C": "Adherens junctions and focal adhesions",
+                "D": "Hemidesmosomes and focal adhesions"
+              },
+              "correct_answer": "C",
+              "explanation": "Both adherens junctions and focal adhesions depend on actin filaments."
+            },
+            {
+              "type": "mcq",
+              "question": "Under severe stretching of the epidermis, skin cells stay bound to one another principally because:",
+              "options": {
+                "A": "Focal adhesions join adjacent apical membranes",
+                "B": "Desmosomes couple intermediate filaments across adjacent keratinocytes",
+                "C": "Gap junctions pump keratin between cells",
+                "D": "Tight junctions fuse nuclei together"
+              },
+              "correct_answer": "B",
+              "explanation": "Desmosomes link stress-bearing intermediate filaments from cell to cell in skin."
+            },
+            {
+              "type": "mcq",
+              "question": "Which anchoring junction pair shares BOTH the SAME attachment target (matrix/basal lamina) AND different cytoskeletal links:",
+              "options": {
+                "A": "Focal adhesion (actin) and hemidesmosome (intermediate filaments)",
+                "B": "Adherens (actin) and desmosome (intermediate filaments)",
+                "C": "Desmosome and hemidesmosome",
+                "D": "Adherens and focal adhesion"
+              },
+              "correct_answer": "A",
+              "explanation": "Focal adhesions and hemidesmosomes both bind matrix/basal lamina, via actin vs intermediate filaments."
+            },
+            {
+              "type": "true_false",
+              "question": "Focal adhesions connect cell to cell via actin filaments in cardiac intercalated discs.",
+              "correct_answer": false,
+              "explanation": "Adherens junctions connect cell to cell in intercalated discs; focal adhesions connect cell to ECM."
+            },
+            {
+              "type": "true_false",
+              "question": "Hemidesmosomes are located on the basal surface of epithelial cells to anchor them to the basal lamina.",
+              "correct_answer": true,
+              "explanation": "Hemidesmosomes anchor basal epithelial membranes to the supporting basal lamina."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "A nephrologist studies an epithelium where transcellular Na+ pumps work normally, apical proteins diffuse to the basolateral membrane, and water leaks between cells; the primary defect is in:",
+            "options": {
+              "A": "Gap junctions (loss of connexins)",
+              "B": "Tight junctions (loss of both gate and fence roles)",
+              "C": "Hemidesmosomes (basal lamina detachment)",
+              "D": "Chemical synapses (lack of receptors)"
+            },
+            "correct_answer": "B",
+            "explanation": "Simultaneous paracellular leakage (gate loss) and polarity loss (fence loss) uniquely pinpoint tight junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does destroying CONNEXIN genes impair cardiac synchronization without detaching cardiac cells mechanically:",
+            "options": {
+              "A": "Connexins hold intermediate filaments inside skin cells",
+              "B": "Hemidesmosomes directly replace cardiac gap junctions",
+              "C": "Tight junctions pump calcium across intercalated discs",
+              "D": "Connexons handle electrical coupling; desmosomes hold grip"
+            },
+            "correct_answer": "D",
+            "explanation": "Electrical coupling relies on connexin gap junctions; mechanical grip relies on anchoring junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "Which comparison accurately contrasts ALL THREE functional junction classes in one epithelial sheet:",
+            "options": {
+              "A": "Tight=stretch; Gap=seals; Desmosomes=release transmitters",
+              "B": "Hemidesmosomes=capillaries; Synapses=actin; Adherens=ions",
+              "C": "Connexons=impermeable fence; Adherens=cleft delay; Tight=ECM link",
+              "D": "None of the above"
+            },
+            "correct_answer": "D",
+            "explanation": "Tight junctions seal, gap junctions share small ions/metabolites, and anchoring junctions resist pull; none of the listed pairings match."
+          },
+          {
+            "type": "mcq",
+            "question": "If a genetic mutation weakens HEMIDESMOSOMES while sparing desmosomes and adherens junctions, microscopy reveals:",
+            "options": {
+              "A": "Complete separation of every lateral border in upper layers",
+              "B": "Leakage across brain capillary endothelial tight junctions",
+              "C": "Basal detachment from lamina with intact lateral borders",
+              "D": "Loss of actin anchoring inside cardiac intercalated discs"
+            },
+            "correct_answer": "C",
+            "explanation": "Hemidesmosomes anchor basal cells to basal lamina, whereas desmosomes/adherens hold cells together laterally."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do chemical synapses provide unidirectional signaling whereas gap junctions couple directly:",
+            "options": {
+              "A": "Synapses release chemical transmitter; gap junctions align pores",
+              "B": "Gap junctions secrete peptide hormones into capillaries",
+              "C": "Chemical synapses fuse nuclear membranes across axons",
+              "D": "Both use identical hexameric connexin protein channels"
+            },
+            "correct_answer": "A",
+            "explanation": "Structural asymmetry across a cleft vs direct connexon channels accounts for their distinct transmission modes."
+          },
+          {
+            "type": "mcq",
+            "question": "If cytochalasin disrupts ACTIN filaments across a polarized epithelium, which anchoring pair weakens:",
+            "options": {
+              "A": "Desmosomes and hemidesmosomes",
+              "B": "Adherens junctions and focal adhesions",
+              "C": "Desmosomes and gap junctions",
+              "D": "Tight junctions and hemidesmosomes"
+            },
+            "correct_answer": "B",
+            "explanation": "Adherens junctions and focal adhesions couple to actin; desmosomes and hemidesmosomes couple to intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Which anchoring duo remains intact even after complete depolymerization of ACTIN microfilaments:",
+            "options": {
+              "A": "Adherens junctions and focal adhesions",
+              "B": "Adherens junctions and desmosomes",
+              "C": "Desmosomes and hemidesmosomes",
+              "D": "Focal adhesions and tight junctions"
+            },
+            "correct_answer": "C",
+            "explanation": "Desmosomes and hemidesmosomes anchor intermediate filaments rather than actin."
+          },
+          {
+            "type": "mcq",
+            "question": "A neurotoxin prevents vesicular release across a small extracellular cleft while leaving connexon alignment intact; which communication fails:",
+            "options": {
+              "A": "Direct cardiac gap-junction coupling",
+              "B": "Chemical synaptic transmission (neuron-neuron or nerve-muscle)",
+              "C": "Intestinal epithelial paracellular occlusion",
+              "D": "Keratinocyte desmosomal bracing"
+            },
+            "correct_answer": "B",
+            "explanation": "Vesicular neurotransmitter release across an extracellular cleft is unique to chemical synapses."
+          },
+          {
+            "type": "mcq",
+            "question": "In intestinal epithelium, why can tight junctions block passive paracellular entry of luminal solutes while transport proteins still absorb nutrients:",
+            "options": {
+              "A": "Tight junctions block paracellular flow; carriers cross membranes",
+              "B": "Tight junctions convert directly into connexons during meals",
+              "C": "Membrane transport proteins break down lateral desmosomes",
+              "D": "Paracellular seals never operate in intestinal epithelium"
+            },
+            "correct_answer": "A",
+            "explanation": "Blocking paracellular leakage forces absorption through regulated transcellular membrane transporters."
+          },
+          {
+            "type": "mcq",
+            "question": "If a researcher injects a low-molecular-weight fluorescent messenger into cell 1 and sees rapid transfer to cell 2 WITHOUT fluorescence appearing in the surrounding medium, the pathway is:",
+            "options": {
+              "A": "Chemical synapse across a cleft",
+              "B": "Exocytosis and pinocytosis",
+              "C": "Gap junction (nexus) via aligned connexons",
+              "D": "Tight junction paracellular leakage"
+            },
+            "correct_answer": "C",
+            "explanation": "Direct cytoplasmic transfer bypassing ECF characterizes gap junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell retains normal mechanical strength and barrier polarity yet cannot synchronize cytoplasmic Ca2+ waves with neighbors; which junction is missing:",
+            "options": {
+              "A": "Adherens junction",
+              "B": "Nexus (gap junction)",
+              "C": "Focal adhesion",
+              "D": "Hemidesmosome"
+            },
+            "correct_answer": "B",
+            "explanation": "Nexus (gap junction) directly synchronizes ions and small messengers across adjacent cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Which defect would MOST severely compromise BOTH skin tensile integrity AND cardiac mechanical disc reinforcement:",
+            "options": {
+              "A": "Isolated loss of brain capillary endothelial tight junctions",
+              "B": "Postsynaptic blockade of neuromuscular chemical synapses",
+              "C": "Loss of basal hemidesmosomes in renal proximal tubules",
+              "D": "Impairment of cell-cell anchors (desmosomes and adherens)"
+            },
+            "correct_answer": "D",
+            "explanation": "Skin relies on desmosomes/adherens and cardiac discs feature adherens (and desmosomes) for cell-to-cell grip."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is 'barrier/gate' vs 'fence' a useful physiological distinction for tight junctions:",
+            "options": {
+              "A": "Barrier limits intercellular flow; fence blocks intramembrane mixing",
+              "B": "Barrier hydrolyzes ATP while fence polymerizes actin",
+              "C": "Fence lets plasma proteins cross freely through gaps",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "The gate controls extracellular paracellular traffic; the fence maintains intramembrane apical-basolateral separation."
+          },
+          {
+            "type": "mcq",
+            "question": "An epithelial cell loses focal adhesions on its basal side; what specific molecular connection is severed:",
+            "options": {
+              "A": "Intermediate filaments to basal lamina",
+              "B": "Intracellular actin filaments to extracellular matrix components",
+              "C": "Adjacent cells' intermediate filaments",
+              "D": "Connexons between lateral membranes"
+            },
+            "correct_answer": "B",
+            "explanation": "Focal adhesions link actin filaments to ECM, unlike hemidesmosomes (intermediate filaments to basal lamina)."
+          },
+          {
+            "type": "mcq",
+            "question": "A mutation disrupts ACTIN microfilaments inside cardiac intercalated discs while leaving fibrous intermediate filaments intact; which cell-to-cell anchoring junction loses its cytoskeletal link while desmosomes hold:",
+            "options": {
+              "A": "Adherens junctions fail while desmosomes remain tethered via intermediate filaments",
+              "B": "Desmosomes fail while adherens junctions hold via tubulin microtubules",
+              "C": "Hemidesmosomes break between neighboring muscle nuclei while focal adhesions hold",
+              "D": "Tight junctions turn into chemical synapses within cardiac discs"
+            },
+            "correct_answer": "A",
+            "explanation": "Both adherens junctions and desmosomes join adjacent cells, but adherens link actin whereas desmosomes link intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Why are brain capillary endothelial tight junctions critical for central nervous system homeostasis:",
+            "options": {
+              "A": "They allow rapid electrical syncytium formation across astrocytes",
+              "B": "They anchor endothelium directly to skeletal muscle",
+              "C": "They form the blood-brain barrier restricting unregulated passage of blood solutes into neural tissue",
+              "D": "They allow large plasma proteins free paracellular diffusion"
+            },
+            "correct_answer": "C",
+            "explanation": "Blood-brain barrier selectivity depends heavily on capillary endothelial tight junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "A mutation blocks cytoplasmic coupling while synaptic cleft signaling persists; which statement about gap junctions is FALSE:",
+            "options": {
+              "A": "Each membrane unit is a connexon assembled from connexins",
+              "B": "They allow ions and small messengers to synchronize cells",
+              "C": "They operate in cardiac muscle and parts of intestinal epithelium",
+              "D": "They transfer large cytoplasmic proteins rapidly across the extracellular cleft"
+            },
+            "correct_answer": "D",
+            "explanation": "Gap junctions bypass the extracellular space and restrict pore passage to small low-molecular-weight molecules."
+          },
+          {
+            "type": "mcq",
+            "question": "If epithelial cells lose BOTH focal adhesions AND hemidesmosomes, which consequence follows directly:",
+            "options": {
+              "A": "Immediate rupture of apical tight junctions and nuclear pores",
+              "B": "Cell-to-matrix and basal-lamina anchors detach while neighbors stay bound",
+              "C": "Conversion of chemical synapses into gap junctions",
+              "D": "Rapid electrical synchronization of skin keratinocytes"
+            },
+            "correct_answer": "B",
+            "explanation": "Focal adhesions (ECM) and hemidesmosomes (basal lamina) constitute the two cell-to-matrix/substrate anchors."
+          },
+          {
+            "type": "mcq",
+            "question": "Which tissue pairing matches TWO distinct roles of tight junctions and gap junctions in epithelial physiology:",
+            "options": {
+              "A": "Tight junctions maintain polarity; gap junctions coordinate signaling",
+              "B": "Tight junctions pass neurotransmitters; gap junctions seal blood vessels",
+              "C": "Gap junctions anchor to ECM; tight junctions form desmosomes",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Epithelia use tight junctions for sealing/polarity and gap junctions in select segments for intercellular sharing."
+          },
+          {
+            "type": "mcq",
+            "question": "Suppose a cardiac muscle fiber loses gap junctions at its intercalated discs while keeping adherens junctions; what happens:",
+            "options": {
+              "A": "Cells detach from ECM and basal lamina immediately",
+              "B": "Blood-brain barrier capillary endothelium becomes leaky",
+              "C": "Mechanical attachment remains, but rapid electrical spread fails",
+              "D": "Presynaptic synaptic clefts widen at nerve terminals"
+            },
+            "correct_answer": "C",
+            "explanation": "Adherens junctions keep mechanical attachment while loss of gap junctions disrupts electrical coupling."
+          },
+          {
+            "type": "mcq",
+            "question": "Which combination pairs a junction correctly with BOTH its class AND attachment target:",
+            "options": {
+              "A": "Tight junction — anchoring — basal lamina",
+              "B": "Desmosome — anchoring — neighboring cell",
+              "C": "Chemical synapse — communicating — cleft to receiving cell",
+              "D": "B and C"
+            },
+            "correct_answer": "D",
+            "explanation": "Desmosomes are cell-to-cell anchoring junctions; chemical synapses communicate across a cleft to a target cell."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is the term 'nexus' clinically/anatomically synonymous with direct intercellular coupling:",
+            "options": {
+              "A": "It denotes tight junctions sealing brain vessels",
+              "B": "It denotes gap junctions whose aligned connexons bridge neighboring cytoplasms",
+              "C": "It denotes focal adhesions binding actin to collagen",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Nexus is the classical synonym for gap junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "In skeletal muscle innervation, why is a chemical synapse used rather than a gap junction:",
+            "options": {
+              "A": "Motor neurons release neurotransmitter across a cleft to trigger muscle receptors without cytoplasmic fusion",
+              "B": "Motor neurons use hemidesmosomes to anchor myofibrils",
+              "C": "Skeletal muscle lacks plasma membrane receptors",
+              "D": "Gap junctions exist only in non-excitable tissues"
+            },
+            "correct_answer": "A",
+            "explanation": "Nerve-muscle communication relies on chemical synapses with presynaptic release and postsynaptic receptors."
+          },
+          {
+            "type": "mcq",
+            "question": "Which sequence correctly orders junction positions from the APICAL luminal pole toward the BASAL lamina in a polarized epithelium:",
+            "options": {
+              "A": "Hemidesmosome (apical) -> Tight junction (basal) -> Gap junction (nuclear)",
+              "B": "Tight junction (apical seal) -> Adherens/Desmosome (lateral grip) -> Hemidesmosome (basal lamina)",
+              "C": "Focal adhesion (apical) -> Tight junction (basal lamina)",
+              "D": "Desmosome (apical fence) -> Tight junction (basal ECM)"
+            },
+            "correct_answer": "B",
+            "explanation": "Tight junctions sit apically, cell-to-cell anchoring/gap junctions laterally, and hemidesmosomes basally."
+          },
+          {
+            "type": "mcq",
+            "question": "When contrasting adherens junctions and desmosomes in skin, which shared feature explains why both help resist tearing:",
+            "options": {
+              "A": "Both attach cells to the extracellular matrix",
+              "B": "Both fuse apical lipids across cells",
+              "C": "Both connect neighboring cells mechanically into a cohesive sheet",
+              "D": "Both align connexons to pass ATP"
+            },
+            "correct_answer": "C",
+            "explanation": "Both are cell-to-cell anchoring junctions linking cytoskeletal filaments across neighbors."
+          },
+          {
+            "type": "mcq",
+            "question": "What prevents apical digestive enzymes from slipping between intestinal epithelial cells into underlying blood capillaries:",
+            "options": {
+              "A": "Hemidesmosomes at the basal lamina",
+              "B": "Gap junction connexons",
+              "C": "Focal adhesion actin plaques",
+              "D": "Occluding tight junctions sealing the paracellular space"
+            },
+            "correct_answer": "D",
+            "explanation": "Tight junctions in the intestinal mucosa act as a paracellular barrier."
+          },
+          {
+            "type": "mcq",
+            "question": "If a toxin cross-links apical and basolateral membrane proteins AFTER tight junctions are dissolved, which physiological property is already lost:",
+            "options": {
+              "A": "Epithelial polarity maintained by the tight-junction fence",
+              "B": "Connexin assembly inside cardiac tissue",
+              "C": "Neurotransmitter breakdown in synaptic clefts",
+              "D": "Mitochondrial cristae ATP generation"
+            },
+            "correct_answer": "A",
+            "explanation": "Loss of tight junctions removes the fence segregating apical and basolateral domains."
+          },
+          {
+            "type": "mcq",
+            "question": "Which structural element is shared by BOTH gap junctions and chemical synapses:",
+            "options": {
+              "A": "Aligned connexin hexamers",
+              "B": "Involvement in cell-to-cell signal communication",
+              "C": "Extracellular cleft neurotransmitter diffusion",
+              "D": "Attachment to actin microfilaments"
+            },
+            "correct_answer": "B",
+            "explanation": "Though structurally distinct, both serve as communicating junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do epithelia attach via BOTH focal adhesions AND hemidesmosomes rather than cell-to-cell junctions alone:",
+            "options": {
+              "A": "Matrix junctions transmit electrical spikes",
+              "B": "Cell-to-cell junctions cannot bind actin or intermediate filaments",
+              "C": "Cell-to-cell junctions bind neighbors together, whereas matrix-anchoring junctions tether the sheet to ECM and basal lamina",
+              "D": "Tight junctions dissolve ECM"
+            },
+            "correct_answer": "C",
+            "explanation": "Anchoring to ECM/basal lamina stabilizes the whole tissue layer against detachment."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement is TRUE regarding connexin mutation effects on signaling:",
+            "options": {
+              "A": "It disrupts gap-junction connexons while leaving receptor-mediated chemical synapses functional",
+              "B": "It halts neurotransmitter synthesis at chemical synapses directly",
+              "C": "It destroys desmosomal intermediate filaments",
+              "D": "It removes epithelial polarity fences"
+            },
+            "correct_answer": "A",
+            "explanation": "Connexins build gap junction connexons, not chemical synapses or anchoring/tight junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "Compare tight junction vs focal adhesion: which property applies ONLY to tight junctions:",
+            "options": {
+              "A": "Links actin filaments to extracellular matrix",
+              "B": "Seals paracellular spaces near the apical pole and maintains polarity",
+              "C": "Provides mechanical anchor against stretch to ECM",
+              "D": "Uses intermediate filaments"
+            },
+            "correct_answer": "B",
+            "explanation": "Tight junctions form apical occluding seals and fences; focal adhesions anchor actin to ECM."
+          },
+          {
+            "type": "mcq",
+            "question": "A toxin selectively removes BOTH paracellular sealing AND fast direct inter-cellular signaling while sparing tensile cell-to-basal anchoring; which TWO junction types are inactivated:",
+            "options": {
+              "A": "Desmosome and hemidesmosome",
+              "B": "Adherens junction and focal adhesion",
+              "C": "Tight junction and desmosome",
+              "D": "Tight junction and gap junction"
+            },
+            "correct_answer": "D",
+            "explanation": "Tight junctions seal the paracellular path and gap junctions form direct communicating channels."
+          },
+          {
+            "type": "mcq",
+            "question": "In renal tubules, why is maintaining epithelial polarity essential alongside paracellular sealing:",
+            "options": {
+              "A": "Polarity connects epithelial cells to ECM via actin",
+              "B": "Apical and basolateral membranes perform different directional transport functions",
+              "C": "Polarity allows large proteins through gap junctions",
+              "D": "Polarity prevents DNA replication"
+            },
+            "correct_answer": "B",
+            "explanation": "Different membrane domains allow directional secretion and reabsorption across tubule faces."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement CORRECTLY identifies the cytoskeletal link of a junction found in cardiac intercalated discs:",
+            "options": {
+              "A": "Focal adhesions connect actin from cell to cell in intercalated discs",
+              "B": "Hemidesmosomes connect intermediate filaments cell to cell",
+              "C": "Adherens junctions connect actin filaments from cell to cell in intercalated discs",
+              "D": "Tight junctions connect tubulin cell to cell"
+            },
+            "correct_answer": "C",
+            "explanation": "Adherens junctions connect actin frameworks between adjacent cells in skin and cardiac intercalated discs."
+          },
+          {
+            "type": "mcq",
+            "question": "If a patient lacks functional intermediate filaments in basal keratinocytes, which TWO structures fail mechanically:",
+            "options": {
+              "A": "Desmosomes and hemidesmosomes",
+              "B": "Adherens junctions and focal adhesions",
+              "C": "Tight junctions and gap junctions",
+              "D": "Chemical synapses and connexons"
+            },
+            "correct_answer": "A",
+            "explanation": "Both cell-cell desmosomes and cell-basal-lamina hemidesmosomes anchor intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "If a non-cardiac epithelial sheet (such as parts of the intestine) loses gap junctions while retaining tight junctions, which physiological capability drops FIRST:",
+            "options": {
+              "A": "Mechanical tethering of basal cells onto the basal lamina",
+              "B": "Direct neighbor-to-neighbor coordination via shared ions and small metabolites",
+              "C": "Paracellular water-tight sealing at the apical barrier",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Even outside the heart, intestinal epithelium uses gap junctions to coordinate neighboring cellular activity via small ions/metabolites."
+          },
+          {
+            "type": "mcq",
+            "question": "In a chemical synapse, why is there a synaptic delay compared with direct gap-junction coupling:",
+            "options": {
+              "A": "Connexin pores strongly resist voltage changes",
+              "B": "Tight junctions fence off the postsynaptic receptor",
+              "C": "Desmosomal plaques absorb ions inside the cleft",
+              "D": "Cleft neurotransmitter release and binding add steps vs direct channels"
+            },
+            "correct_answer": "D",
+            "explanation": "Extracellular neurotransmitter release and receptor binding take longer than direct ionic spread through connexons."
+          },
+          {
+            "type": "mcq",
+            "question": "Which anchoring junction pair links ONE cell to extracellular substrate (ECM/basal lamina) via DIFFERENT filaments:",
+            "options": {
+              "A": "Focal adhesion and hemidesmosome",
+              "B": "Adherens junction and desmosome",
+              "C": "Tight junction and gap junction",
+              "D": "Adherens junction and hemidesmosome"
+            },
+            "correct_answer": "A",
+            "explanation": "Focal adhesions bind ECM via actin; hemidesmosomes bind basal lamina via intermediate filaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Which membrane defect occurs when apical proteins mix into basolateral zones despite intact anchoring junctions:",
+            "options": {
+              "A": "Formation of open aqueous connexon channels across ECM",
+              "B": "Loss of intermediate filament attachment at skin desmosomes",
+              "C": "Failure of the tight-junction fence rather than connexon or plaque loss",
+              "D": "Inability of vesicles to exocytose synaptic neurotransmitters"
+            },
+            "correct_answer": "C",
+            "explanation": "Loss of the tight-junction fence mixes apical and basolateral domains; connexons belong to gap junctions."
+          },
+          {
+            "type": "mcq",
+            "question": "Which outcome best illustrates coordinated group behavior enabled by gap junctions:",
+            "options": {
+              "A": "Prevention of apical lipid diffusion into basolateral zones",
+              "B": "Rapid synchronized spread of electrical excitation and small messengers across coupled cells",
+              "C": "Anchoring of skin epidermis to basal lamina",
+              "D": "Sealing brain capillary endothelium against toxins"
+            },
+            "correct_answer": "B",
+            "explanation": "Direct ionic/messenger flow through gap junctions coordinates connected cells as one functional unit."
+          },
+          {
+            "type": "true_false",
+            "question": "Both chemical synapses and gap junctions create direct cytoplasmic continuity between communicating cells.",
+            "correct_answer": false,
+            "explanation": "Only gap junctions connect cytoplasm directly; chemical synapses signal across an extracellular cleft."
+          },
+          {
+            "type": "true_false",
+            "question": "Desmosomes resist mechanical strain in skin by linking intermediate filaments of adjacent cells.",
+            "correct_answer": true,
+            "explanation": "Intermediate filaments linked through desmosomes provide strong cell-to-cell tensile resistance."
+          },
+          {
+            "type": "true_false",
+            "question": "Hemidesmosomes attach one cell's actin cytoskeleton directly to the extracellular matrix.",
+            "correct_answer": false,
+            "explanation": "Hemidesmosomes anchor intermediate filaments to the basal lamina; focal adhesions link actin to ECM."
+          },
+          {
+            "type": "true_false",
+            "question": "Tight junctions act as both a paracellular gate between cells and an intramembrane fence preserving polarity.",
+            "correct_answer": true,
+            "explanation": "Both gate (paracellular restriction) and fence (apical-basolateral segregation) roles belong to tight junctions."
+          },
+          {
+            "type": "true_false",
+            "question": "Connexons in adjacent membranes align to allow rapid ion flow in cardiac muscle.",
+            "correct_answer": true,
+            "explanation": "Aligned connexin-formed connexons form cardiac gap junctions for rapid electrical spread."
+          },
+          {
+            "type": "true_false",
+            "question": "Adherens junctions and focal adhesions both connect to intermediate filaments.",
+            "correct_answer": false,
+            "explanation": "Both connect to actin filaments."
+          },
+          {
+            "type": "true_false",
+            "question": "Loss of brain endothelial tight junctions disrupts blood-brain barrier selectivity.",
+            "correct_answer": true,
+            "explanation": "Tight junctions between brain capillary endothelial cells form the blood-brain barrier seal."
+          },
+          {
+            "type": "true_false",
+            "question": "Large cellular proteins readily pass through connexon channels into neighboring cells.",
+            "correct_answer": false,
+            "explanation": "Gap junctions favor small ions and low-molecular-weight molecules, excluding large proteins."
+          },
+          {
+            "type": "true_false",
+            "question": "Anchoring junctions are divided into cell-to-cell types (adherens, desmosome) and cell-to-matrix types (focal adhesion, hemidesmosome).",
+            "correct_answer": true,
+            "explanation": "This matches both attachment targets and cytoskeletal filament classes."
+          },
+          {
+            "type": "true_false",
+            "question": "A chemical synapse connects adjacent cells using identical connexin proteins aligned across the cleft.",
+            "correct_answer": false,
+            "explanation": "Chemical synapses transmit via presynaptic neurotransmitter release and postsynaptic receptors, not connexins."
+          }
+        ]
+      }
+    }
+  },
+  "sheet_questions": {
+    "questions": [
+      {
+        "type": "mcq",
+        "question": "Which functional class of cell junctions seals the space between adjacent epithelial cells:",
+        "options": {
+          "A": "Occluding",
+          "B": "Communicating",
+          "C": "Anchoring",
+          "D": "Secretory"
+        },
+        "correct_answer": "A",
+        "explanation": "Occluding (tight) junctions seal intercellular spaces."
+      },
+      {
+        "type": "mcq",
+        "question": "Tight junctions sit near which region of polarized epithelial cells:",
+        "options": {
+          "A": "Basal lamina",
+          "B": "Mitochondrial matrix",
+          "C": "Nuclear pore",
+          "D": "Apical region"
+        },
+        "correct_answer": "D",
+        "explanation": "Tight junctions form near the apical border of adjacent epithelial cells."
+      },
+      {
+        "type": "mcq",
+        "question": "Without tight junctions separating apical and basolateral domains, polarized epithelia lose:",
+        "options": {
+          "A": "Paracellular water sealing only",
+          "B": "Neurotransmitter cleft signaling",
+          "C": "Domain separation (polarity)",
+          "D": "Basal lamina anchoring"
+        },
+        "correct_answer": "C",
+        "explanation": "The fence function restricts lateral mobility between opposite membrane domains."
+      },
+      {
+        "type": "mcq",
+        "question": "Which vascular and tubular epithelial barriers depend heavily on tight-junction sealing:",
+        "options": {
+          "A": "Cardiac intercalated discs",
+          "B": "Brain capillaries and renal tubules",
+          "C": "Presynaptic neuromuscular terminals",
+          "D": "Nuclear pore complexes"
+        },
+        "correct_answer": "B",
+        "explanation": "Tight junctions form selective barriers in brain capillaries (BBB), renal tubules, and intestinal mucosa."
+      },
+      {
+        "type": "mcq",
+        "question": "Which junction is also called a nexus:",
+        "options": {
+          "A": "Gap junction",
+          "B": "Tight junction",
+          "C": "Desmosome",
+          "D": "Hemidesmosome"
+        },
+        "correct_answer": "A",
+        "explanation": "Nexus is a standard synonym for a gap junction."
+      },
+      {
+        "type": "mcq",
+        "question": "The channel unit formed from connexin proteins in a gap junction is a:",
+        "options": {
+          "A": "Desmosome",
+          "B": "Connexon",
+          "C": "Synaptic vesicle",
+          "D": "Basal plaque"
+        },
+        "correct_answer": "B",
+        "explanation": "Connexins assemble into connexons that align across adjacent membranes."
+      },
+      {
+        "type": "mcq",
+        "question": "Tissue coordination through gap junctions also occurs in portions of:",
+        "options": {
+          "A": "Bone osteons only",
+          "B": "Mature red blood cells",
+          "C": "Intestinal epithelium",
+          "D": "None of the above"
+        },
+        "correct_answer": "C",
+        "explanation": "Gap junctions operate in cardiac muscle and tissues such as intestinal epithelium."
+      },
+      {
+        "type": "mcq",
+        "question": "Which molecules preferentially pass through gap junctions:",
+        "options": {
+          "A": "Large proteins and organelles",
+          "B": "Whole nuclei",
+          "C": "Extracellular collagen",
+          "D": "Ions and small signaling molecules"
+        },
+        "correct_answer": "D",
+        "explanation": "Small pore diameter restricts passage to low-molecular-weight ions and messengers."
+      },
+      {
+        "type": "mcq",
+        "question": "On the receiving cell of a chemical synapse, released neurotransmitters bind directly to:",
+        "options": {
+          "A": "Postsynaptic membrane receptors",
+          "B": "Aligned connexin hexamers",
+          "C": "Intracellular actin microfilaments",
+          "D": "Adjacent keratin filaments"
+        },
+        "correct_answer": "A",
+        "explanation": "Presynaptic neurons release neurotransmitters recognized by postsynaptic receptors."
+      },
+      {
+        "type": "mcq",
+        "question": "Unlike gap junctions, chemical synapses connect neuron to neuron or nerve to muscle WITHOUT:",
+        "options": {
+          "A": "A receiving-cell receptor",
+          "B": "An open cytoplasmic channel",
+          "C": "An extracellular cleft",
+          "D": "Presynaptic signaling"
+        },
+        "correct_answer": "B",
+        "explanation": "Chemical synapses bridge an extracellular space rather than joining cytoplasm directly."
+      },
+      {
+        "type": "mcq",
+        "question": "Anchoring junctions provide mechanical defense against:",
+        "options": {
+          "A": "Hydrogen peroxide accumulation",
+          "B": "Osmotic lysis only",
+          "C": "DNA replication errors",
+          "D": "Pulling and stretching forces"
+        },
+        "correct_answer": "D",
+        "explanation": "Anchoring junctions brace cells against tensile stress."
+      },
+      {
+        "type": "mcq",
+        "question": "Which anchoring junction bridges neighboring epithelial cells using ACTIN filaments:",
+        "options": {
+          "A": "Focal adhesion",
+          "B": "Desmosome",
+          "C": "Adherens junction",
+          "D": "Hemidesmosome"
+        },
+        "correct_answer": "C",
+        "explanation": "Adherens junctions couple neighboring actin networks."
+      },
+      {
+        "type": "mcq",
+        "question": "Unlike desmosomes, focal adhesions attach cells to the extracellular matrix using:",
+        "options": {
+          "A": "Actin filaments",
+          "B": "Intermediate filaments",
+          "C": "Tubulin microtubules",
+          "D": "Connexin hexamers"
+        },
+        "correct_answer": "A",
+        "explanation": "Focal adhesions anchor epithelial actin cytoskeleton to ECM."
+      },
+      {
+        "type": "mcq",
+        "question": "What structural defect causes fragile cell-to-cell skin separation under strain:",
+        "options": {
+          "A": "Blocked synaptic vesicle fusion",
+          "B": "Defective desmosomes",
+          "C": "Missing nuclear pore complexes",
+          "D": "Hyperactive gap junction connexons"
+        },
+        "correct_answer": "B",
+        "explanation": "Desmosomes anchor intermediate filaments across adjacent cells."
+      },
+      {
+        "type": "mcq",
+        "question": "Which anchoring junction sits exclusively along the basal face resembling half a desmosome:",
+        "options": {
+          "A": "Desmosome",
+          "B": "Adherens junction",
+          "C": "Focal adhesion",
+          "D": "Hemidesmosome"
+        },
+        "correct_answer": "D",
+        "explanation": "Hemidesmosomes act like half a desmosome anchoring to basal lamina."
+      },
+      {
+        "type": "mcq",
+        "question": "Where are adherens junctions prominent study examples:",
+        "options": {
+          "A": "Brain capillaries and renal glomeruli",
+          "B": "Skin and cardiac intercalated discs",
+          "C": "Presynaptic terminals",
+          "D": "Nuclear envelopes"
+        },
+        "correct_answer": "B",
+        "explanation": "Adherens junctions operate in skin and cardiac intercalated discs."
+      },
+      {
+        "type": "mcq",
+        "question": "Which anchoring combination uses ACTIN in both cell-to-ECM and cell-to-cell sites:",
+        "options": {
+          "A": "Focal adhesion and adherens junction",
+          "B": "Desmosome and hemidesmosome",
+          "C": "Tight junction and gap junction",
+          "D": "Desmosome and focal adhesion"
+        },
+        "correct_answer": "A",
+        "explanation": "Focal adhesions (actin -> ECM) and adherens junctions (actin -> neighbor cell) both link actin."
+      },
+      {
+        "type": "mcq",
+        "question": "Which pair represents the TWO cell-to-cell anchoring junctions:",
+        "options": {
+          "A": "Focal adhesion and hemidesmosome",
+          "B": "Tight junction and chemical synapse",
+          "C": "Adherens junction and desmosome",
+          "D": "Gap junction and focal adhesion"
+        },
+        "correct_answer": "C",
+        "explanation": "Both adherens junctions and desmosomes grip neighboring cells."
+      },
+      {
+        "type": "mcq",
+        "question": "How do tight junctions differ from membrane transport proteins:",
+        "options": {
+          "A": "Tight junctions pump large macromolecules across lipid tails",
+          "B": "Tight junctions gate intercellular gaps; transporters move across membranes",
+          "C": "Transport proteins seal paracellular borders near the apex",
+          "D": "None of the above"
+        },
+        "correct_answer": "B",
+        "explanation": "Paracellular space control vs transcellular membrane transport distinguishes them."
+      },
+      {
+        "type": "mcq",
+        "question": "Which combination describes TWO functions of tight junctions:",
+        "options": {
+          "A": "Paracellular barrier/gate",
+          "B": "Maintenance of epithelial polarity",
+          "C": "Direct electrical coupling via connexons",
+          "D": "A and B"
+        },
+        "correct_answer": "D",
+        "explanation": "Tight junctions form paracellular gates and preserve apical-basolateral polarity."
+      },
+      {
+        "type": "mcq",
+        "question": "In skin exposed to mechanical strain, which junction links intermediate filaments cell-to-cell:",
+        "options": {
+          "A": "Desmosome",
+          "B": "Tight junction",
+          "C": "Gap junction",
+          "D": "Focal adhesion"
+        },
+        "correct_answer": "A",
+        "explanation": "Desmosomes confer tensile resistance across stressed epithelia like skin."
+      },
+      {
+        "type": "mcq",
+        "question": "Why do gap junctions propagate ions faster than chemical synapses:",
+        "options": {
+          "A": "Tight junctions fuse presynaptic vesicles",
+          "B": "Desmosomes accelerate neurotransmitter cleavage",
+          "C": "Cytoplasms link directly via pores",
+          "D": "Neurotransmitters bypass postsynaptic receptors"
+        },
+        "correct_answer": "C",
+        "explanation": "Aligned connexon pores pass ions directly without synaptic cleft delay."
+      },
+      {
+        "type": "mcq",
+        "question": "What distinguishes focal adhesions from desmosomes:",
+        "options": {
+          "A": "Focal adhesions seal apical zones; desmosomes sit in blood vessels",
+          "B": "Focal adhesions bind actin to ECM; desmosomes bind IF cell-to-cell",
+          "C": "Desmosomes release neurotransmitters; focal adhesions line nuclei",
+          "D": "None of the above"
+        },
+        "correct_answer": "B",
+        "explanation": "They differ in both cytoskeletal polymer and attachment target."
+      },
+      {
+        "type": "mcq",
+        "question": "Which phrase matches 'seal, share, grip another cell, grip the matrix' in order:",
+        "options": {
+          "A": "Tight, gap, adherens/desmosome, focal adhesion/hemidesmosome",
+          "B": "Gap, tight, focal adhesion, desmosome",
+          "C": "Desmosome, tight, gap, hemidesmosome",
+          "D": "Tight, chemical synapse, focal adhesion, adherens"
+        },
+        "correct_answer": "A",
+        "explanation": "This summarizes occluding, communicating, cell-cell anchoring, and cell-matrix anchoring."
+      },
+      {
+        "type": "true_false",
+        "question": "Cell junctions anchor cells exclusively to neighboring cells and never to the extracellular matrix.",
+        "correct_answer": false,
+        "explanation": "Focal adhesions and hemidesmosomes anchor cells directly to ECM/basal lamina."
+      },
+      {
+        "type": "true_false",
+        "question": "Tight junctions help preserve epithelial polarity by preventing mixing of apical and basolateral domains.",
+        "correct_answer": true,
+        "explanation": "Their fence role keeps opposite membrane faces distinct."
+      },
+      {
+        "type": "true_false",
+        "question": "Gap junctions use connexons built from connexin proteins to connect adjacent cytoplasm directly.",
+        "correct_answer": true,
+        "explanation": "Aligned connexons create short cytoplasm-to-cytoplasm channels."
+      },
+      {
+        "type": "true_false",
+        "question": "Chemical synapses form open cytoplasmic tunnels directly linking neuron and muscle cytoplasm.",
+        "correct_answer": false,
+        "explanation": "Chemical synapses use neurotransmitter release across an extracellular cleft."
+      },
+      {
+        "type": "true_false",
+        "question": "Both desmosomes and hemidesmosomes associate with intermediate filaments.",
+        "correct_answer": true,
+        "explanation": "Desmosomes bridge two cells via intermediate filaments; hemidesmosomes anchor one cell to basal lamina."
+      },
+      {
+        "type": "true_false",
+        "question": "Focal adhesions use tubulin microtubules to anchor epithelial cells to basal lamina.",
+        "correct_answer": false,
+        "explanation": "Focal adhesions link actin filaments to ECM."
+      }
+    ]
+  }
+}

@@ -1,0 +1,3491 @@
+{
+  "active_study": {
+    "easy": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which property of the plasma membrane lets it act as a useful selective barrier:",
+              "options": {
+                "A": "Complete impermeability",
+                "B": "Selective permeability",
+                "C": "Rigid crystallization",
+                "D": "Absence of proteins"
+              },
+              "correct_answer": "B",
+              "explanation": "A selectively permeable plasma membrane regulates which solutes enter and leave."
+            },
+            {
+              "type": "mcq",
+              "question": "Passive transport moves substances without:",
+              "options": {
+                "A": "Direct ATP requirement",
+                "B": "Any concentration difference",
+                "C": "Membrane channels",
+                "D": "Solute movement"
+              },
+              "correct_answer": "A",
+              "explanation": "Passive transport proceeds spontaneously down a gradient without direct ATP expenditure."
+            },
+            {
+              "type": "mcq",
+              "question": "Which transport mechanism moves a solute AGAINST its gradient using ATP directly:",
+              "options": {
+                "A": "Simple diffusion",
+                "B": "Facilitated diffusion",
+                "C": "Primary active transport",
+                "D": "Osmosis"
+              },
+              "correct_answer": "C",
+              "explanation": "Primary active transport uses direct energy from ATP or a primary energy source."
+            },
+            {
+              "type": "mcq",
+              "question": "Which transport process couples uphill solute movement to the downhill gradient of another ion:",
+              "options": {
+                "A": "Simple diffusion",
+                "B": "Pinocytosis",
+                "C": "Bulk filtration",
+                "D": "Secondary active transport"
+              },
+              "correct_answer": "D",
+              "explanation": "Secondary active transport harvests energy stored in an existing ion gradient."
+            },
+            {
+              "type": "mcq",
+              "question": "Small lipid-soluble gases like O2 and CO2 cross the bilayer mainly by:",
+              "options": {
+                "A": "Phagocytosis",
+                "B": "Simple diffusion through lipids",
+                "C": "Primary ATP pumps",
+                "D": "Receptor-mediated endocytosis"
+              },
+              "correct_answer": "B",
+              "explanation": "Small nonpolar molecules dissolve across the phospholipid bilayer by simple diffusion."
+            },
+            {
+              "type": "mcq",
+              "question": "Which factor contributes directly to the chemical component of an electrochemical gradient:",
+              "options": {
+                "A": "Concentration difference",
+                "B": "Vesicle clathrin coat thickness",
+                "C": "Nuclear pore diameter",
+                "D": "A and B"
+              },
+              "correct_answer": "A",
+              "explanation": "Only concentration and electrical charge differences form an electrochemical gradient."
+            },
+            {
+              "type": "true_false",
+              "question": "Ungated membrane channels remain closed at all times and never permit solute passage.",
+              "correct_answer": false,
+              "explanation": "Ungated channels can remain open, whereas gated channels change their open state in response to stimuli."
+            },
+            {
+              "type": "true_false",
+              "question": "Movement of an ion through an open channel protein down its electrochemical gradient is passive.",
+              "correct_answer": true,
+              "explanation": "Channel-mediated movement following the electrochemical gradient requires no direct ATP."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Facilitated diffusion relies on which membrane component to bind and release solutes:",
+              "options": {
+                "A": "Nuclear pore RNA",
+                "B": "Clathrin coat only",
+                "C": "Membrane carrier protein",
+                "D": "Cholesterol esterase"
+              },
+              "correct_answer": "C",
+              "explanation": "Carrier proteins bind the solute, change conformation, and release it across the membrane."
+            },
+            {
+              "type": "mcq",
+              "question": "Which nutrient commonly uses facilitated diffusion carrier pathways in appropriate tissues:",
+              "options": {
+                "A": "Intact bacterial cells",
+                "B": "Mitochondrial DNA",
+                "C": "Extracellular collagen",
+                "D": "Glucose"
+              },
+              "correct_answer": "D",
+              "explanation": "Glucose and some amino acids use carrier-mediated facilitated diffusion down their gradients."
+            },
+            {
+              "type": "mcq",
+              "question": "Because carrier proteins have finite binding sites and turnover speed, facilitated diffusion shows:",
+              "options": {
+                "A": "Infinite linear rate increases",
+                "B": "Saturation at high solute levels",
+                "C": "Requirement for direct ATP",
+                "D": "Complete reversal of gradients"
+              },
+              "correct_answer": "B",
+              "explanation": "Limited carrier availability causes saturation kinetics at high concentrations."
+            },
+            {
+              "type": "mcq",
+              "question": "Which factor generally INCREASES the rate of diffusion across a membrane:",
+              "options": {
+                "A": "Greater concentration difference",
+                "B": "Greater membrane thickness",
+                "C": "Larger diffusing molecule",
+                "D": "Opposing electrical forces"
+              },
+              "correct_answer": "A",
+              "explanation": "A steeper driving gradient accelerates passive diffusion."
+            },
+            {
+              "type": "mcq",
+              "question": "Which factor generally SLOWS diffusion across a biological barrier:",
+              "options": {
+                "A": "Higher temperature",
+                "B": "Higher membrane permeability",
+                "C": "Increased transport distance",
+                "D": "Greater electrochemical gradient"
+              },
+              "correct_answer": "C",
+              "explanation": "Thicker membranes or longer diffusion paths decrease diffusion rate."
+            },
+            {
+              "type": "mcq",
+              "question": "Which process moves fluid and dissolved solutes together due to a pressure gradient:",
+              "options": {
+                "A": "Primary active uniport",
+                "B": "Bulk flow",
+                "C": "Receptor-mediated endocytosis",
+                "D": "Cytoskeletal cross-linking"
+              },
+              "correct_answer": "B",
+              "explanation": "Bulk flow carries fluid mass down a hydrostatic pressure gradient."
+            },
+            {
+              "type": "mcq",
+              "question": "Water and dissolved solutes pushed across capillary walls or renal glomeruli illustrate:",
+              "options": {
+                "A": "Endocytosis",
+                "B": "Secondary counter-transport",
+                "C": "Signal transcription",
+                "D": "Filtration"
+              },
+              "correct_answer": "D",
+              "explanation": "Hydrostatic pressure drives filtration across vascular and glomerular barriers."
+            },
+            {
+              "type": "mcq",
+              "question": "Net movement of water INTO a cell across a selective membrane is called:",
+              "options": {
+                "A": "Exosmosis",
+                "B": "Exocytosis",
+                "C": "Pinocytosis",
+                "D": "None of the above"
+              },
+              "correct_answer": "D",
+              "explanation": "Water entering a cell down its osmotic gradient is endosmosis, not exosmosis, exocytosis, or pinocytosis."
+            },
+            {
+              "type": "mcq",
+              "question": "When diffusion distance across a membrane becomes much thicker, passive diffusion rate:",
+              "options": {
+                "A": "Decreases",
+                "B": "Increases exponentially",
+                "C": "Stops needing a gradient",
+                "D": "Reverses uphill"
+              },
+              "correct_answer": "A",
+              "explanation": "Longer transport distance or thicker membranes slow diffusion."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Osmotic pressure is defined as the pressure needed to:",
+              "options": {
+                "A": "Drive exocytosis",
+                "B": "Prevent osmosis",
+                "C": "Stimulate phagocytosis",
+                "D": "Hydrolize membrane ATP"
+              },
+              "correct_answer": "B",
+              "explanation": "Osmotic pressure opposes and halts net osmotic water flow across a selective membrane."
+            },
+            {
+              "type": "mcq",
+              "question": "The osmotic effect exerted specifically by plasma proteins is called:",
+              "options": {
+                "A": "Hydrostatic filtration",
+                "B": "Electrochemical potential",
+                "C": "Oncotic pressure",
+                "D": "Turgor saturation"
+              },
+              "correct_answer": "C",
+              "explanation": "Colloid osmotic pressure due to blood plasma proteins is termed oncotic pressure."
+            },
+            {
+              "type": "mcq",
+              "question": "According to the chapter, typical human plasma oncotic pressure is approximately:",
+              "options": {
+                "A": "25 mmHg",
+                "B": "5 mmHg",
+                "C": "75 mmHg",
+                "D": "120 mmHg"
+              },
+              "correct_answer": "A",
+              "explanation": "The reference value cited for plasma oncotic pressure is roughly 25 mmHg."
+            },
+            {
+              "type": "mcq",
+              "question": "A transporter that moves ONE solute in ONE direction across the membrane is a:",
+              "options": {
+                "A": "Symporter",
+                "B": "Uniporter",
+                "C": "Antiporter",
+                "D": "Pinocytic pit"
+              },
+              "correct_answer": "B",
+              "explanation": "Uniport transports a single solute species unidirectionally."
+            },
+            {
+              "type": "mcq",
+              "question": "A transporter carrying TWO different solutes in the SAME direction is a:",
+              "options": {
+                "A": "Uniporter",
+                "B": "Antiporter",
+                "C": "Symporter",
+                "D": "Ungated pore"
+              },
+              "correct_answer": "C",
+              "explanation": "Symport (co-transport) moves two different solutes simultaneously in the same direction."
+            },
+            {
+              "type": "mcq",
+              "question": "An antiporter exchanges two solutes in:",
+              "options": {
+                "A": "Opposite directions",
+                "B": "The same inward direction only",
+                "C": "The same outward direction only",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Antiport (counter-transport) couples movement of two solutes in opposite directions."
+            },
+            {
+              "type": "mcq",
+              "question": "During one complete cycle, the Na+/K+-ATPase pumps:",
+              "options": {
+                "A": "2 Na+ out and 3 K+ in",
+                "B": "3 Na+ out and 2 K+ in",
+                "C": "3 K+ out and 2 Na+ in",
+                "D": "1 Na+ out and 1 K+ in"
+              },
+              "correct_answer": "B",
+              "explanation": "Each cycle transfers three sodium ions outward and two potassium ions inward."
+            },
+            {
+              "type": "true_false",
+              "question": "Secondary active transport directly hydrolyzes ATP on the same transporter that moves glucose uphill.",
+              "correct_answer": false,
+              "explanation": "Primary active transport uses ATP directly; secondary active transport uses an existing downhill gradient."
+            },
+            {
+              "type": "true_false",
+              "question": "Because Na+/K+-ATPase moves one extra positive charge outward per cycle, it affects resting membrane electrical properties.",
+              "correct_answer": true,
+              "explanation": "Moving 3 Na+ out vs 2 K+ in creates a net outward positive charge transfer."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Compared with intracellular fluid (ICF), extracellular fluid (ECF) is naturally:",
+              "options": {
+                "A": "Potassium-rich",
+                "B": "Devoid of chloride",
+                "C": "Enriched in DNA",
+                "D": "Sodium-rich"
+              },
+              "correct_answer": "D",
+              "explanation": "The Na+/K+ pump helps keep ECF sodium-rich and ICF potassium-rich."
+            },
+            {
+              "type": "mcq",
+              "question": "Calcium ATPases lower cytosolic Ca2+ concentration by:",
+              "options": {
+                "A": "Pumping Ca2+ across membranes",
+                "B": "Converting Ca2+ into glucose",
+                "C": "Synthesizing clathrin cages",
+                "D": "Stopping all water osmosis"
+              },
+              "correct_answer": "A",
+              "explanation": "ATP-dependent Ca2+ pumps actively extrude or sequester calcium out of the cytosol."
+            },
+            {
+              "type": "mcq",
+              "question": "Hydrogen-ion pumps transfer which particle in tissues needing acid transport:",
+              "options": {
+                "A": "Large plasma proteins",
+                "B": "Protons (H+)",
+                "C": "Whole phospholipids",
+                "D": "Glycocalyx carbohydrates"
+              },
+              "correct_answer": "B",
+              "explanation": "H+-ATPases move protons across membranes in acid-secreting tissues."
+            },
+            {
+              "type": "mcq",
+              "question": "Which list gives substances associated with active transport in the chapter:",
+              "options": {
+                "A": "O2 and CO2 only",
+                "B": "Whole bacteria only",
+                "C": "Na+, K+, Ca2+, H+, Cl-",
+                "D": "Plasma proteins exclusively"
+              },
+              "correct_answer": "C",
+              "explanation": "The source highlights Na+, K+, Ca2+, H+, and Cl- among actively transported ions."
+            },
+            {
+              "type": "mcq",
+              "question": "Sodium-linked glucose transport is classified as:",
+              "options": {
+                "A": "Primary active ATPase pumping",
+                "B": "Simple lipid diffusion",
+                "C": "Pinocytosis",
+                "D": "Secondary active co-transport"
+              },
+              "correct_answer": "D",
+              "explanation": "The Na+/glucose symporter uses the Na+ gradient created by Na+/K+-ATPase."
+            },
+            {
+              "type": "mcq",
+              "question": "In Na+/H+ exchange across a membrane, the transport pattern is:",
+              "options": {
+                "A": "Uniport",
+                "B": "Counter-transport (antiport)",
+                "C": "Simple channel filtration",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Na+ and H+ travel in opposite directions, defining counter-transport / antiport."
+            },
+            {
+              "type": "true_false",
+              "question": "A sodium-glucose symporter is itself a primary ATP-hydrolyzing pump.",
+              "correct_answer": false,
+              "explanation": "The chapter flags this as a common exam trap: it taps into the secondary Na+ gradient rather than hydrolyzing ATP directly."
+            },
+            {
+              "type": "true_false",
+              "question": "Vesicular transport is used when macromolecules or particles are too large for channels or ordinary carriers.",
+              "correct_answer": true,
+              "explanation": "Cells enclose large cargo in membrane-bounded vesicles for endocytosis, exocytosis, or transcytosis."
+            }
+          ]
+        },
+        {
+          "page": 6,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which vesicular process takes up small portions of extracellular fluid and dissolved solutes:",
+              "options": {
+                "A": "Pinocytosis",
+                "B": "Phagocytosis",
+                "C": "Exocytosis",
+                "D": "Uniport"
+              },
+              "correct_answer": "A",
+              "explanation": "Pinocytosis invaginates the membrane to capture droplets of extracellular fluid."
+            },
+            {
+              "type": "mcq",
+              "question": "Specialized defense cells like neutrophils and macrophages perform phagocytosis to engulf:",
+              "options": {
+                "A": "Only individual sodium ions",
+                "B": "Single oxygen molecules",
+                "C": "Large particles and microorganisms",
+                "D": "Free potassium ions"
+              },
+              "correct_answer": "C",
+              "explanation": "Phagocytes extend projections around large debris or microbes to enclose them."
+            },
+            {
+              "type": "mcq",
+              "question": "A large engulfed particle inside a phagocytic cell becomes enclosed within a membrane sac called a:",
+              "options": {
+                "A": "Connexon",
+                "B": "Phagosome",
+                "C": "Uniporter",
+                "D": "Desmosome"
+              },
+              "correct_answer": "B",
+              "explanation": "Phagocytosis encloses cargo inside a phagosome that fuses with lysosomes."
+            },
+            {
+              "type": "mcq",
+              "question": "In receptor-mediated endocytosis, uptake begins selectively when a ligand binds a:",
+              "options": {
+                "A": "Matching membrane receptor",
+                "B": "Random phospholipid tail",
+                "C": "Voltage-gated K+ pore",
+                "D": "Cytosolic actin filament"
+              },
+              "correct_answer": "A",
+              "explanation": "Ligand binding to a specific surface receptor initiates coated-pit clustering."
+            },
+            {
+              "type": "mcq",
+              "question": "What role does CLATHRIN play in receptor-mediated endocytosis:",
+              "options": {
+                "A": "It is the primary hormone receptor",
+                "B": "It breaks down ATP to pump Na+",
+                "C": "It carries oxygen inside RBCs",
+                "D": "It is a membrane coating protein"
+              },
+              "correct_answer": "D",
+              "explanation": "Clathrin coats the invaginating pit; it is a coat protein rather than the ligand receptor."
+            },
+            {
+              "type": "mcq",
+              "question": "Release of cellular secretory products when a vesicle fuses with the plasma membrane is:",
+              "options": {
+                "A": "Pinocytosis",
+                "B": "Endosmosis",
+                "C": "Exocytosis",
+                "D": "Phagocytosis"
+              },
+              "correct_answer": "C",
+              "explanation": "Exocytosis exports vesicular cargo into the extracellular space."
+            },
+            {
+              "type": "mcq",
+              "question": "Moving cargo across an endothelial cell by endocytosis on one face and exocytosis on the other is:",
+              "options": {
+                "A": "Counter-transport",
+                "B": "Transcytosis",
+                "C": "Bulk filtration",
+                "D": "Facilitated diffusion"
+              },
+              "correct_answer": "B",
+              "explanation": "Transcytosis ferries cargo from one pole of a cell to the opposite pole."
+            },
+            {
+              "type": "mcq",
+              "question": "After phagocytosis encloses a bacterium in a phagosome, digestive enzymes come from fusion with:",
+              "options": {
+                "A": "Lysosomes",
+                "B": "Peroxisomal nucleoids",
+                "C": "Golgi cis-only pores",
+                "D": "Gap junctions"
+              },
+              "correct_answer": "A",
+              "explanation": "Fusion with lysosomal compartments supplies hydrolytic enzymes to digest the cargo."
+            },
+            {
+              "type": "true_false",
+              "question": "Endocytosis always moves cargo out of the cell, whereas exocytosis brings extracellular fluid in.",
+              "correct_answer": false,
+              "explanation": "Endocytosis mediates entry into the cell; exocytosis mediates exit from the cell."
+            },
+            {
+              "type": "true_false",
+              "question": "Receptor-mediated endocytosis is more selective than ordinary fluid-phase pinocytosis.",
+              "correct_answer": true,
+              "explanation": "Receptor-ligand specificity selectively concentrates target molecules before vesicle formation."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "Why do cells require specialized membrane transport mechanisms:",
+            "options": {
+              "A": "To eliminate selective permeability",
+              "B": "To convert passive flow into DNA",
+              "C": "To prevent all water exchange",
+              "D": "To obtain O2/nutrients and remove wastes across a selective barrier"
+            },
+            "correct_answer": "D",
+            "explanation": "Transport pathways move essential solutes and water across the selectively permeable bilayer."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement defines PASSIVE transport:",
+            "options": {
+              "A": "Uphill transport using ATP directly",
+              "B": "Spontaneous movement down a gradient without direct ATP",
+              "C": "Vesicular fusion using clathrin",
+              "D": "Movement of proteins against hydrostatic force"
+            },
+            "correct_answer": "B",
+            "explanation": "Passive processes follow chemical or electrochemical gradients with no direct ATP consumption."
+          },
+          {
+            "type": "mcq",
+            "question": "Passive movement of an uncharged solute depends mainly on its:",
+            "options": {
+              "A": "Electrical membrane charge",
+              "B": "Clathrin coat affinity",
+              "C": "Concentration difference",
+              "D": "Connexon number"
+            },
+            "correct_answer": "C",
+            "explanation": "Electrical forces do not act directly on uncharged molecules; concentration drives them."
+          },
+          {
+            "type": "mcq",
+            "question": "Gated membrane channels open or close in response to:",
+            "options": {
+              "A": "Membrane voltage changes",
+              "B": "Specific chemical ligand binding",
+              "C": "Ribosome assembly",
+              "D": "A and B"
+            },
+            "correct_answer": "D",
+            "explanation": "Channel gates respond to voltage changes or ligand binding."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pair of molecules crosses the phospholipid bilayer easily by simple diffusion:",
+            "options": {
+              "A": "O2 and CO2",
+              "B": "Plasma albumin and starch",
+              "C": "Whole bacteria and debris",
+              "D": "Nucleic acids and myosin"
+            },
+            "correct_answer": "A",
+            "explanation": "Small lipid-soluble gases diffuse readily through the hydrophobic core."
+          },
+          {
+            "type": "mcq",
+            "question": "Water and charged ions rely heavily on membrane proteins rather than just lipids because:",
+            "options": {
+              "A": "Lipids are wholly water-soluble",
+              "B": "Membrane channels provide aqueous pathways",
+              "C": "Ions carry no charge",
+              "D": "Proteins require zero selectivity"
+            },
+            "correct_answer": "B",
+            "explanation": "Channels supply water-filled transmembrane pores for hydrophilic particles."
+          },
+          {
+            "type": "mcq",
+            "question": "During facilitated diffusion, a carrier binds its solute and then:",
+            "options": {
+              "A": "Changes shape to release it across",
+              "B": "Hydrolyzes ATP to force it uphill",
+              "C": "Splits the membrane bilayer apart",
+              "D": "Engulfs it inside a phagosome"
+            },
+            "correct_answer": "A",
+            "explanation": "Conformational shape change shifts exposure of the binding site across the membrane."
+          },
+          {
+            "type": "mcq",
+            "question": "What limits the maximal rate of facilitated diffusion compared with simple lipid diffusion:",
+            "options": {
+              "A": "Lack of a gradient",
+              "B": "Presence of O2",
+              "C": "Finite number of carrier binding sites",
+              "D": "Absence of extracellular water"
+            },
+            "correct_answer": "C",
+            "explanation": "Carriers can become saturated when all binding sites are busy."
+          },
+          {
+            "type": "mcq",
+            "question": "If membrane thickness INCREASES, passive diffusion rate generally:",
+            "options": {
+              "A": "Increases exponentially",
+              "B": "Decreases",
+              "C": "Turns into phagocytosis",
+              "D": "Converts to primary active transport"
+            },
+            "correct_answer": "B",
+            "explanation": "Longer diffusion distance slows passive solute movement."
+          },
+          {
+            "type": "mcq",
+            "question": "Higher temperature generally affects diffusion rate by:",
+            "options": {
+              "A": "Favoring faster molecular movement",
+              "B": "Blocking all channel gates",
+              "C": "Turning osmosis into antiport",
+              "D": "Decreasing kinetic energy"
+            },
+            "correct_answer": "A",
+            "explanation": "Higher thermal motion increases diffusion rates."
+          },
+          {
+            "type": "mcq",
+            "question": "Fluid movement out of capillaries and into renal glomeruli driven by hydrostatic pressure is:",
+            "options": {
+              "A": "Endosmosis",
+              "B": "Filtration",
+              "C": "Antiport",
+              "D": "Pinocytosis"
+            },
+            "correct_answer": "B",
+            "explanation": "Filtration is hydrostatic pressure-driven bulk movement through a barrier."
+          },
+          {
+            "type": "mcq",
+            "question": "In osmosis, water moves across a selective membrane toward the compartment with:",
+            "options": {
+              "A": "Lower effective solute concentration",
+              "B": "Zero dissolved solutes",
+              "C": "Highest ATPase density",
+              "D": "Greater effective solute concentration"
+            },
+            "correct_answer": "D",
+            "explanation": "Water diffuses net toward the higher effective concentration of water-attracting solutes."
+          },
+          {
+            "type": "mcq",
+            "question": "Water exiting a cell by osmosis is specifically termed:",
+            "options": {
+              "A": "Endosmosis",
+              "B": "Pinocytosis",
+              "C": "Exosmosis",
+              "D": "Symport"
+            },
+            "correct_answer": "C",
+            "explanation": "Outward osmotic water movement from a cell is exosmosis."
+          },
+          {
+            "type": "mcq",
+            "question": "Plasma colloid osmotic pressure is mainly generated by:",
+            "options": {
+              "A": "Blood plasma proteins",
+              "B": "Dissolved O2 gas",
+              "C": "Cytosolic actin rods",
+              "D": "Clathrin cages"
+            },
+            "correct_answer": "A",
+            "explanation": "Colloidal plasma proteins establish oncotic pressure (~25 mmHg)."
+          },
+          {
+            "type": "mcq",
+            "question": "A membrane transporter moving TWO solutes in opposite directions performs:",
+            "options": {
+              "A": "Uniport",
+              "B": "Antiport",
+              "C": "Symport",
+              "D": "Simple filtration"
+            },
+            "correct_answer": "B",
+            "explanation": "Antiporters mediate counter-transport in opposite directions."
+          },
+          {
+            "type": "mcq",
+            "question": "Moving glucose across a cell membrane by a single-solute carrier down its gradient uses:",
+            "options": {
+              "A": "Antiport",
+              "B": "Phagocytosis",
+              "C": "Uniport",
+              "D": "Primary ATPase"
+            },
+            "correct_answer": "C",
+            "explanation": "A uniporter moves one type of solute in one direction."
+          },
+          {
+            "type": "mcq",
+            "question": "How many potassium ions enter the cell per Na+/K+-ATPase cycle:",
+            "options": {
+              "A": "Three K+ ions",
+              "B": "One K+ ion",
+              "C": "Four K+ ions",
+              "D": "Two K+ ions"
+            },
+            "correct_answer": "D",
+            "explanation": "The pump exchanges 3 Na+ outward for 2 K+ inward."
+          },
+          {
+            "type": "mcq",
+            "question": "Which energy source directly powers PRIMARY active transport:",
+            "options": {
+              "A": "Passive osmotic pressure",
+              "B": "ATP (or primary energy source)",
+              "C": "Thermal diffusion alone",
+              "D": "Clathrin assembly"
+            },
+            "correct_answer": "B",
+            "explanation": "Primary active pumps couple solute movement directly to ATP hydrolysis."
+          },
+          {
+            "type": "mcq",
+            "question": "Because Na+/K+-ATPase runs continuously, cytosol stays relatively rich in:",
+            "options": {
+              "A": "Potassium (K+)",
+              "B": "Sodium (Na+)",
+              "C": "Extracellular albumin",
+              "D": "Clathrin"
+            },
+            "correct_answer": "A",
+            "explanation": "Active pumping keeps intracellular K+ high and intracellular Na+ low."
+          },
+          {
+            "type": "mcq",
+            "question": "In sodium-linked amino acid uptake across a membrane, both Na+ and the amino acid move:",
+            "options": {
+              "A": "In opposite directions",
+              "B": "By simple lipid diffusion",
+              "C": "In the same direction (co-transport)",
+              "D": "Inside a phagosome"
+            },
+            "correct_answer": "C",
+            "explanation": "Na+-coupled amino acid transport is a classic symport (co-transport) pathway."
+          },
+          {
+            "type": "mcq",
+            "question": "Na+/Ca2+ exchange belongs to which transport category:",
+            "options": {
+              "A": "Primary ATPase uniport",
+              "B": "Secondary active counter-transport",
+              "C": "Passive simple diffusion",
+              "D": "Endocytosis"
+            },
+            "correct_answer": "B",
+            "explanation": "Sodium downhill influx drives calcium uphill efflux in opposite directions."
+          },
+          {
+            "type": "mcq",
+            "question": "Which ion pump helps keep cytosolic Ca2+ concentration very low:",
+            "options": {
+              "A": "Calcium ATPase",
+              "B": "Hydrogen symporter",
+              "C": "Na+/glucose uniporter",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Primary Ca2+-ATPases pump calcium out of the cytosol across membranes."
+          },
+          {
+            "type": "mcq",
+            "question": "What drives SECONDARY active transport at the carrier itself:",
+            "options": {
+              "A": "Direct ATP breakdown by that symporter",
+              "B": "Hydrostatic blood pressure",
+              "C": "Lysosomal enzymes",
+              "D": "An ion gradient previously built by primary pumps"
+            },
+            "correct_answer": "D",
+            "explanation": "Stored energy in the Na+ gradient powers uphill co- or counter-transport."
+          },
+          {
+            "type": "mcq",
+            "question": "Which term covers ALL membrane-vesicle routes carrying cargo across cells:",
+            "options": {
+              "A": "Bulk filtration",
+              "B": "Vesicular transport",
+              "C": "Facilitated uniport",
+              "D": "Simple channel gating"
+            },
+            "correct_answer": "B",
+            "explanation": "Endocytosis, exocytosis, and transcytosis make up vesicular transport."
+          },
+          {
+            "type": "mcq",
+            "question": "Pinocytosis differs from phagocytosis primarily because pinocytosis takes up:",
+            "options": {
+              "A": "Extracellular fluid and dissolved solutes",
+              "B": "Large solid microorganisms only",
+              "C": "Intact erythrocytes",
+              "D": "Collagen sheets"
+            },
+            "correct_answer": "A",
+            "explanation": "Pinocytosis mediates fluid-phase uptake, whereas phagocytosis engulfs large particles."
+          },
+          {
+            "type": "mcq",
+            "question": "Neutrophils and macrophages use phagocytosis especially to clear:",
+            "options": {
+              "A": "Water down hydrostatic pressure",
+              "B": "Oxygen across alveoli",
+              "C": "Microorganisms and cellular debris",
+              "D": "Single potassium ions"
+            },
+            "correct_answer": "C",
+            "explanation": "Immune phagocytes engulf pathogens and cell debris into phagosomes."
+          },
+          {
+            "type": "mcq",
+            "question": "In receptor-mediated endocytosis, selective specificity comes from:",
+            "options": {
+              "A": "Non-selective osmotic drag",
+              "B": "Clathrin binding directly to glucose",
+              "C": "Random membrane tears",
+              "D": "Ligand binding to matching receptors"
+            },
+            "correct_answer": "D",
+            "explanation": "Specific surface receptors select target ligands before coated-pit invagination."
+          },
+          {
+            "type": "mcq",
+            "question": "Which protein forms the coat around invaginating vesicles in receptor-mediated endocytosis:",
+            "options": {
+              "A": "Tubulin",
+              "B": "Clathrin",
+              "C": "Connexin",
+              "D": "Integrin"
+            },
+            "correct_answer": "B",
+            "explanation": "Clathrin coats the membrane pit during selective endocytosis."
+          },
+          {
+            "type": "mcq",
+            "question": "Passage of cargo across an endothelial cell from lumen to tissue by vesicle uptake then release is:",
+            "options": {
+              "A": "Transcytosis",
+              "B": "Antiport",
+              "C": "Endosmosis",
+              "D": "Filtration"
+            },
+            "correct_answer": "A",
+            "explanation": "Transcytosis combines endocytosis on one side with exocytosis on the opposite side."
+          },
+          {
+            "type": "mcq",
+            "question": "One-minute review summary: passive transport ALWAYS moves:",
+            "options": {
+              "A": "Against a gradient using ATP",
+              "B": "Cargo out by vesicle fusion",
+              "C": "Down a gradient",
+              "D": "Particles inside phagosomes"
+            },
+            "correct_answer": "C",
+            "explanation": "Passive diffusion and channels always follow a driving gradient."
+          },
+          {
+            "type": "mcq",
+            "question": "Which process does NOT require direct ATP or a stored ion gradient:",
+            "options": {
+              "A": "Primary active transport",
+              "B": "Facilitated diffusion",
+              "C": "Secondary active transport",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Facilitated diffusion is passive carrier-mediated movement down a gradient."
+          },
+          {
+            "type": "mcq",
+            "question": "During simple diffusion, which property makes a molecule pass SLOWER through lipids:",
+            "options": {
+              "A": "High lipid solubility",
+              "B": "Steep concentration gradient",
+              "C": "Warm temperature",
+              "D": "Large molecular size"
+            },
+            "correct_answer": "D",
+            "explanation": "Larger molecules diffuse more slowly than small ones."
+          },
+          {
+            "type": "mcq",
+            "question": "Opposing electrical forces act as a barrier that slows diffusion of:",
+            "options": {
+              "A": "Ions",
+              "B": "Uncharged oxygen",
+              "C": "Neutral urea",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Electrical gradients influence charged ions alongside concentration gradients."
+          },
+          {
+            "type": "mcq",
+            "question": "In the chapter memory table, bulk flow responds primarily to a:",
+            "options": {
+              "A": "Clathrin coat gradient",
+              "B": "Pressure gradient",
+              "C": "Transcytosis cue",
+              "D": "Genetic signal"
+            },
+            "correct_answer": "B",
+            "explanation": "Bulk flow moves fluid masses down hydrostatic pressure differences."
+          },
+          {
+            "type": "mcq",
+            "question": "Oncotic pressure of roughly 25 mmHg helps hold water inside:",
+            "options": {
+              "A": "Bacterial phagosomes",
+              "B": "Golgi cisternae",
+              "C": "Blood plasma",
+              "D": "Nuclear pores"
+            },
+            "correct_answer": "C",
+            "explanation": "Plasma proteins generate ~25 mmHg oncotic pressure inside capillaries."
+          },
+          {
+            "type": "mcq",
+            "question": "What distinguishes CO-TRANSPORT from COUNTER-TRANSPORT by direction:",
+            "options": {
+              "A": "Single-solute uniport vs double-solute symport",
+              "B": "Pinocytic uptake vs exocytic release",
+              "C": "Hydrostatic bulk flow vs passive osmosis",
+              "D": "Same-direction symport vs opposite antiport"
+            },
+            "correct_answer": "D",
+            "explanation": "Symporters execute co-transport in the same direction, whereas antiporters exchange solutes in opposite directions."
+          },
+          {
+            "type": "mcq",
+            "question": "Which transport term applies when ONE ion travels downhill to pull another ion the OPPOSITE way:",
+            "options": {
+              "A": "Counter-transport (antiport)",
+              "B": "Co-transport (symport)",
+              "C": "Simple channel leak",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Antiporters exchange two solutes in opposite directions."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pair represents TWO secondary active transport examples from the chapter:",
+            "options": {
+              "A": "Na+/K+-ATPase and H+-ATPase",
+              "B": "Na+/glucose symport and Na+/H+ antiport",
+              "C": "Simple diffusion and pinocytosis",
+              "D": "Phagocytosis and exocytosis"
+            },
+            "correct_answer": "B",
+            "explanation": "Both rely on the Na+ gradient rather than direct ATP hydrolysis at that carrier."
+          },
+          {
+            "type": "mcq",
+            "question": "Which cell organelle fuses with a phagosome to supply digestive enzymes:",
+            "options": {
+              "A": "Centrosome",
+              "B": "Smooth ER",
+              "C": "Lysosome",
+              "D": "Nucleolus"
+            },
+            "correct_answer": "C",
+            "explanation": "Phagolysosomal fusion delivers hydrolytic enzymes for particle digestion."
+          },
+          {
+            "type": "mcq",
+            "question": "Releasing digestive enzymes or hormones from secretory vesicles to the outside occurs by:",
+            "options": {
+              "A": "Exocytosis",
+              "B": "Endosmosis",
+              "C": "Antiport",
+              "D": "Phagocytosis"
+            },
+            "correct_answer": "A",
+            "explanation": "Exocytosis fuses secretory vesicles with the plasma membrane to expel contents."
+          },
+          {
+            "type": "true_false",
+            "question": "Both simple diffusion and facilitated diffusion move solutes down their gradients without ATP.",
+            "correct_answer": true,
+            "explanation": "Both are passive transport mechanisms driven by concentration or electrochemical gradients."
+          },
+          {
+            "type": "true_false",
+            "question": "Osmosis requires a primary ATPase pump for every water molecule that crosses the membrane.",
+            "correct_answer": false,
+            "explanation": "Osmosis is passive net movement of water across a selectively permeable barrier."
+          },
+          {
+            "type": "true_false",
+            "question": "Colloid osmotic pressure of plasma is approximately 250 mmHg.",
+            "correct_answer": false,
+            "explanation": "Typical plasma oncotic pressure is approximately 25 mmHg, not 250 mmHg."
+          },
+          {
+            "type": "true_false",
+            "question": "Uniporters carry two different solutes simultaneously in opposite directions.",
+            "correct_answer": false,
+            "explanation": "A uniporter moves one kind of solute; an antiporter moves two solutes in opposite directions."
+          },
+          {
+            "type": "true_false",
+            "question": "The Na+/K+-ATPase transfers 3 Na+ out and 2 K+ in per transport cycle.",
+            "correct_answer": true,
+            "explanation": "That 3:2 stoichiometry maintains low cytosolic Na+ and high cytosolic K+."
+          },
+          {
+            "type": "true_false",
+            "question": "Secondary active transport depends ultimately on gradients created by energy-dependent pumps elsewhere.",
+            "correct_answer": true,
+            "explanation": "Stopping Na+/K+-ATPase dissipates the Na+ gradient that powers secondary transport."
+          },
+          {
+            "type": "true_false",
+            "question": "Clathrin acts as the ligand-binding hormone receptor during receptor-mediated endocytosis.",
+            "correct_answer": false,
+            "explanation": "Clathrin is the coating protein lining the pit; specific surface receptors bind the ligand."
+          },
+          {
+            "type": "true_false",
+            "question": "Pinocytosis can bring dissolved extracellular solutes into the cell inside small vesicles.",
+            "correct_answer": true,
+            "explanation": "Pinocytosis invaginates the membrane around droplets of extracellular fluid and dissolved solutes."
+          },
+          {
+            "type": "true_false",
+            "question": "Transcytosis uses endocytosis on one side of a cell and exocytosis on the opposite side.",
+            "correct_answer": true,
+            "explanation": "Transcytosis transports cargo completely across barrier cells such as endothelium."
+          },
+          {
+            "type": "true_false",
+            "question": "Filtration moves water only from low hydrostatic pressure toward high hydrostatic pressure.",
+            "correct_answer": false,
+            "explanation": "Filtration drives fluid from higher hydrostatic pressure toward lower hydrostatic pressure."
+          }
+        ]
+      }
+    },
+    "medium": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why must cells balance selective permeability with active and passive transport pathways:",
+              "options": {
+                "A": "To allow unlimited free leakage of proteins",
+                "B": "To exchange nutrients, water, and wastes selectively",
+                "C": "To abolish all electrochemical gradients rapidly",
+                "D": "To block oxygen entry into cytosol"
+              },
+              "correct_answer": "B",
+              "explanation": "A barrier alone would starve cells unless regulated transport pathways cross it."
+            },
+            {
+              "type": "mcq",
+              "question": "Which distinction cleanly separates PRIMARY from SECONDARY active transport in the opening table:",
+              "options": {
+                "A": "Primary requires zero energy; secondary consumes clathrin",
+                "B": "Primary moves only water; secondary moves only gases",
+                "C": "Primary runs only downhill; secondary runs only in vesicles",
+                "D": "Primary uses ATP directly at the pump; secondary taps an existing ion gradient"
+              },
+              "correct_answer": "D",
+              "explanation": "Both move cargo uphill, but their immediate energy coupling differs."
+            },
+            {
+              "type": "mcq",
+              "question": "What determines the total driving force on potassium ions across a resting plasma membrane:",
+              "options": {
+                "A": "Concentration difference alone",
+                "B": "Both chemical concentration difference and electrical potential difference",
+                "C": "Molecular weight of clathrin",
+                "D": "Hydrostatic filtration pressure alone"
+              },
+              "correct_answer": "B",
+              "explanation": "Charged ions respond to the combined electrochemical gradient."
+            },
+            {
+              "type": "mcq",
+              "question": "Unlike an uncharged solute, an ion moving passively responds to:",
+              "options": {
+                "A": "Hydrostatic capillary pressure only",
+                "B": "Phagosome pH only",
+                "C": "Electrochemical gradient",
+                "D": "Purely thermal saturation"
+              },
+              "correct_answer": "C",
+              "explanation": "Both concentration and voltage gradients act on charged ions."
+            },
+            {
+              "type": "mcq",
+              "question": "How does an UNGATED channel differ operationally from a GATED channel:",
+              "options": {
+                "A": "Ungated can remain open continuously; gated opens or closes upon stimulation",
+                "B": "Ungated uses ATP; gated uses phagocytosis",
+                "C": "Ungated exports proteins; gated exports bacteria",
+                "D": "Ungated sits in nuclei; gated sits in lysosomes"
+              },
+              "correct_answer": "A",
+              "explanation": "Gated channels switch states in response to voltage changes or ligand binding."
+            },
+            {
+              "type": "mcq",
+              "question": "A ligand-gated channel opens when:",
+              "options": {
+                "A": "Membrane phospholipid tails hydrolyze ATP",
+                "B": "Hydrostatic pressure exceeds 25 mmHg",
+                "C": "A phagosome fuses with ER",
+                "D": "A specific chemical ligand binds to it"
+              },
+              "correct_answer": "D",
+              "explanation": "Chemical messenger binding triggers conformational gating."
+            },
+            {
+              "type": "mcq",
+              "question": "Once a voltage-gated channel opens, the ion direction through it is governed by:",
+              "options": {
+                "A": "Direction of cytoplasmic RNA flow",
+                "B": "The electrochemical gradient",
+                "C": "Phagocytic pseudopods",
+                "D": "Clathrin lattice tension"
+              },
+              "correct_answer": "B",
+              "explanation": "Channel flux remains passive and follows the electrochemical gradient."
+            },
+            {
+              "type": "true_false",
+              "question": "Vesicular transport consumes cellular energy and requires specialized membrane machinery.",
+              "correct_answer": true,
+              "explanation": "As listed in the chapter overview table, vesicular movement requires cellular energy and machinery."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why can facilitated diffusion NOT climb indefinitely as extracellular glucose rises:",
+              "options": {
+                "A": "Carrier binding sites and turnover rates reach saturation",
+                "B": "Hydrostatic pressure reverses direction",
+                "C": "Glucose becomes lipid-soluble at high concentration",
+                "D": "ATP reserves run out inside the carrier"
+              },
+              "correct_answer": "A",
+              "explanation": "Finite carrier number caps the maximal transport velocity (Vmax behavior)."
+            },
+            {
+              "type": "mcq",
+              "question": "How do simple diffusion and facilitated diffusion compare regarding energy and gradient:",
+              "options": {
+                "A": "Simple is passive; facilitated is primary active",
+                "B": "Simple uses ATP; facilitated uses stored Na+ gradients",
+                "C": "Both are passive and move down gradients without direct ATP",
+                "D": "Both move solutes strictly uphill"
+              },
+              "correct_answer": "C",
+              "explanation": "Both mechanisms remain passive despite differing in carrier involvement and saturation."
+            },
+            {
+              "type": "mcq",
+              "question": "Which change would REDUCE passive diffusion rate across an epithelial barrier:",
+              "options": {
+                "A": "Raising temperature slightly",
+                "B": "Doubling membrane thickness while halving concentration difference",
+                "C": "Increasing membrane permeability",
+                "D": "Increasing electrochemical driving force"
+              },
+              "correct_answer": "B",
+              "explanation": "Thicker diffusion distance and a shallower gradient both slow net flux."
+            },
+            {
+              "type": "mcq",
+              "question": "Which set of conditions yields the FASTEST passive diffusion of a solute:",
+              "options": {
+                "A": "Large gradient, high permeability, thin membrane, small solute",
+                "B": "Small gradient, low permeability, thick barrier, large solute",
+                "C": "Opposing electrical force, cold temperature, thick barrier",
+                "D": "Large molecule, zero gradient, high viscosity"
+              },
+              "correct_answer": "A",
+              "explanation": "All four favorable conditions accelerate simple diffusion rate."
+            },
+            {
+              "type": "mcq",
+              "question": "How does FILTRATION differ from simple solute diffusion:",
+              "options": {
+                "A": "Individual solutes move solely by random lipid solubility without pressure",
+                "B": "Water moves toward higher protein concentration without pressure",
+                "C": "Vesicles pinch inward using clathrin",
+                "D": "Hydrostatic pressure drives bulk fluid and dissolved solutes together across a barrier"
+              },
+              "correct_answer": "D",
+              "explanation": "Filtration is pressure-driven bulk movement across porous barriers such as glomerular capillaries."
+            },
+            {
+              "type": "mcq",
+              "question": "If extracellular fluid becomes markedly more concentrated with non-penetrating solutes than cytosol, water undergoes:",
+              "options": {
+                "A": "Endosmosis into the cell",
+                "B": "Active ATP pumping inward",
+                "C": "Exosmosis out of the cell",
+                "D": "Phagocytosis of solutes"
+              },
+              "correct_answer": "C",
+              "explanation": "Water flows osmotically toward the higher effective solute concentration outside."
+            },
+            {
+              "type": "mcq",
+              "question": "Increasing effective intracellular non-penetrating solute concentration favors:",
+              "options": {
+                "A": "Exosmosis out of the cell",
+                "B": "Endosmosis into the cell",
+                "C": "Cessation of carrier binding",
+                "D": "Increased capillary filtration"
+              },
+              "correct_answer": "B",
+              "explanation": "Higher effective intracellular osmotic strength draws water inward."
+            },
+            {
+              "type": "mcq",
+              "question": "Which process moves cargo OUT of a cell across the plasma membrane:",
+              "options": {
+                "A": "Exocytosis",
+                "B": "Phagocytosis",
+                "C": "Pinocytosis",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "All three endocytic routes move cargo inward; exocytosis releases cargo outward."
+            },
+            {
+              "type": "true_false",
+              "question": "Increasing membrane thickness accelerates passive solute diffusion rate across the lipid bilayer.",
+              "correct_answer": false,
+              "explanation": "Greater membrane thickness lengthens diffusion distance and slows passive diffusion."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why is plasma ONCOTIC pressure (~25 mmHg) essential clinically:",
+              "options": {
+                "A": "It acts as the primary ATP source for Na+/K+-ATPase",
+                "B": "It exerts an osmotic pull retaining fluid due to plasma proteins",
+                "C": "It triggers phagocytosis by red blood cells",
+                "D": "It pumps H+ ions into urine"
+              },
+              "correct_answer": "B",
+              "explanation": "Plasma proteins remain mostly intravascular, creating colloid osmotic pressure."
+            },
+            {
+              "type": "mcq",
+              "question": "Comparing osmotic pressure with filtration: filtration depends on hydrostatic pressure, whereas osmosis depends on:",
+              "options": {
+                "A": "ATP hydrolysis inside uniporters",
+                "B": "Clathrin coat breakdown",
+                "C": "Electrical membrane firing alone",
+                "D": "Effective osmotic solute difference across a selective barrier"
+              },
+              "correct_answer": "D",
+              "explanation": "Water moves down its own water-potential/osmotic gradient across semipermeable barriers."
+            },
+            {
+              "type": "mcq",
+              "question": "How does a carrier transporter relocate solutes after binding them:",
+              "options": {
+                "A": "It dissolves completely out of the bilayer",
+                "B": "It opens a non-selective tear in phospholipids",
+                "C": "Conformational shape change exposes the binding site to the opposite face",
+                "D": "It converts into a clathrin vesicle"
+              },
+              "correct_answer": "C",
+              "explanation": "Alternating conformational access releases bound solute on the opposite side."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does the Na+/K+-ATPase contribute directly to resting membrane electrical potential:",
+              "options": {
+                "A": "It pumps 3 positive charges out for every 2 positive charges in per cycle",
+                "B": "It exports negative chloride ions via clathrin",
+                "C": "It equilibrates Na+ and K+ equally at 1:1",
+                "D": "It brings large negatively charged proteins into the cell"
+              },
+              "correct_answer": "A",
+              "explanation": "A net export of +1 charge per ATP cycle makes the pump electrogenic."
+            },
+            {
+              "type": "mcq",
+              "question": "What would happen rapidly to transmembrane Na+ and K+ gradients if cellular ATP production failed:",
+              "options": {
+                "A": "Primary active transport would speed up",
+                "B": "Na+/K+-ATPase would stop and ion gradients would run down",
+                "C": "Intracellular K+ would rise higher above normal",
+                "D": "Secondary Na+/glucose transport would intensify permanently"
+              },
+              "correct_answer": "B",
+              "explanation": "ATP depletion halts primary pumps, dissipating ion gradients."
+            },
+            {
+              "type": "mcq",
+              "question": "Which combination correctly pairs a transporter class with its stoichiometry direction:",
+              "options": {
+                "A": "Uniport: 2 solutes same direction; Symport: 1 solute",
+                "B": "Antiport: 1 solute one way; Uniport: 2 solutes opposite ways",
+                "C": "Symport: 1 solute; Antiport: passive water only",
+                "D": "Symport: 2 solutes same direction; Antiport: 2 solutes opposite directions"
+              },
+              "correct_answer": "D",
+              "explanation": "Uniport=1 solute; symport=2 same way; antiport=2 opposite ways."
+            },
+            {
+              "type": "mcq",
+              "question": "Which transport mechanism could NEVER move a solute uphill against its electrochemical gradient:",
+              "options": {
+                "A": "Primary active ATPase pump",
+                "B": "Secondary active symporter",
+                "C": "A uniporter performing facilitated diffusion",
+                "D": "Secondary active antiporter"
+              },
+              "correct_answer": "C",
+              "explanation": "Without coupling to ATP or a second solute's gradient, a passive uniporter only moves downhill."
+            },
+            {
+              "type": "true_false",
+              "question": "Colloid osmotic pressure and oncotic pressure refer to the osmotic effect contributed by blood plasma proteins.",
+              "correct_answer": true,
+              "explanation": "Plasma proteins behave as colloids generating ~25 mmHg oncotic pressure."
+            },
+            {
+              "type": "true_false",
+              "question": "Symporters move two different solutes in opposite directions across the plasma membrane.",
+              "correct_answer": false,
+              "explanation": "Moving two solutes in opposite directions is antiport (counter-transport), not symport."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "In secondary active Na+/glucose co-transport, why does glucose move UPHILL:",
+              "options": {
+                "A": "It couples to Na+ moving downhill along a gradient built by Na+/K+-ATPase",
+                "B": "The symporter hydrolyzes two ATP molecules per glucose",
+                "C": "Glucose diffuses passively from high luminal concentration only",
+                "D": "Hydrostatic blood pressure pushes glucose backward"
+              },
+              "correct_answer": "A",
+              "explanation": "Energy stored in the inward Na+ gradient drives uphill glucose co-transport."
+            },
+            {
+              "type": "mcq",
+              "question": "What happens to Na+/Ca2+ counter-transport if extracellular Na+ is depleted or the Na+ gradient collapses:",
+              "options": {
+                "A": "Na+/glucose transport converts into phagocytosis",
+                "B": "Secondary Ca2+ extrusion via Na+/Ca2+ exchange is impaired",
+                "C": "Na+/K+-ATPase reverses to import Na+",
+                "D": "Calcium stops needing any active transport"
+              },
+              "correct_answer": "B",
+              "explanation": "Secondary exchangers rely directly on the transmembrane sodium gradient."
+            },
+            {
+              "type": "mcq",
+              "question": "Which ion pumps actively lower intracellular Ca2+ or transfer protons directly using ATP:",
+              "options": {
+                "A": "Channel pores and aquaporins",
+                "B": "Clathrin pits and phagosomes",
+                "C": "Passive carrier uniporters",
+                "D": "Calcium ATPases and hydrogen-ion pumps"
+              },
+              "correct_answer": "D",
+              "explanation": "Ca2+-ATPases and H+-ATPases are primary active pumps alongside Na+/K+-ATPase."
+            },
+            {
+              "type": "mcq",
+              "question": "Why is calling a sodium-glucose symporter a 'primary ATP pump' an exam error:",
+              "options": {
+                "A": "Sodium-glucose symport moves only water",
+                "B": "The symporter does not hydrolyze ATP itself; it uses a secondary Na+ gradient",
+                "C": "Glucose travels solely by phagocytosis",
+                "D": "It requires clathrin rather than a protein carrier"
+              },
+              "correct_answer": "B",
+              "explanation": "The chapter highlights this distinction explicitly under Common Exam Trap."
+            },
+            {
+              "type": "mcq",
+              "question": "How does Na+/H+ counter-transport differ directionally from Na+/amino acid co-transport:",
+              "options": {
+                "A": "Both move Na+ downhill, but H+ goes opposite to Na+ whereas amino acids move with Na+",
+                "B": "Na+/H+ uses ATP directly while amino acids use vesicles",
+                "C": "H+ diffuses through lipids while Na+ uses phagocytosis",
+                "D": "Both carry solutes out of the cell via exocytosis"
+              },
+              "correct_answer": "A",
+              "explanation": "Co-transport moves solutes together; counter-transport exchanges them in opposite directions."
+            },
+            {
+              "type": "mcq",
+              "question": "Which set lists ONLY secondary active processes from page 5:",
+              "options": {
+                "A": "Na+/K+-ATPase and H+ pump",
+                "B": "Simple O2 diffusion and filtration",
+                "C": "Na+/glucose symport and Na+/Ca2+ exchange",
+                "D": "Ca2+-ATPase and pinocytosis"
+              },
+              "correct_answer": "C",
+              "explanation": "All primary ATPases use ATP directly, whereas symport/antiport couples use stored Na+ gradients."
+            },
+            {
+              "type": "true_false",
+              "question": "All active transport of Cl-, Ca2+, H+, Na+, and K+ occurs by the single same protein molecule.",
+              "correct_answer": false,
+              "explanation": "Different dedicated primary pumps and secondary carriers handle different ions across membranes."
+            },
+            {
+              "type": "true_false",
+              "question": "Stopping Na+/K+-ATPase indirectly impairs secondary active transport of glucose and amino acids.",
+              "correct_answer": true,
+              "explanation": "Without Na+/K+-ATPase maintaining the low intracellular Na+ gradient, Na+-linked secondary transport fails."
+            }
+          ]
+        },
+        {
+          "page": 6,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "How does pinocytosis differ structurally and functionally from receptor-mediated endocytosis:",
+              "options": {
+                "A": "Pinocytosis exports enzymes; receptor-mediated imports bacteria",
+                "B": "Pinocytosis non-selectively samples fluid droplets; receptor-mediated endocytosis concentrates ligands on receptors",
+                "C": "Pinocytosis requires phagosomes; receptor-mediated uses connexons",
+                "D": "Pinocytosis is passive osmosis; receptor-mediated uses filtration"
+              },
+              "correct_answer": "B",
+              "explanation": "Surface receptor binding gives receptor-mediated endocytosis high selectivity."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does a macrophage enclose a bacterium in a PHAGOSOME before digestion:",
+              "options": {
+                "A": "To isolate the large particle inside a vesicle that fuses with lysosomal enzymes",
+                "B": "To push the bacterium through a channel pore",
+                "C": "To allow clathrin to dissolve the bacterium without lysosomes",
+                "D": "To move the bacterium by secondary Na+ antiport"
+              },
+              "correct_answer": "A",
+              "explanation": "Phagosome-lysosome fusion confines destructive digestive enzymes away from cytosol."
+            },
+            {
+              "type": "mcq",
+              "question": "If a cell lacks CLATHRIN coat proteins, which step of receptor-mediated endocytosis is disrupted:",
+              "options": {
+                "A": "Initial water osmosis across capillaries",
+                "B": "Direct primary ATP pumping of 3 Na+ out",
+                "C": "Coated-pit invagination and vesicle formation around receptor-ligand complexes",
+                "D": "Free O2 diffusion across phospholipids"
+              },
+              "correct_answer": "C",
+              "explanation": "Clathrin assembles the coat that bends receptor-rich membrane pits into vesicles."
+            },
+            {
+              "type": "mcq",
+              "question": "Which mistake confuses CLATHRIN with another component of receptor-mediated endocytosis:",
+              "options": {
+                "A": "Calling clathrin a membrane coating protein",
+                "B": "Saying clathrin participates in vesicle invagination",
+                "C": "Recognizing that ligands bind surface receptors",
+                "D": "Calling clathrin the ligand receptor instead of the coat protein"
+              },
+              "correct_answer": "D",
+              "explanation": "Clathrin forms the vesicle coat; separate transmembrane proteins serve as ligand receptors."
+            },
+            {
+              "type": "mcq",
+              "question": "How does TRANSCYTOSIS achieve directional transport across an endothelial barrier cell:",
+              "options": {
+                "A": "Uptake by endocytosis at one cell face",
+                "B": "Intracellular vesicle transit and exocytosis at the opposite face",
+                "C": "Channel opening to allow whole red cells through cytosol",
+                "D": "A and B"
+              },
+              "correct_answer": "D",
+              "explanation": "Transcytosis couples endocytosis on one pole with exocytosis on the opposite pole."
+            },
+            {
+              "type": "mcq",
+              "question": "Following pinocytosis of extracellular fluid, engulfed vesicles typically deliver cargo toward:",
+              "options": {
+                "A": "Mitochondrial cristae directly",
+                "B": "The endosomal-lysosomal system",
+                "C": "Nuclear DNA chromatin directly",
+                "D": "Extracellular collagen fibers"
+              },
+              "correct_answer": "B",
+              "explanation": "Pinocytic vesicles enter the intracellular endosomal-lysosomal pathway."
+            },
+            {
+              "type": "mcq",
+              "question": "Secretion of a synthesized peptide product out of a gland cell uses:",
+              "options": {
+                "A": "Exocytosis",
+                "B": "Pinocytosis",
+                "C": "Phagocytosis",
+                "D": "Endosmosis"
+              },
+              "correct_answer": "A",
+              "explanation": "Secretory vesicles fuse with the plasma membrane to release cargo by exocytosis."
+            },
+            {
+              "type": "mcq",
+              "question": "A molecule is too large for carriers and lacks a specific surface receptor; how might a cell still internalize dissolved traces of it:",
+              "options": {
+                "A": "Simple lipid diffusion",
+                "B": "Voltage-gated ion channels",
+                "C": "Non-selective fluid-phase pinocytosis",
+                "D": "None of the above"
+              },
+              "correct_answer": "C",
+              "explanation": "Pinocytosis nonspecifically samples small droplets of surrounding extracellular fluid."
+            },
+            {
+              "type": "true_false",
+              "question": "Renal glomerular filtration moves fluid across capillary walls via hydrostatic pressure gradients.",
+              "correct_answer": true,
+              "explanation": "Hydrostatic pressure drives bulk filtration across glomerular and capillary barriers."
+            },
+            {
+              "type": "true_false",
+              "question": "During pinocytosis, clathrin receptors bind solid bacteria inside phagosomes for outward exocytosis.",
+              "correct_answer": false,
+              "explanation": "Pinocytosis takes up small droplets of extracellular fluid inward without forming bacterial phagosomes."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "Which transport mechanism moves glucose DOWN its concentration gradient via a saturable membrane protein:",
+            "options": {
+              "A": "Primary active transport",
+              "B": "Facilitated diffusion",
+              "C": "Simple lipid diffusion",
+              "D": "Phagocytosis"
+            },
+            "correct_answer": "B",
+            "explanation": "Glucose carriers facilitate downhill movement and display saturation kinetics."
+          },
+          {
+            "type": "mcq",
+            "question": "What characterizes the direction and energy source of PRIMARY active transport:",
+            "options": {
+              "A": "Uphill movement powered directly by ATP",
+              "B": "Downhill movement without ATP",
+              "C": "Uphill movement powered solely by hydrostatic pressure",
+              "D": "Bulk vesicle entry powered by osmosis"
+            },
+            "correct_answer": "A",
+            "explanation": "Primary pumps spend ATP directly to move solutes against gradients."
+          },
+          {
+            "type": "mcq",
+            "question": "If an uncharged solute has equal concentration on both sides of a membrane, net simple diffusion is:",
+            "options": {
+              "A": "Driven outward by voltage",
+              "B": "Zero",
+              "C": "Converted into active antiport",
+              "D": "Maximized by carriers"
+            },
+            "correct_answer": "B",
+            "explanation": "With no concentration difference on an uncharged particle, forward and backward fluxes balance."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do water-soluble ions pass poorly through pure phospholipid tails without channels:",
+            "options": {
+              "A": "Phospholipids repel oxygen too strongly",
+              "B": "Ions lack electrochemical gradients",
+              "C": "They require an aqueous transmembrane path supplied by channel proteins",
+              "D": "Ions are always trapped in phagosomes"
+            },
+            "correct_answer": "C",
+            "explanation": "Hydrophobic membrane cores block bare ions, so aqueous protein channels mediate passage."
+          },
+          {
+            "type": "mcq",
+            "question": "At very high extracellular solute concentration, why does simple diffusion keep rising linearly while facilitated diffusion plateaus:",
+            "options": {
+              "A": "Simple diffusion lacks saturable protein binding sites",
+              "B": "Facilitated diffusion switches into osmosis",
+              "C": "Simple diffusion generates its own ATP",
+              "D": "Carriers destroy the concentration gradient"
+            },
+            "correct_answer": "A",
+            "explanation": "Without finite binding pockets, lipid diffusion rate remains proportional to the gradient."
+          },
+          {
+            "type": "mcq",
+            "question": "Increasing which variable SLOWS solute diffusion across a biological membrane:",
+            "options": {
+              "A": "Solute lipid solubility",
+              "B": "Concentration gradient",
+              "C": "Membrane permeability",
+              "D": "Diffusion distance / membrane thickness"
+            },
+            "correct_answer": "D",
+            "explanation": "Greater thickness increases path length and slows flux."
+          },
+          {
+            "type": "mcq",
+            "question": "How do bulk flow and simple diffusion fundamentally differ:",
+            "options": {
+              "A": "Bulk flow burns ATP directly; diffusion uses vesicles",
+              "B": "Bulk flow moves fluid via pressure; diffusion moves solutes via concentration",
+              "C": "Bulk flow happens only in nuclei; diffusion in blood",
+              "D": "Bulk flow carries zero dissolved electrolytes or ions"
+            },
+            "correct_answer": "B",
+            "explanation": "Hydrostatic pressure drives collective fluid movement in filtration/bulk flow."
+          },
+          {
+            "type": "mcq",
+            "question": "Plasma oncotic pressure of ~25 mmHg opposes excessive fluid loss out of capillaries driven by:",
+            "options": {
+              "A": "Na+/H+ antiport",
+              "B": "Endocytosis",
+              "C": "Hydrostatic filtration pressure",
+              "D": "Voltage-gated K+ leak"
+            },
+            "correct_answer": "C",
+            "explanation": "Plasma protein osmotic draw opposes capillary hydrostatic filtration."
+          },
+          {
+            "type": "mcq",
+            "question": "Putting red cells into a solution with MUCH HIGHER effective solute concentration causes water to move by:",
+            "options": {
+              "A": "Exosmosis out of cells",
+              "B": "Endosmosis into cells",
+              "C": "Primary active K+ pumping out",
+              "D": "Clathrin-mediated transcytosis"
+            },
+            "correct_answer": "A",
+            "explanation": "Water shifts toward the compartment with greater effective osmotic solute concentration."
+          },
+          {
+            "type": "mcq",
+            "question": "Which directional relationship defines a SYMPORTER:",
+            "options": {
+              "A": "One solute moves one way",
+              "B": "Two solutes move in the same direction",
+              "C": "Two solutes move in opposite directions",
+              "D": "Large particles enter in phagosomes"
+            },
+            "correct_answer": "B",
+            "explanation": "Symporters mediate co-transport in the same direction."
+          },
+          {
+            "type": "mcq",
+            "question": "Which directional relationship defines an ANTIPORTER:",
+            "options": {
+              "A": "Two solutes move together inward",
+              "B": "One ion diffuses through an ungated pore",
+              "C": "Proteins exit by exocytosis",
+              "D": "Two solutes move in opposite directions"
+            },
+            "correct_answer": "D",
+            "explanation": "Antiporters exchange solutes in opposite directions."
+          },
+          {
+            "type": "mcq",
+            "question": "Each turn of the Na+/K+-ATPase transfers:",
+            "options": {
+              "A": "3 Na+ outward and 2 K+ inward",
+              "B": "2 Na+ outward and 3 K+ inward",
+              "C": "3 Ca2+ outward and 2 H+ inward",
+              "D": "Equal Na+ and K+ charges"
+            },
+            "correct_answer": "A",
+            "explanation": "Unequal 3:2 cation pumping maintains ionic gradients and contributes resting electrogenicity."
+          },
+          {
+            "type": "mcq",
+            "question": "Because Na+/K+-ATPase moves 3 positive ions out and only 2 in, each cycle moves:",
+            "options": {
+              "A": "Two net negative charges inward",
+              "B": "One net positive charge outward",
+              "C": "Zero net charge",
+              "D": "One net positive charge inward"
+            },
+            "correct_answer": "B",
+            "explanation": "The pump exports one net +1 charge per cycle."
+          },
+          {
+            "type": "mcq",
+            "question": "Which ion pump clears Ca2+ from cytosol to maintain low intracellular Ca2+ levels:",
+            "options": {
+              "A": "Na+/glucose symporter",
+              "B": "Aquaporin channel",
+              "C": "Calcium ATPase",
+              "D": "Passive glucose uniporter"
+            },
+            "correct_answer": "C",
+            "explanation": "ATP-driven Ca2+ pumps move Ca2+ out of cytosol across cell or organelle membranes."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is secondary active transport still fundamentally ENERGY-DEPENDENT:",
+            "options": {
+              "A": "Every symporter binds ATP on its cytoplasmic tail",
+              "B": "It relies exclusively on heat from filtration",
+              "C": "It uses lysosomal enzymes directly",
+              "D": "It relies on an ion gradient built by ATP-driven primary pumps"
+            },
+            "correct_answer": "D",
+            "explanation": "Collapsing the primary pump collapses the driving ion gradient."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pair contrasts CO-TRANSPORT and COUNTER-TRANSPORT examples accurately:",
+            "options": {
+              "A": "Na+/H+ = co-transport; Na+/glucose = counter-transport",
+              "B": "Na+/glucose = co-transport; Na+/Ca2+ = counter-transport",
+              "C": "Na+/K+-ATPase = co-transport; H+-ATPase = counter-transport",
+              "D": "Pinocytosis = co-transport; exocytosis = counter-transport"
+            },
+            "correct_answer": "B",
+            "explanation": "Glucose moves with Na+ (symport), whereas Ca2+ or H+ exchanges opposite to Na+ (antiport)."
+          },
+          {
+            "type": "mcq",
+            "question": "Which mechanism allows a cell to internalize extracellular fluid drops without binding a specific ligand receptor:",
+            "options": {
+              "A": "Pinocytosis",
+              "B": "Receptor-mediated endocytosis",
+              "C": "Exocytosis",
+              "D": "Voltage gating"
+            },
+            "correct_answer": "A",
+            "explanation": "Pinocytosis non-selectively engulfs small aliquots of extracellular fluid."
+          },
+          {
+            "type": "mcq",
+            "question": "Phagocytosis differs from pinocytosis in cargo scale and cell specialization because phagocytosis:",
+            "options": {
+              "A": "Takes up dissolved gases in erythrocytes",
+              "B": "Secretes peptide hormones continuously",
+              "C": "Engulfs large particles such as microbes mainly in neutrophils and macrophages",
+              "D": "Relies on clathrin-coated fluid droplets only"
+            },
+            "correct_answer": "C",
+            "explanation": "Immune phagocytes surround large particulate cargo inside a phagosome."
+          },
+          {
+            "type": "mcq",
+            "question": "After macrophage phagocytosis encloses cellular debris, degradation occurs when:",
+            "options": {
+              "A": "Clathrin directly hydrolyzes bacterial walls",
+              "B": "The phagosome fuses with lysosomes",
+              "C": "Na+/K+-ATPase pumps debris out",
+              "D": "Exosmosis bursts the debris"
+            },
+            "correct_answer": "B",
+            "explanation": "Lysosomal fusion introduces digestive hydrolases into the phagosome."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is receptor-mediated endocytosis vital for selective macromolecular uptake:",
+            "options": {
+              "A": "Ligands bind matching surface receptors before clathrin-coated vesicle formation",
+              "B": "It relies on simple lipid diffusion of large proteins",
+              "C": "It pulls fluid indiscriminately by bulk pressure",
+              "D": "It pushes all cargo through narrow ion channels"
+            },
+            "correct_answer": "A",
+            "explanation": "Receptor recognition selectively concentrates specific extracellular molecules."
+          },
+          {
+            "type": "mcq",
+            "question": "During receptor-mediated endocytosis, receptor-ligand complexes collect into:",
+            "options": {
+              "A": "An unsealed gap junction",
+              "B": "A voltage-gated K+ pore",
+              "C": "A desmosome plaque",
+              "D": "A clathrin-coated membrane region that invaginates"
+            },
+            "correct_answer": "D",
+            "explanation": "Coated pits invaginate to form selective intracellular transport vesicles."
+          },
+          {
+            "type": "mcq",
+            "question": "Transporting intact plasma antibodies across an endothelial cell wall from one side to the other uses:",
+            "options": {
+              "A": "Simple diffusion",
+              "B": "Na+/H+ counter-transport",
+              "C": "Transcytosis",
+              "D": "Facilitated uniport"
+            },
+            "correct_answer": "C",
+            "explanation": "Transcytosis couples endocytosis on one cell face with exocytosis on the opposite face."
+          },
+          {
+            "type": "mcq",
+            "question": "Which sequence correctly traces TRANSCYTOSIS across a barrier cell:",
+            "options": {
+              "A": "Exocytosis on face 1 -> phagocytosis -> simple diffusion on face 2",
+              "B": "Endocytosis on face 1 -> intracellular vesicle transit -> exocytosis on face 2",
+              "C": "Primary ATP pump -> channel gating -> filtration",
+              "D": "Osmosis -> saturation -> lysosome burst"
+            },
+            "correct_answer": "B",
+            "explanation": "Cargo traverses the cell inside a vesicle between opposite membranes."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pairing in the vesicular summary table is accurate:",
+            "options": {
+              "A": "Pinocytosis -> fluid-phase uptake; Exocytosis -> release of secretory product",
+              "B": "Phagocytosis -> outward hormone secretion; Transcytosis -> water osmosis",
+              "C": "Exocytosis -> bacterial engulfment; Pinocytosis -> macromolecule exit",
+              "D": "Receptor-mediated endocytosis -> non-selective hydrostatic push"
+            },
+            "correct_answer": "A",
+            "explanation": "Pinocytosis imports fluid, while exocytosis exports secretory vesicles."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement best separates FACILITATED diffusion from ACTIVE transport:",
+            "options": {
+              "A": "Facilitated diffusion uses ATP; active transport never does",
+              "B": "Facilitated diffusion moves only ions; active moves only gases",
+              "C": "Active transport cannot saturate",
+              "D": "Facilitated diffusion is downhill and never concentrates a solute against its gradient"
+            },
+            "correct_answer": "D",
+            "explanation": "Carriers exist in both, but only active transport pumps uphill against gradients."
+          },
+          {
+            "type": "mcq",
+            "question": "Which factor does NOT slow passive diffusion:",
+            "options": {
+              "A": "Increasing molecular size",
+              "B": "Increasing temperature",
+              "C": "Increasing membrane thickness",
+              "D": "Opposing electrical forces on an ion"
+            },
+            "correct_answer": "B",
+            "explanation": "Warming increases molecular kinetic energy and favors faster diffusion."
+          },
+          {
+            "type": "mcq",
+            "question": "Glomerular filtration in the kidney illustrates fluid and small-solute movement driven by:",
+            "options": {
+              "A": "ATP hydrolysis at tight junctions",
+              "B": "Endocytosis of RBCs",
+              "C": "Hydrostatic pressure difference",
+              "D": "Osmotic pull into Bowman space by hemoglobin"
+            },
+            "correct_answer": "C",
+            "explanation": "Glomerular capillaries use blood pressure gradients for bulk filtration."
+          },
+          {
+            "type": "mcq",
+            "question": "Which ion is actively maintained at HIGH concentration INSIDE the cell relative to ECF:",
+            "options": {
+              "A": "Potassium (K+)",
+              "B": "Sodium (Na+)",
+              "C": "Calcium (Ca2+)",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Na+/K+-ATPase keeps intracellular K+ high while Ca2+-ATPases keep cytosolic Ca2+ very low."
+          },
+          {
+            "type": "mcq",
+            "question": "In an antiport exchanger moving Na+ inward and H+ outward, which solute drives the uphill step:",
+            "options": {
+              "A": "ATP binds H+ directly inside the antiporter",
+              "B": "Downhill Na+ entry powers uphill H+ extrusion",
+              "C": "H+ diffuses downhill to push Na+ into the nucleus",
+              "D": "Hydrostatic pressure forces both out"
+            },
+            "correct_answer": "B",
+            "explanation": "The primary Na+ gradient energizes uphill H+ counter-transport."
+          },
+          {
+            "type": "mcq",
+            "question": "Which vesicular step releases stored neurotransmitter or hormone from vesicles:",
+            "options": {
+              "A": "Pinocytosis",
+              "B": "Phagocytosis",
+              "C": "Receptor-mediated internalization",
+              "D": "Exocytosis"
+            },
+            "correct_answer": "D",
+            "explanation": "Vesicle-plasma membrane fusion discharges secretory cargo outward."
+          },
+          {
+            "type": "mcq",
+            "question": "Why are neutrophils and macrophages highlighted in vesicular transport:",
+            "options": {
+              "A": "They perform phagocytosis to clear microbes and debris",
+              "B": "They lack plasma membranes",
+              "C": "They use clathrin exclusively for O2 transport",
+              "D": "They pump 3 Na+ via pinocytosis"
+            },
+            "correct_answer": "A",
+            "explanation": "These immune defenders are specialized phagocytes."
+          },
+          {
+            "type": "mcq",
+            "question": "What distinguishes osmotic pressure from hydrostatic filtration pressure conceptually:",
+            "options": {
+              "A": "Osmotic pressure moves solids only; hydrostatic stops water completely",
+              "B": "Osmotic pressure applies only to gases",
+              "C": "Osmotic pressure prevents water movement caused by solute differences; hydrostatic pressure drives bulk flow",
+              "D": "Hydrostatic pressure is always 25 mmHg"
+            },
+            "correct_answer": "C",
+            "explanation": "Osmotic draw reflects solute concentration difference; hydrostatic force pushes fluid physically."
+          },
+          {
+            "type": "mcq",
+            "question": "If a cell binds a specific ligand on its receptor and internalizes it via a coated pit, the coat protein is:",
+            "options": {
+              "A": "Collagen",
+              "B": "Clathrin",
+              "C": "Connexin",
+              "D": "Keratin"
+            },
+            "correct_answer": "B",
+            "explanation": "Clathrin forms the characteristic coat during pit invagination."
+          },
+          {
+            "type": "mcq",
+            "question": "Which list contains ONLY passive processes:",
+            "options": {
+              "A": "Simple diffusion, channel diffusion, facilitated diffusion, osmosis",
+              "B": "Simple diffusion, Na+/K+-ATPase, phagocytosis",
+              "C": "Facilitated diffusion, Na+/glucose symport, exocytosis",
+              "D": "Osmosis, H+-ATPase, pinocytosis"
+            },
+            "correct_answer": "A",
+            "explanation": "Diffusion, channels, facilitated carriers, and osmosis require no direct ATP or active uphill pumping."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do channel proteins still qualify as passive when gated by voltage:",
+            "options": {
+              "A": "Voltage transfers ATP molecules onto every ion",
+              "B": "Voltage opens the gate, but net ion flux still follows the electrochemical gradient",
+              "C": "Voltage pushes ions strictly uphill",
+              "D": "Voltage converts the pore into an antiporter"
+            },
+            "correct_answer": "B",
+            "explanation": "Gating regulates permeability, not the thermodynamic direction of flow."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement summarizes 'passive vs active vs vesicular' accurately:",
+            "options": {
+              "A": "Passive = uphill; vesicular = lipid diffusion only",
+              "B": "Primary = stored gradient; secondary = phagosomes",
+              "C": "Active = zero carrier involvement",
+              "D": "Passive = downhill; primary active = ATP pump; secondary = stored ion gradient; vesicular = bulk membrane sacs"
+            },
+            "correct_answer": "D",
+            "explanation": "This matches the chapter's One-Minute Review framework."
+          },
+          {
+            "type": "mcq",
+            "question": "In Na+/K+-ATPase, how do pumped ion counts differ per cycle:",
+            "options": {
+              "A": "2 Na+ pumped out vs 3 K+ pumped in",
+              "B": "3 Ca2+ pumped out vs 2 H+ pumped in",
+              "C": "3 Na+ pumped out vs 2 K+ pumped in",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "The pump transfers 3 Na+ outward and 2 K+ inward per ATP cycle."
+          },
+          {
+            "type": "mcq",
+            "question": "Which tissues secrete acid actively using proton-pumping ATPases:",
+            "options": {
+              "A": "Acid-transporting epithelial tissues",
+              "B": "Mature red blood cell nuclei",
+              "C": "Collagen extracellular fibrils",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Hydrogen-ion pumps transfer protons across membranes where acid transport is required."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is clathrin NOT classified as the hormone receptor in selective endocytosis:",
+            "options": {
+              "A": "Clathrin hydrolyzes ATP for Na+ uptake",
+              "B": "Clathrin coats the invaginating pit; transmembrane receptors bind ligands",
+              "C": "Clathrin diffuses freely as an O2 carrier",
+              "D": "Clathrin seals tight junctions apically"
+            },
+            "correct_answer": "B",
+            "explanation": "Ligands bind specific surface receptors while clathrin forms the coating scaffold."
+          },
+          {
+            "type": "mcq",
+            "question": "Which five ions are grouped under active transport mechanisms in the chapter:",
+            "options": {
+              "A": "O2, CO2, urea, and albumin",
+              "B": "Glucose, starch, and glycogen",
+              "C": "Na+, K+, Ca2+, H+, and Cl-",
+              "D": "Only K+ and water molecules"
+            },
+            "correct_answer": "C",
+            "explanation": "The source highlights Na+, K+, Ca2+, H+, and Cl- among actively transported ions."
+          },
+          {
+            "type": "true_false",
+            "question": "Carrier saturation can occur in both facilitated diffusion and carrier-mediated active transport because both have finite binding sites.",
+            "correct_answer": true,
+            "explanation": "Any protein carrier with finite binding sites and conformational turnover rate exhibits saturation."
+          },
+          {
+            "type": "true_false",
+            "question": "Exosmosis refers to net water movement INTO a cell when placed in dilute solution.",
+            "correct_answer": false,
+            "explanation": "Entry of water is endosmosis; exit of water is exosmosis."
+          },
+          {
+            "type": "true_false",
+            "question": "Transcytosis transports cargo across an endothelial barrier without mixing it directly with simple lipid diffusion.",
+            "correct_answer": true,
+            "explanation": "Cargo stays enclosed inside vesicles from uptake at one side to release at the other."
+          },
+          {
+            "type": "true_false",
+            "question": "Receptor-mediated endocytosis requires clathrin to act as the actual hormone-binding receptor.",
+            "correct_answer": false,
+            "explanation": "Clathrin is a cytoplasmic coat protein; specific membrane receptors bind the ligands."
+          },
+          {
+            "type": "true_false",
+            "question": "Antiporters and symporters are both types of coupled multi-solute transporters.",
+            "correct_answer": true,
+            "explanation": "Both move two different solute species either in opposite directions (antiport) or the same direction (symport)."
+          },
+          {
+            "type": "true_false",
+            "question": "Calcium ATPases raise cytosolic Ca2+ concentration rapidly during resting states.",
+            "correct_answer": false,
+            "explanation": "Calcium ATPases lower cytosolic Ca2+ concentration by pumping it across membranes."
+          },
+          {
+            "type": "true_false",
+            "question": "During simple diffusion, higher lipid solubility generally favors faster passage through the bilayer.",
+            "correct_answer": true,
+            "explanation": "Lipid-soluble small solutes dissolve through the phospholipid core more rapidly."
+          },
+          {
+            "type": "true_false",
+            "question": "Bulk flow moves fluid strictly from lower hydrostatic pressure toward higher hydrostatic pressure.",
+            "correct_answer": false,
+            "explanation": "Bulk flow drives fluid down a pressure gradient, from higher to lower hydrostatic pressure."
+          },
+          {
+            "type": "true_false",
+            "question": "Phagocytosis brings in dissolved fluid droplets too small to see, whereas pinocytosis engulfs whole bacteria.",
+            "correct_answer": false,
+            "explanation": "Pinocytosis takes in extracellular fluid droplets; phagocytosis engulfs large particles like microbes."
+          },
+          {
+            "type": "true_false",
+            "question": "Both endocytosis and exocytosis depend on membrane-bounded vesicles and cellular energy.",
+            "correct_answer": true,
+            "explanation": "Vesicular budding, trafficking, and fusion require cellular machinery and energy."
+          }
+        ]
+      }
+    },
+    "hard": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "A researcher blocks ALL cellular ATP production instantaneously while leaving membranes intact. Which mechanism STILL operates immediately down pre-existing gradients until gradients decay:",
+              "options": {
+                "A": "Simple/facilitated diffusion down electrochemical gradients",
+                "B": "Primary Na+/K+-ATPase ion pumping against gradients",
+                "C": "Active vesicular exocytosis of new secretory cargo",
+                "D": "A and B"
+              },
+              "correct_answer": "A",
+              "explanation": "Passive diffusion and channels follow existing gradients without direct ATP, whereas primary pumps and vesicle export fail without ATP."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does adding an electrical charge to a solute alter its passive transport behavior compared with glucose:",
+              "options": {
+                "A": "The molecule switches immediately to phagocytosis",
+                "B": "Lipid solubility doubles unconditionally",
+                "C": "Membrane thickness stops affecting flux",
+                "D": "Both concentration difference and membrane voltage now determine its net driving force"
+              },
+              "correct_answer": "D",
+              "explanation": "Ions obey the electrochemical gradient rather than concentration alone."
+            },
+            {
+              "type": "mcq",
+              "question": "If a voltage-gated Na+ channel opens in a resting cell (ECF Na+-rich, interior negative), Na+ rushes inward by:",
+              "options": {
+                "A": "Primary active ATPase pumping",
+                "B": "Passive diffusion down its electrochemical gradient",
+                "C": "Secondary antiport against voltage",
+                "D": "Pinocytic vesicle collapse"
+              },
+              "correct_answer": "B",
+              "explanation": "Even though voltage triggers the gate, ion flow through the open aqueous pore is passive."
+            },
+            {
+              "type": "mcq",
+              "question": "Why can lipid-soluble CO2 cross membranes rapidly without channel gating whereas water and ions lean on membrane proteins:",
+              "options": {
+                "A": "CO2 is pumped outward through clathrin coats",
+                "B": "Water is much larger than plasma albumin proteins",
+                "C": "Nonpolar CO2 dissolves in lipids; water and ions need aqueous pores",
+                "D": "Ions cannot dissolve in extracellular water"
+              },
+              "correct_answer": "C",
+              "explanation": "Chemical polarity dictates bilayer vs aqueous-channel reliance."
+            },
+            {
+              "type": "mcq",
+              "question": "If an experimental toxin inserts a membrane pump that drives solute X uphill using direct ATP hydrolysis, why is X no longer passive:",
+              "options": {
+                "A": "Open voltage-gated channels allow passive diffusion",
+                "B": "Active ATP coupling reverses net downhill gradient movement",
+                "C": "Lipid-soluble gases diffuse down partial pressures",
+                "D": "Carriers facilitate downhill glucose entry without ATP"
+              },
+              "correct_answer": "B",
+              "explanation": "Passive mechanisms never push solutes uphill against net driving forces."
+            },
+            {
+              "type": "mcq",
+              "question": "Suppose ATP is consumed during a transport step, yet the transporter protein moving solute X does NOT possess an ATPase site. Most likely X moves by:",
+              "options": {
+                "A": "Secondary active transport or vesicular machinery",
+                "B": "Simple diffusion through phospholipids",
+                "C": "Ungated channel leak",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Indirect energy reliance characterizes secondary active gradients (from primary pumps) and energized vesicular trafficking."
+            },
+            {
+              "type": "mcq",
+              "question": "Comparing an ungated channel with a carrier performing facilitated diffusion: both remain passive, yet ONLY the carrier:",
+              "options": {
+                "A": "Moves solutes uphill directly with ATP hydrolysis",
+                "B": "Uses extracellular clathrin-coated pits",
+                "C": "Operates solely via capillary hydrostatic pressure",
+                "D": "Requires conformational cycling per bound solute"
+              },
+              "correct_answer": "D",
+              "explanation": "Channels form continuous aqueous pores when open, whereas carriers bind and undergo conformational cycles."
+            },
+            {
+              "type": "true_false",
+              "question": "Even when an ion moves DOWN its concentration gradient, a sufficiently strong opposing electrical gradient can halt or reverse net passive movement.",
+              "correct_answer": true,
+              "explanation": "Net passive driving force on an ion equals the combined electrochemical gradient, not concentration alone."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Two tissues express glucose carriers with equal turnover speed per carrier, but Tissue A has 5x more carriers than Tissue B. Under saturating glucose:",
+              "options": {
+                "A": "Both tissues saturate at the exact same maximal rate",
+                "B": "Tissue A achieves a higher maximal transport plateau",
+                "C": "Tissue A converts facilitated transport into phagocytosis",
+                "D": "Tissue B stops showing saturation kinetics"
+              },
+              "correct_answer": "B",
+              "explanation": "Maximal facilitated transport rate depends on the total number of membrane carriers available."
+            },
+            {
+              "type": "mcq",
+              "question": "A drug selectively blocks carrier conformational cycling without piercing the phospholipid bilayer. Which process is severely impaired while O2 exchange stays normal:",
+              "options": {
+                "A": "Facilitated glucose diffusion",
+                "B": "Simple lipid diffusion of O2",
+                "C": "Simple lipid diffusion of CO2",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Carriers are essential for facilitated diffusion, whereas small gases cross phospholipids directly."
+            },
+            {
+              "type": "mcq",
+              "question": "Which experimental graph best distinguishes facilitated diffusion from simple diffusion as extracellular solute rises:",
+              "options": {
+                "A": "Simple diffusion plateaus while facilitated drops to zero",
+                "B": "Both freeze at zero flux until ATP is added",
+                "C": "Facilitated diffusion plateaus while simple diffusion rises linearly",
+                "D": "Both reverse direction whenever temperature rises"
+              },
+              "correct_answer": "C",
+              "explanation": "Limited carrier binding sites produce hyperbolic saturation in facilitated diffusion."
+            },
+            {
+              "type": "mcq",
+              "question": "A pathological edema thickens the alveolar-capillary barrier AND lowers alveolar O2 gradient. What happens to O2 diffusion rate:",
+              "options": {
+                "A": "Thicker membrane speeds O2 entry",
+                "B": "Both changes reduce passive diffusion rate",
+                "C": "Only filtration changes; diffusion stays unchanged",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Greater diffusion distance and smaller driving gradient act additively to slow diffusion."
+            },
+            {
+              "type": "mcq",
+              "question": "Which clinical situation directly exemplifies hydrostatic FILTRATION rather than pure solute diffusion or osmosis:",
+              "options": {
+                "A": "O2 entering erythrocytes down a concentration gradient",
+                "B": "Water shrinking an RBC in concentrated saline",
+                "C": "Macrophages engulfing bacteria inside phagosomes",
+                "D": "Blood pressure forcing plasma fluid across renal glomeruli"
+              },
+              "correct_answer": "D",
+              "explanation": "Glomerular filtration uses hydrostatic pressure gradients for bulk fluid-and-solute movement."
+            },
+            {
+              "type": "mcq",
+              "question": "A cell shrinks via EXOSMOSIS after immersion in hypertonic medium; what membrane gradient reversed if adding extracellular water makes it swell next:",
+              "options": {
+                "A": "Effective solute concentration outside dropped below cytosol",
+                "B": "Carrier saturation velocity exceeded Vmax outside",
+                "C": "Hydrostatic capillary filtration pushed glucose inside",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Osmosis moves water toward the higher effective osmotic concentration across a selective barrier."
+            },
+            {
+              "type": "mcq",
+              "question": "Wait: if cell B is placed in pure distilled water (near-zero effective extracellular solute), net water direction is:",
+              "options": {
+                "A": "Exosmosis out of cell B",
+                "B": "Filtration driven by extracellular clathrin",
+                "C": "Endosmosis into cell B",
+                "D": "Zero net flux across membranes"
+              },
+              "correct_answer": "C",
+              "explanation": "Water shifts toward the higher effective intracellular solute concentration (endosmosis)."
+            },
+            {
+              "type": "mcq",
+              "question": "Increasing solute molecular radius while simultaneously lowering membrane temperature will affect passive diffusion by:",
+              "options": {
+                "A": "Accelerating facilitated carrier cycling",
+                "B": "Slowing diffusion through both mechanisms",
+                "C": "Raising membrane permeability to proteins",
+                "D": "Converting channels into ATPases"
+              },
+              "correct_answer": "B",
+              "explanation": "Larger size and lower thermal energy both reduce diffusion velocity."
+            },
+            {
+              "type": "true_false",
+              "question": "When all facilitated-diffusion carriers are 100% saturated, doubling the extracellular glucose gradient immediately doubles transport velocity.",
+              "correct_answer": false,
+              "explanation": "Finite binding sites and turnover speed cap facilitated transport at saturation."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why does the chapter specify EFFECTIVE concentration of water-attracting solutes in defining osmosis rather than total solute mass:",
+              "options": {
+                "A": "Small gases determine 100% of oncotic pressure",
+                "B": "Proteins pass faster than water through channels",
+                "C": "Osmosis depends solely on hydrostatic pump cycles",
+                "D": "Only solutes restricted by the selective barrier establish sustained osmotic water draw"
+              },
+              "correct_answer": "D",
+              "explanation": "Selectively retained solutes create effective osmotic gradients across the membrane."
+            },
+            {
+              "type": "mcq",
+              "question": "If a membrane transporter binds one solute at a time, flips conformation, and releases it down its gradient, it is simultaneously a:",
+              "options": {
+                "A": "Uniporter mediating facilitated diffusion",
+                "B": "Symporter executing primary ATPase activity",
+                "C": "Antiporter performing exocytosis",
+                "D": "Phagosome forming a lysosomal pit"
+              },
+              "correct_answer": "A",
+              "explanation": "Uniporters carry a single solute type and mediate passive facilitated diffusion when downhill."
+            },
+            {
+              "type": "mcq",
+              "question": "Suppose the Na+/K+-ATPase mutated to import 3 K+ for every 3 Na+ exported per ATP. How would its direct electrical behavior change:",
+              "options": {
+                "A": "It would pump double the net positive charge outward",
+                "B": "Its direct net charge transfer per cycle would fall from +1 outward to zero (electroneutral)",
+                "C": "It would reverse intracellular K+ to near zero",
+                "D": "It would become a secondary symporter"
+              },
+              "correct_answer": "B",
+              "explanation": "Normal 3 Na+ out / 2 K+ in exports +1 net charge; 3:3 exchange would transfer zero net charge."
+            },
+            {
+              "type": "mcq",
+              "question": "What is the immediate functional link between Na+/K+-ATPase (page 4) and ALL secondary Na+-coupled transporters (page 5):",
+              "options": {
+                "A": "Na+/K+-ATPase coats vesicles with clathrin for symporters",
+                "B": "Secondary transporters donate ATP back to Na+/K+-ATPase",
+                "C": "Na+/K+-ATPase maintains low cytosolic Na+, preserving the inward Na+ gradient used as fuel",
+                "D": "Both pumps require phagosomes"
+              },
+              "correct_answer": "C",
+              "explanation": "Primary active extrusion of Na+ stores potential energy in the inward Na+ gradient."
+            },
+            {
+              "type": "mcq",
+              "question": "Compare a symporter and an antiporter under complete loss of the driving ion gradient: both fail to pump their target solute uphill because:",
+              "options": {
+                "A": "Both become phagosomes immediately",
+                "B": "Only uniporters survive ATP depletion forever",
+                "C": "Hydrostatic pressure reverses antiport",
+                "D": "Neither possesses direct ATP hydrolysis to power uphill transport alone"
+              },
+              "correct_answer": "D",
+              "explanation": "Secondary transporters depend entirely on the driving gradient rather than direct ATP cleavage."
+            },
+            {
+              "type": "mcq",
+              "question": "Which statement accurately distinguishes OSMOTIC pressure from ONCOTIC pressure:",
+              "options": {
+                "A": "Osmotic pressure prevents net osmosis from any solutes; oncotic pressure specifically measures the ~25 mmHg osmotic effect of colloidal plasma proteins",
+                "B": "Oncotic pressure is always 10x larger than capillary blood pressure",
+                "C": "Osmotic pressure applies only to vesicles; oncotic applies only to phagocytosis",
+                "D": "Oncotic pressure moves Na+ via symport"
+              },
+              "correct_answer": "A",
+              "explanation": "Oncotic pressure is the colloidal/plasma-protein subset of total osmotic pressure."
+            },
+            {
+              "type": "mcq",
+              "question": "A clinician notes that fluid filtration across a capillary bed suddenly rises because plasma protein concentration fell sharply. Which value dropped below normal:",
+              "options": {
+                "A": "Na+/K+-ATPase 3:2 ratio",
+                "B": "Plasma oncotic pressure (~25 mmHg normally)",
+                "C": "Phagocytic lysosome count",
+                "D": "Clathrin pit diameter"
+              },
+              "correct_answer": "B",
+              "explanation": "Loss of plasma proteins lowers colloid osmotic (oncotic) pressure."
+            },
+            {
+              "type": "true_false",
+              "question": "Because Na+/K+-ATPase moves both Na+ and K+ against their gradients simultaneously using ATP, it is a primary active antiporter-type pump.",
+              "correct_answer": true,
+              "explanation": "It directly hydrolyzes ATP to exchange 3 Na+ out and 2 K+ in against their gradients."
+            },
+            {
+              "type": "true_false",
+              "question": "All uniporters hydrolyze ATP directly because they undergo conformational shape changes.",
+              "correct_answer": false,
+              "explanation": "Conformational cycling occurs in passive facilitated diffusion uniporters too, without ATP."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "An inhibitor specifically poisons Na+/K+-ATPase (ouabain-like effect) without directly binding the Na+/glucose symporter or Na+/Ca2+ antiporter. What happens next:",
+              "options": {
+                "A": "Na+/glucose uptake accelerates because it hydrolyzes ATP directly",
+                "B": "Cytosolic Ca2+ falls even lower via Na+/Ca2+ exchange",
+                "C": "Both Na+/glucose uptake and Na+/Ca2+ exchange fail secondarily as intracellular Na+ builds up",
+                "D": "H+ pumps convert into simple O2 diffusion"
+              },
+              "correct_answer": "C",
+              "explanation": "Because both secondary transporters rely on the low intracellular Na+ gradient maintained by Na+/K+-ATPase, poisoning the primary pump cripples them."
+            },
+            {
+              "type": "mcq",
+              "question": "Which contrast correctly identifies a PRIMARY ATP pump vs a SECONDARY coupled transporter:",
+              "options": {
+                "A": "Ca2+-ATPase uses ATP directly; Na+/H+ exchanger uses the Na+ gradient",
+                "B": "Na+/glucose symporter uses ATP directly; Na+/K+-ATPase uses Na+ gradient",
+                "C": "Clathrin uses ATP to carry amino acids; H+-ATPase uses osmosis",
+                "D": "Phagosome = primary active; exocytosis = secondary active"
+              },
+              "correct_answer": "A",
+              "explanation": "Ca2+-ATPase and H+-ATPase are primary pumps; Na+/H+ and Na+/glucose are secondary."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does intracellular [Ca2+] remain dramatically lower than extracellular [Ca2+] despite continuous cellular signaling:",
+              "options": {
+                "A": "Ca2+ is membrane-permeable like O2 and leaves freely by simple diffusion",
+                "B": "Combined action of primary Ca2+-ATPases and secondary Na+/Ca2+ counter-transport removes cytosolic Ca2+",
+                "C": "Pinocytosis destroys Ca2+ inside clathrin",
+                "D": "Hydrostatic blood pressure filters Ca2+ out of mitochondria"
+              },
+              "correct_answer": "B",
+              "explanation": "Both ATP-driven Ca2+ pumps and Na+/Ca2+ exchangers extrude or sequester Ca2+."
+            },
+            {
+              "type": "mcq",
+              "question": "If extracellular [Na+] is artificially replaced with an impermeant cation, which pair of transport processes stops working effectively:",
+              "options": {
+                "A": "Simple CO2 diffusion and pinocytosis",
+                "B": "Hydrostatic capillary filtration and osmosis",
+                "C": "Primary Ca2+-ATPase inside ER",
+                "D": "Secondary Na+/amino acid co-transport and Na+/Ca2+ counter-transport"
+              },
+              "correct_answer": "D",
+              "explanation": "Both co-transport and counter-transport driven by inward Na+ influx require an extracellular Na+ driving gradient."
+            },
+            {
+              "type": "mcq",
+              "question": "Which statement exposes the classic 'Common Exam Trap' about intestinal/renal glucose absorption via SGLT-type Na+/glucose symport:",
+              "options": {
+                "A": "It never depends on energy anywhere in the cell",
+                "B": "It moves glucose uphill without direct ATP hydrolysis at the symporter itself",
+                "C": "It exchanges glucose outward in antiport with K+",
+                "D": "It relies solely on simple diffusion through phospholipids"
+              },
+              "correct_answer": "B",
+              "explanation": "It is energy-dependent secondarily, not primary ATPase-driven."
+            },
+            {
+              "type": "mcq",
+              "question": "Which ion movement direction matches Na+/H+ counter-transport during acid extrusion:",
+              "options": {
+                "A": "Both Na+ and H+ enter the cell together",
+                "B": "H+ diffuses inward by osmosis while Na+ exits by pinocytosis",
+                "C": "Na+ moves into the cell down its gradient while H+ moves out against its gradient",
+                "D": "Both exit inside secretory vesicles"
+              },
+              "correct_answer": "C",
+              "explanation": "Antiport couples downhill Na+ entry to uphill H+ export."
+            },
+            {
+              "type": "true_false",
+              "question": "If a cell lacks ATP, secondary active transport fails immediately even before the Na+ gradient dissipates.",
+              "correct_answer": false,
+              "explanation": "Secondary transport continues briefly as long as the pre-existing Na+ gradient persists, failing once that gradient runs down."
+            },
+            {
+              "type": "true_false",
+              "question": "Active transport involves Na+, K+, Ca2+, H+, and Cl- through dedicated primary or secondary mechanisms rather than simple uncoupled diffusion.",
+              "correct_answer": true,
+              "explanation": "The sheet identifies all five among ions managed by active transport pathways."
+            }
+          ]
+        },
+        {
+          "page": 6,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "A mutant endothelial cell forms normal phagosomes and normal exocytic vesicles, yet fails to deliver a specific plasma ligand across the capillary wall. If ligand-receptor binding fails OR clathrin coating fails, which pathway breaks:",
+              "options": {
+                "A": "Receptor-mediated endocytosis / selective transcytosis",
+                "B": "Simple diffusion of CO2",
+                "C": "Primary Na+/K+-ATPase cycling",
+                "D": "Oncotic pressure generation"
+              },
+              "correct_answer": "A",
+              "explanation": "Selective uptake across endothelium depends on receptor recognition and coated-vesicle internalization."
+            },
+            {
+              "type": "mcq",
+              "question": "Why is calling CLATHRIN 'the LDL or hormone receptor' scientifically incorrect:",
+              "options": {
+                "A": "Clathrin sits inside lysosomes as an acid hydrolase",
+                "B": "Clathrin channels 3 Na+ out per cycle",
+                "C": "Clathrin is a lipid component of cholesterol",
+                "D": "Receptors bind specific extracellular ligands; clathrin forms the membrane-bending protein coat on the pit"
+              },
+              "correct_answer": "D",
+              "explanation": "Receptors recognize ligands; clathrin coats the invaginating pit."
+            },
+            {
+              "type": "mcq",
+              "question": "Which experimental comparison proves phagocytosis and pinocytosis are distinct despite both being endocytosis:",
+              "options": {
+                "A": "Phagocytosis moves fluid outward; pinocytosis moves proteins outward",
+                "B": "Phagocytosis engulfs large particles in phagosomes; pinocytosis drinks fluid",
+                "C": "Pinocytosis uses clathrin hormone receptors for every single water molecule",
+                "D": "Phagocytosis destroys internalized bacteria without any lysosomal fusion"
+              },
+              "correct_answer": "B",
+              "explanation": "Cargo scale, membrane projections, phagosome formation, and phagocyte specialization distinguish them."
+            },
+            {
+              "type": "mcq",
+              "question": "Suppose lysosomal fusion is genetically blocked in a neutrophil. After engulfing bacteria, what accumulates intact inside the cell:",
+              "options": {
+                "A": "Unfused phagosomes containing undigested microorganisms",
+                "B": "Empty gap junctions",
+                "C": "Hyperactive clathrin uniporters",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Engulfment into phagosomes succeeds, but digestion fails without lysosomal enzyme delivery."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does TRANSCYTOSIS preserve directionality across an epithelial or endothelial cell:",
+              "options": {
+                "A": "Cargo diffuses freely across tight junctions and cytoplasm",
+                "B": "Na+/K+-ATPase pumps plasma proteins straight through nuclear pores",
+                "C": "Vesicles endocytose at one pole and exocytose at the opposite",
+                "D": "Phagosomes burst inside the cytosol before reaching opposite faces"
+              },
+              "correct_answer": "C",
+              "explanation": "Enclosure inside directed vesicles moves macromolecular cargo cleanly across barrier cells."
+            },
+            {
+              "type": "mcq",
+              "question": "Which sequence contrasts ALL FOUR major membrane transport families in exact order: gradient-driven carrier -> ATP pump -> gradient-coupled uphill carrier -> vesicle engulfment:",
+              "options": {
+                "A": "Simple diffusion -> secondary active -> filtration -> exocytosis",
+                "B": "Facilitated diffusion -> primary active -> secondary active -> endocytosis",
+                "C": "Osmosis -> facilitated diffusion -> primary active -> uniport",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "This matches passive carrier, direct ATP pump, indirect ion-gradient carrier, and vesicular entry."
+            },
+            {
+              "type": "mcq",
+              "question": "A pancreatic cell secretes digestive zymogens packaged in Golgi vesicles. What prevents massive permanent swelling of the plasma membrane surface over time if exocytosis stayed unmatched:",
+              "options": {
+                "A": "Balanced inward membrane retrieval via endocytosis",
+                "B": "Reverse simple diffusion of phospholipids out to air",
+                "C": "Conversion of bilayers into H+ pumps",
+                "D": "Loss of 25 mmHg oncotic pressure"
+              },
+              "correct_answer": "A",
+              "explanation": "Endocytosis and exocytosis recycle membrane area dynamically."
+            },
+            {
+              "type": "true_false",
+              "question": "Because transcytosis ends with vesicle fusion at the opposite cell surface, it requires zero cellular energy.",
+              "correct_answer": false,
+              "explanation": "Like other vesicular processes, transcytosis requires cellular energy and membrane-trafficking machinery."
+            },
+            {
+              "type": "mcq",
+              "question": "In receptor-mediated endocytosis, what ensures that scarce extracellular molecules are internalized efficiently without drinking huge volumes of surrounding fluid:",
+              "options": {
+                "A": "Hydrostatic filtration pushes only that protein through lipids",
+                "B": "Osmosis drags the ligand at 25 mmHg",
+                "C": "Uniporters carry intact proteins rapidly",
+                "D": "High-affinity binding to matching surface receptors concentrates ligands in coated pits"
+              },
+              "correct_answer": "D",
+              "explanation": "Surface receptor clustering concentrates specific ligands selectively."
+            },
+            {
+              "type": "true_false",
+              "question": "Endocytosis of fluid droplets (pinocytosis) exposes internalized contents to the endosomal-lysosomal pathway rather than leaving them freely dissolved in cytosol.",
+              "correct_answer": true,
+              "explanation": "Membrane enclosure keeps pinocytic cargo segregated within the endosomal-lysosomal system."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "An isolated cell with intact ATP and Na+/K+-ATPase is exposed to extracellular glucose PLUS a toxin collapsing ONLY the membrane Na+ gradient. Which glucose flux disappears:",
+            "options": {
+              "A": "Downhill facilitated glucose carrier transport",
+              "B": "Fluid-phase pinocytic glucose uptake",
+              "C": "Passive lipid-bilayer oxygen diffusion",
+              "D": "None of the above"
+            },
+            "correct_answer": "D",
+            "explanation": "Secondary active Na+/glucose co-transport disappears when the Na+ gradient collapses; none of the listed passive or pinocytic fluxes rely on the Na+ gradient."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can facilitated glucose carriers reach Vmax saturation while lipid-soluble O2 diffusion does not saturate:",
+            "options": {
+              "A": "O2 uses ATPase pumps that accelerate without limit",
+              "B": "Carriers have finite binding sites; lipid dissolution has no protein cap",
+              "C": "Glucose carries +3 positive charges across lipids",
+              "D": "Lipid bilayers solidify above 25 mmHg pressure"
+            },
+            "correct_answer": "B",
+            "explanation": "Carrier number and conformational speed limit facilitated transport."
+          },
+          {
+            "type": "mcq",
+            "question": "During nerve excitation, voltage-gated channels open and Na+ enters rapidly. Why is that inward Na+ spike STILL passive while resetting Na+ afterward is active:",
+            "options": {
+              "A": "Voltage-gated pores hydrolyze ATP during every influx",
+              "B": "Resetting occurs via passive simple lipid diffusion",
+              "C": "Influx follows the gradient; resetting pumps uphill with ATP",
+              "D": "Influx requires phagosome fusion with lysosomes"
+            },
+            "correct_answer": "C",
+            "explanation": "Channel opening is passive; restoring depleted ion gradients requires Na+/K+-ATPase."
+          },
+          {
+            "type": "mcq",
+            "question": "If an uncharged solute diffuses passively across a membrane and temperature drops while membrane thickness doubles, net flux will:",
+            "options": {
+              "A": "Drop due to lower kinetic energy and longer path",
+              "B": "Rise due to carrier site saturation",
+              "C": "Reverse direction uphill against gradients",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Both changes decrease passive diffusion rate."
+          },
+          {
+            "type": "mcq",
+            "question": "How do capillary hydrostatic filtration pressure and plasma oncotic pressure (~25 mmHg) interact physiologically:",
+            "options": {
+              "A": "Both push fluid exclusively out into tissues",
+              "B": "Hydrostatic pushes fluid out while oncotic pulls water in",
+              "C": "Oncotic pressure pumps 3 Na+ out per cycle",
+              "D": "Hydrostatic pressure prevents all osmosis everywhere"
+            },
+            "correct_answer": "B",
+            "explanation": "Filtration and colloid osmotic draw oppose one another across capillary walls."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell has higher effective intracellular solute concentration than surrounding fluid, yet its membrane is completely damaged and non-selective. Why will true OSMOSIS cease:",
+            "options": {
+              "A": "ATP disappears immediately",
+              "B": "Clathrin covers the tears",
+              "C": "Osmosis requires a selectively permeable barrier separating effective solute differences",
+              "D": "Hydrostatic filtration turns into symport"
+            },
+            "correct_answer": "C",
+            "explanation": "Without selective permeability, solutes simply equilibrate rather than drawing net osmotic water."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does the Na+/K+-ATPase qualify as an electrogenic primary active transporter:",
+            "options": {
+              "A": "It hydrolyzes ATP to pump 3 Na+ out vs 2 K+ in",
+              "B": "It leaks K+ passively outward without spending ATP",
+              "C": "It pumps uncharged glucose alongside chloride",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Direct ATP hydrolysis plus 3:2 stoichiometry produces +1 net outward charge per cycle."
+          },
+          {
+            "type": "mcq",
+            "question": "Compare Na+/K+-ATPase and H+-ATPase with Na+/glucose symport: the first two share:",
+            "options": {
+              "A": "Cotransport of glucose inward",
+              "B": "Direct reliance on ATP hydrolysis to pump ions uphill",
+              "C": "Dependence on extracellular Na+ influx",
+              "D": "Vesicle coat assembly with clathrin"
+            },
+            "correct_answer": "B",
+            "explanation": "Both Na+/K+ and H+ pumps are primary active ATPases."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can a secondary antiporter like Na+/Ca2+ exchange move Ca2+ UPHILL out of the cell without hydrolyzing ATP itself:",
+            "options": {
+              "A": "Ca2+ diffuses out down a massive intracellular excess",
+              "B": "ATP binds Ca2+ directly on the outside",
+              "C": "Pinocytosis removes Ca2+ passively",
+              "D": "Energy released as Na+ flows downhill inward drives uphill Ca2+ extrusion in the opposite direction"
+            },
+            "correct_answer": "D",
+            "explanation": "Coupled counter-transport captures energy stored in the Na+ gradient."
+          },
+          {
+            "type": "mcq",
+            "question": "Which experimental clue proves a molecule enters via RECEPTOR-MEDIATED endocytosis rather than non-selective pinocytosis:",
+            "options": {
+              "A": "Uptake proceeds equally when surface receptors are digested off",
+              "B": "Cargo crosses via simple phospholipid dissolution",
+              "C": "Uptake depends on a matching surface receptor and concentrates into clathrin-coated pits",
+              "D": "Cargo triggers macrophage pseudopods around 5-micrometer beads"
+            },
+            "correct_answer": "C",
+            "explanation": "Specific receptor dependence plus coated-pit concentration defines receptor-mediated uptake."
+          },
+          {
+            "type": "mcq",
+            "question": "In neutrophils engulfing bacteria, blocking which two organelles or steps halts complete pathogen destruction sequentially:",
+            "options": {
+              "A": "Membrane projection engulfment (phagosome formation) -> phagosome-lysosome fusion",
+              "B": "Tight junction assembly -> glycocalyx branching",
+              "C": "Nucleolus transcription -> Na+/glucose antiport",
+              "D": "Osmosis -> filtration"
+            },
+            "correct_answer": "A",
+            "explanation": "Phagocytes first enclose cargo in a phagosome, then fuse it with lysosomes."
+          },
+          {
+            "type": "mcq",
+            "question": "In an experiment mutating the extracellular binding pocket of surface receptors while leaving intracellular clathrin intact, why does ligand endocytosis fail even though coated pits still assemble:",
+            "options": {
+              "A": "Clathrin directly hydrolyzes intracellular ATP to force ligands across lipid tails",
+              "B": "Specific surface receptors must recognize ligands before clathrin-coated pits capture cargo",
+              "C": "Clathrin functions inside phagosomes as an oxidative catalase enzyme",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Specific membrane receptors select extracellular ligands while clathrin forms the intracellular pit coat."
+          },
+          {
+            "type": "mcq",
+            "question": "Which process moves cargo completely ACROSS a polarized endothelial layer without releasing it free into endothelial cytosol:",
+            "options": {
+              "A": "Pinocytosis alone",
+              "B": "Facilitated uniport plus cytosolic diffusion",
+              "C": "Na+/H+ antiport",
+              "D": "Transcytosis"
+            },
+            "correct_answer": "D",
+            "explanation": "Transcytosis keeps macromolecules enclosed within vesicles from entry to opposite-side exocytosis."
+          },
+          {
+            "type": "mcq",
+            "question": "Suppose a toxic mutation converts an antiporter into a channel leaking both ions freely down their gradients. What capability is LOST:",
+            "options": {
+              "A": "Passive passage down pre-existing gradients",
+              "B": "Coupling downhill flux to uphill transport",
+              "C": "Transmembrane protein expression in bilayers",
+              "D": "Thermodynamic spontaneous equilibration"
+            },
+            "correct_answer": "B",
+            "explanation": "Free uncoupled pores cannot harvest one ion's energy to push another uphill."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does active transport often display saturation just like facilitated diffusion, even though only active transport goes uphill:",
+            "options": {
+              "A": "Both use finite protein transporters with saturable sites",
+              "B": "Both depend solely on hydrostatic pressure",
+              "C": "Both move solutes exclusively inside clathrin coats",
+              "D": "Simple diffusion saturates faster than carriers"
+            },
+            "correct_answer": "A",
+            "explanation": "Carrier protein saturation reflects finite transporter molecules and conformational cycling time."
+          },
+          {
+            "type": "mcq",
+            "question": "Which membrane transport list uses cellular energy DIRECTLY or INDIRECTLY in EVERY listed item:",
+            "options": {
+              "A": "Simple diffusion, facilitated diffusion, osmosis, filtration",
+              "B": "Channel gating, osmosis, simple diffusion, transcytosis",
+              "C": "Primary active, secondary active, endocytosis, exocytosis",
+              "D": "Bulk flow, Na+/glucose symport, simple O2 diffusion"
+            },
+            "correct_answer": "C",
+            "explanation": "Primary uses ATP directly; secondary uses ATP-built ion gradients; vesicular routes consume cellular energy."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell placed in hypertonic solution shrinks via exosmosis, then slowly activates ion pumps to accumulate intracellular solutes. How will water shift next:",
+            "options": {
+              "A": "Water will keep leaving forever at higher speed",
+              "B": "Water enters back into the cell by endosmosis",
+              "C": "Plasma oncotic pressure will jump to 250 mmHg",
+              "D": "Phagosomes will open"
+            },
+            "correct_answer": "B",
+            "explanation": "Raising effective intracellular solute concentration reverses the osmotic gradient inward."
+          },
+          {
+            "type": "mcq",
+            "question": "A capillary endothelial cell internalizes plasma macromolecules at its luminal surface normally, yet a drug blocks vesicle fusion ONLY at its abluminal pole; which process arrests at its final step:",
+            "options": {
+              "A": "Transcytosis across the polarized cell, leaving initial endocytosis intact",
+              "B": "Simple diffusion directly across the hydrophobic lipid bilayer",
+              "C": "Primary Ca2+-ATPase pumping through nuclear pores",
+              "D": "Net water entry via selective aquaporin channels"
+            },
+            "correct_answer": "A",
+            "explanation": "Transcytosis spans endocytosis at one surface, transcellular transit, and exocytic exit at the opposite pole."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can electrical opposition slow K+ efflux even when intracellular [K+] far exceeds extracellular [K+]:",
+            "options": {
+              "A": "Uncharged solutes always obey membrane voltage",
+              "B": "Membrane carriers freeze below 25 mmHg pressure",
+              "C": "Inside-negative voltage attracts positive K+ inward",
+              "D": "Clathrin coats block potassium pore diffusion"
+            },
+            "correct_answer": "C",
+            "explanation": "Opposing electrical and chemical components balance within the electrochemical gradient."
+          },
+          {
+            "type": "mcq",
+            "question": "During ATP depletion, cytosolic Na+ AND Ca2+ BOTH climb above normal resting levels even before Na+/glucose carriers fail; which shared primary defect accounts for BOTH ion rises:",
+            "options": {
+              "A": "Failure of aquaporin water channels mediating osmotic endosmosis",
+              "B": "Inhibition of non-selective fluid pinocytosis of glucose",
+              "C": "Collapse of clathrin-independent exocytic vesicles",
+              "D": "Loss of direct ATP hydrolysis powering both Na+/K+-ATPase and Ca2+-ATPase"
+            },
+            "correct_answer": "D",
+            "explanation": "Both Na+/K+-ATPase and Ca2+-ATPase are primary ATP-driven pumps maintaining low cytosolic Na+ and Ca2+."
+          },
+          {
+            "type": "mcq",
+            "question": "If clathrin-coated pits pinch off properly, yet endosomal/lysosomal fusion never happens after macrophage phagocytosis, which step succeeded:",
+            "options": {
+              "A": "Enzymatic digestion inside phagolysosomes",
+              "B": "Particle recognition and phagosome enclosure",
+              "C": "Complete pathogen clearance",
+              "D": "Exocytic hormone release"
+            },
+            "correct_answer": "B",
+            "explanation": "Phagosome formation precedes lysosomal fusion."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is calling osmosis 'diffusion of solutes' incorrect according to the Fast Check:",
+            "options": {
+              "A": "Diffusion moves solutes; osmosis moves net water",
+              "B": "Osmosis requires ATPase pumps for water entry",
+              "C": "Solutes cannot diffuse across selective barriers",
+              "D": "Water moves toward pure water from concentrated side"
+            },
+            "correct_answer": "A",
+            "explanation": "Distinguishing solute flux (diffusion) from solvent flux (osmosis) avoids classic exam errors."
+          },
+          {
+            "type": "mcq",
+            "question": "A transporter moves solute A inward only when solute B exits outward, and stops when intracellular ATP and extracellular solute B are both removed. This transporter is:",
+            "options": {
+              "A": "Passive carrier uniporter",
+              "B": "Clathrin vesicle coat unit",
+              "C": "Secondary active antiporter",
+              "D": "Ungated potassium channel"
+            },
+            "correct_answer": "C",
+            "explanation": "Opposite-direction coupled exchange dependent on a counter-ion gradient defines secondary antiport."
+          },
+          {
+            "type": "mcq",
+            "question": "What prevents simple diffusion of large polar plasma proteins across capillary endothelium by the lipid route:",
+            "options": {
+              "A": "Lipids pump plasma proteins out via Na+ symport",
+              "B": "Huge size and low lipid solubility bar bilayer passage",
+              "C": "Plasma oncotic pressure is capped at 25 mmHg",
+              "D": "Plasma proteins remain trapped inside nuclear pores"
+            },
+            "correct_answer": "B",
+            "explanation": "Large hydrophilic macromolecules require vesicular routes such as transcytosis rather than lipid diffusion."
+          },
+          {
+            "type": "mcq",
+            "question": "When a secretory gland cell is stimulated to dump stored hormone packets rapidly into ECF, the final membrane step is:",
+            "options": {
+              "A": "Pinocytosis of secreted hormone from interstitial space",
+              "B": "Endosmosis shifting water into intracellular lysosomes",
+              "C": "Opposite-direction counter-transport with sodium",
+              "D": "Exocytosis via secretory vesicle fusion with membrane"
+            },
+            "correct_answer": "D",
+            "explanation": "Vesicle fusion discharges secretory cargo outward."
+          },
+          {
+            "type": "mcq",
+            "question": "An experimental inhibitor blocks carrier conformational cycling ONLY when two transported solutes travel in OPPOSITE directions; which mechanism halts while coupled inward Na+/glucose uptake persists:",
+            "options": {
+              "A": "Antiporter exchange such as Na+/H+ counter-transport, while symport persists",
+              "B": "Symporter transport such as Na+/glucose co-transport, while antiport accelerates",
+              "C": "Passive uncharged O2 diffusion across phospholipid tails",
+              "D": "Clathrin-mediated receptor binding on apical membranes"
+            },
+            "correct_answer": "A",
+            "explanation": "Antiporters exchange solutes in opposite directions, whereas symporters move co-transported solutes in the same direction."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does a carrier that moves 2 solutes together in the SAME direction still qualify as active for one of them when ATP is NOT burned at that protein:",
+            "options": {
+              "A": "Both co-transported solutes move purely downhill",
+              "B": "Downhill flux of one solute powers uphill co-transport",
+              "C": "Hydrostatic filtration pushes solutes across lipids",
+              "D": "Osmosis converts cytosolic glucose into sodium ions"
+            },
+            "correct_answer": "B",
+            "explanation": "Coupled secondary active symport harvests electrochemical gradient energy."
+          },
+          {
+            "type": "mcq",
+            "question": "In renal or capillary barriers, hydrostatic filtration moves both water and suitable dissolved solutes together because:",
+            "options": {
+              "A": "Hydrostatic pressure carries Na+ while blocking water",
+              "B": "Bulk filtration proceeds via receptor-mediated pits",
+              "C": "Pressure-driven bulk flow moves water and filterable solutes",
+              "D": "Hydrostatic filtration occurs only across nuclear pores"
+            },
+            "correct_answer": "C",
+            "explanation": "Bulk flow moves fluid mass and filterable solutes collectively."
+          },
+          {
+            "type": "mcq",
+            "question": "Which factor alters the direction of net osmotic water flow across a selective cell membrane:",
+            "options": {
+              "A": "Reversing which side has higher effective solute level",
+              "B": "Changing intracellular clathrin lattice thickness",
+              "C": "Doubling phagocytic vacuole diameter inside neutrophils",
+              "D": "Altering ATP while membranes stay impermeable"
+            },
+            "correct_answer": "A",
+            "explanation": "Effective osmotic concentration gradient dictates endosmosis vs exosmosis."
+          },
+          {
+            "type": "mcq",
+            "question": "If a toxin arrests ALL ATP-dependent active ion pumps across epithelial and excitable membranes (sparing simple gas diffusion), which set of solutes listed on Page 5 loses active pumping:",
+            "options": {
+              "A": "O2, CO2, and small lipid gases stop crossing the bilayer immediately",
+              "B": "Macromolecular plasma albumin escapes via primary Cl- uniporters",
+              "C": "Osmotic water molecules require direct Na+/K+-ATPase binding to cross pores",
+              "D": "Na+, K+, Ca2+, H+, and Cl- gradients collapse while O2/CO2 continue diffusing passively"
+            },
+            "correct_answer": "D",
+            "explanation": "Page 5 lists Na+, K+, Ca2+, H+, and Cl- among actively transported ions, whereas lipid-soluble gases cross passively."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can gated channels act as cellular switches during signaling without burning ATP per passing ion:",
+            "options": {
+              "A": "Open channel pores synthesize ATP per ion cycle",
+              "B": "Channel gating lets stored gradients drive passive flux",
+              "C": "Chemical ligands bind clathrin to pull ions inward",
+              "D": "Voltage gates actively pump ions uphill via ATP"
+            },
+            "correct_answer": "B",
+            "explanation": "Opening a pre-charged electrochemical gradient allows rapid passive signaling."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell displays rapid, saturable amino acid uptake when Na+ is high outside, which drops sharply when Na+/K+-ATPase is blocked. Best conclusion:",
+            "options": {
+              "A": "Amino acids diffuse passively across membrane lipids",
+              "B": "Amino acids enter solely via macrophage phagocytosis",
+              "C": "Amino acid uptake uses secondary Na+ co-transport",
+              "D": "Amino acids filter solely via hydrostatic pressure"
+            },
+            "correct_answer": "C",
+            "explanation": "Dependence on the Na+/K+-ATPase-maintained Na+ gradient identifies secondary Na+ symport."
+          },
+          {
+            "type": "mcq",
+            "question": "Which error appears in a student statement: 'Facilitated diffusion moves glucose uphill against its gradient because it uses a carrier protein':",
+            "options": {
+              "A": "Uncoupled carriers only facilitate downhill transport",
+              "B": "Glucose diffuses straight through phospholipids unaided",
+              "C": "Membrane carriers exclusively export waste gases",
+              "D": "Glucose cannot cross membranes via protein carriers"
+            },
+            "correct_answer": "A",
+            "explanation": "Carriers determine specificity and saturation, not uphill capability on their own."
+          },
+          {
+            "type": "mcq",
+            "question": "Compare pinocytosis with receptor-mediated endocytosis regarding selectivity and efficiency for scarce ligands:",
+            "options": {
+              "A": "Pinocytosis concentrates scarce hormones far more selectively",
+              "B": "Receptors selectively concentrate scarce ligands in pits",
+              "C": "Both processes require large phagocytic pseudopods",
+              "D": "Neither process packages cargo inside vesicles"
+            },
+            "correct_answer": "B",
+            "explanation": "Receptor binding adds targeted specificity over non-selective fluid sampling."
+          },
+          {
+            "type": "mcq",
+            "question": "If a toxin blocks fusion of secretory vesicles with the plasma membrane, which two processes fail directly:",
+            "options": {
+              "A": "Simple oxygen gas diffusion and osmotic endosmosis",
+              "B": "Osmotic pressure and glomerular capillary filtration",
+              "C": "Ligand channel gating and phospholipid dissolution",
+              "D": "Secretory exocytosis and transcytosis exit step"
+            },
+            "correct_answer": "D",
+            "explanation": "Both exocytosis and transcytosis conclude with vesicle-membrane fusion."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does the chapter distinguish between 'no direct ATP' and 'uses a gradient created previously by pumps':",
+            "options": {
+              "A": "Secondary transport needs no direct ATP yet needs pump gradients",
+              "B": "Primary active ATPases operate without spending ATP",
+              "C": "Simple diffusion consumes stored Na+ ion gradients",
+              "D": "Water osmosis requires clathrin-coated ATPase pits"
+            },
+            "correct_answer": "A",
+            "explanation": "This clarifies the thermodynamic link between primary and secondary active transport."
+          },
+          {
+            "type": "mcq",
+            "question": "Which combination pairs transport mechanism with its true directional rule:",
+            "options": {
+              "A": "Primary active: against gradient using ATP directly",
+              "B": "Passive simple diffusion: uphill using stored Na+ gradient",
+              "C": "Secondary active: couples uphill flux to a downhill gradient",
+              "D": "A and C"
+            },
+            "correct_answer": "D",
+            "explanation": "Primary uses direct ATP uphill; secondary couples uphill movement to a downhill gradient."
+          },
+          {
+            "type": "mcq",
+            "question": "What happens to resting cytosolic [Na+] and membrane charge bias if Ca2+-ATPase works normally but Na+/K+-ATPase stops permanently:",
+            "options": {
+              "A": "Intracellular K+ rises steadily above normal limits",
+              "B": "Cytosolic Na+ rises; +1 outward pump current ceases",
+              "C": "Na+/glucose symport gains stronger inward driving force",
+              "D": "Endosmosis stops because extracellular Cl- disappears"
+            },
+            "correct_answer": "B",
+            "explanation": "Halting Na+/K+-ATPase lets Na+ accumulate and removes electrogenic Na+/K+ pumping."
+          },
+          {
+            "type": "mcq",
+            "question": "When intracellular acidity increases, cells extrude H+ uphill WITHOUT spending ATP directly at the transporter by coupling flux through:",
+            "options": {
+              "A": "Na+/glucose symport carrying both Na+ and H+ inward together",
+              "B": "Uniporter carrier diffusion of glucose down concentration",
+              "C": "Na+/H+ antiport linking downhill Na+ influx to opposite-direction H+ extrusion",
+              "D": "Endosmotic water influx neutralizing cytosolic protons"
+            },
+            "correct_answer": "C",
+            "explanation": "Counter-transport (Na+/H+ antiport) harnesses the inward Na+ gradient to expel H+ in the opposite direction."
+          },
+          {
+            "type": "mcq",
+            "question": "During phagocytic defense by a neutrophil, why must lysosomes fuse after phagosome closure rather than dumping enzymes freely into cytosol:",
+            "options": {
+              "A": "Neutrophils lack selective outer plasma membranes",
+              "B": "Phagolysosome containment digests cargo, sparing host",
+              "C": "Hydrolase lysosomes act only outside cells via exit",
+              "D": "Clathrin coat cages directly digest bacterial walls"
+            },
+            "correct_answer": "B",
+            "explanation": "Compartmentalized fusion protects host cytoplasm while digesting internalized microbes."
+          },
+          {
+            "type": "true_false",
+            "question": "If two compartments have identical effective solute concentrations across a semipermeable membrane, endosmosis and exosmosis cancel out with zero net osmotic water shift.",
+            "correct_answer": true,
+            "explanation": "Equal effective osmotic concentrations eliminate net osmotic water movement."
+          },
+          {
+            "type": "true_false",
+            "question": "Facilitated diffusion cannot become saturated even when every carrier binding site is continuously occupied.",
+            "correct_answer": false,
+            "explanation": "Finite binding sites and turnover rates produce saturation at high solute concentrations."
+          },
+          {
+            "type": "true_false",
+            "question": "Both Na+/glucose co-transport and Na+/Ca2+ counter-transport weaken when Na+/K+-ATPase is inhibited.",
+            "correct_answer": true,
+            "explanation": "Both rely on the inward Na+ gradient sustained by Na+/K+-ATPase."
+          },
+          {
+            "type": "true_false",
+            "question": "In receptor-mediated endocytosis, clathrin itself acts as the cell-surface receptor that selects specific extracellular hormones.",
+            "correct_answer": false,
+            "explanation": "Specific membrane receptors recognize ligands; clathrin forms the pit coat protein."
+          },
+          {
+            "type": "true_false",
+            "question": "Transcytosis enables macromolecules to cross endothelial barriers without crossing passively through membrane lipid tails.",
+            "correct_answer": true,
+            "explanation": "Cargo moves inside vesicles via endocytosis on one pole and exocytosis on the opposite pole."
+          },
+          {
+            "type": "true_false",
+            "question": "Both hydrostatic filtration and osmotic water movement depend on direct ATP hydrolysis for every moving water molecule.",
+            "correct_answer": false,
+            "explanation": "Filtration is pressure-driven bulk movement and osmosis is passive solvent movement across a selective barrier."
+          },
+          {
+            "type": "true_false",
+            "question": "Ungated channels actively hydrolyze ATP to maintain a permanently open pore.",
+            "correct_answer": false,
+            "explanation": "Ungated channels require no ATP; flux through open pores remains passive."
+          },
+          {
+            "type": "true_false",
+            "question": "Primary active Ca2+-ATPases and secondary Na+/Ca2+ exchangers both work to move Ca2+ across membranes using cellular energy sources.",
+            "correct_answer": true,
+            "explanation": "Ca2+-ATPase spends ATP directly while Na+/Ca2+ exchange taps the Na+ gradient."
+          },
+          {
+            "type": "true_false",
+            "question": "Phagocytosis engulfs tiny dissolved droplets non-selectively without forming a phagosome.",
+            "correct_answer": false,
+            "explanation": "Pinocytosis takes in small fluid droplets; phagocytosis engulfs large particles inside a phagosome."
+          },
+          {
+            "type": "true_false",
+            "question": "Exocytosis releases vesicle contents outside the cell, whereas endocytosis internalizes extracellular fluid, ligands, or particles.",
+            "correct_answer": true,
+            "explanation": "Endocytosis imports cargo and exocytosis exports vesicular cargo."
+          }
+        ]
+      }
+    }
+  },
+  "sheet_questions": {
+    "questions": [
+      {
+        "type": "mcq",
+        "question": "Which general transport group moves substances down a chemical or electrochemical gradient with NO direct ATP use:",
+        "options": {
+          "A": "Passive transport",
+          "B": "Primary active transport",
+          "C": "Secondary active transport",
+          "D": "Phagocytosis"
+        },
+        "correct_answer": "A",
+        "explanation": "Passive processes proceed spontaneously down gradients without direct ATP expenditure."
+      },
+      {
+        "type": "mcq",
+        "question": "For ions, both concentration and electrical charge differences combine into the:",
+        "options": {
+          "A": "Hydrostatic filtration force",
+          "B": "Clathrin lattice",
+          "C": "Electrochemical gradient",
+          "D": "Oncotic saturation"
+        },
+        "correct_answer": "C",
+        "explanation": "Ion movement follows the combined chemical and electrical gradients."
+      },
+      {
+        "type": "mcq",
+        "question": "Which gaseous wastes and nutrients diffuse straight across phospholipid tails rather than waiting on vesicular endocytosis:",
+        "options": {
+          "A": "Plasma albumin and collagen",
+          "B": "Oxygen and carbon dioxide",
+          "C": "Whole neutrophils and microbes",
+          "D": "Polypeptide hormones"
+        },
+        "correct_answer": "B",
+        "explanation": "Hydrophobic small gases dissolve directly across the bilayer."
+      },
+      {
+        "type": "mcq",
+        "question": "How do gated channels differ from ungated channels:",
+        "options": {
+          "A": "Gated channels change open state upon voltage or ligand stimulation",
+          "B": "Gated channels require ATP for every ion",
+          "C": "Ungated channels are phagocytosis pores",
+          "D": "Gated channels only export bacteria"
+        },
+        "correct_answer": "A",
+        "explanation": "Voltage or chemical ligands regulate gated channel opening."
+      },
+      {
+        "type": "mcq",
+        "question": "Why does facilitated diffusion saturate at high solute concentrations while simple diffusion does not:",
+        "options": {
+          "A": "ATP disappears only during simple diffusion",
+          "B": "Glucose becomes hydrophobic at high levels",
+          "C": "Water blocks all lipid diffusion",
+          "D": "Carrier proteins have limited binding sites and turnover rates"
+        },
+        "correct_answer": "D",
+        "explanation": "Finite carrier capacity caps maximal facilitated transport rate."
+      },
+      {
+        "type": "mcq",
+        "question": "Which change generally INCREASES passive diffusion rate across a cell membrane:",
+        "options": {
+          "A": "Greater membrane thickness",
+          "B": "Larger diffusing molecule",
+          "C": "Higher temperature and steeper concentration gradient",
+          "D": "Opposing electrical forces"
+        },
+        "correct_answer": "C",
+        "explanation": "Stronger driving force and thermal energy accelerate diffusion."
+      },
+      {
+        "type": "mcq",
+        "question": "Movement of water and small dissolved solutes across glomerular capillaries driven by hydrostatic pressure is:",
+        "options": {
+          "A": "Endosmosis",
+          "B": "Filtration",
+          "C": "Antiport",
+          "D": "Pinocytosis"
+        },
+        "correct_answer": "B",
+        "explanation": "Bulk filtration is driven by a hydrostatic pressure difference."
+      },
+      {
+        "type": "mcq",
+        "question": "Net osmotic entry of water INTO a cell is called:",
+        "options": {
+          "A": "Endosmosis",
+          "B": "Exosmosis",
+          "C": "Transcytosis",
+          "D": "Exocytosis"
+        },
+        "correct_answer": "A",
+        "explanation": "Water moving into cells down its osmotic gradient is endosmosis."
+      },
+      {
+        "type": "mcq",
+        "question": "Which term names osmotic pressure contributed specifically by blood plasma proteins (~25 mmHg):",
+        "options": {
+          "A": "Hydrostatic capillary pressure",
+          "B": "Electrochemical potential",
+          "C": "Resting depolarization",
+          "D": "Oncotic pressure"
+        },
+        "correct_answer": "D",
+        "explanation": "Plasma proteins exert colloid osmotic (oncotic) pressure of roughly 25 mmHg."
+      },
+      {
+        "type": "mcq",
+        "question": "A membrane carrier handling only ONE specific solute species per transport cycle is classified as a:",
+        "options": {
+          "A": "Symporter",
+          "B": "Antiporter",
+          "C": "Receptor-mediated pinocytic pit",
+          "D": "None of the above"
+        },
+        "correct_answer": "D",
+        "explanation": "A single-solute carrier is a uniporter, rather than a symporter, antiporter, or pinocytic pit."
+      },
+      {
+        "type": "mcq",
+        "question": "Which pair matches transporter directionality accurately:",
+        "options": {
+          "A": "Symport = one solute; Uniport = opposite ways",
+          "B": "Symport = same way; Antiport = opposite ways",
+          "C": "Antiport = same way; Symport = bulk fluid",
+          "D": "Uniport = vesicle export; Antiport = channel leak"
+        },
+        "correct_answer": "B",
+        "explanation": "Co-transport moves solutes together; counter-transport exchanges them in opposite directions."
+      },
+      {
+        "type": "mcq",
+        "question": "What stoichiometry does the Na+/K+-ATPase execute per complete ATP cycle:",
+        "options": {
+          "A": "2 Na+ out and 3 K+ in",
+          "B": "3 Ca2+ out and 2 Na+ in",
+          "C": "3 Na+ out and 2 K+ in",
+          "D": "None of the above"
+        },
+        "correct_answer": "C",
+        "explanation": "Exporting 3 Na+ for 2 K+ sustains low intracellular Na+ and high intracellular K+."
+      },
+      {
+        "type": "mcq",
+        "question": "Because Na+/K+-ATPase transfers unequal positive ions per ATP cycle, the pump is:",
+        "options": {
+          "A": "Electrogenic (exports +1 net charge)",
+          "B": "Electroneutral (0 net charge)",
+          "C": "Passive (downhill only)",
+          "D": "None of the above"
+        },
+        "correct_answer": "A",
+        "explanation": "Unequal 3:2 cation pumping creates net electrogenic outward charge flow."
+      },
+      {
+        "type": "mcq",
+        "question": "Which primary pumps lower cytosolic calcium or secrete acid across selected membranes:",
+        "options": {
+          "A": "Glucose uniporters and aquaporins",
+          "B": "Calcium ATPases and hydrogen-ion pumps",
+          "C": "Pinocytic pits and phagosomes",
+          "D": "Clathrin coats and actin"
+        },
+        "correct_answer": "B",
+        "explanation": "Ca2+-ATPases and H+-ATPases actively pump Ca2+ and protons using ATP."
+      },
+      {
+        "type": "mcq",
+        "question": "Why is the Na+/glucose symporter NOT a primary ATP pump:",
+        "options": {
+          "A": "It couples uphill glucose entry to the downhill Na+ gradient created elsewhere",
+          "B": "Glucose diffuses solely through phospholipids",
+          "C": "It pumps glucose out by exocytosis",
+          "D": "It burns NADH inside the bilayer"
+        },
+        "correct_answer": "A",
+        "explanation": "Secondary active symport relies on stored ion-gradient energy rather than direct ATP cleavage."
+      },
+      {
+        "type": "mcq",
+        "question": "Which pair represents sodium CO-TRANSPORT vs sodium COUNTER-TRANSPORT:",
+        "options": {
+          "A": "Na+/H+ = co-transport; Na+/glucose = counter-transport",
+          "B": "Ca2+-ATPase = co-transport; H+ pump = counter-transport",
+          "C": "Na+/glucose = co-transport; Na+/Ca2+ and Na+/H+ = counter-transport",
+          "D": "Exocytosis = co-transport; osmosis = counter-transport"
+        },
+        "correct_answer": "C",
+        "explanation": "Glucose moves with Na+, while Ca2+ and H+ exchange opposite to Na+."
+      },
+      {
+        "type": "mcq",
+        "question": "Cellular uptake of small droplets of extracellular fluid and dissolved solutes occurs via:",
+        "options": {
+          "A": "Phagocytosis",
+          "B": "Pinocytosis",
+          "C": "Exocytosis",
+          "D": "Uniport"
+        },
+        "correct_answer": "B",
+        "explanation": "Pinocytosis invaginates the plasma membrane to capture fluid-phase droplets."
+      },
+      {
+        "type": "mcq",
+        "question": "Which immune defense cells specialize in phagocytosis of bacteria and debris inside a phagosome:",
+        "options": {
+          "A": "Neutrophils and macrophages",
+          "B": "Mature red blood cells",
+          "C": "Lens fibers only",
+          "D": "Tendon fibroblasts only"
+        },
+        "correct_answer": "A",
+        "explanation": "Neutrophils and macrophages engulf large particles into phagosomes for lysosomal digestion."
+      },
+      {
+        "type": "mcq",
+        "question": "In receptor-mediated endocytosis, what makes clathrin essential WITHOUT making it the receptor:",
+        "options": {
+          "A": "Clathrin hydrolyzes Na+ directly inside pores",
+          "B": "Clathrin coats the vesicle pit after ligands bind",
+          "C": "Clathrin circulates as an extracellular hormone",
+          "D": "Clathrin enzymatically replaces macrophage lysosomes"
+        },
+        "correct_answer": "B",
+        "explanation": "Surface receptors select ligands; clathrin coats the invaginating pit."
+      },
+      {
+        "type": "mcq",
+        "question": "Which vesicular pathway transfers selected cargo from one surface of an endothelial cell to the opposite surface:",
+        "options": {
+          "A": "Pinocytosis alone",
+          "B": "Phagocytosis",
+          "C": "Facilitated diffusion",
+          "D": "Transcytosis"
+        },
+        "correct_answer": "D",
+        "explanation": "Transcytosis combines endocytosis, cross-cell vesicle transit, and opposite-pole exocytosis."
+      },
+      {
+        "type": "mcq",
+        "question": "Fusion of an intracellular secretory vesicle with the plasma membrane to expel cargo outside is:",
+        "options": {
+          "A": "Endosmosis",
+          "B": "Counter-transport",
+          "C": "Exocytosis",
+          "D": "Filtration"
+        },
+        "correct_answer": "C",
+        "explanation": "Exocytosis releases cellular products to the extracellular environment."
+      },
+      {
+        "type": "mcq",
+        "question": "Which ion list contains the five ions highlighted under active transport in Chapter 3:",
+        "options": {
+          "A": "Na+, K+, Ca2+, H+, Cl-",
+          "B": "O2, CO2, H2O, N2",
+          "C": "Glucose, starch, cholesterol",
+          "D": "Albumin, keratin, tubulin"
+        },
+        "correct_answer": "A",
+        "explanation": "The chapter identifies Na+, K+, Ca2+, H+, and Cl- among actively transported ions."
+      },
+      {
+        "type": "mcq",
+        "question": "When a cell takes up macromolecular cargo too large for channels/carriers, it uses:",
+        "options": {
+          "A": "Simple phospholipid dissolution",
+          "B": "Membrane-bounded vesicles",
+          "C": "Hydrostatic oncotic drag",
+          "D": "Voltage-gated pores"
+        },
+        "correct_answer": "B",
+        "explanation": "Vesicular transport handles cargo too bulky for channels or carriers."
+      },
+      {
+        "type": "mcq",
+        "question": "Which comparison cleanly distinguishes OSMOSIS from FILTRATION:",
+        "options": {
+          "A": "Osmosis requires ATPase; filtration requires clathrin pits",
+          "B": "Osmosis moves plasma proteins; filtration moves nuclear DNA",
+          "C": "Osmosis pulls water by solutes; filtration pushes fluid by pressure",
+          "D": "Filtration occurs exclusively inside mitochondrial cristae"
+        },
+        "correct_answer": "C",
+        "explanation": "Different driving forces distinguish osmotic vs hydrostatic transport."
+      },
+      {
+        "type": "true_false",
+        "question": "Simple diffusion directly through membrane lipids saturates quickly at moderate solute concentrations.",
+        "correct_answer": false,
+        "explanation": "Saturation occurs in carrier-mediated transport due to finite binding sites."
+      },
+      {
+        "type": "true_false",
+        "question": "Water exiting a cell down an osmotic gradient is called exosmosis.",
+        "correct_answer": true,
+        "explanation": "Endosmosis is osmotic water entry; exosmosis is osmotic water exit."
+      },
+      {
+        "type": "true_false",
+        "question": "Typical plasma oncotic pressure generated by colloidal blood proteins is approximately 25 mmHg.",
+        "correct_answer": true,
+        "explanation": "The reference specifies approximately 25 mmHg for plasma colloid osmotic (oncotic) pressure."
+      },
+      {
+        "type": "true_false",
+        "question": "A sodium-glucose symporter hydrolyzes ATP directly on its own protein subunits.",
+        "correct_answer": false,
+        "explanation": "The chapter stresses this common exam trap: it relies secondarily on the Na+ gradient."
+      },
+      {
+        "type": "true_false",
+        "question": "Clathrin serves as the extracellular hormone-binding receptor rather than a vesicle coat protein.",
+        "correct_answer": false,
+        "explanation": "Specific membrane receptors bind ligands while clathrin forms the coating protein on the pit."
+      },
+      {
+        "type": "true_false",
+        "question": "Phagosomes fuse with lysosomal compartments to digest engulfed microorganisms and debris.",
+        "correct_answer": true,
+        "explanation": "Lysosomal fusion supplies hydrolytic enzymes to degrade phagocytosed cargo."
+      }
+    ]
+  }
+}

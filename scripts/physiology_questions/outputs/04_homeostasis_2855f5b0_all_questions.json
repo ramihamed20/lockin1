@@ -1,0 +1,3068 @@
+{
+  "active_study": {
+    "easy": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which term describes the body's ability to keep its internal environment within ranges compatible with normal cell function:",
+              "options": {
+                "A": "Necrosis",
+                "B": "Homeostasis",
+                "C": "Exosmosis",
+                "D": "Clathrin coating"
+              },
+              "correct_answer": "B",
+              "explanation": "Homeostasis maintains internal conditions within physiological ranges."
+            },
+            {
+              "type": "mcq",
+              "question": "Which fluid compartment is primarily referred to as the body's INTERNAL ENVIRONMENT:",
+              "options": {
+                "A": "Extracellular fluid",
+                "B": "Nuclear nucleoplasm",
+                "C": "Mitochondrial matrix",
+                "D": "Digestive chyme alone"
+              },
+              "correct_answer": "A",
+              "explanation": "Extracellular fluid surrounding cells forms the internal environment."
+            },
+            {
+              "type": "mcq",
+              "question": "The two major components explicitly listed for extracellular fluid are:",
+              "options": {
+                "A": "Cytosol and nucleoplasm",
+                "B": "Saliva and bile only",
+                "C": "Plasma and interstitial fluid",
+                "D": "Lymph and myelin"
+              },
+              "correct_answer": "C",
+              "explanation": "Plasma and interstitial fluid surround and bathe body cells."
+            },
+            {
+              "type": "mcq",
+              "question": "The concept of a regulated internal environment is linked in the chapter to:",
+              "options": {
+                "A": "Walter B. Cannon",
+                "B": "Robert Hooke",
+                "C": "Camillo Golgi",
+                "D": "Claude Bernard"
+              },
+              "correct_answer": "D",
+              "explanation": "Claude Bernard introduced the regulated internal environment; Walter B. Cannon coined homeostasis."
+            },
+            {
+              "type": "mcq",
+              "question": "Who introduced the specific term HOMEOSTASIS according to Chapter 4:",
+              "options": {
+                "A": "Claude Bernard",
+                "B": "Walter B. Cannon",
+                "C": "Rudolf Virchow",
+                "D": "Gregor Mendel"
+              },
+              "correct_answer": "B",
+              "explanation": "Walter B. Cannon coined the term homeostasis."
+            },
+            {
+              "type": "mcq",
+              "question": "Which component of a homeostatic control system detects a change and asks 'What changed?':",
+              "options": {
+                "A": "Sensor / detector",
+                "B": "Effector",
+                "C": "Fibrinogen",
+                "D": "Gap junction"
+              },
+              "correct_answer": "A",
+              "explanation": "A sensor monitors a controlled variable and reports deviations."
+            },
+            {
+              "type": "true_false",
+              "question": "Homeostasis means keeping every body variable permanently frozen at a single absolutely fixed number.",
+              "correct_answer": false,
+              "explanation": "Conditions vary continuously; homeostasis means controlled variation rather than an immobile constant."
+            },
+            {
+              "type": "true_false",
+              "question": "Homeostatic sensors detect deviations before control centers initiate effector corrections.",
+              "correct_answer": true,
+              "explanation": "Detection precedes integration and effector response in homeostatic control loops."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Signals between components of a homeostatic control loop commonly travel as nerve impulses or:",
+              "options": {
+                "A": "Phagosomes",
+                "B": "Connexons only",
+                "C": "Circulating hormones",
+                "D": "Collagen strands"
+              },
+              "correct_answer": "C",
+              "explanation": "Nerve impulses and chemical messengers such as hormones carry control signals."
+            },
+            {
+              "type": "mcq",
+              "question": "Which feedback pattern opposes the original disturbance and brings a deviating variable back toward range:",
+              "options": {
+                "A": "Positive feedback",
+                "B": "Cellular necrosis",
+                "C": "Bulk filtration",
+                "D": "Negative feedback"
+              },
+              "correct_answer": "D",
+              "explanation": "Negative feedback opposes deviations and dominates everyday stabilization."
+            },
+            {
+              "type": "mcq",
+              "question": "In thyroid hormone regulation, anterior pituitary stimulation of the thyroid gland is mediated by:",
+              "options": {
+                "A": "Oxytocin",
+                "B": "Thyroid-stimulating hormone (TSH)",
+                "C": "Thrombin",
+                "D": "Catalase"
+              },
+              "correct_answer": "B",
+              "explanation": "Anterior pituitary TSH stimulates thyroid hormone secretion."
+            },
+            {
+              "type": "mcq",
+              "question": "As circulating thyroid hormone levels rise high, what happens in this negative-feedback axis:",
+              "options": {
+                "A": "Further stimulatory signaling decreases",
+                "B": "TSH output doubles indefinitely",
+                "C": "Thrombin converts fibrinogen to fibrin",
+                "D": "Oxytocin triggers labor contractions"
+              },
+              "correct_answer": "A",
+              "explanation": "Rising thyroid hormone inhibits further stimulation in the axis."
+            },
+            {
+              "type": "mcq",
+              "question": "Along with thyroid control, which other process is given as a NEGATIVE FEEDBACK example on page 3:",
+              "options": {
+                "A": "Blood clotting cascade",
+                "B": "Parturition",
+                "C": "Body water balance",
+                "D": "Milk ejection"
+              },
+              "correct_answer": "C",
+              "explanation": "Water conservation and excretion adjust by negative feedback to restore fluid balance."
+            },
+            {
+              "type": "mcq",
+              "question": "Which feedback pattern amplifies the initial change to push a process toward an endpoint:",
+              "options": {
+                "A": "Negative feedback",
+                "B": "Positive feedback",
+                "C": "Simple diffusion",
+                "D": "Pinocytosis"
+              },
+              "correct_answer": "B",
+              "explanation": "Positive feedback strengthens ongoing change rather than reversing it."
+            },
+            {
+              "type": "mcq",
+              "question": "During blood coagulation, thrombin promotes the conversion of:",
+              "options": {
+                "A": "Glucose into glycogen",
+                "B": "Thyroid hormone into TSH",
+                "C": "H2O2 into water",
+                "D": "Fibrinogen into fibrin"
+              },
+              "correct_answer": "D",
+              "explanation": "Thrombin converts fibrinogen to fibrin and amplifies clot formation."
+            },
+            {
+              "type": "mcq",
+              "question": "Which hormone strengthens uterine contractions during parturition and promotes milk ejection:",
+              "options": {
+                "A": "Oxytocin",
+                "B": "TSH",
+                "C": "Insulin",
+                "D": "Cortisol"
+              },
+              "correct_answer": "A",
+              "explanation": "Oxytocin participates in positive-feedback amplification during labor and milk ejection."
+            },
+            {
+              "type": "true_false",
+              "question": "A homeostatic control center must always reside inside a single anatomical organ for every physiological variable.",
+              "correct_answer": false,
+              "explanation": "Different variables are controlled by different networks of organs and signals."
+            },
+            {
+              "type": "true_false",
+              "question": "Negative feedback can still be occurring even when a hormone level or organ activity temporarily increases to counteract a drop.",
+              "correct_answer": true,
+              "explanation": "Negative feedback is defined by whether the net response opposes the initial disturbance."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Negative feedback maintains variables within a range, whereas positive feedback:",
+              "options": {
+                "A": "Stops all blood clotting",
+                "B": "Drives processes to completion",
+                "C": "Prevents water conservation",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Positive feedback pushes acute events like birth and clotting to clear endpoints."
+            },
+            {
+              "type": "mcq",
+              "question": "Acid-base balance relies on three coordinated defenses listed in the chapter table: blood buffers, respiratory system, and:",
+              "options": {
+                "A": "Skeletal muscle only",
+                "B": "Salivary ducts",
+                "C": "Kidneys",
+                "D": "Skin pigment cells"
+              },
+              "correct_answer": "C",
+              "explanation": "Blood buffers, lungs, and kidneys work together to control blood pH."
+            },
+            {
+              "type": "mcq",
+              "question": "Large swings in extracellular pH are dangerous because they interfere with:",
+              "options": {
+                "A": "Cell proteins and normal function",
+                "B": "Bone length instantaneously",
+                "C": "Gap junction color",
+                "D": "Osmotic protein number only"
+              },
+              "correct_answer": "A",
+              "explanation": "Abnormal pH disrupts protein structure and enzyme activity."
+            },
+            {
+              "type": "mcq",
+              "question": "Which systems collaborate to regulate BODY TEMPERATURE:",
+              "options": {
+                "A": "Kidneys and teeth only",
+                "B": "Blood coagulation cascade alone",
+                "C": "Hematologic platelets only",
+                "D": "Nervous system, skin, muscles, and circulation"
+              },
+              "correct_answer": "D",
+              "explanation": "Heat generation and dissipation engage brain circuits, skin, muscle, and blood flow."
+            },
+            {
+              "type": "mcq",
+              "question": "The reference illustrates normal teaching ranges using an extracellular pH near:",
+              "options": {
+                "A": "5.4",
+                "B": "7.4",
+                "C": "9.2",
+                "D": "3.7"
+              },
+              "correct_answer": "B",
+              "explanation": "Typical extracellular pH cited as a teaching example is approximately 7.4."
+            },
+            {
+              "type": "mcq",
+              "question": "The reference illustrates normal body temperature using a typical teaching value near:",
+              "options": {
+                "A": "25.0 degrees Celsius",
+                "B": "42.0 degrees Celsius",
+                "C": "37.5 degrees Celsius",
+                "D": "31.0 degrees Celsius"
+              },
+              "correct_answer": "C",
+              "explanation": "Roughly 37.5 degrees C serves as the chapter's normal temperature example."
+            },
+            {
+              "type": "mcq",
+              "question": "Which division of the nervous system is especially vital for ongoing involuntary internal-organ control:",
+              "options": {
+                "A": "Autonomic nervous system",
+                "B": "Somatic skeletal reflex alone",
+                "C": "Exocrine salivary gland only",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Autonomic pathways continuously regulate visceral homeostatic functions."
+            },
+            {
+              "type": "mcq",
+              "question": "Which systems regulate OXYGEN and CARBON DIOXIDE levels for cellular energy and waste-gas clearance:",
+              "options": {
+                "A": "Skin and skeletal muscle only",
+                "B": "Respiratory and cardiovascular systems",
+                "C": "Endocrine thyroid only",
+                "D": "Digestive system only"
+              },
+              "correct_answer": "B",
+              "explanation": "Lungs exchange gases and blood circulation transports them."
+            },
+            {
+              "type": "true_false",
+              "question": "A single isolated organ maintains every single aspect of internal homeostasis on its own.",
+              "correct_answer": false,
+              "explanation": "Multiple organ systems cooperate across the body to regulate internal conditions."
+            },
+            {
+              "type": "true_false",
+              "question": "Enzyme and cellular activity depend strongly on maintaining body temperature within a suitable range.",
+              "correct_answer": true,
+              "explanation": "Temperature shifts disrupt enzyme reaction rates and cellular function."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "When analyzing any unfamiliar control loop using the chapter's study framework, what items do you trace:",
+              "options": {
+                "A": "Only bone mass and tendon length",
+                "B": "Only nuclear pore diameter",
+                "C": "Only cholesterol ratio",
+                "D": "Variable, sensor, center, effector, and response sign"
+              },
+              "correct_answer": "D",
+              "explanation": "Mapping variable, sensor, center, effector, and feedback sign clarifies any mechanism."
+            },
+            {
+              "type": "mcq",
+              "question": "In the 4-line 'Apply the Framework' box, the final question asks whether the resulting response:",
+              "options": {
+                "A": "Reduces the initial increase",
+                "B": "Converts fibrinogen into fibrin",
+                "C": "Destroys all sensors",
+                "D": "Causes cell necrosis"
+              },
+              "correct_answer": "A",
+              "explanation": "Asking whether the response reduces the original deviation distinguishes negative from positive feedback."
+            },
+            {
+              "type": "true_false",
+              "question": "Thinking in sensor -> control center -> effector loops makes unfamiliar physiological mechanisms easier to understand.",
+              "correct_answer": true,
+              "explanation": "The chapter presents this structured framework specifically to analyze any control mechanism."
+            },
+            {
+              "type": "true_false",
+              "question": "In the 4-step control-loop exercise, only negative feedback pathways ever contain sensors.",
+              "correct_answer": false,
+              "explanation": "Positive feedback pathways such as clotting and birth also rely on sensory detection, signals, and effectors."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "What constitutes the body's INTERNAL ENVIRONMENT:",
+            "options": {
+              "A": "Cytoplasm inside muscle cells",
+              "B": "Extracellular fluid (plasma and interstitial fluid)",
+              "C": "Atmospheric air in alveoli",
+              "D": "Urine inside the bladder"
+            },
+            "correct_answer": "B",
+            "explanation": "Cells live within extracellular fluid, composed mainly of plasma and interstitial fluid."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement best defines HOMEOSTASIS:",
+            "options": {
+              "A": "Elimination of every slight shift",
+              "B": "Amplifying every deviation endlessly",
+              "C": "Controlled variation keeping internal limits stable",
+              "D": "Replacing ECF with intracellular cytosol"
+            },
+            "correct_answer": "C",
+            "explanation": "Homeostasis maintains controlled variation compatible with cellular life."
+          },
+          {
+            "type": "mcq",
+            "question": "Claude Bernard is credited in the sheet for introducing the concept of:",
+            "options": {
+              "A": "Positive feedback clotting",
+              "B": "Autonomic spinal nerves",
+              "C": "Renal glomerular filtration",
+              "D": "A regulated internal environment"
+            },
+            "correct_answer": "D",
+            "explanation": "Bernard described the stable internal milieu; Cannon later named homeostasis."
+          },
+          {
+            "type": "mcq",
+            "question": "Which scientist coined the term HOMEOSTASIS:",
+            "options": {
+              "A": "Claude Bernard",
+              "B": "Walter B. Cannon",
+              "C": "William Harvey",
+              "D": "Louis Pasteur"
+            },
+            "correct_answer": "B",
+            "explanation": "Walter B. Cannon named the concept homeostasis."
+          },
+          {
+            "type": "mcq",
+            "question": "Place the three core components of a homeostatic loop in logical sequence:",
+            "options": {
+              "A": "Sensor -> Control/integrating center -> Effector",
+              "B": "Effector -> Sensor -> Control center",
+              "C": "Control center -> Sensor -> Nucleus",
+              "D": "Fibrin -> Thrombin -> Oxytocin"
+            },
+            "correct_answer": "A",
+            "explanation": "Deviations are detected, evaluated, and then corrected by effectors."
+          },
+          {
+            "type": "mcq",
+            "question": "Which component compares incoming sensory reports against a target level or range:",
+            "options": {
+              "A": "Sensor / detector",
+              "B": "Effector organ",
+              "C": "Control / integrating center",
+              "D": "Glycocalyx coat"
+            },
+            "correct_answer": "C",
+            "explanation": "The integrating center evaluates deviations and coordinates an appropriate output."
+          },
+          {
+            "type": "mcq",
+            "question": "By what TWO main communication routes does a control center signal effectors:",
+            "options": {
+              "A": "Gap junctions and phagocytosis",
+              "B": "Nerve impulses and circulating hormones",
+              "C": "Hydrostatic pressure and necrosis",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Neural signals and blood-borne hormones relay instructions to effectors."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pattern stabilizes most routine physiological variables such as water balance:",
+            "options": {
+              "A": "Negative feedback",
+              "B": "Positive feedback",
+              "C": "Thrombin amplification",
+              "D": "Parturition"
+            },
+            "correct_answer": "A",
+            "explanation": "Negative feedback counteracts deviations to restore stability."
+          },
+          {
+            "type": "mcq",
+            "question": "In negative feedback, if a controlled variable DROPS below its usual range, the system response tends to:",
+            "options": {
+              "A": "Drive it even lower rapidly",
+              "B": "Amplify the drop until birth",
+              "C": "Shut down all sensors",
+              "D": "Raise it back toward normal"
+            },
+            "correct_answer": "D",
+            "explanation": "Negative feedback opposes the deviation regardless of whether it started high or low."
+          },
+          {
+            "type": "mcq",
+            "question": "When thyroid hormone rises in blood, it reduces stimulatory TSH signaling; this demonstrates:",
+            "options": {
+              "A": "Positive feedback",
+              "B": "Coagulation cascade",
+              "C": "Negative feedback",
+              "D": "Simple filtration"
+            },
+            "correct_answer": "C",
+            "explanation": "Reduced upstream stimulation when output rises keeps thyroid hormone within range."
+          },
+          {
+            "type": "mcq",
+            "question": "When thyroid hormone levels FALL too low, how does the negative-feedback axis respond:",
+            "options": {
+              "A": "Inhibition doubles permanently",
+              "B": "Inhibitory restraint lessens and stimulation rises",
+              "C": "TSH disappears completely",
+              "D": "Oxytocin replaces TSH"
+            },
+            "correct_answer": "B",
+            "explanation": "Less negative feedback disinhibits TSH-driven thyroid secretion."
+          },
+          {
+            "type": "mcq",
+            "question": "Maintaining proper body water volume and concentration via conservation or excretion exemplifies:",
+            "options": {
+              "A": "Negative feedback",
+              "B": "Positive feedback",
+              "C": "Uncoupled diffusion",
+              "D": "Positive coagulation"
+            },
+            "correct_answer": "A",
+            "explanation": "Deviations in water balance trigger opposing corrective water adjustments."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement correctly summarizes how to spot NEGATIVE feedback:",
+            "options": {
+              "A": "Every hormone falls in blood",
+              "B": "Only skeletal muscles act",
+              "C": "No integrating center works",
+              "D": "The final response opposes the original change"
+            },
+            "correct_answer": "D",
+            "explanation": "Opposing the starting disturbance defines negative feedback even if an effector ramps up."
+          },
+          {
+            "type": "mcq",
+            "question": "Positive feedback differs from negative feedback because positive feedback:",
+            "options": {
+              "A": "Keeps variables flat all day",
+              "B": "Amplifies the initial change toward completion",
+              "C": "Operates only during water balance",
+              "D": "Prevents blood clots from forming"
+            },
+            "correct_answer": "B",
+            "explanation": "Positive feedback accelerates a process toward a decisive completion point."
+          },
+          {
+            "type": "mcq",
+            "question": "During blood vessel injury, thrombin accelerating fibrinogen conversion to fibrin exemplifies:",
+            "options": {
+              "A": "Negative feedback",
+              "B": "Water balance homeostasis",
+              "C": "Positive feedback",
+              "D": "TSH inhibition"
+            },
+            "correct_answer": "C",
+            "explanation": "Self-amplifying clotting stops hemorrhage rapidly."
+          },
+          {
+            "type": "mcq",
+            "question": "Which physiological trio lists ONLY POSITIVE FEEDBACK examples from Chapter 4:",
+            "options": {
+              "A": "Blood clotting, parturition, milk ejection",
+              "B": "Thyroid control, acid-base, water balance",
+              "C": "Temperature, clotting, gas exchange",
+              "D": "Nutrition, thyroid control, danger reflex"
+            },
+            "correct_answer": "A",
+            "explanation": "Clotting, labor contractions, and milk ejection all amplify to a clear endpoint."
+          },
+          {
+            "type": "mcq",
+            "question": "Which hormone amplifies uterine contractions until delivery during parturition:",
+            "options": {
+              "A": "TSH",
+              "B": "Oxytocin",
+              "C": "Thrombin",
+              "D": "Fibrin"
+            },
+            "correct_answer": "B",
+            "explanation": "Oxytocin release increases progressively with contractions until birth completes."
+          },
+          {
+            "type": "mcq",
+            "question": "Milk ejection during suckling is driven by a positive-feedback loop involving:",
+            "options": {
+              "A": "TSH",
+              "B": "Hemoglobin",
+              "C": "Catalase",
+              "D": "Oxytocin"
+            },
+            "correct_answer": "D",
+            "explanation": "Oxytocin coordinates positive-feedback milk ejection."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is positive feedback generally UNSUITABLE for everyday long-term stability:",
+            "options": {
+              "A": "It reinforces changes instead of opposing them",
+              "B": "It relies solely on kidneys",
+              "C": "It requires zero sensors",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Amplifying loops need a definite endpoint or they would destabilize conditions."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is ACID-BASE balance critical for living cells according to Page 4:",
+            "options": {
+              "A": "Acid stops fibrinogen from turning red",
+              "B": "pH changes bone into cartilage",
+              "C": "Large pH shifts damage cell proteins",
+              "D": "Low pH freezes blood vessels"
+            },
+            "correct_answer": "C",
+            "explanation": "Keeping extracellular pH near ~7.4 prevents harmful protein distortion."
+          },
+          {
+            "type": "mcq",
+            "question": "How do skin and skeletal muscles cooperate with circulation to regulate BODY TEMPERATURE:",
+            "options": {
+              "A": "Convert fibrinogen into active fibrin",
+              "B": "Adjust heat dissipation and heat production",
+              "C": "Secrete anterior pituitary TSH continuously",
+              "D": "Exchange alveolar oxygen with kidneys"
+            },
+            "correct_answer": "B",
+            "explanation": "Skin vasculature, sweat, muscles, and neural control hold body temperature near ~37.5 C."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do cells require tight control of WATER and ELECTROLYTES:",
+            "options": {
+              "A": "To preserve fluid volume and osmotic conditions",
+              "B": "To turn plasma proteins into starch",
+              "C": "To initiate blood clotting continuously",
+              "D": "To stop all membrane transport"
+            },
+            "correct_answer": "A",
+            "explanation": "Fluid volume and osmotic balance depend on regulated water and electrolytes."
+          },
+          {
+            "type": "mcq",
+            "question": "Which systems are paired with OXYGEN and CARBON DIOXIDE balance:",
+            "options": {
+              "A": "Hematologic and skin only",
+              "B": "Respiratory and cardiovascular systems",
+              "C": "Digestive and skeletal only",
+              "D": "Kidneys only"
+            },
+            "correct_answer": "B",
+            "explanation": "Breathing exchanges gases and blood circulation distributes O2 and clears CO2."
+          },
+          {
+            "type": "mcq",
+            "question": "Transport of gases, nutrients, and wastes via BLOOD COMPOSITION relies chiefly on:",
+            "options": {
+              "A": "Skin and skeletal muscles",
+              "B": "Anterior pituitary only",
+              "C": "Apical tight junctions",
+              "D": "Hematologic and cardiovascular systems"
+            },
+            "correct_answer": "D",
+            "explanation": "Blood elements and pumping vessels handle systemic internal transport."
+          },
+          {
+            "type": "mcq",
+            "question": "Which systems collaborate to carry nutrition substrates from food to cells:",
+            "options": {
+              "A": "Respiratory system and skin",
+              "B": "Urinary bladder and skeleton",
+              "C": "Digestive system and circulation",
+              "D": "Adrenal medulla only"
+            },
+            "correct_answer": "C",
+            "explanation": "Digestion absorbs substrates and circulation delivers them to tissues."
+          },
+          {
+            "type": "mcq",
+            "question": "Responding rapidly to external danger depends mainly on:",
+            "options": {
+              "A": "Nervous system and skeletal muscle",
+              "B": "Kidney nephrons and platelets",
+              "C": "Anterior pituitary TSH",
+              "D": "Blood buffers alone"
+            },
+            "correct_answer": "A",
+            "explanation": "Sensing danger triggers nervous control and skeletal muscle escape/action."
+          },
+          {
+            "type": "mcq",
+            "question": "What typical teaching values are cited in Chapter 4 for normal ECF pH and body temperature:",
+            "options": {
+              "A": "pH ~6.0 and ~32.0 degrees Celsius",
+              "B": "pH ~7.4 and ~37.5 degrees Celsius",
+              "C": "pH ~8.5 and ~41.5 degrees Celsius",
+              "D": "pH ~7.0 and ~25.0 degrees Celsius"
+            },
+            "correct_answer": "B",
+            "explanation": "The notes give ~7.4 pH and ~37.5 C as illustrative reference targets."
+          },
+          {
+            "type": "mcq",
+            "question": "Sensory input integrated by brain and spinal-cord circuits can trigger which outputs:",
+            "options": {
+              "A": "Only platelet fibrin conversion",
+              "B": "Only simple diffusion",
+              "C": "Motor, autonomic, or endocrine responses",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "Central neural circuits coordinate somatic motor, autonomic, and endocrine effectors."
+          },
+          {
+            "type": "mcq",
+            "question": "Which body components partner under HORMONAL COORDINATION to alter metabolism and organ activity:",
+            "options": {
+              "A": "Skeletal teeth and tendons",
+              "B": "Urinary bladder and enamel",
+              "C": "Skin keratin alone",
+              "D": "Endocrine organs and target tissues"
+            },
+            "correct_answer": "D",
+            "explanation": "Endocrine glands secrete circulating hormones that act on target tissues."
+          },
+          {
+            "type": "mcq",
+            "question": "Which question does the CONTROL / INTEGRATING CENTER answer in the Page 2 table:",
+            "options": {
+              "A": "What changed?",
+              "B": "How should the body respond?",
+              "C": "What restores the variable?",
+              "D": "Who coined internal environment?"
+            },
+            "correct_answer": "B",
+            "explanation": "Sensor='What changed?'; Control center='How should the body respond?'; Effector='What action restores it?'."
+          },
+          {
+            "type": "mcq",
+            "question": "Which question does the EFFECTOR answer in a homeostatic control table:",
+            "options": {
+              "A": "What action will restore the variable?",
+              "B": "What changed?",
+              "C": "How should the body respond?",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Effectors act on target organs/glands/tissues to adjust the regulated variable."
+          },
+          {
+            "type": "mcq",
+            "question": "Which mechanism adjusts organ and cellular metabolism slowly across distant tissues via blood:",
+            "options": {
+              "A": "Somatic skeletal reflexes",
+              "B": "Gap junction depolarization",
+              "C": "Endocrine hormonal signaling",
+              "D": "Clathrin endocytosis"
+            },
+            "correct_answer": "C",
+            "explanation": "Endocrine glands secrete blood-borne hormones acting on specific target cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Which organs participate in WATER and ELECTROLYTE homeostasis according to the table:",
+            "options": {
+              "A": "Heart valves and retina only",
+              "B": "Kidneys, skin, gut, and hormonal control",
+              "C": "Brain cortex alone",
+              "D": "Skeletal joints"
+            },
+            "correct_answer": "B",
+            "explanation": "Fluid intake, sweating, renal handling, and endocrine signals balance water and salts."
+          },
+          {
+            "type": "mcq",
+            "question": "In the 'Thinking in Control Loops' checklist, the four items checked are:",
+            "options": {
+              "A": "Weight, thickness, clathrin coat, and ATP",
+              "B": "Desmosomes, actin, tubulin, and pores",
+              "C": "Endosmosis, exosmosis, and phagocytosis",
+              "D": "Sensor, integrator, effector, and response sign"
+            },
+            "correct_answer": "D",
+            "explanation": "This four-step method applies to any physiological control pathway."
+          },
+          {
+            "type": "mcq",
+            "question": "If blood pressure rises during activity and sensors trigger a response lowering it back down, this is:",
+            "options": {
+              "A": "Negative feedback",
+              "B": "Positive feedback",
+              "C": "Clotting cascade",
+              "D": "Necrosis"
+            },
+            "correct_answer": "A",
+            "explanation": "Since the response opposes and lowers the elevated variable, it is negative feedback."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pair places a scientist next to his exact historical contribution from Page 2:",
+            "options": {
+              "A": "Walter B. Cannon -> clotting; Claude Bernard -> TSH",
+              "B": "Claude Bernard -> internal environment; Walter B. Cannon -> homeostasis",
+              "C": "Claude Bernard -> clathrin; Walter B. Cannon -> occludin",
+              "D": "Both discovered oxytocin together"
+            },
+            "correct_answer": "B",
+            "explanation": "Bernard framed the internal environment; Cannon coined homeostasis."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does the sheet note that ~7.4 pH and ~37.5 C are 'teaching examples' rather than fixed constants:",
+            "options": {
+              "A": "Homeostasis allows controlled variation around normal ranges",
+              "B": "Healthy pH swings from 4 to 10",
+              "C": "Sensors ignore pH and temperature",
+              "D": "Positive feedback controls temperature"
+            },
+            "correct_answer": "A",
+            "explanation": "Physiological parameters fluctuate slightly within safe homeostatic limits."
+          },
+          {
+            "type": "mcq",
+            "question": "In the clotting example on page 3, what key molecule helps convert fibrinogen into fibrin:",
+            "options": {
+              "A": "Oxytocin",
+              "B": "TSH",
+              "C": "Thrombin",
+              "D": "Insulin"
+            },
+            "correct_answer": "C",
+            "explanation": "Thrombin amplifies fibrin formation to plug injured vessels."
+          },
+          {
+            "type": "mcq",
+            "question": "During thyroid negative feedback, what organ secretes TSH:",
+            "options": {
+              "A": "Thyroid follicle directly",
+              "B": "Adrenal cortex",
+              "C": "Kidney glomerulus",
+              "D": "Anterior pituitary"
+            },
+            "correct_answer": "D",
+            "explanation": "Anterior pituitary TSH stimulates thyroid hormone output."
+          },
+          {
+            "type": "mcq",
+            "question": "Which option includes ALL fluid components of extracellular fluid:",
+            "options": {
+              "A": "Plasma",
+              "B": "Interstitial fluid",
+              "C": "Cellular cytoplasm",
+              "D": "Both A and B"
+            },
+            "correct_answer": "D",
+            "explanation": "Plasma and interstitial fluid together constitute the extracellular internal environment."
+          },
+          {
+            "type": "true_false",
+            "question": "Brain and spinal circuits can issue motor, autonomic, or endocrine outputs after sensory integration.",
+            "correct_answer": true,
+            "explanation": "Central neural integration coordinates voluntary skeletal, autonomic visceral, and hormonal responses."
+          },
+          {
+            "type": "true_false",
+            "question": "A sensor/detector in a control loop carries out the physical correction on target organs directly.",
+            "correct_answer": false,
+            "explanation": "The sensor monitors and reports deviation; the effector produces the corrective action."
+          },
+          {
+            "type": "true_false",
+            "question": "Nerve impulses and circulating hormones are key signal routes linking sensors, integrators, and effectors.",
+            "correct_answer": true,
+            "explanation": "Both neural and endocrine signaling pathways coordinate homeostatic control."
+          },
+          {
+            "type": "true_false",
+            "question": "Negative feedback amplifies disturbances rapidly to reach a final endpoint such as childbirth.",
+            "correct_answer": false,
+            "explanation": "Amplifying a process to completion describes positive feedback, not negative feedback."
+          },
+          {
+            "type": "true_false",
+            "question": "Thyroid hormone regulation is an example of negative feedback.",
+            "correct_answer": true,
+            "explanation": "Higher circulating thyroid hormone suppresses further stimulatory signaling."
+          },
+          {
+            "type": "true_false",
+            "question": "Blood coagulation, labor contractions, and milk ejection are positive-feedback examples.",
+            "correct_answer": true,
+            "explanation": "All three amplify ongoing change until bleeding stops, birth completes, or ejection ends."
+          },
+          {
+            "type": "true_false",
+            "question": "Acid-base balance relies exclusively on blood buffers while kidneys and lungs play no role.",
+            "correct_answer": false,
+            "explanation": "Blood buffers, the respiratory system, and kidneys cooperate to prevent damaging pH swings."
+          },
+          {
+            "type": "true_false",
+            "question": "Large temperature shifts have no impact on enzyme or cellular activity.",
+            "correct_answer": false,
+            "explanation": "Enzymes and cellular processes are strongly temperature-dependent."
+          },
+          {
+            "type": "true_false",
+            "question": "The autonomic nervous system regulates internal organs largely involuntarily.",
+            "correct_answer": true,
+            "explanation": "Autonomic pathways provide continuous subconscious internal control."
+          },
+          {
+            "type": "true_false",
+            "question": "Walter B. Cannon originally introduced the term 'internal environment' before Claude Bernard coined 'homeostasis'.",
+            "correct_answer": false,
+            "explanation": "Claude Bernard described the regulated internal environment, and Walter B. Cannon later coined homeostasis."
+          }
+        ]
+      }
+    },
+    "medium": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why does Chapter 4 emphasize 'controlled variation' rather than 'an absolutely fixed value' for homeostasis:",
+              "options": {
+                "A": "Cells survive best when extracellular osmolarity swings wildly",
+                "B": "Internal conditions shift continuously and need active regulation",
+                "C": "Sensors fail to detect deviations once levels shift",
+                "D": "Negative feedback stops all metabolic cellular reactions"
+              },
+              "correct_answer": "B",
+              "explanation": "Dynamic regulation keeps physiological ranges steady despite constant perturbations."
+            },
+            {
+              "type": "mcq",
+              "question": "What functional relationship links Claude Bernard's idea to extracellular fluid:",
+              "options": {
+                "A": "Cells function within ECF formed by plasma and interstitial fluid",
+                "B": "Intracellular cytosol is exposed straight to external dry air",
+                "C": "Organs operate normally without surrounding fluid exchange",
+                "D": "Extracellular fluid forms a solid mineralized bone matrix"
+              },
+              "correct_answer": "A",
+              "explanation": "Bernard recognized that stable extracellular milieu shields cells from external chaos."
+            },
+            {
+              "type": "mcq",
+              "question": "When a deviation begins, in what functional order do the three basic parts of a control loop respond:",
+              "options": {
+                "A": "Effector acts -> center detects -> sensor corrects",
+                "B": "Center alters variable -> effector senses -> sensor integrates",
+                "C": "Effector ignores disturbance -> sensor acts -> center rests",
+                "D": "None of the above"
+              },
+              "correct_answer": "D",
+              "explanation": "Detection by the sensor precedes comparison by the integrating center and action by the effector; none of the listed orders match."
+            },
+            {
+              "type": "mcq",
+              "question": "Which distinction cleanly separates the CONTROL CENTER from the EFFECTOR:",
+              "options": {
+                "A": "Control center contracts muscle; effector stores data tables",
+                "B": "Control center chooses response; effector changes tissue activity",
+                "C": "Effector detects deviation; control center pumps blood",
+                "D": "Both terms refer strictly to voluntary skeletal fibers"
+              },
+              "correct_answer": "B",
+              "explanation": "Computation/coordination sits in the integrating center; physical change comes from the effector."
+            },
+            {
+              "type": "mcq",
+              "question": "Suppose a loop lacks any feedback link from the effector's correction back to the sensor. What breaks:",
+              "options": {
+                "A": "The sensor transforms straight into fibrin mesh",
+                "B": "Intracellular potassium turns immediately into sodium",
+                "C": "The loop cannot check whether the deviation stopped",
+                "D": "Claude Bernard's law converts into simple osmosis"
+              },
+              "correct_answer": "C",
+              "explanation": "Closed-loop homeostasis requires feedback reporting how the variable responded."
+            },
+            {
+              "type": "mcq",
+              "question": "In a homeostatic control table, pairing 'How should the body respond?' points directly to the:",
+              "options": {
+                "A": "Control / integrating center",
+                "B": "Sensor / detector organ",
+                "C": "Target effector tissue",
+                "D": "Interstitial fluid space"
+              },
+              "correct_answer": "A",
+              "explanation": "Deciding on the response by comparing sensed values to required limits is integration."
+            },
+            {
+              "type": "true_false",
+              "question": "Cells depend on extracellular levels of water, ions, nutrients, and gases because extracellular fluid directly surrounds them.",
+              "correct_answer": true,
+              "explanation": "ECF mediates exchange between cells and the rest of the body."
+            },
+            {
+              "type": "true_false",
+              "question": "Homeostasis keeps living internal variables strictly immobile so that active adjustments are rarely needed.",
+              "correct_answer": false,
+              "explanation": "Living organisms constantly encounter shifts and rely on active dynamic regulation."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why is negative feedback considered the MOST COMMON pattern in routine physiology:",
+              "options": {
+                "A": "It pushes every physiological disturbance toward completion",
+                "B": "It opposes deviations in both directions to stabilize ranges",
+                "C": "It operates without requiring signals or cellular energy",
+                "D": "It takes place exclusively during acute blood clotting"
+              },
+              "correct_answer": "B",
+              "explanation": "Stabilizing variables continuously requires opposing upward or downward drifts."
+            },
+            {
+              "type": "mcq",
+              "question": "A student sees TSH rise when thyroid hormone drops and calls it POSITIVE feedback because TSH went up. What is the flaw:",
+              "options": {
+                "A": "Positive feedback always lowers anterior pituitary hormones",
+                "B": "TSH converts fibrinogen directly into insoluble fibrin",
+                "C": "Higher TSH counters the deficiency and restores balance",
+                "D": "Thyroid hormone acts strictly through gap junctions"
+              },
+              "correct_answer": "C",
+              "explanation": "Evaluate the effect on the ORIGINAL disturbance, not whether a single signal rises or falls."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does the pituitary-thyroid loop represent a self-modulating cycle:",
+              "options": {
+                "A": "Rising hormone inhibits drive; falling hormone restores drive",
+                "B": "Oxytocin simultaneously accelerates TSH release and clotting",
+                "C": "Thrombin constantly splits circulating TSH into fibrin",
+                "D": "Hormones travel solely across intercellular tight junctions"
+              },
+              "correct_answer": "A",
+              "explanation": "Reciprocal inhibition tunes secretion upward or downward around normal demand."
+            },
+            {
+              "type": "mcq",
+              "question": "When body fluid concentration drifts upward (dehydration), which negative-feedback action restores balance:",
+              "options": {
+                "A": "Positive feedback accelerates renal urine water loss",
+                "B": "Water conservation increases to limit further fluid loss",
+                "C": "Blood buffers convert excess ions into thrombin",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Water-balance loops oppose osmotic or volume deviations."
+            },
+            {
+              "type": "mcq",
+              "question": "Why is POSITIVE feedback appropriate during vascular injury (blood clotting) even though it destabilizes variables locally:",
+              "options": {
+                "A": "Positive feedback slows fibrin assembly down gently",
+                "B": "Fibrinogen acts mainly as a buffer around pH 7.4",
+                "C": "Hemorrhage needs rapid clot completion, not half-clotting",
+                "D": "Coagulation sustains constant resting water osmolarity"
+              },
+              "correct_answer": "C",
+              "explanation": "Urgent events needing a decisive endpoint benefit from self-reinforcing cascades."
+            },
+            {
+              "type": "mcq",
+              "question": "How does oxytocin-mediated control during childbirth reach termination cleanly instead of continuing indefinitely:",
+              "options": {
+                "A": "Delivery removes the stretch stimulus ending the cycle",
+                "B": "Negative feedback from TSH blocks oxytocin at delivery",
+                "C": "Thrombin digests the smooth muscle of the uterus",
+                "D": "Renal water balance drops circulating volume to zero"
+              },
+              "correct_answer": "A",
+              "explanation": "Positive feedback terminates once the milestone endpoint (birth) ends the cycle."
+            },
+            {
+              "type": "mcq",
+              "question": "Compare TSH in thyroid control with oxytocin in labor: why are they opposite feedback types:",
+              "options": {
+                "A": "TSH enters bloodstream; oxytocin enters phagosomes only",
+                "B": "TSH signaling opposes deviations; oxytocin amplifies contractions",
+                "C": "Oxytocin stops uterine tension; TSH triggers clots",
+                "D": "Both operate as identical negative feedback loops"
+              },
+              "correct_answer": "B",
+              "explanation": "Opposing output = negative feedback; reinforcing output = positive feedback."
+            },
+            {
+              "type": "mcq",
+              "question": "Which statement proves a control center does NOT have to sit inside one single brain nucleus for all body loops:",
+              "options": {
+                "A": "All homeostatic sensors reside within red blood cells",
+                "B": "Skeletal muscles integrate every pituitary hormone level",
+                "C": "Interstitial fluid replaces central neural pathways",
+                "D": "Different loops use distinct neural or endocrine organ networks"
+              },
+              "correct_answer": "D",
+              "explanation": "Hormonal axes, visceral plexuses, and central neural circuits each coordinate distinct loops."
+            },
+            {
+              "type": "true_false",
+              "question": "Positive feedback during milk ejection reinforces hormone release to complete milk delivery efficiently.",
+              "correct_answer": true,
+              "explanation": "Oxytocin-linked positive feedback strengthens the response until feeding finishes."
+            },
+            {
+              "type": "true_false",
+              "question": "In the clotting cascade, thrombin suppresses fibrinogen conversion to slow down clot assembly.",
+              "correct_answer": false,
+              "explanation": "Thrombin promotes fibrinogen-to-fibrin conversion in a self-amplifying positive-feedback cascade."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why does acid-base balance recruit blood buffers, lungs, AND kidneys rather than one organ alone:",
+              "options": {
+                "A": "Buffers act slowly while respiratory lungs secrete TSH",
+                "B": "Layered chemical, gas, and renal control protects cell proteins",
+                "C": "Kidneys manufacture glucose and oxygen from amino acids",
+                "D": "Blood buffers generate voluntary skeletal muscle heat"
+              },
+              "correct_answer": "B",
+              "explanation": "Coordinated respiratory and renal regulation reinforces chemical buffering around pH ~7.4."
+            },
+            {
+              "type": "mcq",
+              "question": "If metabolic acid builds up or pH drifts far from ~7.4, which primary cellular risk arises:",
+              "options": {
+                "A": "Cell membranes dissolve instantly through thrombin lysis",
+                "B": "Mature red blood cells develop mitotic nuclei",
+                "C": "Cell proteins lose normal structure and function",
+                "D": "Clathrin coats digest surrounding pancreatic acini"
+              },
+              "correct_answer": "C",
+              "explanation": "Proteins and enzymes are highly sensitive to extracellular pH shifts."
+            },
+            {
+              "type": "mcq",
+              "question": "Why must body temperature stay near ~37.5 degrees Celsius via skin, muscle, circulation, and nervous control:",
+              "options": {
+                "A": "Enzyme reactions and cell activity depend on temperature",
+                "B": "Cutaneous skin stores TSH receptors for blood pressure",
+                "C": "Skeletal muscles synthesize all extracellular glucose",
+                "D": "Vascular circulation depends on clotting at 37 C"
+              },
+              "correct_answer": "A",
+              "explanation": "Enzymatic catalysis slows in hypothermia and denatures in severe hyperthermia."
+            },
+            {
+              "type": "mcq",
+              "question": "How do the RESPIRATORY and CARDIOVASCULAR systems depend on each other for O2/CO2 homeostasis:",
+              "options": {
+                "A": "Hearts synthesize O2 gas from circulating fibrin clots",
+                "B": "Lungs absorb dietary fats while muscles buffer pH",
+                "C": "Cardiovascular capillaries replace cellular mitochondria",
+                "D": "Lungs exchange alveolar gases while blood circulates them"
+              },
+              "correct_answer": "D",
+              "explanation": "Ventilation plus perfusion together supply cellular metabolism and remove CO2 waste."
+            },
+            {
+              "type": "mcq",
+              "question": "Which organ-system team in the table keeps body FLUID VOLUME and OSMOTIC CONDITIONS stable:",
+              "options": {
+                "A": "Nervous system and voluntary skeletal muscles",
+                "B": "Kidneys, skin, gut, and hormonal control",
+                "C": "Respiratory airways and activated platelets",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Water/salt uptake (gut), sweat loss (skin), renal excretion, and hormones maintain osmotic balance."
+            },
+            {
+              "type": "mcq",
+              "question": "Why are the nervous system and skeletal muscle paired specifically under 'Response to danger' in the table:",
+              "options": {
+                "A": "Threat sensing drives protective movement from harm",
+                "B": "Muscles release insulin during hypoxic emergencies",
+                "C": "Nerves transport glucose across dental enamel directly",
+                "D": "Skeletal fibers secrete oxytocin to start labor"
+              },
+              "correct_answer": "A",
+              "explanation": "Avoiding external hazards preserves internal survival conditions."
+            },
+            {
+              "type": "mcq",
+              "question": "Brain and spinal-cord circuits integrate sensory inputs directly to coordinate which electrical output class:",
+              "options": {
+                "A": "Somatic motor and autonomic visceral responses",
+                "B": "Direct passive diffusion across renal tubules without nerves",
+                "C": "Hepatic synthesis of plasma albumin inside alveoli",
+                "D": "All of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Central nervous circuits issue somatic skeletal motor and autonomic visceral responses, whereas passive alveolar/hepatic synthetic steps are not neural motor outputs."
+            },
+            {
+              "type": "mcq",
+              "question": "Which pairing correctly links a homeostatic need from Page 4 to its supporting systems:",
+              "options": {
+                "A": "Acid-base -> skin & gut; Danger -> kidneys & buffers",
+                "B": "Temperature -> digestive; Hormones -> skeletal muscle",
+                "C": "Nutrition -> digestive & circulation; Blood -> hematologic & CV",
+                "D": "O2/CO2 -> kidneys & skin; Blood -> thyroid & enamel"
+              },
+              "correct_answer": "C",
+              "explanation": "Absorption needs GI+blood delivery; blood composition depends on hematologic+CV tissues."
+            },
+            {
+              "type": "true_false",
+              "question": "Typical reference figures like pH ~7.4 and 37.5 C mean healthy individuals never vary slightly around those averages.",
+              "correct_answer": false,
+              "explanation": "The chapter stresses these are teaching examples rather than absolutely static individual constants."
+            },
+            {
+              "type": "true_false",
+              "question": "Hormonal coordination links endocrine organs with target tissues through circulating blood signals.",
+              "correct_answer": true,
+              "explanation": "Endocrine signals alter organ activity and cellular metabolism across target tissues."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "When applying the 4-question framework to a newly learned reflex, identifying 'Which tissue changed its activity?' locates the:",
+              "options": {
+                "A": "Sensor / detector",
+                "B": "Effector",
+                "C": "Stimulus disturbance",
+                "D": "Controlled variable"
+              },
+              "correct_answer": "B",
+              "explanation": "The tissue altering its output or rate to adjust the variable is the effector."
+            },
+            {
+              "type": "mcq",
+              "question": "Which question in the 4-line framework determines whether a loop is NEGATIVE or POSITIVE feedback:",
+              "options": {
+                "A": "Where did sensory receptors detect the stimulus?",
+                "B": "Which fluid compartment surrounded target cells?",
+                "C": "Did the response reduce the initial increase?",
+                "D": "None of the above"
+              },
+              "correct_answer": "C",
+              "explanation": "Checking if the response diminishes or amplifies the initial change classifies feedback direction."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does Chapter 4 train students to map variable -> sensor -> center -> effector -> direction:",
+              "options": {
+                "A": "It memorizes hormone dosages without understanding loops",
+                "B": "It proves positive feedback holds resting pH 7.4",
+                "C": "It substitutes autonomic nerves with gap junctions",
+                "D": "It gives a repeatable method for analyzing any pathway"
+              },
+              "correct_answer": "D",
+              "explanation": "Thinking in structured control loops unifies all system-level physiology."
+            },
+            {
+              "type": "mcq",
+              "question": "If a blood rise triggers signals that lower that blood variable back down, the 4-step conclusion is:",
+              "options": {
+                "A": "Positive feedback because a signal rose first",
+                "B": "Negative feedback reducing the initial rise",
+                "C": "Non-homeostatic necrosis lacking an effector",
+                "D": "Passive filtration operating without sensors"
+              },
+              "correct_answer": "B",
+              "explanation": "Even when an intermediate signal rises, opposing the original rise defines negative feedback."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "Which statement best distinguishes Claude Bernard's 'internal environment' from ambient external environment:",
+            "options": {
+              "A": "Cells live in buffered ECF (plasma + interstitial fluid)",
+              "B": "Intracellular cytosol connects freely to outside ambient air",
+              "C": "External air bathes internal osteocytes and muscle directly",
+              "D": "Internal environment means chyme inside gut lumen"
+            },
+            "correct_answer": "A",
+            "explanation": "ECF shields tissues inside stable ionic, osmotic, and thermal limits."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is describing homeostasis as 'an unchanging fixed point' scientifically inaccurate:",
+            "options": {
+              "A": "Living cells tolerate zero variation even of 0.01 units",
+              "B": "Variables fluctuate continuously and require active adjustment",
+              "C": "Positive feedback locks resting core temperature fixed",
+              "D": "Effectors permanently shut off soon after birth"
+            },
+            "correct_answer": "B",
+            "explanation": "Controlled variation better reflects dynamic physiological regulation."
+          },
+          {
+            "type": "mcq",
+            "question": "Trace the directional path of information in a standard homeostatic loop:",
+            "options": {
+              "A": "Effector -> Stimulus -> Control center -> Sensor",
+              "B": "Control center -> Deviation -> Sensor -> Fibrin",
+              "C": "Sensor -> Necrosis -> Positive amplification",
+              "D": "Deviation -> Sensor -> Integrating center -> Effector"
+            },
+            "correct_answer": "D",
+            "explanation": "Signals flow from detection to integration to action, feeding back onto the stimulus."
+          },
+          {
+            "type": "mcq",
+            "question": "Which role belongs uniquely to the INTEGRATING CENTER rather than the sensor:",
+            "options": {
+              "A": "Detecting initial physical or chemical variable shifts",
+              "B": "Contracting smooth muscle or secreting milk directly",
+              "C": "Comparing input to target range and planning response",
+              "D": "Polymerizing plasma fibrinogen into fibrin mesh"
+            },
+            "correct_answer": "C",
+            "explanation": "Sensors detect; control centers evaluate and decide responses."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can a hormonal control center operate WITHOUT nerve cables directly touching the target tissue:",
+            "options": {
+              "A": "Hormones circulate in blood to reach distant effectors",
+              "B": "Hormones diffuse solely through apical tight junctions",
+              "C": "Effector cells lack plasma membrane or nuclear receptors",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Endocrine signaling provides blood-borne communication across distant organs."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does negative feedback maintain stability whether a variable rises TOO HIGH or falls TOO LOW:",
+            "options": {
+              "A": "It always pushes every regulated level downward only",
+              "B": "Its response opposes the deviation in either direction",
+              "C": "It converts high plasma solutes straight into thrombin",
+              "D": "It shuts down renal tubules during mild hypertension"
+            },
+            "correct_answer": "B",
+            "explanation": "Bidirectional opposition pulls deviations back toward the normal operating zone."
+          },
+          {
+            "type": "mcq",
+            "question": "During thyroid hormone negative feedback, what prevents runaway hyper-secretion when thyroid levels surge:",
+            "options": {
+              "A": "Anterior pituitary elevates TSH exponentially higher",
+              "B": "Fibrin traps excess thyroid hormone inside blood clots",
+              "C": "Autonomic nerves stop all cardiovascular circulation",
+              "D": "Elevated hormone inhibits upstream TSH stimulation"
+            },
+            "correct_answer": "D",
+            "explanation": "Feedback inhibition automatically throttles thyroid output once levels are sufficient."
+          },
+          {
+            "type": "mcq",
+            "question": "Conversely, what happens in the thyroid negative-feedback loop if circulating thyroid hormone drops below needs:",
+            "options": {
+              "A": "Anterior pituitary halts TSH output permanently",
+              "B": "Positive feedback suppresses thyroid hormone lower",
+              "C": "Reduced inhibition restores stimulatory TSH drive",
+              "D": "Blood buffers convert thyroid hormone into gas"
+            },
+            "correct_answer": "C",
+            "explanation": "Less inhibition restores stimulatory drive until normal hormone levels return."
+          },
+          {
+            "type": "mcq",
+            "question": "Which reasoning accurately classifies water-retention adjustment after dehydration:",
+            "options": {
+              "A": "Negative feedback because conservation opposes deficit",
+              "B": "Positive feedback because conserving hormone levels rise",
+              "C": "Negative feedback only when body temperature nears 40 C",
+              "D": "Not homeostatic whenever renal nephrons participate"
+            },
+            "correct_answer": "A",
+            "explanation": "Increasing an antidiuretic response to counteract a deficit defines negative feedback."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is POSITIVE FEEDBACK described as amplifying rather than stabilizing:",
+            "options": {
+              "A": "It shuts down sensory detectors before task completion",
+              "B": "Its response reinforces the change in the same direction",
+              "C": "It maintains extracellular pH steady around 7.4",
+              "D": "It relies strictly on chemical blood buffers alone"
+            },
+            "correct_answer": "B",
+            "explanation": "Reinforcement accelerates change until a specific stopping event arrives."
+          },
+          {
+            "type": "mcq",
+            "question": "How does thrombin exemplify a positive-feedback molecule in blood coagulation:",
+            "options": {
+              "A": "It lowers blood pressure by dilating muscle arterioles",
+              "B": "It suppresses TSH release inside anterior pituitary",
+              "C": "It moves water into erythrocytes by rapid endosmosis",
+              "D": "It converts fibrinogen to fibrin and boosts clot cascade"
+            },
+            "correct_answer": "D",
+            "explanation": "Self-reinforcing enzyme cascade rapidly builds a hemostatic fibrin mesh."
+          },
+          {
+            "type": "mcq",
+            "question": "Why would runaway positive feedback in normal blood coagulation throughout healthy vessels be catastrophic:",
+            "options": {
+              "A": "It would drop core temperature down toward 25 C",
+              "B": "Unchecked fibrin clots would block vital blood vessels",
+              "C": "It would raise pituitary TSH indefinitely without stop",
+              "D": "It would digest tight junctions via brisk pinocytosis"
+            },
+            "correct_answer": "B",
+            "explanation": "Amplifying cascades must stay localized to vessel injury and stop once bleeding ceases."
+          },
+          {
+            "type": "mcq",
+            "question": "During parturition, why does oxytocin create a self-amplifying loop:",
+            "options": {
+              "A": "Contractions boost oxytocin, driving stronger contractions",
+              "B": "Oxytocin relaxes uterine muscle to halt contractions",
+              "C": "Labor onset suppresses oxytocin before delivery starts",
+              "D": "Pituitary TSH directly blocks oxytocin receptor action"
+            },
+            "correct_answer": "A",
+            "explanation": "Mutual reinforcement drives labor through delivery."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pair matches EACH feedback type to two valid chapter examples:",
+            "options": {
+              "A": "Negative: clotting & labor; Positive: temp & thyroid",
+              "B": "Negative: milk & nutrition; Positive: pH & water",
+              "C": "Negative: thyroid & water; Positive: clotting & milk ejection",
+              "D": "Negative: danger; Positive: resting fluid volume"
+            },
+            "correct_answer": "C",
+            "explanation": "Exact classification matches Section 3 and 4 comparison tables."
+          },
+          {
+            "type": "mcq",
+            "question": "Which THREE body systems coordinate specifically to protect proteins from dangerous ACID-BASE pH swings:",
+            "options": {
+              "A": "Digestive tract, cutaneous skin, and skeletal muscles",
+              "B": "Blood buffers, respiratory system, and kidneys",
+              "C": "Hematologic platelets, anterior pituitary, and bone",
+              "D": "Heart valves, cerebral cortex, and adipose tissue"
+            },
+            "correct_answer": "B",
+            "explanation": "Chemical buffers plus pulmonary CO2 control and renal H+/HCO3- handling regulate pH."
+          },
+          {
+            "type": "mcq",
+            "question": "How do skin, skeletal muscles, nervous system, and circulation cooperate during temperature stress:",
+            "options": {
+              "A": "They coordinate heat transfer and muscle heat output",
+              "B": "They excrete blood buffers directly through alveoli",
+              "C": "They convert synovial fibrinogen into active clots",
+              "D": "They suspend endocrine hormone transport entirely"
+            },
+            "correct_answer": "A",
+            "explanation": "Thermoregulatory coordination protects temperature-sensitive enzyme function."
+          },
+          {
+            "type": "mcq",
+            "question": "Which two systems handle cellular substrate acquisition and delivery under 'Nutrition':",
+            "options": {
+              "A": "Respiratory system and skin",
+              "B": "Kidneys and skeletal muscle",
+              "C": "Digestive system and circulation",
+              "D": "Hematologic platelets and brain stem"
+            },
+            "correct_answer": "C",
+            "explanation": "Digestion extracts nutrients and cardiovascular blood distributes them."
+          },
+          {
+            "type": "mcq",
+            "question": "Which homeostatic category depends heavily on 'Blood buffers' AND ventilation/renal handling:",
+            "options": {
+              "A": "Blood clotting cascade",
+              "B": "Parturition",
+              "C": "Danger reflex",
+              "D": "Acid-base balance"
+            },
+            "correct_answer": "D",
+            "explanation": "Acid-base control combines rapid blood buffering with respiratory and renal adjustments."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does the chapter include 'Response to danger' (nervous system + skeletal muscle) as a homeostatic collaboration:",
+            "options": {
+              "A": "Skeletal fibers secrete insulin during hypoxia",
+              "B": "Escaping external hazards protects internal survival",
+              "C": "Danger safely drops extracellular fluid pH toward 2.0",
+              "D": "Voluntary muscles synthesize pituitary oxytocin"
+            },
+            "correct_answer": "B",
+            "explanation": "External threat avoidance prevents fatal trauma or environmental overload."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do endocrine organs and target tissues appear separately under 'Hormonal coordination':",
+            "options": {
+              "A": "Glands secrete blood signals altering distant targets",
+              "B": "Endocrine glands digest dietary starches locally",
+              "C": "Target organs synthesize mature erythrocytes continuously",
+              "D": "Hormones regulate organs without binding receptors"
+            },
+            "correct_answer": "A",
+            "explanation": "Hormonal signaling tunes metabolism across diverse organs."
+          },
+          {
+            "type": "mcq",
+            "question": "How does the nervous system support BOTH immediate danger responses and quiet internal visceral stability:",
+            "options": {
+              "A": "Somatic nerves form fibrin; blood controls bone growth",
+              "B": "Spinal circuits block every endocrine gland secretion",
+              "C": "Motor output moves muscles; autonomic stabilizes organs",
+              "D": "Nerves deliver dietary glucose without heart pumping"
+            },
+            "correct_answer": "C",
+            "explanation": "Integrating sensory signals yields somatic motor, autonomic, or endocrine outputs."
+          },
+          {
+            "type": "mcq",
+            "question": "Which value illustrates typical extracellular pH vs body temperature in Chapter 4:",
+            "options": {
+              "A": "pH ~6.8 and body temperature ~35.0 C",
+              "B": "pH ~7.4 and body temperature ~37.5 C",
+              "C": "pH ~7.9 and body temperature ~39.5 C",
+              "D": "pH ~5.0 and body temperature ~37.5 C"
+            },
+            "correct_answer": "B",
+            "explanation": "The reference uses ~7.4 and ~37.5 C as standard illustrative ranges."
+          },
+          {
+            "type": "mcq",
+            "question": "Suppose blood CO2 rises, sensors alert brainstem control, ventilation speeds up, and blood CO2 drops back toward normal. This is:",
+            "options": {
+              "A": "Positive feedback",
+              "B": "Uncoupled filtration",
+              "C": "Auto-clotting",
+              "D": "Negative feedback"
+            },
+            "correct_answer": "D",
+            "explanation": "Even though ventilation increased, the final result opposed and lowered the elevated CO2."
+          },
+          {
+            "type": "mcq",
+            "question": "In that high-CO2 breathing scenario, what serves as the INTEGRATING CENTER:",
+            "options": {
+              "A": "Brainstem / spinal-brain neural control circuits",
+              "B": "Blood bicarbonate anions alone",
+              "C": "Inspired alveolar nitrogen gas",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Central neural circuits evaluate chemosensory input and organize breathing effector output."
+          },
+          {
+            "type": "mcq",
+            "question": "Why must effectors in negative-feedback loops allow graded bidirectional adjustment:",
+            "options": {
+              "A": "To switch tissue cells permanently into necrosis",
+              "B": "To raise low variables or lower high ones smoothly",
+              "C": "To freeze circulating fibrinogen inside plasma",
+              "D": "To eliminate interstitial fluid around organs"
+            },
+            "correct_answer": "B",
+            "explanation": "Fine graded adjustments keep internal parameters within narrow functional bands."
+          },
+          {
+            "type": "mcq",
+            "question": "Which comparison between sensor and effector is ACCURATE:",
+            "options": {
+              "A": "Sensor answers 'How to respond?'; Effector detects change",
+              "B": "Sensor contracts muscle; Effector secretes TSH",
+              "C": "Sensor asks 'What changed?'; Effector restores variable",
+              "D": "Both describe identical structures in every loop"
+            },
+            "correct_answer": "C",
+            "explanation": "Exact roles correspond to the Page 2 control-system table."
+          },
+          {
+            "type": "mcq",
+            "question": "What mistake occurs if someone explains homeostasis using ONLY a single organ like the kidney:",
+            "options": {
+              "A": "No one organ controls gases, heat, danger, and diet",
+              "B": "Kidneys initiate every uterine labor contraction",
+              "C": "Kidneys digest dietary lipids and carbohydrates",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Whole-body homeostasis requires multi-system teamwork."
+          },
+          {
+            "type": "mcq",
+            "question": "Which set of four systems regulates WATER and ELECTROLYTES according to the Page 4 table:",
+            "options": {
+              "A": "Nervous system, teeth, bone, and lungs",
+              "B": "Thyroid, thrombin, muscle, and plasma only",
+              "C": "Platelets, fibrin, lungs, and brain",
+              "D": "Kidneys, skin, gut, and hormonal control"
+            },
+            "correct_answer": "D",
+            "explanation": "Fluid intake, sweat loss, renal balance, and endocrine regulation sustain osmolarity and volume."
+          },
+          {
+            "type": "mcq",
+            "question": "When applying the Page 5 four-line control-loop method to a fallen blood variable, what fourth check classifies it:",
+            "options": {
+              "A": "Did plasma proteins exceed 250 mmHg?",
+              "B": "Did the response oppose the fall or worsen it?",
+              "C": "Did macrophage phagocytosis engulf red cells?",
+              "D": "Did Claude Bernard coin coagulation?"
+            },
+            "correct_answer": "B",
+            "explanation": "Comparing output direction against initial change identifies negative vs positive feedback."
+          },
+          {
+            "type": "mcq",
+            "question": "How do hematologic and cardiovascular systems collaborate under 'Blood composition':",
+            "options": {
+              "A": "Platelets pump blood independently of myocardium",
+              "B": "Dermal vessels synthesize red blood cells constantly",
+              "C": "Blood factors transport cargo; circulation moves blood",
+              "D": "Endocrine glands manufacture dissolved oxygen gas"
+            },
+            "correct_answer": "C",
+            "explanation": "Blood components and vascular flow sustain systemic gas, nutrient, and waste transport."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is enzyme kinetics vulnerable when acid-base or temperature homeostasis fails:",
+            "options": {
+              "A": "Enzyme shape and rates depend on pH and temperature",
+              "B": "Enzymes catalyze faster when denatured near pH 2.0",
+              "C": "Severe hyperthermia builds ATP without limits",
+              "D": "Strong acid strengthens clathrin coated vesicles"
+            },
+            "correct_answer": "A",
+            "explanation": "Cellular biochemistry operates optimally inside narrow thermal and pH bands."
+          },
+          {
+            "type": "mcq",
+            "question": "Which hormone pair belongs to TWO DIFFERENT feedback examples in Chapter 4:",
+            "options": {
+              "A": "TSH and thyroid hormone (both positive examples)",
+              "B": "TSH (negative thyroid) and oxytocin (positive labor)",
+              "C": "Oxytocin and thrombin (both negative examples)",
+              "D": "Thrombin and fibrin (both negative examples)"
+            },
+            "correct_answer": "B",
+            "explanation": "TSH participates in negative thyroid regulation; oxytocin participates in positive labor/milk loops."
+          },
+          {
+            "type": "mcq",
+            "question": "If an effector restores variable X to normal and eliminates the error, what happens next:",
+            "options": {
+              "A": "Effector continues driving maximally without stop",
+              "B": "Variable X rebounds into permanent overshoot",
+              "C": "Positive feedback overtakes normal temperature",
+              "D": "Sensory error input drops, tapering effector output"
+            },
+            "correct_answer": "D",
+            "explanation": "Negative feedback self-terminates proportionally as equilibrium is restored."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does the chapter caution that 'control center does not always need to be one anatomical location':",
+            "options": {
+              "A": "Endocrine axes and neural networks integrate distinct variables",
+              "B": "Mammals lack brain or spinal integrating centers",
+              "C": "Plasma proteins act directly as central neurons",
+              "D": "Sensory receptors lack cell membrane channels"
+            },
+            "correct_answer": "A",
+            "explanation": "Control logic can reside in neural networks or distributed endocrine organs."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement summarizes Chapter 4's core principle:",
+            "options": {
+              "A": "Rigid static constants maintain atmospheric lung air",
+              "B": "Multi-system feedback keeps ECF dynamically stable",
+              "C": "Positive feedback governs all daily blood electrolytes",
+              "D": "Only cardiac myocardium preserves internal stability"
+            },
+            "correct_answer": "B",
+            "explanation": "Dynamic multi-system regulation sustains cellular life."
+          },
+          {
+            "type": "mcq",
+            "question": "What connects Chapter 3 (membrane transport) logically to Chapter 4 (homeostasis):",
+            "options": {
+              "A": "Membrane pumps halt whenever homeostasis succeeds",
+              "B": "Negative feedback stops passive simple diffusion",
+              "C": "Membrane function requires homeostatic ECF composition",
+              "D": "Homeostasis dissolves the phospholipid bilayer"
+            },
+            "correct_answer": "C",
+            "explanation": "Cellular transport functions properly only inside a homeostatically maintained ECF."
+          },
+          {
+            "type": "mcq",
+            "question": "Which option includes ALL fluid components of Claude Bernard's internal environment:",
+            "options": {
+              "A": "Plasma",
+              "B": "Interstitial fluid",
+              "C": "Nuclear chromatin",
+              "D": "Both A and B"
+            },
+            "correct_answer": "D",
+            "explanation": "Plasma and interstitial fluid together constitute the extracellular internal environment."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does positive feedback generally serve acute events rather than long-term daily balance:",
+            "options": {
+              "A": "It reverses slight deviations every millisecond",
+              "B": "It amplifies change until an endpoint stops the loop",
+              "C": "It excludes hormonal and neural communication",
+              "D": "It works solely during resting electrolyte balance"
+            },
+            "correct_answer": "B",
+            "explanation": "Clotting and childbirth are short-term processes ending in completion."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does cardiovascular circulation appear across temperature, nutrition, gas, and blood-composition rows:",
+            "options": {
+              "A": "Blood flow transports heat, nutrients, gases, and wastes",
+              "B": "Myocardium digests ingested dietary carbohydrates directly",
+              "C": "Arteries secrete thyroid-stimulating hormone continuously",
+              "D": "Veins exchange respiratory O2 across skin epidermis"
+            },
+            "correct_answer": "A",
+            "explanation": "Circulation distributes blood gases, nutrients, heat, and wastes across multiple homeostatic loops."
+          },
+          {
+            "type": "mcq",
+            "question": "What distinguishes autonomic nervous control from somatic response to external danger:",
+            "options": {
+              "A": "Autonomic relies strictly on conscious limb movement",
+              "B": "Somatic fibers regulate thyroid hormone breakdown directly",
+              "C": "Autonomic works involuntarily on organs; somatic moves limbs",
+              "D": "Both require zero brain or spinal sensory integration"
+            },
+            "correct_answer": "C",
+            "explanation": "The autonomic nervous system mediates ongoing involuntary control of internal organs."
+          },
+          {
+            "type": "true_false",
+            "question": "Interstitial fluid lies outside blood vessels directly around body cells and forms part of the internal environment.",
+            "correct_answer": true,
+            "explanation": "Both plasma and interstitial fluid make up the extracellular internal environment."
+          },
+          {
+            "type": "true_false",
+            "question": "In negative feedback, increasing the activity of an effector gland cannot occur because negative means lowering every signal.",
+            "correct_answer": false,
+            "explanation": "Negative means opposing the initial disturbance; glands frequently increase secretion to oppose a deficit."
+          },
+          {
+            "type": "true_false",
+            "question": "Thrombin promotes positive-feedback amplification during blood coagulation by helping convert fibrinogen into fibrin.",
+            "correct_answer": true,
+            "explanation": "Positive feedback accelerates clot assembly after injury."
+          },
+          {
+            "type": "true_false",
+            "question": "Parturition and milk ejection are physiological contexts where oxytocin participates in negative feedback.",
+            "correct_answer": false,
+            "explanation": "Both labor contractions and milk ejection represent oxytocin-driven positive feedback."
+          },
+          {
+            "type": "true_false",
+            "question": "Hormonal signals carried in blood can connect integrating centers to distant effectors.",
+            "correct_answer": true,
+            "explanation": "Both neural impulses and circulating hormones relay homeostatic signals."
+          },
+          {
+            "type": "true_false",
+            "question": "Acid-base balance relies exclusively on blood buffers without kidney or lung participation.",
+            "correct_answer": false,
+            "explanation": "Blood buffers, respiratory ventilation, and renal excretion act cooperatively."
+          },
+          {
+            "type": "true_false",
+            "question": "Nervous system sensory input can elicit motor, autonomic, or endocrine outputs depending on the demand.",
+            "correct_answer": true,
+            "explanation": "Brain and spinal circuits coordinate somatic, autonomic, and hormonal responses."
+          },
+          {
+            "type": "true_false",
+            "question": "A pH of ~7.4 and body temperature of ~37.5 C guarantee identical constant readings in every organ and person at all moments.",
+            "correct_answer": false,
+            "explanation": "They are illustrative normal teaching values around which controlled variation occurs."
+          },
+          {
+            "type": "true_false",
+            "question": "Thinking in control loops checks only hormone levels and ignores whether the response opposes the change.",
+            "correct_answer": false,
+            "explanation": "The 4-part analysis checks sensor, integrating center, effector, and whether the response opposes the initial change."
+          },
+          {
+            "type": "true_false",
+            "question": "Without water and electrolyte homeostasis, osmotic balance and fluid volume around cells become unstable.",
+            "correct_answer": true,
+            "explanation": "Kidneys, gut, skin, and hormones protect osmotic stability and fluid volume."
+          }
+        ]
+      }
+    },
+    "hard": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why did Claude Bernard emphasize an 'internal environment' (ECF) when external weather and diet fluctuate widely:",
+              "options": {
+                "A": "Parenchymal cells contact ambient external atmospheric humidity directly",
+                "B": "Plasma and interstitial fluid insulate cells from external shifts",
+                "C": "Extracellular fluid lacks dissolved ions so shifts cannot happen",
+                "D": "Intracellular organelles survive extreme boiling temperatures unaided"
+              },
+              "correct_answer": "B",
+              "explanation": "A regulated ECF buffer permits complex multicellular life in variable external habitats."
+            },
+            {
+              "type": "mcq",
+              "question": "If a physiological parameter stayed mathematically frozen with zero oscillation, why would that contradict modern homeostasis:",
+              "options": {
+                "A": "Homeostasis achieves controlled variation via ongoing feedback",
+                "B": "Healthy living cells must halt metabolic catalysis completely",
+                "C": "Homeostatic sensors operate only when blood stops circulating",
+                "D": "Claude Bernard proposed eliminating all transmembrane transport"
+              },
+              "correct_answer": "A",
+              "explanation": "Dynamic balance continuously adapts to metabolic and environmental shifts."
+            },
+            {
+              "type": "mcq",
+              "question": "A novel control pathway lacks an effector even though its sensor detects deviations and its center computes a response. What fails:",
+              "options": {
+                "A": "The sensor ceases detecting incoming physical or chemical signals",
+                "B": "Positive feedback repairs the missing tissue effector automatically",
+                "C": "Interstitial fluid evaporates instantly out of capillary walls",
+                "D": "No organ or gland alters activity to correct the variable"
+              },
+              "correct_answer": "D",
+              "explanation": "Without an effector, corrective computations cannot change the physiological variable."
+            },
+            {
+              "type": "mcq",
+              "question": "Suppose a drug blinds the SENSOR of a homeostatic loop while the integrating center and effector stay intact. What occurs:",
+              "options": {
+                "A": "The effector corrects deviations faster without sensory input",
+                "B": "The control center generates exact variable measurements itself",
+                "C": "Positive feedback automatically converts the loop back to normal range",
+                "D": "None of the above"
+              },
+              "correct_answer": "D",
+              "explanation": "Without sensory detection the regulated variable drifts out of range; none of the listed compensatory claims happen."
+            },
+            {
+              "type": "mcq",
+              "question": "Which statement captures the cybernetic logic linking Sensor -> Control center -> Effector -> Feedback:",
+              "options": {
+                "A": "Feedback forces effectors to ignore the regulated variable",
+                "B": "Feedback reports effector results to scale and stop correction",
+                "C": "Control centers skip comparing measurements against target limits",
+                "D": "Effectors convert permanently into sensory receptor endings"
+              },
+              "correct_answer": "B",
+              "explanation": "Closed-loop feedback self-monitors the impact of corrective action."
+            },
+            {
+              "type": "mcq",
+              "question": "Why is ECF divided specifically into PLASMA and INTERSTITIAL FLUID when explaining exchange homeostasis:",
+              "options": {
+                "A": "Plasma sits exclusively inside nuclei; interstitial fluid sits in gut",
+                "B": "Only plasma albumin proteins enter intact cell mitochondria",
+                "C": "Interstitial fluid bathes cells while plasma circulates and exchanges",
+                "D": "Interstitial fluid contains zero dissolved water or nutrients"
+              },
+              "correct_answer": "C",
+              "explanation": "Exchange across capillary walls links systemic circulation (plasma) to cellular surfaces (interstitial fluid)."
+            },
+            {
+              "type": "true_false",
+              "question": "Even when an effector completely corrects a deviation, a homeostatic sensor must continue monitoring the variable in case future disturbances arise.",
+              "correct_answer": true,
+              "explanation": "Continuous surveillance maintains dynamic stability across changing metabolic states."
+            },
+            {
+              "type": "true_false",
+              "question": "An open-loop response with no feedback path from effector output back to sensor still qualifies as self-correcting negative feedback.",
+              "correct_answer": false,
+              "explanation": "Without feedback monitoring the modified variable, the loop cannot tell whether the disturbance was corrected."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "A patient has an intact pituitary, yet the thyroid gland cannot synthesize thyroid hormone. What happens to TSH:",
+              "options": {
+                "A": "Absent hormone inhibition leaves TSH drive rising higher",
+                "B": "TSH falls to zero because circulating thyroid hormone stays high",
+                "C": "Positive feedback pushes thyroid hormone past toxic boundaries",
+                "D": "Thrombin inhibits anterior pituitary TSH output directly"
+              },
+              "correct_answer": "A",
+              "explanation": "When negative feedback inhibition from end-hormone falls absent, upstream stimulation rises."
+            },
+            {
+              "type": "mcq",
+              "question": "Conversely, if a patient ingests excessive exogenous thyroid hormone tablets, what happens to endogenous TSH via negative feedback:",
+              "options": {
+                "A": "TSH rises sharply to double endogenous thyroid gland synthesis",
+                "B": "High circulating thyroid hormone inhibits stimulatory TSH drive",
+                "C": "Pituitary oxytocin replaces TSH in regulating basal metabolism",
+                "D": "Water balance converts immediately into positive feedback loops"
+              },
+              "correct_answer": "B",
+              "explanation": "Excess end-product strongly suppresses upstream pituitary drive."
+            },
+            {
+              "type": "mcq",
+              "question": "Why do students misclassify compensatory increases (like stronger hormone secretion in deficits) as POSITIVE feedback:",
+              "options": {
+                "A": "Compensatory sweating always pushes core temperature even higher",
+                "B": "Water deprivation activates the fibrinogen coagulation pathway",
+                "C": "They look at effector rise rather than opposition to stimulus",
+                "D": "Negative feedback only lowers every effector signal without exception"
+              },
+              "correct_answer": "C",
+              "explanation": "The defining test is whether the output counters the starting deviation."
+            },
+            {
+              "type": "mcq",
+              "question": "Why would turning blood clotting into NEGATIVE feedback or water balance into POSITIVE feedback be fatal:",
+              "options": {
+                "A": "Halted clotting causes hemorrhage; amplified water loss collapses volume",
+                "B": "Negative feedback permanently arrests respiratory gas exchange",
+                "C": "Positive feedback stops all uterine contractions during birth",
+                "D": "Blood buffers work faster than renal conservation during drought"
+              },
+              "correct_answer": "A",
+              "explanation": "Each biological problem dictates whether stabilization or rapid endpoint amplification is adaptive."
+            },
+            {
+              "type": "mcq",
+              "question": "During labor, why does the oxytocin loop qualify as positive feedback EVEN THOUGH birth eventually terminates it:",
+              "options": {
+                "A": "Oxytocin immediately suppresses uterine contraction before delivery",
+                "B": "Contractions and oxytocin reinforce each other until delivery ends it",
+                "C": "Fibrin polymerization dissolves smooth muscle receptors at birth",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Temporary self-amplification driving toward an external termination milestone (delivery) defines physiological positive feedback."
+            },
+            {
+              "type": "mcq",
+              "question": "In blood coagulation, thrombin converting fibrinogen -> fibrin while stimulating upstream steps illustrates how positive feedback produces:",
+              "options": {
+                "A": "A systemic body-wide drop in extracellular fluid pH",
+                "B": "Constant renal filtration pressure across body glomeruli",
+                "C": "Sustained negative inhibition of pituitary TSH release",
+                "D": "A rapid localized fibrin clot sealing vascular injury"
+              },
+              "correct_answer": "D",
+              "explanation": "Positive amplification accelerates localized clot formation."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does the sheet note that different variables may be controlled by DIFFERENT organ networks rather than one gland:",
+              "options": {
+                "A": "Control networks match the tissues, speed, and signals needed",
+                "B": "Anterior pituitary directly contracts every skeletal fiber",
+                "C": "Renal tubules secrete oxytocin during routine mineral control",
+                "D": "Sensory detectors lack neural or endocrine communication paths"
+              },
+              "correct_answer": "A",
+              "explanation": "Control architecture matches the speed and tissue distribution needed by each variable."
+            },
+            {
+              "type": "mcq",
+              "question": "In thyroid regulation, if a receptor mutation blocks thyroid hormone from inhibiting the pituitary, the break causes:",
+              "options": {
+                "A": "Complete immediate shutdown of renal body water homeostasis",
+                "B": "Widespread fibrinogen clotting inside healthy capillary beds",
+                "C": "Lost negative feedback inhibition and persistent axis stimulation",
+                "D": "Lower pituitary TSH despite absent hormone receptor signaling"
+              },
+              "correct_answer": "C",
+              "explanation": "Blocking the inhibitory feedback limb removes the brake on TSH secretion."
+            },
+            {
+              "type": "true_false",
+              "question": "If a positive-feedback loop has NO built-in physiological endpoint or external stop event, it tends to destabilize the organism rather than restore homeostasis.",
+              "correct_answer": true,
+              "explanation": "Without termination such as clot completion or delivery, progressive amplification worsens instability."
+            },
+            {
+              "type": "true_false",
+              "question": "Negative and positive feedback share the exact same physiological purpose of keeping variables steady long-term.",
+              "correct_answer": false,
+              "explanation": "Negative feedback maintains steady ranges long-term, whereas positive feedback drives acute processes to completion."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "A patient has severe renal failure AND pulmonary hypoventilation together. Why does ECF pH drop sharply despite blood buffers:",
+              "options": {
+                "A": "Blood buffers automatically raise core body temperature toward 45 C",
+                "B": "Buffers overload when lungs and kidneys fail to clear acid",
+                "C": "Healthy kidneys normally neutralize inspired oxygen with fibrin",
+                "D": "Cutaneous epidermis alone maintains systemic blood pH near 7.4"
+              },
+              "correct_answer": "B",
+              "explanation": "Buffers act first, but sustained pH ~7.4 requires respiratory CO2 elimination and renal acid-base adjustment."
+            },
+            {
+              "type": "mcq",
+              "question": "Why would prolonged fever well above ~37.5 C endanger cellular survival according to Page 4:",
+              "options": {
+                "A": "High temperature disrupts enzyme activity and cell function",
+                "B": "Severe fever eliminates extracellular sodium gradients instantly",
+                "C": "Skin epidermis transforms skeletal fibers into fibrin clots",
+                "D": "High temperature stimulates excess pituitary TSH permanently"
+              },
+              "correct_answer": "A",
+              "explanation": "Enzyme and cellular functions are tightly temperature-dependent."
+            },
+            {
+              "type": "mcq",
+              "question": "If digestive nutrient absorption stops OR cardiovascular circulation fails, why does cellular nutrition fail in BOTH cases:",
+              "options": {
+                "A": "Cardiac circulation synthesizes glucose inside red blood cells",
+                "B": "Nutrition needs both gut absorption and circulatory delivery",
+                "C": "Digestive gut pumps absorbed starch directly through ambient air",
+                "D": "Renal nephrons digest dietary fats and proteins during shock"
+              },
+              "correct_answer": "B",
+              "explanation": "Cooperation between uptake and transport systems is mandatory."
+            },
+            {
+              "type": "mcq",
+              "question": "When skin sweats and vessels dilate while lungs clear CO2 and muscles burn fuel, which specific response pair restores CORE TEMPERATURE:",
+              "options": {
+                "A": "Sweating and cutaneous vasodilation coordinated by nervous circuits and skin",
+                "B": "Alveolar fibrinogen conversion into an insoluble fibrin clot",
+                "C": "Renal oxytocin secretion shrinking skeletal muscle mass",
+                "D": "All of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Skin blood vessels and sweat glands regulated by nervous system loops manage core temperature, unlike clotting or oxytocin."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does severe diarrheal loss of gut fluid threaten BOTH 'Water and electrolytes' AND 'Blood composition' in the table:",
+              "options": {
+                "A": "Diarrhea selectively initiates pituitary oxytocin milk ejection",
+                "B": "Intestinal epithelium controls alveolar CO2 exchange alone",
+                "C": "Water depletion alters extracellular pH exclusively via bone",
+                "D": "Fluid depletion shrinks plasma volume and osmotic balance"
+              },
+              "correct_answer": "D",
+              "explanation": "ECF volume links intestinal fluid balance directly to intravascular plasma volume and transport."
+            },
+            {
+              "type": "mcq",
+              "question": "Which functional distinction explains how somatic motor responses complement autonomic pathways in nervous homeostasis:",
+              "options": {
+                "A": "Autonomic pathways move skeletal limbs; somatic secretes TSH",
+                "B": "Somatic peripheral nerves manufacture chemical blood buffers",
+                "C": "Autonomic tunes internal organs; somatic escapes danger",
+                "D": "Neither pathway depends on central spinal-brain integration"
+              },
+              "correct_answer": "C",
+              "explanation": "Central neural integration recruits both involuntary visceral control and protective skeletal action."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does the reference caution that pH ~7.4 and temp ~37.5 C are 'teaching examples rather than a promise of a single fixed value':",
+              "options": {
+                "A": "Healthy extracellular pH fluctuates hourly between 2.0 and 12.0",
+                "B": "Normal variables fluctuate within safe dynamic ranges",
+                "C": "Circulating hormones turn off all central temperature sensors",
+                "D": "Homeostatic effectors adjust variables only once per month"
+              },
+              "correct_answer": "B",
+              "explanation": "Ranges and controlled fluctuations distinguish biology from rigid nonliving constants."
+            },
+            {
+              "type": "mcq",
+              "question": "During exercise, working muscles generate CO2 and heat; if cardiovascular circulation fails while alveolar breathing continues briefly, what downstream breakdown happens FIRST:",
+              "options": {
+                "A": "Epidermal sweat glands convert muscle CO2 into extracellular bicarbonate",
+                "B": "Autonomic brain stem nerves deliver atmospheric O2 directly without blood",
+                "C": "Tissues retain CO2 and miss O2 and heat transfer despite functioning lungs",
+                "D": "Oxytocin positive feedback restores arterial O2 delivery within seconds"
+              },
+              "correct_answer": "C",
+              "explanation": "Respiratory gas exchange and cardiovascular circulation form an essential sequential chain for O2/CO2 and thermal transport."
+            },
+            {
+              "type": "mcq",
+              "question": "Why must hormonal coordination (endocrine organs -> target tissues) complement faster nervous signals in homeostasis:",
+              "options": {
+                "A": "Autonomic nerves cannot innervate organs below the diaphragm",
+                "B": "Circulating hormones convert positive loops into apoptosis",
+                "C": "Endocrine organs adjust metabolism without vascular blood flow",
+                "D": "Hormones broadcast sustained organ and metabolic tuning via blood"
+              },
+              "correct_answer": "D",
+              "explanation": "Fast neural adjustments and sustained hormonal tuning work together."
+            },
+            {
+              "type": "true_false",
+              "question": "Because ~7.4 pH and ~37.5 C are vital homeostatic targets, healthy physiology keeps both values frozen without any minor dynamic shift.",
+              "correct_answer": false,
+              "explanation": "Chapter 4 emphasizes controlled dynamic variation around ranges rather than frozen single numbers."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Apply the 4-question box on Page 5 to a sudden rise in a blood variable: what links steps 1 through 4 in order:",
+              "options": {
+                "A": "Blood clot -> capillary shear -> bone marrow -> necrosis",
+                "B": "Sensor -> signal/center -> tissue effector -> response sign",
+                "C": "Effector -> target range -> external climate -> cell lysis",
+                "D": "Plasma osmosis -> desmosome -> phagocytosis -> apoptosis"
+              },
+              "correct_answer": "B",
+              "explanation": "Identifying sensor, signal/center, effector tissue, and whether the response opposes the rise solves any loop."
+            },
+            {
+              "type": "mcq",
+              "question": "Using the 4-step 'For an increased blood variable' check, suppose the effector pushes that blood variable EVEN HIGHER. Step 4 proves:",
+              "options": {
+                "A": "It is positive feedback because it reinforces the rise",
+                "B": "It is negative feedback because a signal rose first",
+                "C": "It lacks any sensor or tissue effector component",
+                "D": "It maintains the variable flat without amplification"
+              },
+              "correct_answer": "A",
+              "explanation": "Step 4 ('Did the response reduce that increase?') separates negative (reduces) from positive (reinforces)."
+            },
+            {
+              "type": "mcq",
+              "question": "Why is skipping 'Which tissue changed its activity?' in a control-loop analysis a major error:",
+              "options": {
+                "A": "Effector tissues replace sensory receptors in positive loops",
+                "B": "Only cerebral cortex changes electrical state during loops",
+                "C": "Without the effector output, you miss how the variable changes",
+                "D": "None of the above"
+              },
+              "correct_answer": "C",
+              "explanation": "Linking control signals to actual organ/gland/tissue effector action completes the causal mechanism."
+            },
+            {
+              "type": "true_false",
+              "question": "Any physiological control loop studied across later body-system chapters can be analyzed systematically by naming variable, sensor, integrating center, effector, and feedback sign.",
+              "correct_answer": true,
+              "explanation": "That universal framework on page 5 prepares students for all systemic physiology units."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "If a patient's internal environment (plasma + interstitial fluid) loses regulation while external ambient conditions remain mild, cells still fail because:",
+            "options": {
+              "A": "Tissue cells die only when outside room air drops below 0 C",
+              "B": "Ongoing cell metabolism shifts ECF ions, pH, nutrients, and wastes",
+              "C": "Internal extracellular fluid contains neither ions nor water",
+              "D": "Claude Bernard demonstrated that living cells rarely metabolize"
+            },
+            "correct_answer": "B",
+            "explanation": "Internal metabolic activity constantly perturbs ECF unless homeostatic loops counteract it."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement reconciles 'controlled variation' with numerical benchmarks like pH ~7.4 and temp ~37.5 C:",
+            "options": {
+              "A": "Variables sit frozen at exact decimals with zero molecular shift",
+              "B": "Positive feedback sweeps extracellular pH across wide extremes",
+              "C": "Endocrine hormones disable sensors once 37.5 C is reached",
+              "D": "Benchmarks mark normal centers kept bounded by active feedback"
+            },
+            "correct_answer": "D",
+            "explanation": "Homeostasis maintains bounded dynamic stability rather than dead stillness."
+          },
+          {
+            "type": "mcq",
+            "question": "If an endocrine EFFECTOR tumor secretes hormone autonomously regardless of control-center signals, what occurs:",
+            "options": {
+              "A": "High hormone inhibits pituitary drive while tumor output stays high",
+              "B": "Intact negative feedback forces the autonomous tumor to shrink",
+              "C": "Homeostatic sensors become permanently blind to blood hormones",
+              "D": "Positive feedback converts anterior pituitary TSH into thrombin"
+            },
+            "correct_answer": "A",
+            "explanation": "Intact negative feedback suppresses normal pituitary drive even when an autonomous effector ignores control."
+          },
+          {
+            "type": "mcq",
+            "question": "In a negative-feedback thyroid loop, a clinician measures LOW circulating thyroid hormone TOGETHER WITH LOW TSH. Where is the primary break:",
+            "options": {
+              "A": "Autonomous thyroid gland tumor secretes excessive hormone",
+              "B": "Upstream control axis fails to boost TSH despite low hormone",
+              "C": "Runaway positive feedback driven by oxytocin receptor activation",
+              "D": "Accelerated blood coagulation trapping fibrinogen inside plasma"
+            },
+            "correct_answer": "B",
+            "explanation": "Normal negative feedback responds to low thyroid hormone by raising TSH; low TSH points to failed upstream drive."
+          },
+          {
+            "type": "mcq",
+            "question": "Contrast two hormone increases: (1) Pituitary raises TSH when thyroid hormone falls; (2) Oxytocin rises as labor strengthens:",
+            "options": {
+              "A": "Case 1 opposes a deficit (negative); Case 2 amplifies (positive)",
+              "B": "Both represent positive feedback because blood hormone rises",
+              "C": "Both represent negative feedback because pituitary releases both",
+              "D": "Case 1 terminates exclusively after parturition completes"
+            },
+            "correct_answer": "A",
+            "explanation": "Feedback classification depends on effect relative to the initiating disturbance."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can thrombin-driven positive feedback succeed safely in vessel injury whereas systemic runaway fever is dangerous:",
+            "options": {
+              "A": "Thrombin directly clamps core body temperature at 37.5 C",
+              "B": "Extreme fever accelerates catalytic enzyme stability safely",
+              "C": "Clotting stays localized to the wound until bleeding stops",
+              "D": "Vessel coagulation proceeds completely without blood enzymes"
+            },
+            "correct_answer": "C",
+            "explanation": "Self-limiting endpoint plus localization keeps hemostatic positive feedback protective."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pair of physiological disruptions would MOST DIRECTLY trigger acute protein dysfunction via pH (~7.4) or temp (~37.5 C):",
+            "options": {
+              "A": "Normal suckling milk ejection AND mild post-meal hunger",
+              "B": "Normal oral water intake AND quiet tidal breathing",
+              "C": "Resting anterior pituitary inhibition at normal thyroid levels",
+              "D": "Combined renal/lung failure AND severe hyperthermia"
+            },
+            "correct_answer": "D",
+            "explanation": "Extreme acid-base or thermal excursions directly destabilize protein structure and enzyme catalysis."
+          },
+          {
+            "type": "mcq",
+            "question": "Suppose a toxin selectively destroys AUTONOMIC efferents while preserving sensory and somatic motor nerves:",
+            "options": {
+              "A": "Internal visceral organs self-regulate faster without nerves",
+              "B": "Danger escape stays intact while visceral regulation fails",
+              "C": "Voluntary skeletal muscles become paralyzed during danger",
+              "D": "Plasma thrombin immediately stops polymerizing fibrinogen"
+            },
+            "correct_answer": "B",
+            "explanation": "Autonomic pathways provide involuntary visceral effectors; somatic nerves supply voluntary danger escape."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do 'Water and electrolytes' rely simultaneously on kidneys, skin, gut, and hormones in the Page 4 matrix:",
+            "options": {
+              "A": "Intake, sweat loss, renal excretion, and hormones set balance",
+              "B": "Epidermal skin pumps water out while gut absorbs atmospheric O2",
+              "C": "Renal glomeruli secrete oxytocin during aerobic exercise",
+              "D": "Electrolytes diffuse freely only across mineralized cortical bone"
+            },
+            "correct_answer": "A",
+            "explanation": "Balancing inputs, losses, and neuroendocrine setpoints stabilizes osmotic pressure and fluid volume."
+          },
+          {
+            "type": "mcq",
+            "question": "If pulmonary gas exchange fails completely, how does that impair BOTH 'Oxygen / carbon dioxide' AND 'Acid-base balance' rows together:",
+            "options": {
+              "A": "Alveolar membranes store all systemic glucose and calcium ions",
+              "B": "Ventilatory failure lowers hepatic fibrinogen production directly",
+              "C": "CO2 retention builds acid while O2 lack starves cell energy",
+              "D": "Inspired oxygen serves as the body's main chemical buffer"
+            },
+            "correct_answer": "C",
+            "explanation": "Respiratory ventilation clears both metabolic waste CO2 and acid load."
+          },
+          {
+            "type": "mcq",
+            "question": "Which experimental proof confirms that the Integrating Center compares sensory reports against a target range:",
+            "options": {
+              "A": "Removing cardiovascular blood flow proves sensors act alone",
+              "B": "Shifting the center's setpoint alters steady regulated values",
+              "C": "Injecting exogenous oxytocin reverses acute water dehydration",
+              "D": "Paralyzing skeletal muscles halts renal electrolyte excretion"
+            },
+            "correct_answer": "B",
+            "explanation": "Resetting target thresholds shifts the steady value achieved by the same effectors."
+          },
+          {
+            "type": "mcq",
+            "question": "In a homeostatic control loop, why must signals between sensor -> integrator -> effector act faster than the drift:",
+            "options": {
+              "A": "Circulating hormones lose biological activity after five minutes",
+              "B": "Negative feedback reverses into positive after ten seconds",
+              "C": "Extracellular pH plunges to 1.0 within one breath hold",
+              "D": "Slow signaling allows wide overshoot or severe organ harm"
+            },
+            "correct_answer": "D",
+            "explanation": "Timely signaling prevents unstable oscillations or irreversible organ injury."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is extracellular fluid composition tightly linked to Chapter 3's Na+/K+-ATPase and osmosis principles:",
+            "options": {
+              "A": "ECF ions and osmolarity govern excitability and water shifts",
+              "B": "Na+/K+-ATPase directly secretes oxytocin from the pituitary",
+              "C": "Whole-body homeostasis replaces cell bilayers with bone matrix",
+              "D": "Thrombin fluctuations drive normal red cell endosmosis"
+            },
+            "correct_answer": "A",
+            "explanation": "Cell survival relies on ECF Na+, water, pH, and temperature staying within homeostatic limits."
+          },
+          {
+            "type": "mcq",
+            "question": "Apply the 4-line control framework to hyperventilation clearing excess blood CO2/acid:",
+            "options": {
+              "A": "Bone sensors activate thrombin in a positive clotting loop",
+              "B": "Brainstem drives lungs to blow off CO2, opposing the rise",
+              "C": "Thyroid senses acid and signals gut oxytocin release",
+              "D": "Red cell nuclei buffer gas in an open uncoupled reflex"
+            },
+            "correct_answer": "B",
+            "explanation": "Respiration lowers excess CO2 and counteracts the original acid/CO2 rise."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does the sheet highlight BOTH nervous impulses and blood-borne hormones on page 3:",
+            "options": {
+              "A": "Peripheral nerves carry O2 while blood hormones carry CO2",
+              "B": "Endocrine hormones travel strictly through epithelial tight junctions",
+              "C": "Nerves give fast local control; hormones broadcast wider action",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "Dual communication scales speed and reach across physiological demands."
+          },
+          {
+            "type": "mcq",
+            "question": "Suppose an antibody blocks uterine oxytocin receptors during active labor. What happens to the positive-feedback loop:",
+            "options": {
+              "A": "Pituitary TSH takes over sustained uterine contractions instead",
+              "B": "Thrombin converts pituitary oxytocin into insoluble fibrin",
+              "C": "Maternal core temperature plunges immediately down to 25 C",
+              "D": "Oxytocin cannot boost contractions, breaking amplification"
+            },
+            "correct_answer": "D",
+            "explanation": "Effector receptor blockade interrupts positive-feedback amplification."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement exposes a subtle error: 'Because homeostatic variables return to normal, the sensor stops functioning':",
+            "options": {
+              "A": "Sensors monitor continuously; matched target lowers error drive",
+              "B": "Sensory endings dissolve by macrophage phagocytosis at equilibrium",
+              "C": "Effector organs transform permanently into new sensors",
+              "D": "Positive feedback shuts resting detectors off after delivery"
+            },
+            "correct_answer": "A",
+            "explanation": "Resting equilibrium represents active zero-error monitoring, not sensor destruction."
+          },
+          {
+            "type": "mcq",
+            "question": "During intense skeletal muscle exercise in danger escape, why do circulatory and respiratory adjustments scale upward together:",
+            "options": {
+              "A": "Active skeletal fibers convert inspired O2 into plasma fibrin",
+              "B": "Higher O2 use, CO2 output, and heat need perfusion and heat loss",
+              "C": "Kidneys shut down permanently whenever skeletal muscles contract",
+              "D": "Endocrine glands halt circulating signals throughout exercise"
+            },
+            "correct_answer": "B",
+            "explanation": "Multi-system recruitment matches metabolic flux without breaking internal ECF bounds."
+          },
+          {
+            "type": "mcq",
+            "question": "Which feedback reversal would be immediately life-threatening physiologically:",
+            "options": {
+              "A": "Maintaining pituitary-thyroid regulation under negative feedback",
+              "B": "Driving childbirth contractions under oxytocin positive feedback",
+              "C": "Making blood-water control positive and clotting negative",
+              "D": "Using buffers, ventilation, and kidneys for acid-base balance"
+            },
+            "correct_answer": "C",
+            "explanation": "Uncontrolled blood-water amplification or failed clot amplification harms survival."
+          },
+          {
+            "type": "mcq",
+            "question": "Compare 'Blood buffers' vs 'Kidneys/Lungs' inside Acid-Base Balance regarding mechanism:",
+            "options": {
+              "A": "Buffers bind H+ fast; lungs and kidneys excrete acid load",
+              "B": "Blood buffers pump hydrogen gas straight through skin pores",
+              "C": "Kidneys act instantaneously faster than blood proton binding",
+              "D": "Neither system responds to deviations around extracellular pH 7.4"
+            },
+            "correct_answer": "A",
+            "explanation": "Immediate chemical buffering buys time for slower physiological elimination."
+          },
+          {
+            "type": "mcq",
+            "question": "If interstitial fluid stops exchanging effectively with capillary plasma across tissues, what hits parenchymal cells first:",
+            "options": {
+              "A": "Instant suspension of all external ambient climate shifts",
+              "B": "Local O2/nutrient depletion and toxic waste build-up",
+              "C": "Conversion of apical plasma membranes into focal desmosomes",
+              "D": "Spontaneous anterior pituitary TSH secretion inside muscle"
+            },
+            "correct_answer": "B",
+            "explanation": "Interstitial fluid depends on continuous plasma turnover to sustain its homeostatic composition."
+          },
+          {
+            "type": "mcq",
+            "question": "Why did Walter B. Cannon choose a word meaning dynamic 'staying similar' (homeostasis) rather than 'static immobility':",
+            "options": {
+              "A": "Blood coagulation cascades continue running without an endpoint",
+              "B": "Healthy extracellular pH fluctuates daily from 2.0 to 12.0",
+              "C": "Autonomic nerves fire maximally even without any stimuli",
+              "D": "Bodies stay stable through active ongoing adjustments"
+            },
+            "correct_answer": "D",
+            "explanation": "Homeostasis literally emphasizes dynamic steady consistency."
+          },
+          {
+            "type": "mcq",
+            "question": "In a negative-feedback reflex lowering high blood glucose, if an effector responds weakly, what happens:",
+            "options": {
+              "A": "Loop automatically flips classification into positive feedback",
+              "B": "Loop stays negative in sign, yet high glucose persists",
+              "C": "Blood glucose drops rapidly toward fatal hypoglycemia",
+              "D": "Pituitary oxytocin replaces pancreatic metabolic hormones"
+            },
+            "correct_answer": "B",
+            "explanation": "Feedback sign is determined by opposition direction; weak gain merely leaves residual error."
+          },
+          {
+            "type": "mcq",
+            "question": "Why must a physiological integrating center sometimes receive inputs from BOTH internal and external sensors:",
+            "options": {
+              "A": "Visceral organs cannot use autonomic nerves during resting sleep",
+              "B": "Retinal photoreceptors secrete chemical blood buffers directly",
+              "C": "External threats need action before core internal ECF fails",
+              "D": "Endocrine glands operate without arterial capillary blood flow"
+            },
+            "correct_answer": "C",
+            "explanation": "Brain and spinal circuits combine external and internal awareness to coordinate motor, autonomic, and endocrine defense."
+          },
+          {
+            "type": "mcq",
+            "question": "Which experimental finding proves a regulated variable is under NEGATIVE feedback:",
+            "options": {
+              "A": "Upward or downward shifts trigger opposite corrective drive",
+              "B": "Every perturbation pushes the variable farther toward collapse",
+              "C": "Values remain constant even when sensors and effectors fail",
+              "D": "Internal levels drift linearly with outside room temperature"
+            },
+            "correct_answer": "A",
+            "explanation": "Bidirectional restoration against opposite perturbations confirms negative feedback."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is blood composition (hematologic + CV) foundational to ALMOST every other row of the homeostasis table:",
+            "options": {
+              "A": "Circulating erythrocytes manufacture all skeletal myofibrils",
+              "B": "Mature red blood cells store renal tubular genetic DNA",
+              "C": "Plasma albumin directly pumps sodium ions inside nephrons",
+              "D": "Blood flow links nutrients, gases, hormones, buffers, and heat"
+            },
+            "correct_answer": "D",
+            "explanation": "Circulation couples regional organ functions into one shared internal environment."
+          },
+          {
+            "type": "mcq",
+            "question": "Compare TSH action on thyroid vs oxytocin action on uterus/mammary gland: what feature do both share:",
+            "options": {
+              "A": "Both amplify continuously until localized fibrin clotting finishes",
+              "B": "Both use blood-borne hormones acting on specific effectors",
+              "C": "Both require alveolar O2 diffusion across skeletal fibers",
+              "D": "Both inhibit gastric hydrochloric acid secretion primarily"
+            },
+            "correct_answer": "B",
+            "explanation": "Both operate as endocrine sensor-integrator-effector axes despite opposite feedback signs."
+          },
+          {
+            "type": "mcq",
+            "question": "If arterial CO2 drops abnormally low during panic hyperventilation, how should a negative-feedback respiratory loop respond:",
+            "options": {
+              "A": "Sensors and center slow breathing so CO2 rises to range",
+              "B": "Ventilation doubles further to drive arterial CO2 toward zero",
+              "C": "Coagulation thrombin forms occlusive pulmonary vein clots",
+              "D": "Anterior pituitary TSH replaces diaphragm contraction"
+            },
+            "correct_answer": "A",
+            "explanation": "Opposing the low-CO2 deviation restores acid-base balance."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can serious failure in ONE major homeostatic system cascade across multiple others:",
+            "options": {
+              "A": "All body organs share one single continuous cytoplasmic syncytium",
+              "B": "Positive feedback directly drives every housekeeping protein gene",
+              "C": "Shared ECF transport, pH, temp, volume, and energy link all",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "Failure of circulation, respiration, or kidneys destabilizes ECF conditions needed by all other tissues."
+          },
+          {
+            "type": "mcq",
+            "question": "During an oral exam, a student states: 'Walter B. Cannon first framed the extracellular milieu interieur while Claude Bernard later coined the term homeostasis to mean fixed equilibrium'; which TWO conceptual errors must be corrected:",
+            "options": {
+              "A": "Only the scientist swap is wrong because homeostasis truly requires static unchanging baseline values",
+              "B": "Bernard framed the internal environment, Cannon coined homeostasis, and homeostasis means dynamic stability rather than rigid fixity",
+              "C": "Bernard worked exclusively on thrombin cascades whereas Cannon discovered gap junctions in cardiac discs",
+              "D": "Both attributions match Chapter 4 except that intracellular fluid equals the entire internal environment"
+            },
+            "correct_answer": "B",
+            "explanation": "Claude Bernard described the stable internal environment (ECF) and Walter B. Cannon introduced the term homeostasis as dynamic controlled variation."
+          },
+          {
+            "type": "mcq",
+            "question": "When evaluating whether 'milk ejection' is positive feedback, which observation confirms it:",
+            "options": {
+              "A": "Suckling boosts oxytocin, increasing flow until feeding ends",
+              "B": "Oxytocin immediately suppresses milk flow after one contraction",
+              "C": "Thrombin seals lactating mammary ducts with fibrin polymers",
+              "D": "Chemical blood buffers convert lactose milk sugar into glucose"
+            },
+            "correct_answer": "A",
+            "explanation": "Self-reinforcing hormonal ejection continuing to feeding completion defines positive feedback."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does the 'One Control Center = One Organ' myth fail in thyroid vs autonomic vs clotting physiology:",
+            "options": {
+              "A": "Voluntary skeletal muscle acts as the sole integrating center",
+              "B": "Extracellular plasma lacks dissolved signaling messengers",
+              "C": "Negative feedback pathways operate without any sensory detectors",
+              "D": "Control logic spans endocrine axes, brain circuits, or enzymes"
+            },
+            "correct_answer": "D",
+            "explanation": "Diverse anatomical circuits execute control-center comparison across body systems."
+          },
+          {
+            "type": "mcq",
+            "question": "Which triad matches Control Component -> Physiological Question -> Concrete Example cleanly:",
+            "options": {
+              "A": "Sensor->'What restores it?'; Effector->'What changed?'; Center->target",
+              "B": "Center->'What changed?'; Sensor->'How to respond?'; Effector->thrombin",
+              "C": "Sensor->'What changed?'; Center->'How to respond?'; Effector->target",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "Exact alignment with the Page 2 control table and body examples."
+          },
+          {
+            "type": "mcq",
+            "question": "What prevents blood buffers from acting alone as a permanent solution, requiring which full ACID-BASE defense team:",
+            "options": {
+              "A": "Fast chemical blood buffers",
+              "B": "Respiratory CO2 elimination",
+              "C": "Renal acid and base regulation",
+              "D": "All of the above"
+            },
+            "correct_answer": "D",
+            "explanation": "Chemical buffers blunt acute swings while lungs and kidneys clear the systemic acid load."
+          },
+          {
+            "type": "mcq",
+            "question": "Which four systems together complete BOTH 'Water & electrolytes' and 'Acid-base balance' coverage:",
+            "options": {
+              "A": "Thyroid follicle, dental enamel, bone marrow, and nails",
+              "B": "Kidneys, lungs, gut/skin/hormones, and blood buffers",
+              "C": "Activated platelets, fibrin mesh, skeletal actin, and melanin",
+              "D": "Corneal epithelium, crystalline lens, cochlea, and periosteum"
+            },
+            "correct_answer": "B",
+            "explanation": "Combined buffering, respiratory gas control, and renal/GI/skin/hormonal regulation sustain fluid, electrolyte, and acid-base stability."
+          },
+          {
+            "type": "mcq",
+            "question": "Why does Chapter 4 appear alongside Cell Structure, Junctions, and Membrane Transport in Section 1:",
+            "options": {
+              "A": "Cells and membranes rely on a stable regulated ECF milieu",
+              "B": "Tissue cells reside inside permanent positive-feedback fibrin",
+              "C": "Organ-system homeostasis replaces ATP-driven active transport",
+              "D": "Intercellular junctions act as primary endocrine glands"
+            },
+            "correct_answer": "A",
+            "explanation": "Cellular physiology and whole-body ECF homeostasis form two halves of one unified system."
+          },
+          {
+            "type": "mcq",
+            "question": "An endocrine gland raises hormone secretion whenever blood glucose rises, driving glucose back toward normal range; why is calling this gland rise 'positive feedback' incorrect:",
+            "options": {
+              "A": "Negative feedback can operate only when effector gland secretion falls",
+              "B": "The net physiological outcome opposes the primary disturbance, defining negative feedback",
+              "C": "Endocrine effectors act too slowly to mediate negative feedback",
+              "D": "Any increase in hormone output amplifies instability toward tissue collapse"
+            },
+            "correct_answer": "B",
+            "explanation": "Feedback is classified by whether the loop response opposes (negative) or amplifies (positive) the initial change, regardless of whether an effector's activity rises or falls."
+          },
+          {
+            "type": "mcq",
+            "question": "If warming skin vessels dilate and sweating drops temperature from 39 C toward ~37.5 C, why is this negative feedback:",
+            "options": {
+              "A": "Cutaneous skin temperature dropped instantaneously below zero",
+              "B": "Profuse sweating amplified core fever upward toward 45 C",
+              "C": "Effector heat loss lowered and opposed the initial elevation",
+              "D": "Anterior pituitary halted all antidiuretic water retention"
+            },
+            "correct_answer": "C",
+            "explanation": "The response diminished the starting thermal deviation."
+          },
+          {
+            "type": "mcq",
+            "question": "Which choice correctly pairs TWO negative-feedback AND TWO positive-feedback chapter examples:",
+            "options": {
+              "A": "Negative: thyroid & water; Positive: clotting & parturition",
+              "B": "Negative: clotting & milk; Positive: water & acid-base",
+              "C": "Negative: parturition & thyroid; Positive: nutrition & danger",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Matches the explicit Page 4 comparison table."
+          },
+          {
+            "type": "mcq",
+            "question": "If severe fluid loss shrinks blood volume while acidosis develops simultaneously, which systems restore stability:",
+            "options": {
+              "A": "Voluntary skeletal muscle fibers and pituitary oxytocin alone",
+              "B": "Circulatory, hematologic, respiratory, renal, and blood buffers",
+              "C": "Anterior pituitary TSH secretion and thyroid follicles alone",
+              "D": "Digestive gut epithelium completely without vascular flow"
+            },
+            "correct_answer": "B",
+            "explanation": "Integrated circulatory, respiratory, renal, and chemical defenses restore multi-variable stability."
+          },
+          {
+            "type": "true_false",
+            "question": "If an effector fails to respond to an intact sensor and integrating center, the regulated variable cannot be actively restored by that loop.",
+            "correct_answer": true,
+            "explanation": "All three steps—sensor, integrator, and effector—are necessary for closed-loop correction."
+          },
+          {
+            "type": "true_false",
+            "question": "During thyroid negative feedback, dropping thyroid hormone levels cause stimulatory signaling (such as TSH) to increase so hormone output recovers.",
+            "correct_answer": true,
+            "explanation": "Reduced inhibitory hormone frees stimulatory signaling to restore balance."
+          },
+          {
+            "type": "true_false",
+            "question": "Clotting, childbirth, and milk ejection illustrate negative feedback because each ends once completed.",
+            "correct_answer": false,
+            "explanation": "They are positive-feedback cascades because ongoing change reinforces itself until the completion milestone."
+          },
+          {
+            "type": "true_false",
+            "question": "Acid-base balance depends solely on erythrocytes without blood buffers, lungs, or kidneys.",
+            "correct_answer": false,
+            "explanation": "Blood buffers, the respiratory system, and kidneys cooperate to prevent damaging pH swings."
+          },
+          {
+            "type": "true_false",
+            "question": "Brain and spinal circuits integrate sensory data to coordinate somatic motor, autonomic, and endocrine responses.",
+            "correct_answer": true,
+            "explanation": "All three response classes arise from central neural integration."
+          },
+          {
+            "type": "true_false",
+            "question": "Controlled variation in homeostasis implies healthy physiological variables stay close to functional ranges while adjusting continuously to changing loads.",
+            "correct_answer": true,
+            "explanation": "Homeostasis balances dynamic flexibility with stability."
+          },
+          {
+            "type": "true_false",
+            "question": "Removing negative feedback inhibition on TSH in the pituitary-thyroid axis shuts down thyroid stimulation permanently.",
+            "correct_answer": false,
+            "explanation": "Without feedback inhibition, upstream stimulatory TSH drive rises unchecked."
+          },
+          {
+            "type": "true_false",
+            "question": "Autonomic control is mainly restricted to voluntary skeletal muscle movement during conscious danger escape.",
+            "correct_answer": false,
+            "explanation": "Autonomic pathways supply involuntary internal organ regulation; skeletal muscle serves somatic movement."
+          },
+          {
+            "type": "true_false",
+            "question": "Temperature changes disturb homeostasis in part because cellular enzymatic reactions depend directly on temperature.",
+            "correct_answer": true,
+            "explanation": "Enzyme stability and reaction kinetics require controlled thermal ranges."
+          },
+          {
+            "type": "true_false",
+            "question": "Plasma alone—excluding interstitial fluid—makes up the entire extracellular internal environment bathing body cells.",
+            "correct_answer": false,
+            "explanation": "Extracellular fluid includes both plasma and interstitial fluid surrounding cells directly."
+          }
+        ]
+      }
+    }
+  },
+  "sheet_questions": {
+    "questions": [
+      {
+        "type": "mcq",
+        "question": "Which systems collaborate to maintain BLOOD COMPOSITION (gases, nutrients, and wastes):",
+        "options": {
+          "A": "Digestive and skeletal muscle only",
+          "B": "Anterior pituitary and skin only",
+          "C": "Apical tight junctions alone",
+          "D": "Hematologic and cardiovascular systems"
+        },
+        "correct_answer": "D",
+        "explanation": "Blood cells/plasma and vascular circulation handle systemic internal transport."
+      },
+      {
+        "type": "mcq",
+        "question": "Which two fluids compose the extracellular internal environment bathing and supplying cells:",
+        "options": {
+          "A": "Cytosol and nuclear sap",
+          "B": "Bile and sweat only",
+          "C": "Plasma and interstitial fluid",
+          "D": "Synovial grease and enamel"
+        },
+        "correct_answer": "C",
+        "explanation": "Plasma and interstitial fluid together constitute extracellular fluid."
+      },
+      {
+        "type": "mcq",
+        "question": "How does rapid detection and muscular escape from external danger contribute to homeostatic preservation:",
+        "options": {
+          "A": "Kidneys directly convert skeletal muscle actin into blood-clotting fibrin",
+          "B": "Pituitary TSH coats skin cells to absorb external trauma",
+          "C": "Oxytocin halts nervous reflexes until resting blood pH shifts",
+          "D": "None of the above"
+        },
+        "correct_answer": "D",
+        "explanation": "Nervous detection plus musculoskeletal movement preserves internal conditions by removing the body from danger; none of the listed mechanisms apply."
+      },
+      {
+        "type": "mcq",
+        "question": "Which pairing correctly attributes the foundational terminology from Page 2:",
+        "options": {
+          "A": "Claude Bernard -> internal environment; Walter B. Cannon -> homeostasis",
+          "B": "Walter B. Cannon -> milieu; Claude Bernard -> oxytocin",
+          "C": "Claude Bernard -> thrombin; Walter B. Cannon -> TSH",
+          "D": "Both coined negative feedback together"
+        },
+        "correct_answer": "A",
+        "explanation": "Bernard framed the internal environment; Cannon coined homeostasis."
+      },
+      {
+        "type": "mcq",
+        "question": "Which component of a homeostatic loop monitors a variable and reports deviations ('What changed?'):",
+        "options": {
+          "A": "Effector",
+          "B": "Sensor / detector",
+          "C": "Control center",
+          "D": "Fibrin mesh"
+        },
+        "correct_answer": "B",
+        "explanation": "Sensors detect and report deviations from normal limits."
+      },
+      {
+        "type": "mcq",
+        "question": "Which component evaluates sensory reports against required levels and organizes the response:",
+        "options": {
+          "A": "Sensor / detector",
+          "B": "Control / integrating center",
+          "C": "Effector organ",
+          "D": "Interstitial collagen"
+        },
+        "correct_answer": "B",
+        "explanation": "The integrating center compares actual state with target range and plans action."
+      },
+      {
+        "type": "mcq",
+        "question": "Which component alters organ, gland, or tissue activity to restore the deviating variable:",
+        "options": {
+          "A": "Effector",
+          "B": "Sensor",
+          "C": "Stimulus",
+          "D": "Claude Bernard"
+        },
+        "correct_answer": "A",
+        "explanation": "Effectors carry out the physical physiological correction."
+      },
+      {
+        "type": "mcq",
+        "question": "By what primary routes can signals travel between sensors, control centers, and effectors:",
+        "options": {
+          "A": "Gap junctions only",
+          "B": "Phagosomes only",
+          "C": "Nerve impulses and circulating hormones",
+          "D": "Nuclear pores"
+        },
+        "correct_answer": "C",
+        "explanation": "Neural impulses and blood-borne hormones communicate control signals."
+      },
+      {
+        "type": "mcq",
+        "question": "Which feedback pattern opposes the initial disturbance and dominates routine physiological stabilization:",
+        "options": {
+          "A": "Positive feedback",
+          "B": "Negative feedback",
+          "C": "Blood clotting",
+          "D": "Parturition"
+        },
+        "correct_answer": "B",
+        "explanation": "Negative feedback counteracts upward or downward deviations."
+      },
+      {
+        "type": "mcq",
+        "question": "In thyroid hormone regulation, rising circulating thyroid hormone reduces TSH-axis stimulation; this exemplifies:",
+        "options": {
+          "A": "Negative feedback",
+          "B": "Positive feedback",
+          "C": "Necrosis",
+          "D": "Uncoupled filtration"
+        },
+        "correct_answer": "A",
+        "explanation": "Output inhibiting upstream stimulation keeps thyroid levels stable."
+      },
+      {
+        "type": "mcq",
+        "question": "Which other process on Page 3 demonstrates NEGATIVE FEEDBACK alongside thyroid control:",
+        "options": {
+          "A": "Blood coagulation",
+          "B": "Milk ejection",
+          "C": "Water balance",
+          "D": "Parturition"
+        },
+        "correct_answer": "C",
+        "explanation": "Water conservation and excretion counter osmotic or volume deviations."
+      },
+      {
+        "type": "mcq",
+        "question": "How can you reliably recognize NEGATIVE FEEDBACK even when an effector or hormone rises:",
+        "options": {
+          "A": "Only if every hormone level falls toward zero",
+          "B": "Only when skeletal muscle moves voluntarily",
+          "C": "Only inside isolated liver parenchymal cells",
+          "D": "The resulting response opposes the initial change"
+        },
+        "correct_answer": "D",
+        "explanation": "Check whether net output counteracts the starting deviation."
+      },
+      {
+        "type": "mcq",
+        "question": "Which feedback pattern amplifies an ongoing change to drive a process to a definite endpoint:",
+        "options": {
+          "A": "Negative feedback",
+          "B": "Positive feedback",
+          "C": "Acid-base buffering",
+          "D": "Thermoregulation"
+        },
+        "correct_answer": "B",
+        "explanation": "Positive feedback reinforces change toward rapid completion."
+      },
+      {
+        "type": "mcq",
+        "question": "In the clotting cascade positive-feedback example, what molecule converts fibrinogen into fibrin:",
+        "options": {
+          "A": "Thrombin",
+          "B": "Oxytocin",
+          "C": "TSH",
+          "D": "Albumin"
+        },
+        "correct_answer": "A",
+        "explanation": "Thrombin accelerates fibrin assembly and reinforces clot formation."
+      },
+      {
+        "type": "mcq",
+        "question": "Which hormone mediates positive feedback during BOTH parturition (labor) and milk ejection:",
+        "options": {
+          "A": "TSH",
+          "B": "Insulin",
+          "C": "Oxytocin",
+          "D": "Thrombin"
+        },
+        "correct_answer": "C",
+        "explanation": "Oxytocin amplifies uterine contractions until birth and drives milk ejection."
+      },
+      {
+        "type": "mcq",
+        "question": "Which comparison accurately contrasts NEGATIVE and POSITIVE feedback purpose:",
+        "options": {
+          "A": "Negative drives completion; positive stabilizes chronic ECF",
+          "B": "Negative keeps ranges stable; positive drives completion",
+          "C": "Neither loop relies on physiological body sensors",
+          "D": "Both stabilize core temperature identically"
+        },
+        "correct_answer": "B",
+        "explanation": "Stabilization vs completion differentiates the two feedback designs."
+      },
+      {
+        "type": "mcq",
+        "question": "How does HORMONAL COORDINATION regulate distant organ functions and metabolism:",
+        "options": {
+          "A": "Endocrine organs signal specific target tissues",
+          "B": "Skeletal muscles pump plasma proteins directly",
+          "C": "Nerves carry dietary glucose straight to cells",
+          "D": "None of the above"
+        },
+        "correct_answer": "A",
+        "explanation": "Endocrine organs release blood-borne hormones that adjust metabolism and organ activity in target tissues."
+      },
+      {
+        "type": "mcq",
+        "question": "Why is maintaining stable extracellular pH (illustrative teaching example ~7.4) crucial for cells:",
+        "options": {
+          "A": "Proteins catalyze faster around gastric pH 2.0",
+          "B": "Blood clots dissolve instantly near resting pH 7.4",
+          "C": "Water osmosis depends solely on pH 7.4",
+          "D": "Large pH shifts interfere with cell proteins"
+        },
+        "correct_answer": "D",
+        "explanation": "Protein structure and enzyme activity depend on stable physiological pH."
+      },
+      {
+        "type": "mcq",
+        "question": "Which four elements cooperate in BODY TEMPERATURE regulation (~37.5 C example):",
+        "options": {
+          "A": "Kidneys, teeth, and anterior pituitary",
+          "B": "Nervous system, skin, muscles, and circulation",
+          "C": "Fibrinogen, platelets, and clathrin",
+          "D": "Respiratory alveoli only"
+        },
+        "correct_answer": "B",
+        "explanation": "Temperature-sensitive enzymes rely on multi-system thermal regulation."
+      },
+      {
+        "type": "mcq",
+        "question": "Which two systems handle NUTRITION delivery from food breakdown to tissues:",
+        "options": {
+          "A": "Kidneys and lungs",
+          "B": "Skin and autonomic ganglia",
+          "C": "Digestive system and circulation",
+          "D": "Pituitary and thymus"
+        },
+        "correct_answer": "C",
+        "explanation": "Digestion absorbs substrates and blood circulation delivers them to cells."
+      },
+      {
+        "type": "mcq",
+        "question": "Which two systems maintain OXYGEN and CARBON DIOXIDE balance for energy and gas removal:",
+        "options": {
+          "A": "Respiratory and cardiovascular systems",
+          "B": "Digestive and skeletal",
+          "C": "Skin and anterior pituitary",
+          "D": "Renal tubules only"
+        },
+        "correct_answer": "A",
+        "explanation": "Ventilation and circulation continuously supply O2 and clear CO2."
+      },
+      {
+        "type": "mcq",
+        "question": "Which systems and signals cooperate to balance WATER and ELECTROLYTES:",
+        "options": {
+          "A": "Nervous system and teeth only",
+          "B": "Lungs and fibrinogen only",
+          "C": "Skeletal muscle and cornea",
+          "D": "Kidneys, skin, gut, and hormonal control"
+        },
+        "correct_answer": "D",
+        "explanation": "Fluid volume and osmotic balance rely on intake, sweat, renal excretion, and hormones."
+      },
+      {
+        "type": "mcq",
+        "question": "How does the AUTONOMIC nervous system participate in homeostasis:",
+        "options": {
+          "A": "It moves limbs consciously away from danger",
+          "B": "It provides ongoing involuntary organ regulation",
+          "C": "It acts directly as a chemical plasma buffer",
+          "D": "It polymerizes fibrinogen directly into fibrin"
+        },
+        "correct_answer": "B",
+        "explanation": "Autonomic pathways continuously adjust visceral effectors."
+      },
+      {
+        "type": "mcq",
+        "question": "In Chapter 4 loop analysis ('Thinking in control loops'), what four items clarify any mechanism:",
+        "options": {
+          "A": "Only circulating hormone molecular weight",
+          "B": "Only membrane cholesterol percentage",
+          "C": "Sensor, integrating center, effector, and feedback sign",
+          "D": "Only capillary diameter measurement"
+        },
+        "correct_answer": "C",
+        "explanation": "Mapping loop components and feedback sign works across all physiology."
+      },
+      {
+        "type": "true_false",
+        "question": "Extracellular fluid includes blood plasma and interstitial fluid surrounding cells.",
+        "correct_answer": true,
+        "explanation": "Together they represent the regulated internal environment."
+      },
+      {
+        "type": "true_false",
+        "question": "Homeostasis keeps every internal parameter strictly immobile with zero fluctuation at all times.",
+        "correct_answer": false,
+        "explanation": "Homeostasis maintains controlled dynamic variation within physiological limits."
+      },
+      {
+        "type": "true_false",
+        "question": "In positive feedback, the final response opposes and immediately reverses the initial deviation to keep levels constant.",
+        "correct_answer": false,
+        "explanation": "Opposing the initial change describes negative feedback; positive feedback amplifies the change."
+      },
+      {
+        "type": "true_false",
+        "question": "Positive feedback loops accelerate urgent processes like blood clotting until bleeding stops.",
+        "correct_answer": true,
+        "explanation": "Self-amplifying cascades drive acute events to decisive completion points."
+      },
+      {
+        "type": "true_false",
+        "question": "Large body temperature shifts away from normal ranges have no impact on cellular enzyme reactions.",
+        "correct_answer": false,
+        "explanation": "Enzymes and cellular activity depend strongly on keeping body temperature within normal range."
+      },
+      {
+        "type": "true_false",
+        "question": "Thinking in control loops evaluates the sensor, integrating center, effector, and feedback direction.",
+        "correct_answer": true,
+        "explanation": "This structured four-question method applies broadly across physiological control mechanisms."
+      }
+    ]
+  }
+}

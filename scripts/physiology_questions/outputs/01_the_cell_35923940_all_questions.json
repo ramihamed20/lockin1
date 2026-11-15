@@ -1,0 +1,3446 @@
+{
+  "active_study": {
+    "easy": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "The SMALLEST living structural and functional unit of the human body is:",
+              "options": {
+                "A": "Tissue",
+                "B": "Cell",
+                "C": "Organ",
+                "D": "Organelle"
+              },
+              "correct_answer": "B",
+              "explanation": "A cell is the smallest living structural and functional unit capable of performing vital body processes."
+            },
+            {
+              "type": "mcq",
+              "question": "The CORRECT ascending hierarchy of biological organization is:",
+              "options": {
+                "A": "Cell < tissue < organ < system",
+                "B": "Tissue < cell < organ < system",
+                "C": "Cell < organ < tissue < system",
+                "D": "Organ < cell < tissue < system"
+              },
+              "correct_answer": "A",
+              "explanation": "Biological organization progresses from cells to tissues, organs, and organ systems."
+            },
+            {
+              "type": "mcq",
+              "question": "The fluid located INSIDE the cell enclosed by the plasma membrane is:",
+              "options": {
+                "A": "Extracellular fluid (ECF)",
+                "B": "Interstitial fluid",
+                "C": "Intracellular fluid (ICF)",
+                "D": "Blood plasma"
+              },
+              "correct_answer": "C",
+              "explanation": "The plasma membrane separates intracellular fluid inside the cell from extracellular fluid outside."
+            },
+            {
+              "type": "mcq",
+              "question": "The widely used model describing plasma membrane organization is called:",
+              "options": {
+                "A": "Rigid wall model",
+                "B": "Fluid mosaic model",
+                "C": "Single-layer model",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "The plasma membrane follows the fluid mosaic model, with proteins distributed in a mobile lipid matrix."
+            },
+            {
+              "type": "true_false",
+              "question": "An organ is composed of two or more different tissue types working together.",
+              "correct_answer": true,
+              "explanation": "Organs such as the stomach or intestine contain multiple tissue types organized together."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "The component making up the LARGEST proportion (about 55%) of the plasma membrane is:",
+              "options": {
+                "A": "Lipid",
+                "B": "Carbohydrate",
+                "C": "Cholesterol alone",
+                "D": "Protein"
+              },
+              "correct_answer": "D",
+              "explanation": "Membrane proteins account for approximately 55% of the plasma membrane composition."
+            },
+            {
+              "type": "mcq",
+              "question": "The approximate proportion of LIPID in the plasma membrane is:",
+              "options": {
+                "A": "40%",
+                "B": "5%",
+                "C": "55%",
+                "D": "75%"
+              },
+              "correct_answer": "A",
+              "explanation": "Lipids make up approximately 40% of the plasma membrane structure."
+            },
+            {
+              "type": "mcq",
+              "question": "The approximate proportion of CARBOHYDRATE in the plasma membrane is:",
+              "options": {
+                "A": "15%",
+                "B": "40%",
+                "C": "5%",
+                "D": "55%"
+              },
+              "correct_answer": "C",
+              "explanation": "Carbohydrates represent about 5% of the plasma membrane composition."
+            },
+            {
+              "type": "mcq",
+              "question": "In the phospholipid bilayer, the water-ATTRACTING (hydrophilic) heads face:",
+              "options": {
+                "A": "The interior lipid core",
+                "B": "Only the cytoplasm",
+                "C": "Only the extracellular space",
+                "D": "Watery solutions on both sides"
+              },
+              "correct_answer": "D",
+              "explanation": "Hydrophilic phospholipid heads face the watery ECF and ICF on both membrane surfaces."
+            },
+            {
+              "type": "mcq",
+              "question": "The lipid positioned among phospholipids to regulate membrane stability and flexibility is:",
+              "options": {
+                "A": "Glycogen",
+                "B": "Cholesterol",
+                "C": "Hemoglobin",
+                "D": "Actin"
+              },
+              "correct_answer": "B",
+              "explanation": "Cholesterol sits within the phospholipid bilayer and regulates packing, flexibility, and stability."
+            },
+            {
+              "type": "mcq",
+              "question": "Membrane proteins that SPAN the lipid bilayer from one side to the other are called:",
+              "options": {
+                "A": "Integral proteins",
+                "B": "Peripheral proteins",
+                "C": "Cytosolic enzymes",
+                "D": "Glycocalyx chains"
+              },
+              "correct_answer": "A",
+              "explanation": "Integral (transmembrane) proteins are embedded across the bilayer and often span it completely."
+            },
+            {
+              "type": "mcq",
+              "question": "The carbohydrate surface coat on the external plasma membrane is called:",
+              "options": {
+                "A": "Endoplasm",
+                "B": "Ectoplasm",
+                "C": "Glycocalyx",
+                "D": "Cristae"
+              },
+              "correct_answer": "C",
+              "explanation": "External glycolipids and glycoproteins form the glycocalyx involved in recognition and adhesion."
+            },
+            {
+              "type": "true_false",
+              "question": "Hydrophobic phospholipid tails point inward away from watery solutions.",
+              "correct_answer": true,
+              "explanation": "Water-repelling fatty acid tails face inward toward each other inside the bilayer."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "The OUTER region of the cytoplasm is sometimes termed:",
+              "options": {
+                "A": "Endoplasm",
+                "B": "Ectoplasm",
+                "C": "Nucleoplasm",
+                "D": "Glycocalyx"
+              },
+              "correct_answer": "B",
+              "explanation": "Outer cytoplasm is called ectoplasm, whereas deeper cytoplasm is called endoplasm."
+            },
+            {
+              "type": "mcq",
+              "question": "The organelle dotted with attached ribosomes on its surface is:",
+              "options": {
+                "A": "Smooth endoplasmic reticulum",
+                "B": "Golgi apparatus",
+                "C": "Peroxisome",
+                "D": "Rough endoplasmic reticulum"
+              },
+              "correct_answer": "D",
+              "explanation": "Rough ER carries attached ribosomes that give it a dotted appearance."
+            },
+            {
+              "type": "mcq",
+              "question": "The PRIMARY role of rough endoplasmic reticulum is synthesis and processing of:",
+              "options": {
+                "A": "Proteins",
+                "B": "Steroid hormones",
+                "C": "Cholesterol only",
+                "D": "Glycogen"
+              },
+              "correct_answer": "A",
+              "explanation": "Rough ER mainly prepares proteins destined for secretion, membranes, or intracellular compartments."
+            },
+            {
+              "type": "mcq",
+              "question": "Detoxification of drugs in liver cells is a function of:",
+              "options": {
+                "A": "Rough endoplasmic reticulum",
+                "B": "Smooth endoplasmic reticulum",
+                "C": "Nucleolus",
+                "D": "Centrioles"
+              },
+              "correct_answer": "B",
+              "explanation": "Smooth ER lacks ribosomes and participates in lipid/steroid synthesis, calcium handling, and detoxification."
+            },
+            {
+              "type": "mcq",
+              "question": "The flattened membrane sacs forming the Golgi apparatus are called:",
+              "options": {
+                "A": "Cristae",
+                "B": "Microtubules",
+                "C": "Cisternae",
+                "D": "Pores"
+              },
+              "correct_answer": "C",
+              "explanation": "The Golgi apparatus is organized into stacks of flattened membrane sacs termed cisternae."
+            },
+            {
+              "type": "mcq",
+              "question": "Material arriving at the Golgi apparatus enters through its:",
+              "options": {
+                "A": "Cis face",
+                "B": "Trans face",
+                "C": "Nuclear pore",
+                "D": "Plasma bilayer"
+              },
+              "correct_answer": "A",
+              "explanation": "Cargo from the ER arrives at the cis face of the Golgi before leaving from the trans face."
+            },
+            {
+              "type": "mcq",
+              "question": "Processed cargo exits the Golgi apparatus in vesicles from its:",
+              "options": {
+                "A": "Cis face (receiving side)",
+                "B": "Nuclear envelope",
+                "C": "Inner crista",
+                "D": "None of the above"
+              },
+              "correct_answer": "D",
+              "explanation": "Processed proteins and lipids exit from the Golgi trans face rather than the cis face, nuclear envelope, or inner crista."
+            },
+            {
+              "type": "true_false",
+              "question": "Smooth endoplasmic reticulum has ribosomes attached to its outer membrane.",
+              "correct_answer": false,
+              "explanation": "Smooth ER lacks attached ribosomes, unlike rough ER."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Membrane compartments filled with HYDROLYTIC digestive enzymes are:",
+              "options": {
+                "A": "Peroxisomes",
+                "B": "Lysosomes",
+                "C": "Ribosomes",
+                "D": "Centrioles"
+              },
+              "correct_answer": "B",
+              "explanation": "Lysosomes contain hydrolytic enzymes for intracellular digestion of macromolecules and worn structures."
+            },
+            {
+              "type": "mcq",
+              "question": "The oxidative enzyme found in PEROXISOMES that processes hydrogen peroxide is:",
+              "options": {
+                "A": "Pepsin",
+                "B": "Amylase",
+                "C": "Catalase",
+                "D": "RNA polymerase"
+              },
+              "correct_answer": "C",
+              "explanation": "Peroxisomes contain oxidative enzymes including catalase to break down hydrogen peroxide."
+            },
+            {
+              "type": "mcq",
+              "question": "The organelle known for producing ATP via oxidative phosphorylation is:",
+              "options": {
+                "A": "Mitochondria",
+                "B": "Lysosomes",
+                "C": "Golgi apparatus",
+                "D": "Smooth ER"
+              },
+              "correct_answer": "A",
+              "explanation": "Mitochondria convert nutrient energy into usable ATP via oxidative phosphorylation."
+            },
+            {
+              "type": "mcq",
+              "question": "The folded INNER membrane projections inside mitochondria are called:",
+              "options": {
+                "A": "Cisternae",
+                "B": "Cristae",
+                "C": "Microfilaments",
+                "D": "Chromatin"
+              },
+              "correct_answer": "B",
+              "explanation": "Mitochondrial cristae increase surface area for oxidative phosphorylation reactions."
+            },
+            {
+              "type": "mcq",
+              "question": "The cellular structures that assemble amino acids into proteins using mRNA instructions are:",
+              "options": {
+                "A": "Centrioles",
+                "B": "Peroxisomes",
+                "C": "Secretory vesicles",
+                "D": "Ribosomes"
+              },
+              "correct_answer": "D",
+              "explanation": "Ribosomes are complexes of rRNA and protein that translate mRNA into polypeptide chains."
+            },
+            {
+              "type": "mcq",
+              "question": "The cylindrical structures near the nucleus that help organize microtubules during division are:",
+              "options": {
+                "A": "Centrioles",
+                "B": "Cristae",
+                "C": "Glycolipids",
+                "D": "Phagosomes"
+              },
+              "correct_answer": "A",
+              "explanation": "Centrioles within the centrosome organize microtubules for mitotic cell division."
+            },
+            {
+              "type": "mcq",
+              "question": "The process by which secretory vesicles fuse with the plasma membrane to release contents is:",
+              "options": {
+                "A": "Autophagy",
+                "B": "Exocytosis",
+                "C": "Phagocytosis",
+                "D": "Glycolysis"
+              },
+              "correct_answer": "B",
+              "explanation": "Secretory vesicles store products and release them outside the cell through exocytosis."
+            },
+            {
+              "type": "mcq",
+              "question": "Proteins used within the CYTOSOL are chiefly synthesized by:",
+              "options": {
+                "A": "ER-bound ribosomes",
+                "B": "Golgi cisternae",
+                "C": "Free ribosomes",
+                "D": "Peroxisomal matrix"
+              },
+              "correct_answer": "C",
+              "explanation": "Free ribosomes mainly produce proteins intended for the cytosol and certain organelles."
+            },
+            {
+              "type": "true_false",
+              "question": "Peroxisomes contain hydrolytic enzymes as their principal digestive mechanism.",
+              "correct_answer": false,
+              "explanation": "Lysosomes perform hydrolytic digestion; peroxisomes perform oxidative reactions such as peroxide detoxification."
+            },
+            {
+              "type": "true_false",
+              "question": "Mitochondria contain their own DNA.",
+              "correct_answer": true,
+              "explanation": "In addition to ATP production, mitochondria contain their own DNA and participate in apoptosis signaling."
+            }
+          ]
+        },
+        {
+          "page": 6,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "The cytoskeletal elements built from TUBULIN subunits are:",
+              "options": {
+                "A": "Microfilaments",
+                "B": "Intermediate filaments",
+                "C": "Collagen fibers",
+                "D": "Microtubules"
+              },
+              "correct_answer": "D",
+              "explanation": "Microtubules are composed of tubulin and form transport tracks, cilia, and the mitotic spindle."
+            },
+            {
+              "type": "mcq",
+              "question": "Microfilaments of the cytoskeleton are composed MAINLY of:",
+              "options": {
+                "A": "Tubulin",
+                "B": "Actin",
+                "C": "Keratin only",
+                "D": "Histones"
+              },
+              "correct_answer": "B",
+              "explanation": "Microfilaments are built mainly from actin and contribute to cell shape, contraction, and motion."
+            },
+            {
+              "type": "mcq",
+              "question": "The structure inside the nucleus that produces RIBOSOMAL subunits is:",
+              "options": {
+                "A": "Nucleolus",
+                "B": "Nuclear pore",
+                "C": "Centrosome",
+                "D": "Golgi cisterna"
+              },
+              "correct_answer": "A",
+              "explanation": "One or more nucleoli within the nucleus synthesize ribosomal subunits."
+            },
+            {
+              "type": "mcq",
+              "question": "Regulated, genetically controlled cell removal that limits inflammation is:",
+              "options": {
+                "A": "Necrosis",
+                "B": "Autophagy",
+                "C": "Apoptosis",
+                "D": "Exocytosis"
+              },
+              "correct_answer": "C",
+              "explanation": "Apoptosis is programmed, regulated cell death that avoids damaging neighboring tissue."
+            },
+            {
+              "type": "mcq",
+              "question": "Cell death caused by severe trauma, ischemia, infection, or toxins is:",
+              "options": {
+                "A": "Apoptosis",
+                "B": "Necrosis",
+                "C": "Mitosis",
+                "D": "Translation"
+              },
+              "correct_answer": "B",
+              "explanation": "Necrosis follows pathological cell injury and typically provokes inflammation."
+            },
+            {
+              "type": "mcq",
+              "question": "Skeletal muscle fibers are examples of human cells that normally contain:",
+              "options": {
+                "A": "Several nuclei",
+                "B": "No plasma membrane",
+                "C": "Prokaryotic chromosomes",
+                "D": "No mitochondria"
+              },
+              "correct_answer": "A",
+              "explanation": "Skeletal muscle fibers are multinucleated human cells containing several nuclei."
+            },
+            {
+              "type": "true_false",
+              "question": "Mature human red blood cells lack a nucleus and are prokaryotes.",
+              "correct_answer": false,
+              "explanation": "Mature human RBCs lack a nucleus (anucleate) but are derived from and remain eukaryotic cells."
+            },
+            {
+              "type": "true_false",
+              "question": "Intermediate filaments provide mechanical support and associate with desmosomes.",
+              "correct_answer": true,
+              "explanation": "Intermediate filaments are fibrous proteins specialized to resist mechanical strain and link to desmosomes."
+            }
+          ]
+        },
+        {
+          "page": 7,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Removal of tissue between developing digits is a normal physiological example of:",
+              "options": {
+                "A": "Necrosis",
+                "B": "Exocytosis",
+                "C": "Pinocytosis",
+                "D": "Apoptosis"
+              },
+              "correct_answer": "D",
+              "explanation": "Apoptosis eliminates unneeded cells during normal development, such as interdigital tissue."
+            },
+            {
+              "type": "mcq",
+              "question": "The cell death pattern frequently accompanied by TISSUE INFLAMMATION is:",
+              "options": {
+                "A": "Apoptosis",
+                "B": "Programmed turnover",
+                "C": "Necrosis",
+                "D": "None of the above"
+              },
+              "correct_answer": "C",
+              "explanation": "Necrosis releases intracellular contents after injury and promotes surrounding inflammation."
+            },
+            {
+              "type": "mcq",
+              "question": "In cellular division of labor, the organelle primarily responsible for SORTING and shipping is:",
+              "options": {
+                "A": "Ribosome",
+                "B": "Golgi apparatus",
+                "C": "Nucleolus",
+                "D": "Centriole"
+              },
+              "correct_answer": "B",
+              "explanation": "The Golgi apparatus modifies, sorts, and packages cargo for delivery."
+            },
+            {
+              "type": "true_false",
+              "question": "Apoptosis routinely provokes intense local inflammation across neighboring healthy tissues.",
+              "correct_answer": false,
+              "explanation": "Apoptosis removes unneeded cells neatly with minimal inflammation, unlike necrosis."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "The smallest living unit capable of nutrient uptake and energy production is called:",
+            "options": {
+              "A": "Cell",
+              "B": "Organ",
+              "C": "Tissue",
+              "D": "Cisterna"
+            },
+            "correct_answer": "A",
+            "explanation": "The cell is the basic living structural and functional unit of the body."
+          },
+          {
+            "type": "mcq",
+            "question": "Groups of cells with related functions form a:",
+            "options": {
+              "A": "Organelle",
+              "B": "Nucleolus",
+              "C": "Centrosome",
+              "D": "Tissue"
+            },
+            "correct_answer": "D",
+            "explanation": "Cells with related functions organize into tissues."
+          },
+          {
+            "type": "mcq",
+            "question": "The four major tissue types include muscle, nervous, connective, and:",
+            "options": {
+              "A": "Skeletal bone only",
+              "B": "Epithelial tissue",
+              "C": "Glycocalyx",
+              "D": "Cytoplasm"
+            },
+            "correct_answer": "B",
+            "explanation": "The four primary tissue categories are muscle, nervous, epithelial, and connective."
+          },
+          {
+            "type": "mcq",
+            "question": "The boundary separating ECF from ICF is the:",
+            "options": {
+              "A": "Nuclear envelope",
+              "B": "Crista",
+              "C": "Plasma membrane",
+              "D": "Endoplasmic lumen"
+            },
+            "correct_answer": "C",
+            "explanation": "The plasma membrane encloses cytoplasm and separates ICF from ECF."
+          },
+          {
+            "type": "mcq",
+            "question": "In the fluid mosaic model, proteins are distributed throughout a mobile matrix of:",
+            "options": {
+              "A": "Lipids",
+              "B": "Nucleic acids",
+              "C": "Carbohydrate polymers",
+              "D": "Fibrous keratin"
+            },
+            "correct_answer": "A",
+            "explanation": "Mobile phospholipids form the lipid foundation of the fluid mosaic plasma membrane."
+          },
+          {
+            "type": "mcq",
+            "question": "Approximately 55% of the plasma membrane is composed of:",
+            "options": {
+              "A": "Lipid",
+              "B": "Protein",
+              "C": "Carbohydrate",
+              "D": "Water"
+            },
+            "correct_answer": "B",
+            "explanation": "Proteins make up about 55% of the plasma membrane."
+          },
+          {
+            "type": "mcq",
+            "question": "Which two membrane macromolecules together account for roughly 95% of plasma membrane mass:",
+            "options": {
+              "A": "Carbohydrates and nucleic acids",
+              "B": "Cholesterol and glycogen only",
+              "C": "Water and electrolytes",
+              "D": "Proteins and lipids"
+            },
+            "correct_answer": "D",
+            "explanation": "Membranes comprise roughly 55% protein, 40% lipid (~95% combined), and 5% carbohydrate."
+          },
+          {
+            "type": "mcq",
+            "question": "Surface carbohydrates attach to membrane lipids and proteins to form roughly what percentage of the membrane:",
+            "options": {
+              "A": "5%",
+              "B": "40%",
+              "C": "55%",
+              "D": "85%"
+            },
+            "correct_answer": "A",
+            "explanation": "Carbohydrates contribute about 5% of the plasma membrane as glycolipids and glycoproteins."
+          },
+          {
+            "type": "mcq",
+            "question": "Water-repelling (hydrophobic) phospholipid tails face:",
+            "options": {
+              "A": "Outward toward ECF",
+              "B": "Outward toward ICF",
+              "C": "Inward toward the membrane core",
+              "D": "Into the nucleus"
+            },
+            "correct_answer": "C",
+            "explanation": "Hydrophobic tails point inward away from water on both sides."
+          },
+          {
+            "type": "mcq",
+            "question": "Membrane cholesterol helps maintain packing, stability, and:",
+            "options": {
+              "A": "Ribosome assembly",
+              "B": "Flexibility",
+              "C": "Apoptosis",
+              "D": "Hydrolysis"
+            },
+            "correct_answer": "B",
+            "explanation": "Cholesterol sits among phospholipids to regulate stability and flexibility."
+          },
+          {
+            "type": "mcq",
+            "question": "Proteins embedded across the lipid bilayer are known as:",
+            "options": {
+              "A": "Integral proteins",
+              "B": "Peripheral proteins",
+              "C": "Glycogen granules",
+              "D": "Catalase"
+            },
+            "correct_answer": "A",
+            "explanation": "Integral proteins are embedded in the bilayer and often span it."
+          },
+          {
+            "type": "mcq",
+            "question": "The external carbohydrate layer of the plasma membrane is the:",
+            "options": {
+              "A": "Endoplasm",
+              "B": "Glycocalyx",
+              "C": "Nucleoplasm",
+              "D": "Matrix"
+            },
+            "correct_answer": "B",
+            "explanation": "Surface glycolipids and glycoproteins create the glycocalyx."
+          },
+          {
+            "type": "mcq",
+            "question": "The fluid cytosol plus suspended organelles constitutes the:",
+            "options": {
+              "A": "Nucleus",
+              "B": "Extracellular fluid",
+              "C": "Cholesterol core",
+              "D": "Cytoplasm"
+            },
+            "correct_answer": "D",
+            "explanation": "Cytoplasm encompasses cytosol and intracellular organelles."
+          },
+          {
+            "type": "mcq",
+            "question": "The deeper region of cytoplasm is termed:",
+            "options": {
+              "A": "Ectoplasm",
+              "B": "Glycocalyx",
+              "C": "Endoplasm",
+              "D": "Chromatin"
+            },
+            "correct_answer": "C",
+            "explanation": "Outer cytoplasm is ectoplasm; deeper cytoplasm is endoplasm."
+          },
+          {
+            "type": "mcq",
+            "question": "Ribosomes attached to ER characterize:",
+            "options": {
+              "A": "Rough endoplasmic reticulum",
+              "B": "Smooth endoplasmic reticulum",
+              "C": "Golgi apparatus",
+              "D": "Peroxisomes"
+            },
+            "correct_answer": "A",
+            "explanation": "Attached ribosomes give rough ER its dotted surface."
+          },
+          {
+            "type": "mcq",
+            "question": "Lipid and steroid hormone synthesis takes place in:",
+            "options": {
+              "A": "Rough endoplasmic reticulum",
+              "B": "Smooth endoplasmic reticulum",
+              "C": "Lysosomes",
+              "D": "Centrioles"
+            },
+            "correct_answer": "B",
+            "explanation": "Smooth ER lacks ribosomes and synthesizes lipids, cholesterol, and steroids."
+          },
+          {
+            "type": "mcq",
+            "question": "Intracellular calcium handling and membrane lipid assembly occur primarily in:",
+            "options": {
+              "A": "Nucleolus",
+              "B": "Microtubules",
+              "C": "Smooth endoplasmic reticulum",
+              "D": "Secretory lysosomes"
+            },
+            "correct_answer": "C",
+            "explanation": "Smooth ER stores/handles intracellular calcium in addition to lipid synthesis and detoxification."
+          },
+          {
+            "type": "mcq",
+            "question": "The receiving side of the Golgi apparatus is the:",
+            "options": {
+              "A": "Trans face",
+              "B": "Nuclear pore",
+              "C": "Inner crista",
+              "D": "Cis face"
+            },
+            "correct_answer": "D",
+            "explanation": "Cargo enters the Golgi at its cis face."
+          },
+          {
+            "type": "mcq",
+            "question": "The shipping side of the Golgi apparatus is the:",
+            "options": {
+              "A": "Cis face",
+              "B": "Trans face",
+              "C": "Ectoplasm",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Sorted vesicles bud off from the Golgi trans face."
+          },
+          {
+            "type": "mcq",
+            "question": "Hydrolytic digestion of unwanted macromolecules is performed by:",
+            "options": {
+              "A": "Lysosomes",
+              "B": "Ribosomes",
+              "C": "Centrioles",
+              "D": "Microfilaments"
+            },
+            "correct_answer": "A",
+            "explanation": "Lysosomes house hydrolytic enzymes for intracellular digestion."
+          },
+          {
+            "type": "mcq",
+            "question": "Fusion of a lysosome with a phagosome allows digestion of:",
+            "options": {
+              "A": "Nuclear DNA",
+              "B": "Golgi cisternae",
+              "C": "Engulfed particles",
+              "D": "Extracellular matrix directly"
+            },
+            "correct_answer": "C",
+            "explanation": "Lysosomes fuse with phagosomes or endosomes to digest engulfed cargo."
+          },
+          {
+            "type": "mcq",
+            "question": "Hydrogen peroxide processing by catalase occurs inside:",
+            "options": {
+              "A": "Lysosomes",
+              "B": "Peroxisomes",
+              "C": "Ribosomes",
+              "D": "Nucleoli"
+            },
+            "correct_answer": "B",
+            "explanation": "Peroxisomes contain catalase and oxidative enzymes."
+          },
+          {
+            "type": "mcq",
+            "question": "Usable cellular ATP is produced mainly by:",
+            "options": {
+              "A": "Golgi apparatus",
+              "B": "Smooth ER",
+              "C": "Microtubules",
+              "D": "Mitochondria"
+            },
+            "correct_answer": "D",
+            "explanation": "Mitochondria oxidize nutrients to synthesize ATP."
+          },
+          {
+            "type": "mcq",
+            "question": "The internal compartment enclosed by the inner mitochondrial membrane is the:",
+            "options": {
+              "A": "Matrix",
+              "B": "Ectoplasm",
+              "C": "Glycocalyx",
+              "D": "Cisterna"
+            },
+            "correct_answer": "A",
+            "explanation": "The mitochondrial matrix lies inside the folded inner membrane."
+          },
+          {
+            "type": "mcq",
+            "question": "Organizing microtubules for cell division is the task of the:",
+            "options": {
+              "A": "Peroxisome",
+              "B": "Centrosome",
+              "C": "Lysosome",
+              "D": "Glycoprotein"
+            },
+            "correct_answer": "B",
+            "explanation": "The centrosome with its centrioles organizes mitotic microtubules."
+          },
+          {
+            "type": "mcq",
+            "question": "Amino acid assembly according to mRNA instructions is carried out by:",
+            "options": {
+              "A": "Ribosomes",
+              "B": "Peroxisomes",
+              "C": "Golgi sacs",
+              "D": "Intermediate filaments"
+            },
+            "correct_answer": "A",
+            "explanation": "Ribosomes translate mRNA sequences into proteins."
+          },
+          {
+            "type": "mcq",
+            "question": "Proteins bound for secretion are made primarily by:",
+            "options": {
+              "A": "Free ribosomes",
+              "B": "Mitochondrial matrix alone",
+              "C": "ER-bound ribosomes",
+              "D": "Centrioles"
+            },
+            "correct_answer": "C",
+            "explanation": "ER-bound ribosomes feed the secretory and membrane pathways."
+          },
+          {
+            "type": "mcq",
+            "question": "Ciliary movement relies on cytoskeletal:",
+            "options": {
+              "A": "Microfilaments",
+              "B": "Intermediate filaments",
+              "C": "Glycolipids",
+              "D": "Microtubules"
+            },
+            "correct_answer": "D",
+            "explanation": "Microtubules built of tubulin drive ciliary motion and intracellular transport."
+          },
+          {
+            "type": "mcq",
+            "question": "Cell contraction and shape changes involve actin-rich:",
+            "options": {
+              "A": "Microtubules",
+              "B": "Microfilaments",
+              "C": "Intermediate filaments",
+              "D": "Nuclear pores"
+            },
+            "correct_answer": "B",
+            "explanation": "Actin microfilaments participate in cell shape, motion, and contraction."
+          },
+          {
+            "type": "mcq",
+            "question": "Mechanical support at desmosomes is provided by:",
+            "options": {
+              "A": "Intermediate filaments",
+              "B": "Microtubules",
+              "C": "Actin only",
+              "D": "Cristae"
+            },
+            "correct_answer": "A",
+            "explanation": "Fibrous intermediate filaments resist strain and link to desmosomes."
+          },
+          {
+            "type": "mcq",
+            "question": "The double membrane enclosing hereditary DNA is the:",
+            "options": {
+              "A": "Plasma membrane",
+              "B": "Smooth ER",
+              "C": "Nuclear envelope",
+              "D": "Crista"
+            },
+            "correct_answer": "C",
+            "explanation": "A double-layered nuclear envelope surrounds nucleoplasm and chromatin."
+          },
+          {
+            "type": "mcq",
+            "question": "Nucleocytoplasmic molecular transport passes through:",
+            "options": {
+              "A": "Golgi cisternae",
+              "B": "Nuclear pores",
+              "C": "Centrioles",
+              "D": "Secretory vesicles"
+            },
+            "correct_answer": "B",
+            "explanation": "Nuclear pores regulate exchange between nucleus and cytoplasm."
+          },
+          {
+            "type": "mcq",
+            "question": "Visible chromosome condensation occurs during:",
+            "options": {
+              "A": "Exocytosis",
+              "B": "Resting homeostasis only",
+              "C": "Peroxide breakdown",
+              "D": "Cell division"
+            },
+            "correct_answer": "D",
+            "explanation": "Chromatin condenses into distinct chromosomes during cell division."
+          },
+          {
+            "type": "mcq",
+            "question": "Cells containing SEVERAL nuclei include:",
+            "options": {
+              "A": "Skeletal muscle fibers",
+              "B": "Mature human red blood cells",
+              "C": "Bacteria",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Skeletal muscle fibers are multinucleated eukaryotic cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Mature human red blood cells are BEST described as:",
+            "options": {
+              "A": "Prokaryotic cells",
+              "B": "Anucleate eukaryotic cells",
+              "C": "Multinucleated fibers",
+              "D": "Organelle-rich factories"
+            },
+            "correct_answer": "B",
+            "explanation": "Mature human RBCs lose their nucleus during development yet remain eukaryotic cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Programmed cell death important in normal tissue sculpting is:",
+            "options": {
+              "A": "Necrosis",
+              "B": "Autophagy",
+              "C": "Apoptosis",
+              "D": "Filtration"
+            },
+            "correct_answer": "C",
+            "explanation": "Apoptosis removes unneeded cells in a regulated manner."
+          },
+          {
+            "type": "mcq",
+            "question": "Uncontrolled cell death resulting from severe trauma or infection is:",
+            "options": {
+              "A": "Apoptosis",
+              "B": "Exocytosis",
+              "C": "Mitosis",
+              "D": "Necrosis"
+            },
+            "correct_answer": "D",
+            "explanation": "Necrosis follows acute cell injury such as trauma, ischemia, toxins, or infection."
+          },
+          {
+            "type": "mcq",
+            "question": "The cellular organelle that releases secretory contents via exocytosis is the:",
+            "options": {
+              "A": "Secretory vesicle",
+              "B": "Peroxisome",
+              "C": "Nucleolus",
+              "D": "Intermediate filament"
+            },
+            "correct_answer": "A",
+            "explanation": "Secretory vesicles fuse with the plasma membrane to release contents outside."
+          },
+          {
+            "type": "mcq",
+            "question": "DNA plus associated proteins inside a non-dividing nucleus form:",
+            "options": {
+              "A": "Cristae",
+              "B": "Chromatin",
+              "C": "Cisternae",
+              "D": "Glycocalyx"
+            },
+            "correct_answer": "B",
+            "explanation": "Chromatin consists of nuclear DNA complexed with proteins."
+          },
+          {
+            "type": "mcq",
+            "question": "In biology, an organ system consists of coordinated:",
+            "options": {
+              "A": "Lysosomes",
+              "B": "Phospholipids",
+              "C": "Organs",
+              "D": "Nucleoli"
+            },
+            "correct_answer": "C",
+            "explanation": "Multiple organs cooperate in an organ system such as digestion."
+          },
+          {
+            "type": "true_false",
+            "question": "Cytoplasm contains cytosol and suspended cellular organelles.",
+            "correct_answer": true,
+            "explanation": "Cytoplasm includes both fluid cytosol and specialized organelles."
+          },
+          {
+            "type": "true_false",
+            "question": "Proteins account for a larger share of plasma membrane composition (~55%) than lipids (~40%) or carbohydrates (~5%).",
+            "correct_answer": true,
+            "explanation": "Membrane composition averages roughly 55% protein, 40% lipid, and 5% carbohydrate."
+          },
+          {
+            "type": "true_false",
+            "question": "Integral membrane proteins can function as channels, carriers, receptors, or enzymes.",
+            "correct_answer": true,
+            "explanation": "Membrane proteins perform transport, receptor, enzymatic, and antigenic roles."
+          },
+          {
+            "type": "true_false",
+            "question": "Hydrophilic phospholipid heads avoid contact with intracellular fluid.",
+            "correct_answer": false,
+            "explanation": "Hydrophilic heads attract water and face both ICF and ECF."
+          },
+          {
+            "type": "true_false",
+            "question": "Rough ER lacks ribosomes on its cytosolic surface.",
+            "correct_answer": false,
+            "explanation": "Rough ER has attached ribosomes giving it a dotted appearance."
+          },
+          {
+            "type": "true_false",
+            "question": "Golgi apparatus cisternae receive cargo at the trans face and ship from the cis face.",
+            "correct_answer": false,
+            "explanation": "Cargo enters at the cis face and leaves from the trans face."
+          },
+          {
+            "type": "true_false",
+            "question": "Mitochondria participate in both ATP synthesis and apoptosis signaling.",
+            "correct_answer": true,
+            "explanation": "Mitochondria generate ATP and release signals initiating apoptosis."
+          },
+          {
+            "type": "true_false",
+            "question": "Ribosomes are complexes of ribosomal RNA and proteins.",
+            "correct_answer": true,
+            "explanation": "Each ribosome combines rRNA with ribosomal proteins."
+          },
+          {
+            "type": "true_false",
+            "question": "Apoptosis typically causes widespread inflammation in surrounding tissues.",
+            "correct_answer": false,
+            "explanation": "Apoptosis is controlled and limits inflammation, unlike necrosis."
+          },
+          {
+            "type": "true_false",
+            "question": "Mature human red blood cells retain multiple nuclei throughout circulation.",
+            "correct_answer": false,
+            "explanation": "Mature human RBCs lack a nucleus."
+          }
+        ]
+      }
+    },
+    "medium": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which of the following is NOT one of the four major tissue categories:",
+              "options": {
+                "A": "Vascular matrix",
+                "B": "Epithelial tissue",
+                "C": "Connective tissue",
+                "D": "Nervous tissue"
+              },
+              "correct_answer": "A",
+              "explanation": "The four basic tissue groups are muscle, nervous, epithelial, and connective tissues."
+            },
+            {
+              "type": "mcq",
+              "question": "The fluid mosaic model emphasizes that membrane proteins are:",
+              "options": {
+                "A": "Locked rigidly outside the cytoplasm",
+                "B": "Distributed within a mobile lipid matrix",
+                "C": "Capped by a thick cellulose wall",
+                "D": "Absent from internal membranes"
+              },
+              "correct_answer": "B",
+              "explanation": "Mobile phospholipids form the bilayer foundation while proteins float/distribute within it."
+            },
+            {
+              "type": "mcq",
+              "question": "The plasma membrane preserves the cell's internal environment by acting as a:",
+              "options": {
+                "A": "Non-selective open mesh",
+                "B": "Solid impermeable shield",
+                "C": "Selective boundary between ICF and ECF",
+                "D": "None of the above"
+              },
+              "correct_answer": "C",
+              "explanation": "It separates ICF from ECF while allowing controlled exchange of nutrients, gases, ions, and wastes."
+            },
+            {
+              "type": "mcq",
+              "question": "Which of the following statements about the three main regions of a cell is TRUE:",
+              "options": {
+                "A": "The nucleus controls nothing outside mitosis",
+                "B": "Cytoplasm functions independently of membrane transport",
+                "C": "Only epithelial cells possess cytoplasm",
+                "D": "Plasma membrane, cytoplasm, and nucleus act in coordination"
+              },
+              "correct_answer": "D",
+              "explanation": "The three major cell regions work in coordinated integration rather than independently."
+            },
+            {
+              "type": "true_false",
+              "question": "Intracellular fluid lies exclusively outside the plasma membrane in tissue spaces.",
+              "correct_answer": false,
+              "explanation": "ICF lies inside the cell bounded by the plasma membrane; extracellular fluid (ECF) lies outside."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Why does the phospholipid bilayer restrict strongly WATER-SOLUBLE and charged solutes:",
+              "options": {
+                "A": "Its outer surface lacks any proteins",
+                "B": "Its inner core consists of hydrophobic tails",
+                "C": "Cholesterol blocks all gas diffusion",
+                "D": "Carbohydrates cover 95% of the bilayer"
+              },
+              "correct_answer": "B",
+              "explanation": "Water-repelling lipid tails point inward, forming a barrier to charged and water-soluble molecules."
+            },
+            {
+              "type": "mcq",
+              "question": "If cholesterol were removed from a cell membrane, the GREATEST disruption would affect:",
+              "options": {
+                "A": "Packing, flexibility, and membrane stability",
+                "B": "ATP generation inside cristae",
+                "C": "Transcription inside the nucleolus",
+                "D": "Ribosomal peptide assembly"
+              },
+              "correct_answer": "A",
+              "explanation": "Cholesterol fits among phospholipids to regulate lipid packing, membrane flexibility, and stability."
+            },
+            {
+              "type": "mcq",
+              "question": "Unlike integral proteins, peripheral membrane proteins:",
+              "options": {
+                "A": "Always span completely across the bilayer",
+                "B": "Form all aqueous ion channels",
+                "C": "Constitute 40% of membrane lipids",
+                "D": "Attach more loosely to the inner or outer surface"
+              },
+              "correct_answer": "D",
+              "explanation": "Peripheral proteins attach loosely to membrane surfaces rather than spanning the hydrophobic core."
+            },
+            {
+              "type": "mcq",
+              "question": "Which combination of functions belongs to the surface GLYCOCALYX:",
+              "options": {
+                "A": "Mitochondrial ATP production on cristae",
+                "B": "Cell-cell recognition, adhesion, and surface electrical properties",
+                "C": "Hydrolysis of engulfed bacteria in phagosomes",
+                "D": "Synthesis of mitotic spindle fibers"
+              },
+              "correct_answer": "B",
+              "explanation": "The external glycocalyx participates in cell-cell recognition, adhesion, receptor interactions, and surface charge."
+            },
+            {
+              "type": "mcq",
+              "question": "The lipid-to-protein percentage ratio in the plasma membrane is:",
+              "options": {
+                "A": "Lower lipid (40%) than protein (55%)",
+                "B": "Higher lipid (55%) than protein (40%)",
+                "C": "Equal at 50% each",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Membrane composition is roughly 55% protein, 40% lipid, and 5% carbohydrate."
+            },
+            {
+              "type": "mcq",
+              "question": "Which of the following roles can membrane proteins perform:",
+              "options": {
+                "A": "Form aqueous channels for solutes",
+                "B": "Replace nuclear DNA",
+                "C": "Act as hormone receptors and enzymes",
+                "D": "A and C"
+              },
+              "correct_answer": "D",
+              "explanation": "Membrane proteins serve as channels, carriers, receptors, enzymes, and surface antigens."
+            },
+            {
+              "type": "mcq",
+              "question": "Carbohydrate chains of the glycocalyx attach to membrane components as:",
+              "options": {
+                "A": "Phospholipids and cholesterol",
+                "B": "Actin and tubulin",
+                "C": "Glycolipids and glycoproteins",
+                "D": "Nucleic acids and histones"
+              },
+              "correct_answer": "C",
+              "explanation": "Surface carbohydrates are covalently linked to membrane lipids (glycolipids) and proteins (glycoproteins)."
+            },
+            {
+              "type": "true_false",
+              "question": "Lipid-soluble substances generally cross the phospholipid bilayer more readily than charged ions.",
+              "correct_answer": true,
+              "explanation": "The hydrophobic interior of the lipid bilayer permits lipid-soluble molecules to pass easily while restricting charged solutes."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Compared with rough ER, smooth ER is MORE prominent in cells specialized for:",
+              "options": {
+                "A": "Antibody protein secretion",
+                "B": "Steroid synthesis and drug detoxification",
+                "C": "Ribosomal RNA synthesis",
+                "D": "Ciliary tubulin assembly"
+              },
+              "correct_answer": "B",
+              "explanation": "Smooth ER specializes in lipid, cholesterol, and steroid synthesis plus hepatic detoxification and Ca2+ handling."
+            },
+            {
+              "type": "mcq",
+              "question": "The CORRECT intracellular pathway for a newly synthesized SECRETORY protein is:",
+              "options": {
+                "A": "Rough ER -> Golgi cis face -> Golgi trans face -> secretory vesicle",
+                "B": "Smooth ER -> Golgi trans face -> Golgi cis face -> lysosome",
+                "C": "Golgi cis face -> rough ER -> free ribosome -> nucleus",
+                "D": "Nucleolus -> peroxisome -> smooth ER -> secretory vesicle"
+              },
+              "correct_answer": "A",
+              "explanation": "Secretory proteins are made on rough ER, processed from cis to trans across Golgi cisternae, and released via vesicles."
+            },
+            {
+              "type": "mcq",
+              "question": "Which pair of structures forms structurally connected membranes of the endoplasmic reticulum network:",
+              "options": {
+                "A": "Mitochondria and centrioles",
+                "B": "Microfilaments and nucleoli",
+                "C": "Peroxisomal catalase and nuclear pores",
+                "D": "None of the above"
+              },
+              "correct_answer": "D",
+              "explanation": "Rough ER and smooth ER are interconnected membranes of the same ER system, whereas none of the listed pairs are connected ER domains."
+            },
+            {
+              "type": "mcq",
+              "question": "Besides protein synthesis, rough ER contributes to clearing worn organelles via:",
+              "options": {
+                "A": "Oxidative phosphorylation",
+                "B": "Autophagy-associated pathways",
+                "C": "Mitotic spindle formation",
+                "D": "Glycocalyx shedding"
+              },
+              "correct_answer": "B",
+              "explanation": "Rough ER also participates in pathways associated with autophagy of worn intracellular structures."
+            },
+            {
+              "type": "mcq",
+              "question": "Which cytoplasmic pair contrasts the OUTER and DEEPER cytosolic regions:",
+              "options": {
+                "A": "Cisternae and cristae",
+                "B": "Glycolipid and glycoprotein",
+                "C": "Ectoplasm and endoplasm",
+                "D": "Cis face and trans face"
+              },
+              "correct_answer": "C",
+              "explanation": "Cytoplasm is regionally described as outer ectoplasm and deeper endoplasm."
+            },
+            {
+              "type": "mcq",
+              "question": "Calcium handling within the endomembrane network is primarily associated with:",
+              "options": {
+                "A": "Smooth endoplasmic reticulum",
+                "B": "Golgi trans vesicles",
+                "C": "Nuclear pores",
+                "D": "Free ribosomes"
+              },
+              "correct_answer": "A",
+              "explanation": "Smooth ER handles intracellular calcium in addition to lipid synthesis and detoxification."
+            },
+            {
+              "type": "true_false",
+              "question": "The plasma membrane blocks exchange of oxygen and carbon dioxide to protect intracellular contents.",
+              "correct_answer": false,
+              "explanation": "The plasma membrane actively enables controlled exchange of O2 and CO2 while protecting cell contents."
+            },
+            {
+              "type": "true_false",
+              "question": "Golgi cisternae modify, sort, and repackage lipids as well as proteins.",
+              "correct_answer": true,
+              "explanation": "The Golgi directs both proteins and lipids to intracellular destinations, storage vesicles, or the cell surface."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Hydrolytic enzymes destined for LYSOSOMES are initially produced and routed through:",
+              "options": {
+                "A": "Smooth ER then peroxisomes",
+                "B": "Rough ER then Golgi apparatus",
+                "C": "Mitochondrial matrix then centrioles",
+                "D": "Free ribosomes directly"
+              },
+              "correct_answer": "B",
+              "explanation": "Many lysosomal hydrolytic enzymes are synthesized by rough ER and processed by the Golgi before delivery."
+            },
+            {
+              "type": "mcq",
+              "question": "A newly formed lysosome digests extracellular particles after fusing with a:",
+              "options": {
+                "A": "Centrosome",
+                "B": "Nuclear envelope",
+                "C": "Phagosome or endosome",
+                "D": "Secretory granule"
+              },
+              "correct_answer": "C",
+              "explanation": "Lysosomes merge with phagosomes, endosomes, or autophagic compartments to digest their contents."
+            },
+            {
+              "type": "mcq",
+              "question": "Secretory lysosomes are specialized compartments described in:",
+              "options": {
+                "A": "Certain immune cells for defense",
+                "B": "Mature red blood cells for O2 transport",
+                "C": "Skeletal muscle for actin shortening",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Certain immune cells use specialized secretory lysosomes to release defense molecules."
+            },
+            {
+              "type": "mcq",
+              "question": "Which metabolic pathway is specifically localized inside PEROXISOMES:",
+              "options": {
+                "A": "Mitotic spindle assembly",
+                "B": "Ribosomal subunit transcription in nucleoli",
+                "C": "Hydrogen peroxide breakdown via catalase alongside fatty-acid oxidation",
+                "D": "B and C"
+              },
+              "correct_answer": "C",
+              "explanation": "Peroxisomes detoxify hydrogen peroxide using catalase and perform fatty-acid and bile-acid pathways, unlike spindles or nucleoli."
+            },
+            {
+              "type": "mcq",
+              "question": "Where are oxidative phosphorylation reactions localized inside mitochondria:",
+              "options": {
+                "A": "Within nuclear pores",
+                "B": "On the folded inner membrane (cristae)",
+                "C": "Along the outer smooth ER tubules",
+                "D": "Inside secretory vesicles"
+              },
+              "correct_answer": "B",
+              "explanation": "Cristae provide a large inner-membrane surface area for oxidative phosphorylation."
+            },
+            {
+              "type": "mcq",
+              "question": "A protein intended to become a TRANSMEMBRANE channel is MOST likely synthesized on:",
+              "options": {
+                "A": "Free cytosolic ribosomes",
+                "B": "Peroxisomal enzymes",
+                "C": "Centriolar tubules",
+                "D": "ER-bound ribosomes"
+              },
+              "correct_answer": "D",
+              "explanation": "ER-bound ribosomes produce proteins entering secretory and plasma-membrane pathways."
+            },
+            {
+              "type": "mcq",
+              "question": "Mitochondria contribute to BOTH cellular bioenergetics and:",
+              "options": {
+                "A": "Initiation of programmed cell death",
+                "B": "Hydrolytic phagosome digestion",
+                "C": "Surface glycocalyx formation",
+                "D": "Drug hydroxylation in liver smooth ER"
+              },
+              "correct_answer": "A",
+              "explanation": "Beyond ATP generation, mitochondria hold their own DNA and signal programmed cell death (apoptosis)."
+            },
+            {
+              "type": "mcq",
+              "question": "During exocytosis, secretory vesicles deliver their stored cargo by:",
+              "options": {
+                "A": "Passing through nuclear pores",
+                "B": "Fusing with the plasma membrane",
+                "C": "Merging with mitochondrial cristae",
+                "D": "Binding free cytosolic mRNA"
+              },
+              "correct_answer": "B",
+              "explanation": "Exocytosis occurs when secretory vesicles fuse with the plasma membrane to release contents outside."
+            },
+            {
+              "type": "true_false",
+              "question": "Free ribosomes and ER-bound ribosomes translate mRNA into proteins targeted to different cellular destinations.",
+              "correct_answer": true,
+              "explanation": "Free ribosomes make mainly cytosolic proteins, whereas ER-bound ribosomes supply secretory and membrane pathways."
+            },
+            {
+              "type": "true_false",
+              "question": "Peroxisomes and lysosomes carry out identical hydrolytic digestion of damaged organelles.",
+              "correct_answer": false,
+              "explanation": "Lysosomes perform hydrolytic digestion; peroxisomes perform oxidative reactions and fatty-acid/peroxide processing."
+            }
+          ]
+        },
+        {
+          "page": 6,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which pairing of cytoskeletal element and building protein is CORRECT:",
+              "options": {
+                "A": "Microtubules — actin; Microfilaments — tubulin",
+                "B": "Intermediate filaments — tubulin; Microtubules — actin",
+                "C": "Microtubules — tubulin; Microfilaments — actin",
+                "D": "None of the above"
+              },
+              "correct_answer": "C",
+              "explanation": "Microtubules are made of tubulin, microfilaments mainly of actin, and intermediate filaments of fibrous proteins."
+            },
+            {
+              "type": "mcq",
+              "question": "Which cellular activities depend directly on MICROTUBULES:",
+              "options": {
+                "A": "Intracellular transport tracks and ciliary movement",
+                "B": "Glycogen storage",
+                "C": "Mitotic spindle formation",
+                "D": "A and C"
+              },
+              "correct_answer": "D",
+              "explanation": "Tubulin microtubules serve as transport tracks, form cilia, and build the mitotic spindle."
+            },
+            {
+              "type": "mcq",
+              "question": "Exchange of selected molecules between nucleoplasm and cytoplasm occurs through:",
+              "options": {
+                "A": "Mitochondrial cristae",
+                "B": "Nuclear pores in the double envelope",
+                "C": "Golgi trans cisternae",
+                "D": "Desmosomal plaques"
+              },
+              "correct_answer": "B",
+              "explanation": "The double-layered nuclear envelope contains nuclear pores regulating nucleocytoplasmic exchange."
+            },
+            {
+              "type": "mcq",
+              "question": "DNA condenses from dispersed chromatin into visible CHROMOSOMES specifically during:",
+              "options": {
+                "A": "Cell division",
+                "B": "Exocytosis",
+                "C": "Apoptosis only",
+                "D": "Resting G0 membrane transport"
+              },
+              "correct_answer": "A",
+              "explanation": "Nuclear DNA-protein chromatin visibly condenses into chromosomes during mitosis/cell division."
+            },
+            {
+              "type": "mcq",
+              "question": "Why is it scientifically INCORRECT to classify mature human red blood cells as prokaryotes:",
+              "options": {
+                "A": "They possess multiple nuclei like skeletal muscle",
+                "B": "They are derived from eukaryotic cells and are anucleate eukaryotes",
+                "C": "They contain cell walls instead of lipid bilayers",
+                "D": "They synthesize ribosomes in cristae"
+              },
+              "correct_answer": "B",
+              "explanation": "Loss of the nucleus during maturation makes human RBCs anucleate eukaryotic cells, not prokaryotes."
+            },
+            {
+              "type": "mcq",
+              "question": "Which feature characterizes NECROSIS rather than apoptosis:",
+              "options": {
+                "A": "Leakage of cell contents provoking tissue inflammation",
+                "B": "Genetically programmed removal during digit development",
+                "C": "Protection of neighboring tissue from inflammatory damage",
+                "D": "Regulated elimination of surplus neurons"
+              },
+              "correct_answer": "A",
+              "explanation": "Necrosis follows acute cell injury and spills contents that trigger surrounding inflammation."
+            },
+            {
+              "type": "true_false",
+              "question": "The cytoskeleton is a rigid, unchanging scaffold inside the cytoplasm.",
+              "correct_answer": false,
+              "explanation": "The cytoskeleton is a dynamic framework that remodels to change cell shape and support movement."
+            },
+            {
+              "type": "true_false",
+              "question": "Apoptosis protects neighboring tissues and limits inflammation.",
+              "correct_answer": true,
+              "explanation": "Because apoptosis is regulated and contained, it removes damaged/unneeded cells with minimal inflammation."
+            }
+          ]
+        },
+        {
+          "page": 7,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which physiological scenario illustrates APOPTOSIS rather than pathological injury:",
+              "options": {
+                "A": "Myocardial death from sudden loss of blood supply",
+                "B": "Tissue destruction following bacterial toxin exposure",
+                "C": "Elimination of redundant neurons during nervous system maturation",
+                "D": "Mechanical crush trauma to skeletal muscle"
+              },
+              "correct_answer": "C",
+              "explanation": "Normal neural maturation and interdigital sculpting rely on programmed apoptosis."
+            },
+            {
+              "type": "mcq",
+              "question": "When summarizing cellular division of labor, oxidative processing and ATP synthesis correspond respectively to:",
+              "options": {
+                "A": "Lysosomes and ribosomes",
+                "B": "Golgi apparatus and nucleus",
+                "C": "Centrioles and ER",
+                "D": "Peroxisomes and mitochondria"
+              },
+              "correct_answer": "D",
+              "explanation": "Peroxisomes carry out oxidative processing while mitochondria generate ATP."
+            },
+            {
+              "type": "true_false",
+              "question": "Tissue renewal and removal of autoreactive immune cells both involve programmed apoptosis.",
+              "correct_answer": true,
+              "explanation": "Apoptosis contributes to tissue renewal, developmental shaping, and elimination of harmful immune cells."
+            },
+            {
+              "type": "true_false",
+              "question": "Necrosis is typically a gentle, genetically regulated event that prevents surrounding tissue inflammation.",
+              "correct_answer": false,
+              "explanation": "Necrosis follows severe cell injury and releases intracellular contents that drive tissue inflammation."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "Which statement CORRECTLY explains why the plasma membrane permits lipid-soluble gases yet restricts ions:",
+            "options": {
+              "A": "Surface glycocalyx blocks oxygen completely",
+              "B": "The interior lipid tails are hydrophobic while charged ions are water-soluble",
+              "C": "Integral proteins digest all sodium ions",
+              "D": "Cholesterol turns ions into carbohydrates"
+            },
+            "correct_answer": "B",
+            "explanation": "The hydrophobic tail core passes lipid-soluble molecules like O2/CO2 while blocking bare charged ions."
+          },
+          {
+            "type": "mcq",
+            "question": "If a cell dramatically expands its SER network while maintaining few rough ER stacks, it MOST likely specializes in:",
+            "options": {
+              "A": "Steroid synthesis or detoxification",
+              "B": "Digestive enzyme secretion",
+              "C": "Polypeptide hormone export",
+              "D": "Antibody production"
+            },
+            "correct_answer": "A",
+            "explanation": "Abundant smooth ER characterizes steroidogenic and detoxifying cells such as hepatocytes."
+          },
+          {
+            "type": "mcq",
+            "question": "A protein synthesized on an ER-BOUND ribosome moves through organelles in which order:",
+            "options": {
+              "A": "Smooth ER -> trans Golgi -> free ribosome -> plasma membrane",
+              "B": "Free ribosome -> peroxisome -> cis Golgi -> nucleus",
+              "C": "Rough ER -> cis Golgi -> trans Golgi -> secretory vesicle",
+              "D": "Nucleolus -> rough ER -> trans Golgi -> cis Golgi"
+            },
+            "correct_answer": "C",
+            "explanation": "Secretory/membrane proteins travel from rough ER through Golgi cis-to-trans faces to vesicles."
+          },
+          {
+            "type": "mcq",
+            "question": "Which two organelles collaborate sequentially to break down worn intracellular structures via autophagy:",
+            "options": {
+              "A": "Centrioles and microfilaments",
+              "B": "Rough ER / Golgi and lysosomes",
+              "C": "Nucleolus and microtubules",
+              "D": "Mitochondria and glycocalyx"
+            },
+            "correct_answer": "B",
+            "explanation": "Rough ER and Golgi produce and deliver hydrolytic enzymes to lysosomes that digest autophagic cargo."
+          },
+          {
+            "type": "mcq",
+            "question": "Comparing peroxisomes and lysosomes, catalase belongs EXCLUSIVELY to:",
+            "options": {
+              "A": "Lysosomes",
+              "B": "Ribosomes",
+              "C": "Secretory vesicles",
+              "D": "Peroxisomes"
+            },
+            "correct_answer": "D",
+            "explanation": "Catalase is a peroxisomal oxidative enzyme for H2O2 detoxification."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement CORRECTLY describes mitochondrial inner-membrane CRISTAE:",
+            "options": {
+              "A": "They fold inward to maximize area for oxidative phosphorylation",
+              "B": "They store chromosomal DNA and nucleoli",
+              "C": "They secrete digestive proteases into ECF",
+              "D": "A and B"
+            },
+            "correct_answer": "A",
+            "explanation": "Inner-membrane cristae greatly expand surface area for oxidative phosphorylation; chromatin and nucleoli belong in the nucleus."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do cells maintain BOTH free ribosomes and ER-bound ribosomes:",
+            "options": {
+              "A": "Free ribosomes make lipids whereas ER-bound ribosomes make ATP",
+              "B": "Cytosolic proteins come mainly from free ribosomes while secreted/membrane proteins come from ER-bound ribosomes",
+              "C": "ER-bound ribosomes translate DNA while free ribosomes replicate RNA",
+              "D": "Only ER-bound ribosomes use mRNA"
+            },
+            "correct_answer": "B",
+            "explanation": "Free vs ER-bound ribosome localization targets proteins to cytosol vs secretory/membrane destinations."
+          },
+          {
+            "type": "mcq",
+            "question": "Which cytoskeletal protein family provides mechanical strength at skin DESMOSOMES:",
+            "options": {
+              "A": "Microtubules",
+              "B": "Actin microfilaments",
+              "C": "Intermediate filaments",
+              "D": "Collagen fibers inside Golgi"
+            },
+            "correct_answer": "C",
+            "explanation": "Intermediate filaments resist stretching and anchor desmosomes."
+          },
+          {
+            "type": "mcq",
+            "question": "When a cell enters mitosis, which cytoskeletal change occurs directly:",
+            "options": {
+              "A": "Microtubules assemble the mitotic spindle organized by the centrosome",
+              "B": "Microfilaments convert into nuclear pores",
+              "C": "Intermediate filaments generate ATP",
+              "D": "Lysosomes replace centrioles"
+            },
+            "correct_answer": "A",
+            "explanation": "Centrosome-organized tubulin microtubules form the mitotic spindle."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is the glycocalyx functionally important on the EXTERNAL cell surface:",
+            "options": {
+              "A": "It generates ATP by oxidative phosphorylation",
+              "B": "It replicates chromosomal DNA before mitosis",
+              "C": "It forms intracellular centriole pairs",
+              "D": "It mediates cell recognition, adhesion, and receptor signaling"
+            },
+            "correct_answer": "D",
+            "explanation": "The external carbohydrate coat supports recognition, adhesion, receptors, and surface charge."
+          },
+          {
+            "type": "mcq",
+            "question": "Unlike integral proteins embedded in the hydrophobic core, peripheral membrane proteins:",
+            "options": {
+              "A": "Span both lipid leaflets continuously as pores",
+              "B": "Associate weakly with membrane surfaces and detach more easily",
+              "C": "Form all 40% of membrane phospholipids",
+              "D": "Reside strictly inside mitochondrial cristae"
+            },
+            "correct_answer": "B",
+            "explanation": "Peripheral proteins bind loosely to inner or outer faces rather than spanning the hydrophobic core."
+          },
+          {
+            "type": "mcq",
+            "question": "Which organelle matches BOTH fatty-acid breakdown AND bile-acid formation:",
+            "options": {
+              "A": "Lysosomes",
+              "B": "Golgi apparatus",
+              "C": "Peroxisomes",
+              "D": "Nucleolus"
+            },
+            "correct_answer": "C",
+            "explanation": "Peroxisomes perform fatty-acid oxidation, lipid synthesis, and bile-acid formation."
+          },
+          {
+            "type": "mcq",
+            "question": "Loss of nuclear PORES would MOST immediately halt:",
+            "options": {
+              "A": "Exchange of selected RNA and proteins between nucleus and cytoplasm",
+              "B": "Oxidative phosphorylation on cristae",
+              "C": "Lipid synthesis in smooth ER",
+              "D": "Exocytosis of pre-formed vesicles"
+            },
+            "correct_answer": "A",
+            "explanation": "Nuclear pores mediate selective molecular transport across the double nuclear envelope."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell dying after acute arterial occlusion undergoes:",
+            "options": {
+              "A": "Apoptosis preserving neighboring cells",
+              "B": "Necrosis accompanied by inflammation",
+              "C": "Controlled developmental sculpting",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Loss of blood supply (ischemia) triggers pathological necrosis with inflammatory spillover."
+          },
+          {
+            "type": "mcq",
+            "question": "During embryonic development, failure of APOPTOSIS between digits would result in:",
+            "options": {
+              "A": "Excessive muscle necrosis",
+              "B": "Loss of plasma membrane cholesterol",
+              "C": "Absence of ribosomes",
+              "D": "Persistence of interdigital tissue"
+            },
+            "correct_answer": "D",
+            "explanation": "Apoptosis removes unneeded tissue between developing digits."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement correctly contrasts ECTOPLASM and ENDOPLASM:",
+            "options": {
+              "A": "Ectoplasm forms the outer cytoplasm while endoplasm lies deeper inside",
+              "B": "Ectoplasm is extracellular while endoplasm is nuclear",
+              "C": "Ectoplasm synthesizes proteins while endoplasm breaks down H2O2",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Cytoplasm is subdivided descriptively into outer ectoplasm and deeper endoplasm."
+          },
+          {
+            "type": "mcq",
+            "question": "Which of the following is a SHARED feature of rough ER and smooth ER:",
+            "options": {
+              "A": "Both carry surface ribosomes",
+              "B": "Both are interconnected membranes of the same endomembrane system",
+              "C": "Both store hereditary nuclear DNA",
+              "D": "Both form ciliary axonemes"
+            },
+            "correct_answer": "B",
+            "explanation": "Rough and smooth ER are structurally connected regions of one endomembrane network."
+          },
+          {
+            "type": "mcq",
+            "question": "Immune cells defending against pathogens can deploy specialized:",
+            "options": {
+              "A": "Nuclear pores",
+              "B": "Tubulin centrioles",
+              "C": "Secretory lysosomes",
+              "D": "Glycocalyx chains"
+            },
+            "correct_answer": "C",
+            "explanation": "Certain immune cells utilize specialized secretory lysosomes for cellular defense."
+          },
+          {
+            "type": "mcq",
+            "question": "Which cellular structure directly directs proteins to storage vesicles or the plasma membrane:",
+            "options": {
+              "A": "Peroxisome",
+              "B": "Nucleolus",
+              "C": "Intermediate filament",
+              "D": "Golgi apparatus"
+            },
+            "correct_answer": "D",
+            "explanation": "The Golgi modifies, sorts, and ships proteins from its trans face to vesicles or the surface."
+          },
+          {
+            "type": "mcq",
+            "question": "If a toxin selectively depolymerizes ACTIN, which process fails FIRST:",
+            "options": {
+              "A": "Ribosomal subunit production in nucleolus",
+              "B": "Cell shape maintenance and contraction",
+              "C": "Lipid packing by cholesterol",
+              "D": "Oxidative phosphorylation"
+            },
+            "correct_answer": "B",
+            "explanation": "Actin-based microfilaments mediate cell shape, motion, contraction, and division."
+          },
+          {
+            "type": "mcq",
+            "question": "Which tissue type is NOT paired with its proper organizational level:",
+            "options": {
+              "A": "Stomach — cellular level",
+              "B": "Muscle — tissue level",
+              "C": "Digestive tract — organ system level",
+              "D": "Intestine — organ level"
+            },
+            "correct_answer": "A",
+            "explanation": "The stomach is an organ made of multiple tissues, not a single cell."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is cholesterol essential rather than inert structural filler in the plasma membrane:",
+            "options": {
+              "A": "It catalyzes exocytosis by itself",
+              "B": "It substitutes for integral receptors",
+              "C": "It regulates lipid packing, flexibility, and stability",
+              "D": "It transports oxygen across the nucleus"
+            },
+            "correct_answer": "C",
+            "explanation": "Cholesterol tunes membrane fluidity, packing, and mechanical stability."
+          },
+          {
+            "type": "mcq",
+            "question": "How do secretory vesicles release their stored hormone outside the cell:",
+            "options": {
+              "A": "Diffusion across naked phospholipid tails",
+              "B": "Fusion with the plasma membrane (exocytosis)",
+              "C": "Passage through nuclear pores",
+              "D": "Phagosome digestion"
+            },
+            "correct_answer": "B",
+            "explanation": "Exocytosis fuses secretory vesicle membranes with the plasma membrane."
+          },
+          {
+            "type": "mcq",
+            "question": "The double-layered nuclear envelope encloses:",
+            "options": {
+              "A": "Nucleoplasm, chromatin, and nucleoli",
+              "B": "Mitochondrial matrix and cristae",
+              "C": "Ectoplasm and smooth ER",
+              "D": "Glycocalyx and peripheral proteins"
+            },
+            "correct_answer": "A",
+            "explanation": "Inside the nuclear envelope sit nucleoplasm, DNA-protein chromatin, and nucleoli."
+          },
+          {
+            "type": "mcq",
+            "question": "Which cell type illustrates an ANUCLEATE eukaryotic cell in healthy humans:",
+            "options": {
+              "A": "Skeletal muscle fiber",
+              "B": "Hepatocyte",
+              "C": "Macrophage",
+              "D": "Mature red blood cell"
+            },
+            "correct_answer": "D",
+            "explanation": "Mature human RBCs lose their nucleus during maturation while remaining eukaryotic."
+          },
+          {
+            "type": "mcq",
+            "question": "Which process is LEAST associated with inflammation:",
+            "options": {
+              "A": "Bacterial infection necrosis",
+              "B": "Traumatic crush necrosis",
+              "C": "Apoptosis",
+              "D": "Toxic cell necrosis"
+            },
+            "correct_answer": "C",
+            "explanation": "Apoptosis removes unneeded cells neatly without provoking local inflammation."
+          },
+          {
+            "type": "mcq",
+            "question": "Which organelle pair has OPPOSITE roles regarding protein synthesis vs breakdown:",
+            "options": {
+              "A": "Rough ER and Golgi",
+              "B": "Ribosomes and lysosomes",
+              "C": "Cristae and matrix",
+              "D": "Ectoplasm and cytosol"
+            },
+            "correct_answer": "B",
+            "explanation": "Ribosomes assemble proteins whereas lysosomes hydrolytically degrade macromolecules."
+          },
+          {
+            "type": "mcq",
+            "question": "Which membrane component contributes directly to receptor interactions AND cell adhesion:",
+            "options": {
+              "A": "Glycoproteins and glycolipids of the glycocalyx",
+              "B": "Free cytosolic cholesterol",
+              "C": "Mitochondrial cristae",
+              "D": "Nuclear chromatin"
+            },
+            "correct_answer": "A",
+            "explanation": "External glycocalyx carbohydrates support adhesion, recognition, and receptor interactions."
+          },
+          {
+            "type": "mcq",
+            "question": "Which component is PRESENT in rough ER but ABSENT in smooth ER:",
+            "options": {
+              "A": "Membrane phospholipid bilayer",
+              "B": "Connection to endomembrane network",
+              "C": "Lumenal interior",
+              "D": "Attached surface ribosomes"
+            },
+            "correct_answer": "D",
+            "explanation": "Attached ribosomes distinguish rough ER from smooth ER."
+          },
+          {
+            "type": "mcq",
+            "question": "Which organelle supplies ATP directly needed to power cellular work:",
+            "options": {
+              "A": "Golgi cisternae",
+              "B": "Mitochondria",
+              "C": "Peroxisome",
+              "D": "Nucleolus"
+            },
+            "correct_answer": "B",
+            "explanation": "Mitochondria oxidize nutrients to produce ATP."
+          },
+          {
+            "type": "mcq",
+            "question": "In a cell undergoing active protein export, the cis face of the Golgi receives vesicles directly from:",
+            "options": {
+              "A": "Extracellular fluid",
+              "B": "Nuclear envelope directly",
+              "C": "Endoplasmic reticulum",
+              "D": "Peroxisomes"
+            },
+            "correct_answer": "C",
+            "explanation": "ER vesicles fuse with the receiving cis face of the Golgi."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement about the cytoskeleton is ACCURATE:",
+            "options": {
+              "A": "It is a dynamic framework supporting cell shape and organelle movement",
+              "B": "It is a permanently static shell",
+              "C": "It exists only during necrosis",
+              "D": "It contains only one protein filament type"
+            },
+            "correct_answer": "A",
+            "explanation": "The cytoskeleton continuously remodels using microtubules, intermediate filaments, and microfilaments."
+          },
+          {
+            "type": "mcq",
+            "question": "Which of the following statements is TRUE about lysosomes:",
+            "options": {
+              "A": "They oxidize hydrogen peroxide via catalase",
+              "B": "They fuse with endosomes, phagosomes, or autophagic vacuoles to digest contents",
+              "C": "They assemble mRNA into amino acid chains",
+              "D": "They generate cellular ATP"
+            },
+            "correct_answer": "B",
+            "explanation": "Lysosomes fuse with endocytic, phagocytic, and autophagic compartments for hydrolytic digestion."
+          },
+          {
+            "type": "mcq",
+            "question": "Which example represents a connective/organ-level pairing: Stomach contains muscle, nervous, connective, and:",
+            "options": {
+              "A": "Prokaryotic tissues",
+              "B": "Cholesterol layers",
+              "C": "Nucleolar tissues",
+              "D": "Epithelial tissues"
+            },
+            "correct_answer": "D",
+            "explanation": "Organs combine multiple among the four basic tissues: muscle, nervous, connective, and epithelial."
+          },
+          {
+            "type": "mcq",
+            "question": "When oxygen and carbon dioxide cross the plasma membrane, they pass primarily:",
+            "options": {
+              "A": "Directly through the lipid bilayer",
+              "B": "Via exocytic vesicles",
+              "C": "Through nuclear pores",
+              "D": "Only inside lysosomes"
+            },
+            "correct_answer": "A",
+            "explanation": "Small lipid-soluble gases like O2 and CO2 diffuse across the phospholipid bilayer."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pair of cellular structures BOTH contain nucleic acids (DNA or RNA):",
+            "options": {
+              "A": "Smooth ER and peroxisome",
+              "B": "Golgi and centrosome",
+              "C": "Nucleus and mitochondria",
+              "D": "Microfilaments and glycocalyx"
+            },
+            "correct_answer": "C",
+            "explanation": "The nucleus holds chromosomal DNA/RNA and mitochondria contain their own DNA (plus ribosomes contain rRNA)."
+          },
+          {
+            "type": "mcq",
+            "question": "A researcher blocks intracellular calcium sequestration by the endomembrane network; which organelle is affected:",
+            "options": {
+              "A": "Lysosome",
+              "B": "Smooth endoplasmic reticulum",
+              "C": "Peroxisome",
+              "D": "Nucleolus"
+            },
+            "correct_answer": "B",
+            "explanation": "Smooth ER handles intracellular calcium alongside lipid synthesis and detoxification."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is necrosis considered pathological while apoptosis is often physiological:",
+            "options": {
+              "A": "Necrosis follows injury like toxins/ischemia, whereas apoptosis maintains cell numbers and development",
+              "B": "Apoptosis requires trauma whereas necrosis is embryonic",
+              "C": "Both occur exclusively after infection",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Apoptosis is genetically regulated turnover/development; necrosis follows acute disruption."
+          },
+          {
+            "type": "mcq",
+            "question": "The basic functional unit of protein synthesis formed in the nucleolus is the:",
+            "options": {
+              "A": "Lysosomal vesicle",
+              "B": "Ribosomal subunit",
+              "C": "Mitochondrial crista",
+              "D": "Phospholipid micelle"
+            },
+            "correct_answer": "B",
+            "explanation": "Nucleoli assemble ribosomal subunits before export to cytoplasm."
+          },
+          {
+            "type": "mcq",
+            "question": "Which membrane transport protein class acts as a hormone-responsive trigger without moving across the bilayer:",
+            "options": {
+              "A": "Surface glycogen",
+              "B": "Phospholipid tail",
+              "C": "Cytosolic actin",
+              "D": "Membrane receptor"
+            },
+            "correct_answer": "D",
+            "explanation": "Integral/surface receptor proteins respond to hormones or neurotransmitters."
+          },
+          {
+            "type": "true_false",
+            "question": "All human cells contain exactly one nucleus throughout their entire lifespan.",
+            "correct_answer": false,
+            "explanation": "Skeletal muscle fibers have multiple nuclei, whereas mature RBCs have none."
+          },
+          {
+            "type": "true_false",
+            "question": "Smooth endoplasmic reticulum connects structurally to rough endoplasmic reticulum.",
+            "correct_answer": true,
+            "explanation": "Rough and smooth ER are continuous domains of the endomembrane system."
+          },
+          {
+            "type": "true_false",
+            "question": "Peroxisomes rely on catalase to process hydrogen peroxide.",
+            "correct_answer": true,
+            "explanation": "Peroxisomal catalase detoxifies hydrogen peroxide."
+          },
+          {
+            "type": "true_false",
+            "question": "Golgi cisternae process cargo exclusively for exocytosis and never for intracellular organelles.",
+            "correct_answer": false,
+            "explanation": "The Golgi routes cargo to intracellular destinations, storage vesicles, and the cell surface."
+          },
+          {
+            "type": "true_false",
+            "question": "Actin microfilaments support cell contraction and cell division.",
+            "correct_answer": true,
+            "explanation": "Actin-based microfilaments contribute to cell shape, motion, contraction, and cytokinesis."
+          },
+          {
+            "type": "true_false",
+            "question": "Glycocalyx carbohydrates project mainly into the cytosolic endoplasm.",
+            "correct_answer": false,
+            "explanation": "Membrane carbohydrate chains project from the external surface into ECF."
+          },
+          {
+            "type": "true_false",
+            "question": "Both free ribosomes and ER-bound ribosomes translate genetic messages carried by mRNA.",
+            "correct_answer": true,
+            "explanation": "All ribosomes synthesize protein using mRNA instructions."
+          },
+          {
+            "type": "true_false",
+            "question": "Mitochondrial matrix lies outside the outer mitochondrial membrane.",
+            "correct_answer": false,
+            "explanation": "The matrix is enclosed within the folded inner mitochondrial membrane."
+          },
+          {
+            "type": "true_false",
+            "question": "Hydrolytic enzymes of lysosomes can digest excess secretory products as well as damaged organelles.",
+            "correct_answer": true,
+            "explanation": "Lysosomes break down macromolecules, worn structures, and excess secretory materials."
+          },
+          {
+            "type": "true_false",
+            "question": "Cell death caused by severe toxic exposure is classified as programmed apoptosis.",
+            "correct_answer": false,
+            "explanation": "Severe toxic injury causes pathological necrosis rather than regulated apoptosis."
+          }
+        ]
+      }
+    },
+    "hard": {
+      "pages": [
+        {
+          "page": 2,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "If a localized toxin destroys ONLY the epithelial lining of the stomach while sparing its smooth muscle, nerves, and connective stroma, why is organ-level function still disrupted:",
+              "options": {
+                "A": "Each tissue acts independently inside an organ without shared physiological tasks",
+                "B": "Connective stroma immediately converts into secretory epithelium",
+                "C": "An organ integrates cooperating tissue types, so failure of one component compromises the whole organ",
+                "D": "Cells in smooth muscle replace epithelial secretion directly"
+              },
+              "correct_answer": "C",
+              "explanation": "An organ combines multiple distinct tissue types whose coordinated roles are required for organ function."
+            },
+            {
+              "type": "mcq",
+              "question": "Which cellular process would IMMEDIATELY fail if the plasma membrane became completely impermeable:",
+              "options": {
+                "A": "Ribosomal translation on existing mRNA",
+                "B": "Controlled gas and nutrient exchange between ECF and ICF",
+                "C": "Removal of intracellular metabolic wastes",
+                "D": "B and C"
+              },
+              "correct_answer": "D",
+              "explanation": "An impermeable membrane stops regulated exchange of nutrients, gases, and wastes across ECF/ICF."
+            },
+            {
+              "type": "mcq",
+              "question": "A student argues that the plasma membrane, cytoplasm, and nucleus operate independently inside the cell without functional overlap; which evidence from Page 2 refutes this claim:",
+              "options": {
+                "A": "All three regions function in coordination, whereas extracellular fluid (ECF) lies outside the plasma membrane",
+                "B": "Nucleus and cytoplasm interact only when the plasma membrane dissolves permanently",
+                "C": "Extracellular fluid counts as one of the three internal cellular regions alongside organelles",
+                "D": "Only the plasma membrane participates in cell survival while cytoplasm and nucleus remain inert"
+              },
+              "correct_answer": "A",
+              "explanation": "The three major interconnected cellular regions—plasma membrane, cytoplasm, and nucleus—coordinate vitals, whereas ECF sits outside the membrane."
+            },
+            {
+              "type": "mcq",
+              "question": "If an organ such as the stomach carries out digestion alongside other organs, together they form:",
+              "options": {
+                "A": "A single tissue layer",
+                "B": "An organ system",
+                "C": "The intracellular fluid compartment",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Coordinated organs working toward a common physiological function constitute an organ system."
+            },
+            {
+              "type": "true_false",
+              "question": "The plasma membrane, cytoplasm, and nucleus perform completely independent functions with minimal coordination.",
+              "correct_answer": false,
+              "explanation": "The functions of all three major cellular regions are tightly coordinated."
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which statement CORRECTLY contrasts membrane composition by weight percentage:",
+              "options": {
+                "A": "Lipids exceed proteins, while carbohydrates exceed lipids",
+                "B": "Carbohydrates and proteins are present in equal 50% shares",
+                "C": "Proteins exceed lipids, which greatly exceed carbohydrates",
+                "D": "Cholesterol accounts for 55% of total membrane mass"
+              },
+              "correct_answer": "C",
+              "explanation": "Membrane proportions are approximately 55% protein, 40% lipid, and 5% carbohydrate."
+            },
+            {
+              "type": "mcq",
+              "question": "A genetic defect selectively eliminates membrane GLYCOLIPIDS and GLYCOPROTEINS while leaving phospholipids intact; which function is MOST impaired:",
+              "options": {
+                "A": "Formation of the hydrophobic fatty-acid tail barrier",
+                "B": "Cell-cell recognition and adhesion at the external surface",
+                "C": "Cholesterol stabilization inside the core",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "External glycolipids and glycoproteins form the glycocalyx responsible for recognition, adhesion, and receptor interactions."
+            },
+            {
+              "type": "mcq",
+              "question": "Which statement is TRUE regarding INTEGRAL versus PERIPHERAL membrane proteins:",
+              "options": {
+                "A": "Integral proteins embed in and often span the bilayer, whereas peripheral proteins associate loosely at surfaces",
+                "B": "Peripheral proteins span the entire bilayer to form aqueous ion channels",
+                "C": "Integral proteins project only as external carbohydrate chains",
+                "D": "Both classes are confined exclusively to the extracellular side"
+              },
+              "correct_answer": "A",
+              "explanation": "Integral proteins penetrate or span the hydrophobic core; peripheral proteins attach loosely to internal or external faces."
+            },
+            {
+              "type": "mcq",
+              "question": "Why do charged ions cross the lipid bilayer slowly WITHOUT channel proteins:",
+              "options": {
+                "A": "Hydrophilic heads block all water contact on both surfaces",
+                "B": "Membrane carbohydrates carry 55% of negative barrier mass",
+                "C": "Hydrophobic tails in the bilayer interior repel charged water-soluble solutes",
+                "D": "Cholesterol converts ions into lipid-soluble gases"
+              },
+              "correct_answer": "C",
+              "explanation": "The nonpolar fatty-acid core resists entry of charged ions, requiring integral channel or carrier proteins."
+            },
+            {
+              "type": "mcq",
+              "question": "Which description BEST explains why cholesterol is MORE than passive structural bulk:",
+              "options": {
+                "A": "It catalyzes peptide bond formation on external receptors",
+                "B": "It modulates phospholipid packing, flexibility, and mechanical membrane stability",
+                "C": "It replaces transmembrane ion channels",
+                "D": "It generates ATP directly within the bilayer"
+              },
+              "correct_answer": "B",
+              "explanation": "Intercalated cholesterol regulates bilayer packing, fluidity/flexibility, and structural stability."
+            },
+            {
+              "type": "mcq",
+              "question": "Which membrane function depends directly on BOTH transmembrane proteins AND the external glycocalyx:",
+              "options": {
+                "A": "Storage of nuclear chromatin",
+                "B": "Peroxide breakdown by catalase",
+                "C": "ATP synthesis along cristae",
+                "D": "Receptor binding and intercellular signaling interactions"
+              },
+              "correct_answer": "D",
+              "explanation": "Membrane proteins and glycocalyx glycoproteins jointly mediate hormone/ligand reception and cell-cell interactions."
+            },
+            {
+              "type": "true_false",
+              "question": "External membrane carbohydrates contribute to surface electrical properties in addition to cell adhesion.",
+              "correct_answer": true,
+              "explanation": "The glycocalyx participates in cell recognition, adhesion, receptor interactions, and surface electrical properties."
+            },
+            {
+              "type": "true_false",
+              "question": "Phospholipid hydrophilic heads face inward toward one another at the center of the plasma membrane.",
+              "correct_answer": false,
+              "explanation": "Hydrophilic heads face outward toward watery ECF and ICF; hydrophobic tails point inward toward one another."
+            }
+          ]
+        },
+        {
+          "page": 4,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "A hepatocyte rapidly detoxifying lipid-soluble drugs and synthesizing steroid precursors relies MOST heavily on hypertrophy of:",
+              "options": {
+                "A": "Smooth endoplasmic reticulum",
+                "B": "Rough endoplasmic reticulum",
+                "C": "Golgi cis face only",
+                "D": "Ectoplasm"
+              },
+              "correct_answer": "A",
+              "explanation": "Smooth ER performs lipid/steroid biosynthesis and hepatic drug detoxification."
+            },
+            {
+              "type": "mcq",
+              "question": "In a secretory cell, blocking vesicle fusion at the Golgi CIS face FIRST causes newly made proteins to accumulate in:",
+              "options": {
+                "A": "Extracellular space",
+                "B": "Rough endoplasmic reticulum",
+                "C": "Mitochondrial matrix",
+                "D": "Smooth ER lipid droplets"
+              },
+              "correct_answer": "B",
+              "explanation": "Secretory proteins synthesized in rough ER must enter the Golgi cis face next for processing."
+            },
+            {
+              "type": "mcq",
+              "question": "Which functional failure occurs if a hepatocyte loses ONLY smooth ER while keeping rough ER intact:",
+              "options": {
+                "A": "Impaired lipid/steroid biosynthesis, Ca2+ handling, and drug detoxification",
+                "B": "Complete halt of secretory mRNA translation on rough ER",
+                "C": "Immediate failure of nuclear pore RNA export",
+                "D": "Loss of actin polymerization in microfilaments"
+              },
+              "correct_answer": "A",
+              "explanation": "Smooth ER handles lipids, steroids, Ca2+, and detoxification; secretory protein translation belongs to Rough ER."
+            },
+            {
+              "type": "mcq",
+              "question": "Which step occurs LAST in the secretory pathway illustrated by nucleus -> ER -> Golgi -> vesicle:",
+              "options": {
+                "A": "Entry at the Golgi cis face",
+                "B": "Translation on rough ER ribosomes",
+                "C": "Fusion of secretory vesicles with the plasma membrane",
+                "D": "Exit from the Golgi trans face"
+              },
+              "correct_answer": "C",
+              "explanation": "After exiting the Golgi trans face in secretory vesicles, cargo is released at the plasma membrane."
+            },
+            {
+              "type": "mcq",
+              "question": "Suppose a drug disrupts polarization across the CIS and TRANS faces of the Golgi apparatus WITHOUT injuring rough ER ribosomes; which sequence of consequences occurs:",
+              "options": {
+                "A": "Amino acid translation on rough ER stops before mRNA binds",
+                "B": "Ribosomes still synthesize proteins into rough ER, but directional sorting and vesicular exit from the trans face arrest",
+                "C": "Cytoplasmic separation between outer ectoplasm and deeper endoplasm disappears immediately",
+                "D": "None of the above"
+              },
+              "correct_answer": "B",
+              "explanation": "Rough ER synthesis remains upstream, while Golgi cis-to-trans transport blocks proper modification and trans-face vesicle shipping."
+            },
+            {
+              "type": "mcq",
+              "question": "Which function would persist NORMALLY if the Golgi apparatus lost ONLY its trans face export sorting:",
+              "options": {
+                "A": "Directed packaging of proteins into secretory vesicles",
+                "B": "Targeted delivery of enzymes to surface membranes",
+                "C": "Sorted vesicular release outside the cell",
+                "D": "Protein synthesis on rough ER surface ribosomes"
+              },
+              "correct_answer": "D",
+              "explanation": "Ribosomal translation on rough ER precedes Golgi cis-to-trans sorting and vesicular export."
+            },
+            {
+              "type": "true_false",
+              "question": "Rough endoplasmic reticulum plays no role in processing worn-out intracellular organelles.",
+              "correct_answer": false,
+              "explanation": "Rough ER is also linked to processing worn organelles via pathways associated with autophagy."
+            },
+            {
+              "type": "true_false",
+              "question": "The Golgi apparatus routes processed molecules not only to the cell surface but also to intracellular destinations and storage vesicles.",
+              "correct_answer": true,
+              "explanation": "From its trans face, the Golgi directs cargo to intracellular organelles, storage vesicles, or exocytosis."
+            }
+          ]
+        },
+        {
+          "page": 5,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "A genetic failure to package hydrolytic enzymes into lysosomes while keeping catalase active would leave INTACT:",
+              "options": {
+                "A": "Hydrogen peroxide detoxification in peroxisomes",
+                "B": "Autophagic digestion of worn organelles",
+                "C": "Phagosomal breakdown of engulfed bacteria",
+                "D": "Immune cell secretory lysosome defense"
+              },
+              "correct_answer": "A",
+              "explanation": "Peroxisomes rely on oxidative enzymes like catalase rather than lysosomal hydrolytic enzymes."
+            },
+            {
+              "type": "mcq",
+              "question": "Why is oxidative phosphorylation compromised if mitochondrial INNER membrane folding (cristae) is flattened:",
+              "options": {
+                "A": "Outer membrane ceases to contain any cytosol",
+                "B": "Ribosomes detach from nuclear pores",
+                "C": "Available inner membrane surface area for ATP-producing reactions falls sharply",
+                "D": "Golgi cisternae lose their cis face"
+              },
+              "correct_answer": "C",
+              "explanation": "Cristae greatly expand the inner membrane surface hosting oxidative phosphorylation enzymes."
+            },
+            {
+              "type": "mcq",
+              "question": "A liver biopsy reveals buildup of hydrogen peroxide (H2O2) and impaired bile-acid pathways while phagolysosomal bacterial digestion stays intact; which organelle class is selectively failing:",
+              "options": {
+                "A": "Lysosomes, because catalase is their primary hydrolytic enzyme",
+                "B": "Peroxisomes (catalase and oxidative lipid pathways), sparing lysosomal hydrolases",
+                "C": "Both peroxisomes and lysosomes use identical hydrolases to detoxify H2O2",
+                "D": "Golgi cis face, because catalase is packaged exclusively into secretory vesicles"
+              },
+              "correct_answer": "B",
+              "explanation": "Peroxisomes use catalase and oxidative enzymes for H2O2 and bile-acid pathways, distinct from lysosomal hydrolytic digestion."
+            },
+            {
+              "type": "mcq",
+              "question": "Which sequence BEST explains how destructive lysosomal enzymes avoid digesting rough ER before activation:",
+              "options": {
+                "A": "Free ribosomes release bare enzymes into cytosol without membranes",
+                "B": "Catalase converts them inside peroxisomes first",
+                "C": "Mitochondria secrete them through cristae",
+                "D": "Enzymes are made in rough ER, processed in Golgi, and compartmentalized in membrane-bound lysosomes"
+              },
+              "correct_answer": "D",
+              "explanation": "Membrane compartmentalization from rough ER through Golgi delivery isolates hydrolytic enzymes inside lysosomes."
+            },
+            {
+              "type": "mcq",
+              "question": "Which statement accurately describes internal organelle machinery operating BEYOND simple storage/digestion:",
+              "options": {
+                "A": "Mitochondria hold their own DNA and trigger apoptosis alongside producing ATP",
+                "B": "Centrioles run oxidative phosphorylation inside smooth ER cisternae",
+                "C": "Peroxisomes synthesize mRNA from chromosomal genes",
+                "D": "A and B"
+              },
+              "correct_answer": "A",
+              "explanation": "Mitochondria contain mitochondrial DNA and release apoptotic signals besides making ATP; neither centrioles nor peroxisomes do the listed tasks."
+            },
+            {
+              "type": "mcq",
+              "question": "If cells lacked functional centrioles inside the centrosome, which process would be MOST disrupted:",
+              "options": {
+                "A": "Hydrolytic digestion inside endosomes",
+                "B": "Organization of mitotic spindle microtubules during cell division",
+                "C": "Catalase breakdown of hydrogen peroxide",
+                "D": "Translation of cytosolic enzymes on free ribosomes"
+              },
+              "correct_answer": "B",
+              "explanation": "Centrioles and the centrosome organize microtubules needed for chromosome segregation in mitosis."
+            },
+            {
+              "type": "mcq",
+              "question": "Selective inhibition of ER-BOUND ribosomes (sparing free ribosomes) would MOST directly reduce production of:",
+              "options": {
+                "A": "Cytosolic glycolytic enzymes",
+                "B": "Mitochondrial cristae folds",
+                "C": "Secreted peptide hormones and integral membrane channels",
+                "D": "Centriolar DNA"
+              },
+              "correct_answer": "C",
+              "explanation": "ER-bound ribosomes chiefly synthesize proteins entering secretory and membrane-insertion pathways."
+            },
+            {
+              "type": "mcq",
+              "question": "All of the following take place inside or directly involve MITOCHONDRIA EXCEPT:",
+              "options": {
+                "A": "Generation of cellular ATP",
+                "B": "Oxidative phosphorylation on cristae",
+                "C": "Signaling that can initiate apoptosis",
+                "D": "Synthesis of lysosomal hydrolytic enzymes"
+              },
+              "correct_answer": "D",
+              "explanation": "Lysosomal hydrolytic enzymes are synthesized by rough ER and sorted via Golgi, not mitochondria."
+            },
+            {
+              "type": "true_false",
+              "question": "Peroxisomes participate in bile-acid formation and specific lipid pathways in addition to peroxide detoxification.",
+              "correct_answer": true,
+              "explanation": "Peroxisomes participate in fatty-acid oxidation, specific lipid metabolism, and bile-acid synthesis pathways."
+            },
+            {
+              "type": "true_false",
+              "question": "Complete inhibition of catalase inside peroxisomes immediately blocks rough-ER synthesis and Golgi sorting of digestive enzymes destined for lysosomes.",
+              "correct_answer": false,
+              "explanation": "Peroxisomes detoxify H2O2 and oxidize fatty acids, whereas lysosomal hydrolytic enzymes follow the rough-ER-to-Golgi pathway."
+            }
+          ]
+        },
+        {
+          "page": 6,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which cytoskeletal defect would simultaneously impair intracellular organelle trafficking, ciliary beating, AND mitosis:",
+              "options": {
+                "A": "Loss of tubulin assembly into microtubules",
+                "B": "Loss of actin microfilaments alone",
+                "C": "Overproduction of nuclear pores",
+                "D": "Absence of desmosomal intermediate filaments"
+              },
+              "correct_answer": "A",
+              "explanation": "Tubulin microtubules uniquely drive all three: organelle transport tracks, ciliary motion, and the mitotic spindle."
+            },
+            {
+              "type": "mcq",
+              "question": "Which pairing matches filament type, subunit, and primary mechanical/contractile role:",
+              "options": {
+                "A": "Microtubules — actin — cell contraction",
+                "B": "Intermediate filaments — fibrous proteins — resistance to mechanical strain at desmosomes",
+                "C": "Microfilaments — tubulin — ciliary beating",
+                "D": "Intermediate filaments — actin — mitotic spindle"
+              },
+              "correct_answer": "B",
+              "explanation": "Intermediate filaments are built of fibrous proteins that resist strain and anchor at desmosomes."
+            },
+            {
+              "type": "mcq",
+              "question": "Destruction of NUCLEOLI inside an otherwise intact nucleus would MOST directly halt synthesis of:",
+              "options": {
+                "A": "Cholesterol and steroid hormones",
+                "B": "Nuclear pores",
+                "C": "Ribosomal subunits",
+                "D": "Actin monomers"
+              },
+              "correct_answer": "C",
+              "explanation": "Nucleoli are the nuclear subcompartments dedicated to assembling ribosomal subunits."
+            },
+            {
+              "type": "mcq",
+              "question": "Why is categorizing a mature human red blood cell as a 'prokaryote' a conceptual error:",
+              "options": {
+                "A": "Mature RBCs are specialized anucleate eukaryotic cells",
+                "B": "Mature RBCs retain multiple nuclei and nucleoli",
+                "C": "Mature RBCs contain chloroplasts instead of lipids",
+                "D": "All mammalian blood cells lack membranes"
+              },
+              "correct_answer": "A",
+              "explanation": "Mature human RBCs develop from eukaryotic precursors and merely lose their nucleus; prokaryotes are an unrelated cellular domain."
+            },
+            {
+              "type": "mcq",
+              "question": "A tissue after arterial occlusion shows swollen ruptured cells and acute inflammation, whereas neighboring normal turnover shows quiet cell shrinkage with preserved tissue; which mechanistic pairing applies:",
+              "options": {
+                "A": "The first shows developmental apoptosis; the second shows acute ischemic lysis",
+                "B": "The first shows pathological necrosis after blood-supply loss; the second shows controlled apoptosis",
+                "C": "Both show passive osmotic swelling triggered solely by nuclear pore loss",
+                "D": "The second shows crush-trauma necrosis protecting cells via enzyme spill"
+              },
+              "correct_answer": "B",
+              "explanation": "Necrosis follows acute injury such as ischemia and promotes inflammation, whereas programmed apoptosis protects adjacent tissue."
+            },
+            {
+              "type": "mcq",
+              "question": "Which feature allows a single skeletal muscle fiber to coordinate large cytoplasm volume:",
+              "options": {
+                "A": "Replacement of plasma membrane by glycocalyx",
+                "B": "Absence of actin microfilaments",
+                "C": "Conversion into prokaryotic cells",
+                "D": "Presence of multiple nuclei"
+              },
+              "correct_answer": "D",
+              "explanation": "Skeletal muscle fibers are multinucleated, containing several nuclei within one cell."
+            },
+            {
+              "type": "true_false",
+              "question": "During cell division, nuclear chromatin condenses into visible chromosomes while microtubules form the mitotic spindle.",
+              "correct_answer": true,
+              "explanation": "Chromatin condenses into chromosomes and tubulin microtubules assemble the mitotic spindle."
+            },
+            {
+              "type": "true_false",
+              "question": "Intermediate filaments are primarily responsible for contractile force during cell movement.",
+              "correct_answer": false,
+              "explanation": "Actin microfilaments mediate contraction and motion; intermediate filaments provide mechanical tensile support."
+            }
+          ]
+        },
+        {
+          "page": 7,
+          "questions": [
+            {
+              "type": "mcq",
+              "question": "Which developmental process depends on APOPTOSIS rather than necrosis to sculpt normal anatomy:",
+              "options": {
+                "A": "Ischemic infarction following arterial occlusion",
+                "B": "Removal of interdigital tissue between developing fingers and toes",
+                "C": "Toxic chemical lysis of hepatocytes",
+                "D": "Traumatic rupture of epithelial sheets"
+              },
+              "correct_answer": "B",
+              "explanation": "Programmed apoptosis selectively removes interdigital webbing during normal embryonic development."
+            },
+            {
+              "type": "mcq",
+              "question": "Which cellular failure pairs an organelle INCORRECTLY with its primary summary role:",
+              "options": {
+                "A": "Golgi — sorting and shipping",
+                "B": "Mitochondria — ATP generation",
+                "C": "Peroxisome — primary protein synthesis from mRNA",
+                "D": "Lysosome — macromolecular digestion"
+              },
+              "correct_answer": "C",
+              "explanation": "Protein assembly from mRNA is carried out by ribosomes, whereas peroxisomes handle oxidative processing."
+            },
+            {
+              "type": "true_false",
+              "question": "Apoptosis maintains stable tissue cell numbers by eliminating both excess developing cells and potentially harmful immune cells.",
+              "correct_answer": true,
+              "explanation": "Controlled apoptosis preserves normal cell counts and removes unneeded or autoreactive cells."
+            },
+            {
+              "type": "mcq",
+              "question": "Why does NECROSIS trigger adjacent tissue inflammation whereas APOPTOSIS avoids it:",
+              "options": {
+                "A": "Necrosis leaks cytoplasmic contents after acute injury, whereas apoptosis packages dead cells cleanly",
+                "B": "Apoptosis bursts lysosomes across extracellular matrix",
+                "C": "Necrosis shuts off mitochondrial DNA without membrane injury",
+                "D": "None of the above"
+              },
+              "correct_answer": "A",
+              "explanation": "Uncontrolled necrotic membrane rupture spills inflammatory mediators; programmed apoptosis preserves neighboring cells."
+            }
+          ]
+        }
+      ],
+      "final_exam": {
+        "questions": [
+          {
+            "type": "mcq",
+            "question": "A mutation prevents hydrophobic phospholipid tails from orienting inward; which membrane property collapses IMMEDIATELY:",
+            "options": {
+              "A": "Presence of peripheral proteins alone",
+              "B": "Nuclear chromatin condensation",
+              "C": "ATP generation in mitochondria",
+              "D": "Selective barrier against charged and strongly water-soluble solutes"
+            },
+            "correct_answer": "D",
+            "explanation": "Without a continuous hydrophobic core, the lipid bilayer barrier to polar/charged solutes fails."
+          },
+          {
+            "type": "mcq",
+            "question": "In an experiment, cells retain normal lipid mass (40%) but lose ALL cholesterol; what membrane failure results:",
+            "options": {
+              "A": "Carbohydrates surge to 55% of mass",
+              "B": "Impaired lipid packing and stability",
+              "C": "Ribosomes detach from nuclear pores",
+              "D": "Mitochondrial cristae dissolve immediately"
+            },
+            "correct_answer": "B",
+            "explanation": "Cholesterol intercalates between phospholipids specifically to tune packing, flexibility, and stability."
+          },
+          {
+            "type": "mcq",
+            "question": "Which experimental observation distinguishes INTEGRAL from PERIPHERAL membrane proteins:",
+            "options": {
+              "A": "Integral proteins embed within/span the hydrophobic bilayer while peripheral proteins associate loosely at surfaces",
+              "B": "Peripheral proteins carry 95% of membrane carbohydrate",
+              "C": "Integral proteins lack any role as receptors or channels",
+              "D": "Peripheral proteins span both leaflets continuously"
+            },
+            "correct_answer": "A",
+            "explanation": "Integral proteins penetrate the hydrophobic core; peripheral proteins bind only at membrane surfaces."
+          },
+          {
+            "type": "mcq",
+            "question": "A secretory cell has intact rough ER and cis-Golgi uptake but defective TRANS-Golgi budding; where do modified glycoproteins arrest:",
+            "options": {
+              "A": "On free cytosolic ribosomes",
+              "B": "Inside peroxisomes",
+              "C": "Inside Golgi cisternae before secretory vesicle export",
+              "D": "Outside the plasma membrane"
+            },
+            "correct_answer": "C",
+            "explanation": "Cargo arrives at the cis face, gets modified in cisternae, and cannot exit if trans-face budding fails."
+          },
+          {
+            "type": "mcq",
+            "question": "Which statement CORRECTLY contrasts Smooth ER and Peroxisomes in lipid/detoxification metabolism:",
+            "options": {
+              "A": "Peroxisomes synthesize steroid hormones on attached ribosomes",
+              "B": "Smooth ER synthesizes steroids and detoxifies drugs in liver; peroxisomes oxidize fatty acids, H2O2 (catalase), and bile-acid pathways",
+              "C": "Smooth ER contains catalase to digest phagosomes",
+              "D": "Both hydrolyze macromolecules identically to lysosomes"
+            },
+            "correct_answer": "B",
+            "explanation": "Smooth ER handles steroids, Ca2+, and drug detoxification; peroxisomes perform catalase and fatty-acid/bile-acid oxidation."
+          },
+          {
+            "type": "mcq",
+            "question": "If a drug selectively inhibits lysosomal fusion with autophagic vacuoles, which process fails:",
+            "options": {
+              "A": "Degradation of worn-out organelles after autophagy delivery",
+              "B": "Translation on free ribosomes",
+              "C": "Synthesis of ATP on cristae",
+              "D": "Mitotic spindle formation"
+            },
+            "correct_answer": "A",
+            "explanation": "Lysosomal fusion with autophagic, endocytic, or phagocytic vacuoles is required for hydrolytic breakdown."
+          },
+          {
+            "type": "mcq",
+            "question": "Why do cells undergoing intense protein secretion (e.g., acinar cells) display abundant rough ER AND prominent nucleoli:",
+            "options": {
+              "A": "Nucleoli store secretory vesicles before exocytosis",
+              "B": "Rough ER synthesizes nuclear DNA directly",
+              "C": "Cholesterol is synthesized in nucleoli",
+              "D": "Nucleoli produce ribosomal subunits needed to populate rough ER for protein synthesis"
+            },
+            "correct_answer": "D",
+            "explanation": "Nucleoli manufacture ribosomal subunits that assemble onto rough ER to support heavy protein secretion."
+          },
+          {
+            "type": "mcq",
+            "question": "Loss of folded mitochondrial CRISTAE surface area would MOST directly cripple:",
+            "options": {
+              "A": "Glycocalyx carbohydrate bonding at the surface",
+              "B": "Tubulin polymerization in mitotic spindles",
+              "C": "Oxidative ATP generation on the inner membrane",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "Loss of cristae drastically reduces inner membrane area available for oxidative ATP synthesis."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell has normal mitochondria and ATP levels, yet fails to trigger programmed cell death despite irreparable DNA injury; which mitochondrial function is defective:",
+            "options": {
+              "A": "Catalase peroxide breakdown",
+              "B": "Mitochondrial apoptosis signaling pathway",
+              "C": "Golgi cis-to-trans sorting",
+              "D": "Glycocalyx adhesion"
+            },
+            "correct_answer": "B",
+            "explanation": "Beyond ATP synthesis, mitochondria participate directly in signaling that initiates apoptosis."
+          },
+          {
+            "type": "mcq",
+            "question": "Which cytoskeletal triple correctly links element, subunit, and clinical/cellular example:",
+            "options": {
+              "A": "Microtubules (tubulin -> mitotic spindle); Intermediate filaments (fibrous proteins -> desmosomes); Microfilaments (actin -> contraction)",
+              "B": "Microtubules (actin -> cilia); Intermediate filaments (tubulin -> spindle); Microfilaments (fibrous -> desmosomes)",
+              "C": "Microtubules (fibrous -> contraction); Microfilaments (tubulin -> tracks); Intermediate filaments (actin -> cilia)",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Each cytoskeletal class uses distinct protein polymers for its characteristic structural or motile role."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is calling mature human RBCs 'prokaryotes' scientifically invalid despite lacking a nucleus:",
+            "options": {
+              "A": "Mature RBCs preserve active nucleoli",
+              "B": "Mature RBCs are anucleate eukaryotic cells",
+              "C": "Mature RBCs divide rapidly by mitosis",
+              "D": "Prokaryotes possess rough ER stacks"
+            },
+            "correct_answer": "B",
+            "explanation": "Prokaryotes are a separate non-nucleated domain; mature human RBCs develop from eukaryotic precursors and merely lose their nucleus."
+          },
+          {
+            "type": "mcq",
+            "question": "Which feature BEST differentiates developmental elimination of interdigital tissue from ischemic myocardial tissue death:",
+            "options": {
+              "A": "Ischemic death is regulated apoptosis whereas interdigital removal is necrosis",
+              "B": "Both processes depend on catalase release from peroxisomes",
+              "C": "Both spill lysosomal contents to induce fibrosis",
+              "D": "Interdigital removal is genetically regulated apoptosis without significant inflammation; ischemic death is injury-induced necrosis with inflammation"
+            },
+            "correct_answer": "D",
+            "explanation": "Developmental sculpting uses controlled apoptosis; ischemia causes inflammatory necrosis."
+          },
+          {
+            "type": "mcq",
+            "question": "If a substance alters surface electrical properties AND blocks cell-cell recognition without penetrating the bilayer core, it targets:",
+            "options": {
+              "A": "Hydrophobic phospholipid tails",
+              "B": "Smooth ER calcium stores",
+              "C": "External glycocalyx glycolipids and glycoproteins",
+              "D": "Mitochondrial matrix DNA"
+            },
+            "correct_answer": "C",
+            "explanation": "The external carbohydrate coat (glycocalyx) mediates recognition, adhesion, receptors, and surface charge."
+          },
+          {
+            "type": "mcq",
+            "question": "Following bacterial phagocytosis, an immune cell engulfs microbes into a phagosome normally yet fails BOTH to digest bacteria AND to release defense granules; which single organelle defect explains both:",
+            "options": {
+              "A": "Lysosomal deficiency (impaired phagolysosome fusion and secretory lysosomes)",
+              "B": "Centriolar duplication failure inside the centrosome",
+              "C": "Smooth ER inability to oxidize hydrogen peroxide",
+              "D": "Selective loss of free cytosolic mRNA translation"
+            },
+            "correct_answer": "A",
+            "explanation": "Lysosomes normally fuse with phagosomes for microbial digestion and also form specialized secretory lysosomes in immune defense."
+          },
+          {
+            "type": "mcq",
+            "question": "In liver tissue exposed to chronic toxins, which pair of organelles expands to handle drug detoxification and H2O2 breakdown respectively:",
+            "options": {
+              "A": "Rough ER and centrioles",
+              "B": "Smooth ER and peroxisomes",
+              "C": "Golgi cis face and microfilaments",
+              "D": "Nucleolus and lysosomes"
+            },
+            "correct_answer": "B",
+            "explanation": "Liver smooth ER detoxifies drugs while peroxisomes oxidize toxic peroxides and fatty acids."
+          },
+          {
+            "type": "mcq",
+            "question": "If a cell loses ONLY its ER-bound ribosome population while retaining free ribosomes, which pathway among the choices BELOW continues directly on FREE ribosomes:",
+            "options": {
+              "A": "Export of secreted hormone peptides via exocytosis",
+              "B": "Insertion of new membrane ion-channel proteins into rough ER",
+              "C": "Synthesis of hydrolytic lysosomal proteases routed via Golgi",
+              "D": "None of the above"
+            },
+            "correct_answer": "D",
+            "explanation": "Free ribosomes supply cytosolic proteins, whereas secreted hormones, integral channels, and rough-ER lysosomal hydrolases require ER-bound ribosomes."
+          },
+          {
+            "type": "mcq",
+            "question": "A cell lacks functional nuclear pores yet retains an intact nuclear envelope; what fails FIRST:",
+            "options": {
+              "A": "Glycocalyx carbohydrate bonding",
+              "B": "Cholesterol insertion into plasma membrane",
+              "C": "Nucleocytoplasmic export of ribosomal subunits and mRNA",
+              "D": "Hydrolysis inside existing phagosomes"
+            },
+            "correct_answer": "C",
+            "explanation": "RNA and ribosomal subunits assembled in the nucleus/nucleolus require nuclear pores to reach cytoplasm."
+          },
+          {
+            "type": "mcq",
+            "question": "Which sequence places events of secretion and digestion in their CORRECT compartments:",
+            "options": {
+              "A": "Rough ER synthesis -> Golgi modification -> secretory vesicle exocytosis OR lysosomal delivery",
+              "B": "Smooth ER translation -> mitochondrial cristae -> peroxisomal exocytosis",
+              "C": "Free ribosome -> nuclear pore -> ectoplasm lysis",
+              "D": "None of the above"
+            },
+            "correct_answer": "A",
+            "explanation": "Rough ER and Golgi route proteins either to secretory vesicles (exocytosis) or to lysosomes."
+          },
+          {
+            "type": "mcq",
+            "question": "A pathology slide reveals swollen ruptured membranes surrounded by acute neutrophilic inflammation after prolonged ischemia; why is classifying this process as APOPTOSIS mechanistically wrong:",
+            "options": {
+              "A": "Apoptosis occurs exclusively after arterial occlusion to amplify acute inflammation",
+              "B": "Ischemic cell death is pathological necrosis with inflammatory leakage, whereas apoptosis limits inflammation",
+              "C": "Only apoptotic cells rupture their plasma membranes after severe trauma",
+              "D": "Necrosis removes interdigital tissue quietly during normal embryonic growth"
+            },
+            "correct_answer": "B",
+            "explanation": "Uncontrolled necrotic membrane rupture after ischemia triggers inflammation, unlike genetically regulated apoptosis."
+          },
+          {
+            "type": "mcq",
+            "question": "A biochemical assay removes ALL membrane proteins (~55% of mass) while leaving lipids (~40%) and carbohydrates (~5%) intact; which combined loss of membrane capabilities occurs immediately:",
+            "options": {
+              "A": "Hydrophobic phospholipid tails immediately turn into gated channels for charged Na+ ions",
+              "B": "Remaining surface carbohydrates take over ATP-driven pumping and enzymatic catalysis",
+              "C": "The 40% phospholipid fraction instantly collapses into water-soluble cytosolic chromatin",
+              "D": "Aqueous channels, carrier transport, hormone receptors, and membrane enzymatic catalysis all disappear"
+            },
+            "correct_answer": "D",
+            "explanation": "Membrane proteins (~55%) supply channels, carriers, receptors, enzymes, and antigens that lipids and carbohydrates cannot replace."
+          },
+          {
+            "type": "mcq",
+            "question": "How does rough ER contribute to BOTH building membranes AND clearing worn organelles:",
+            "options": {
+              "A": "It forms actin microfilaments and catalyzes oxidative phosphorylation",
+              "B": "It synthesizes membrane proteins and participates in autophagy-associated processing",
+              "C": "It breaks down hydrogen peroxide via catalase",
+              "D": "It pumps sodium ions out using ATP"
+            },
+            "correct_answer": "B",
+            "explanation": "Rough ER prepares membrane/secretory proteins and participates in autophagy pathways for worn structures."
+          },
+          {
+            "type": "mcq",
+            "question": "Which cellular event depends directly on CENTRIOLES AND MICROTUBULES acting together:",
+            "options": {
+              "A": "Organizing the mitotic spindle to segregate condensed chromosomes",
+              "B": "Fusing lysosomes with endosomes",
+              "C": "Binding peripheral proteins to external glycoproteins",
+              "D": "Synthesizing cholesterol inside smooth ER"
+            },
+            "correct_answer": "A",
+            "explanation": "Centrioles within the centrosome organize tubulin microtubules into the mitotic spindle."
+          },
+          {
+            "type": "mcq",
+            "question": "Why can membrane lipids and proteins rearrange laterally in the fluid mosaic model:",
+            "options": {
+              "A": "Glycocalyx locks every receptor to intermediate filaments",
+              "B": "Nuclear pores tether all integral proteins",
+              "C": "Phospholipids form a mobile bilayer rather than a rigid wall",
+              "D": "Cholesterol cross-links proteins covalently"
+            },
+            "correct_answer": "C",
+            "explanation": "Mobile lipids form a fluid foundation permitting lateral movement of membrane proteins."
+          },
+          {
+            "type": "mcq",
+            "question": "If a mutant cell constructs normal single-membrane organelles (ER, Golgi, lysosomes) yet fails to form ANY organelle with TWO concentric membranes, which pair of functions fails together:",
+            "options": {
+              "A": "Catalase peroxide detoxification AND secretory vesicle exocytosis",
+              "B": "Nucleocytoplasmic pore exchange AND oxidative ATP synthesis on cristae",
+              "C": "Free cytosolic ribosomal translation AND steroid synthesis in smooth ER",
+              "D": "Actin microfilament contraction AND intermediate filament desmosome anchoring"
+            },
+            "correct_answer": "B",
+            "explanation": "Only the nucleus (double nuclear envelope) and mitochondria (outer/inner cristae) have double membranes."
+          },
+          {
+            "type": "mcq",
+            "question": "During acute cellular toxicity, release of intracellular contents into extracellular space drives inflammation in:",
+            "options": {
+              "A": "Necrosis",
+              "B": "Apoptosis",
+              "C": "Normal tissue renewal",
+              "D": "Programmed immune selection"
+            },
+            "correct_answer": "A",
+            "explanation": "Necrotic membrane disruption leaks contents and triggers tissue inflammation."
+          },
+          {
+            "type": "mcq",
+            "question": "If a mutant protein carries an intact mRNA sequence but cannot enter secretory vesicles, the defect MOST likely lies in:",
+            "options": {
+              "A": "Peroxisomal catalase activity",
+              "B": "Actin microfilament depolymerization",
+              "C": "Rough ER-to-Golgi sorting or trans-Golgi packaging",
+              "D": "Free cytosolic translation alone"
+            },
+            "correct_answer": "C",
+            "explanation": "Secretory cargo requires ER-bound translation and Golgi sorting/packaging into secretory vesicles."
+          },
+          {
+            "type": "mcq",
+            "question": "Which pairing of cytoplasmic terms accurately describes spatial zones inside the cell:",
+            "options": {
+              "A": "Cytosol = nuclear lumen; Ectoplasm = ECF; Endoplasm = cristae",
+              "B": "Cytosol = fluid phase; Ectoplasm = outer cytoplasm; Endoplasm = deeper cytoplasm",
+              "C": "Ectoplasm = glycocalyx; Endoplasm = chromatin",
+              "D": "None of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "Cytoplasm comprises cytosol + organelles, divided into outer ectoplasm and deeper endoplasm."
+          },
+          {
+            "type": "mcq",
+            "question": "A student claims both human skeletal muscle fibers and mature human RBCs violate eukaryotic classification because neither contains a single nucleus; why is that claim wrong:",
+            "options": {
+              "A": "Both cell types belong to the prokaryotic domain because they deviate from single-nucleus geometry",
+              "B": "Skeletal muscle fibers lack chromatin whereas mature RBCs maintain multiple active nucleoli",
+              "C": "Only skeletal muscle fibers contain plasma membranes while circulating human RBCs lack lipid bilayers",
+              "D": "Skeletal muscle fibers are multinucleated eukaryotes and mature RBCs are anucleate eukaryotes derived from nucleated precursors"
+            },
+            "correct_answer": "D",
+            "explanation": "Both skeletal muscle fibers (multinucleated) and mature RBCs (anucleate) are specialized eukaryotic human cells."
+          },
+          {
+            "type": "mcq",
+            "question": "Why is intermediate-filament linkage to DESMOSOMES vital in tissues under mechanical stress:",
+            "options": {
+              "A": "It distributes tensile strain across neighboring cells",
+              "B": "It drives ciliary fluid propulsion",
+              "C": "It catalyzes steroid synthesis",
+              "D": "It synthesizes ribosomal subunits"
+            },
+            "correct_answer": "A",
+            "explanation": "Fibrous intermediate filaments resist mechanical strain and anchor at desmosomes."
+          },
+          {
+            "type": "mcq",
+            "question": "Which physiological process relies on BOTH exocytosis AND secretory vesicle storage:",
+            "options": {
+              "A": "Passive O2 diffusion through lipid tails",
+              "B": "Catalase oxidation of H2O2",
+              "C": "Regulated release of cellular products at the plasma membrane",
+              "D": "Chromatin condensation"
+            },
+            "correct_answer": "C",
+            "explanation": "Secretory vesicles store synthesized products until fusion (exocytosis) at the plasma membrane."
+          },
+          {
+            "type": "mcq",
+            "question": "When a macrophage engulfs bacteria, digestive clearance requires fusion of:",
+            "options": {
+              "A": "Endosome with peroxisome",
+              "B": "Phagosome with lysosome",
+              "C": "Secretory vesicle with nucleolus",
+              "D": "Golgi cis face with cristae"
+            },
+            "correct_answer": "B",
+            "explanation": "Phagosomes fuse with lysosomes to expose microorganisms to hydrolytic enzymes."
+          },
+          {
+            "type": "mcq",
+            "question": "If nuclear chromatin fails to condense into discrete visible chromosomes at mitosis despite intact centrosome centrioles and tubulin supply, what goes wrong directly:",
+            "options": {
+              "A": "Free cytosolic ribosomes immediately cease translating mRNA into cytosolic enzymes",
+              "B": "Nuclear pores fuse permanently with secretory vesicles before exocytosis",
+              "C": "Mature human red blood cells regain multiple nuclei while circulating",
+              "D": "Mitotic spindle microtubules cannot organize and segregate genetic chromosomes properly during division"
+            },
+            "correct_answer": "D",
+            "explanation": "DNA-protein chromatin must condense into discrete chromosomes during mitosis for accurate division."
+          },
+          {
+            "type": "mcq",
+            "question": "Selective blockage of catalase in a hepatocyte will MOST directly cause accumulation of:",
+            "options": {
+              "A": "Hydrogen peroxide inside peroxisomes",
+              "B": "Hydrolytic enzymes inside secretory vesicles",
+              "C": "Unfolded collagen outside the glycocalyx",
+              "D": "ATP inside the mitochondrial matrix"
+            },
+            "correct_answer": "A",
+            "explanation": "Peroxisomal catalase degrades hydrogen peroxide; blocking it impairs peroxide detoxification."
+          },
+          {
+            "type": "mcq",
+            "question": "A toxin reverses or blocks CIS-to-TRANS trafficking across Golgi cisternae; what fails directly:",
+            "options": {
+              "A": "Hydrogen peroxide oxidation by catalase",
+              "B": "Directional sorting and vesicular export out of the Golgi",
+              "C": "Actin cross-linking at plasma membrane",
+              "D": "DNA packaging into nuclear chromatin"
+            },
+            "correct_answer": "B",
+            "explanation": "Cargo enters the cis face and must traverse cisternae to exit processed from the trans face."
+          },
+          {
+            "type": "mcq",
+            "question": "Which functional duo represents a SINGLE organelle's true roles rather than an unrelated organelle:",
+            "options": {
+              "A": "Smooth ER: steroid synthesis and Ca2+ handling",
+              "B": "Lysosome: oxidative ATP synthesis on cristae",
+              "C": "Golgi cis face: H2O2 detoxification via catalase",
+              "D": "A and C"
+            },
+            "correct_answer": "A",
+            "explanation": "Smooth ER performs steroid/lipid synthesis, Ca2+ handling, and detoxification; neither lysosomes nor Golgi perform those mismatched roles."
+          },
+          {
+            "type": "mcq",
+            "question": "What distinguishes PERIPHERAL proteins from GLYCOCALYX chains on the plasma membrane:",
+            "options": {
+              "A": "Peripheral proteins span the core; glycocalyx spans nuclear pores",
+              "B": "Glycocalyx lies on the inner cytosolic surface only",
+              "C": "Peripheral proteins are protein attachments on inner/outer surfaces; glycocalyx consists of external carbohydrates on lipids/proteins",
+              "D": "None of the above"
+            },
+            "correct_answer": "C",
+            "explanation": "Peripheral proteins attach loosely to inner/outer membrane faces, whereas the glycocalyx is external carbohydrate."
+          },
+          {
+            "type": "mcq",
+            "question": "In the biological hierarchy, why is an organ functionally more complex than a tissue:",
+            "options": {
+              "A": "A tissue contains multiple organs",
+              "B": "Organs exclude connective and nervous tissue",
+              "C": "Tissues lack plasma membranes",
+              "D": "An organ integrates multiple distinct tissue types to execute specialized tasks"
+            },
+            "correct_answer": "D",
+            "explanation": "Organs such as stomach/intestine unite two or more tissue categories."
+          },
+          {
+            "type": "mcq",
+            "question": "Which of the following organelles does NOT directly contain or wrap around a membrane-bound lumen:",
+            "options": {
+              "A": "Lysosome",
+              "B": "Ribosome",
+              "C": "Peroxisome",
+              "D": "Endoplasmic reticulum"
+            },
+            "correct_answer": "B",
+            "explanation": "Ribosomes are non-membranous rRNA-protein complexes, unlike membrane-bound ER, lysosomes, and peroxisomes."
+          },
+          {
+            "type": "mcq",
+            "question": "If skeletal muscle contraction depended solely on intermediate filaments rather than actin microfilaments, contraction would fail because:",
+            "options": {
+              "A": "Only intermediate filaments contain tubulin",
+              "B": "Only actin microfilaments store nuclear DNA",
+              "C": "Only actin microfilaments drive contraction",
+              "D": "Only intermediate filaments coat glycocalyx"
+            },
+            "correct_answer": "C",
+            "explanation": "Actin microfilaments drive contraction and motion whereas intermediate filaments mainly provide mechanical support."
+          },
+          {
+            "type": "mcq",
+            "question": "Which change BEST signals a shift from controlled homeostasis toward NECROSIS:",
+            "options": {
+              "A": "Unexpected severe injury (ischemia, trauma, infection, toxin) causing cell lysis and inflammation",
+              "B": "Targeted removal of excess developing neurons",
+              "C": "Normal renewal of epithelial cells",
+              "D": "Physiological elimination of harmful immune cells"
+            },
+            "correct_answer": "A",
+            "explanation": "Severe disruption causing uncontrolled lysis and inflammation defines necrosis rather than apoptosis."
+          },
+          {
+            "type": "true_false",
+            "question": "Peroxisomes rely on the exact same hydrolytic enzyme set as lysosomes to digest phagosomes.",
+            "correct_answer": false,
+            "explanation": "Peroxisomes house oxidative enzymes such as catalase, whereas lysosomes house hydrolytic enzymes."
+          },
+          {
+            "type": "true_false",
+            "question": "Mature human red blood cells are anucleate eukaryotic cells rather than prokaryotes.",
+            "correct_answer": true,
+            "explanation": "Despite lacking a nucleus at maturity, human RBCs derive from and remain eukaryotic cells."
+          },
+          {
+            "type": "true_false",
+            "question": "Cholesterol is only inert structural debris in the plasma membrane with no effect on membrane flexibility.",
+            "correct_answer": false,
+            "explanation": "Cholesterol actively regulates lipid packing, flexibility, and stability."
+          },
+          {
+            "type": "true_false",
+            "question": "Rough ER participates in both protein secretion pathways and autophagy-linked processing of worn organelles.",
+            "correct_answer": true,
+            "explanation": "Rough ER prepares secretory/membrane proteins and contributes to autophagy pathways."
+          },
+          {
+            "type": "true_false",
+            "question": "In the Golgi apparatus, cargo travels from the trans face toward the cis face prior to secretion.",
+            "correct_answer": false,
+            "explanation": "Cargo enters the cis face and exits processed from the trans face."
+          },
+          {
+            "type": "true_false",
+            "question": "Microtubules built from tubulin support intracellular transport, ciliary movement, and mitotic spindle assembly.",
+            "correct_answer": true,
+            "explanation": "Tubulin microtubules execute all three tasks."
+          },
+          {
+            "type": "true_false",
+            "question": "Apoptosis commonly releases massive cell debris to amplify local inflammation in neighboring tissues.",
+            "correct_answer": false,
+            "explanation": "Controlled apoptosis limits inflammation and protects neighboring tissues."
+          },
+          {
+            "type": "true_false",
+            "question": "Both free ribosomes and ER-bound ribosomes use mRNA instructions to assemble amino acids into proteins.",
+            "correct_answer": true,
+            "explanation": "Translation of mRNA by rRNA-protein complexes occurs on both free and ER-bound ribosomes."
+          },
+          {
+            "type": "true_false",
+            "question": "Nuclear pores permit completely unrestricted leakage of intact chromosomes into the cytosol.",
+            "correct_answer": false,
+            "explanation": "Nuclear pores selectively exchange molecules; chromosomes remain within the nucleus."
+          },
+          {
+            "type": "true_false",
+            "question": "Skeletal muscle fibers represent an example of multinucleated human eukaryotic cells.",
+            "correct_answer": true,
+            "explanation": "Skeletal muscle fibers normally contain multiple nuclei."
+          }
+        ]
+      }
+    }
+  },
+  "sheet_questions": {
+    "questions": [
+      {
+        "type": "mcq",
+        "question": "In biological organization, the level IMMEDIATELY above a single cell is:",
+        "options": {
+          "A": "Organ",
+          "B": "Tissue",
+          "C": "Organ system",
+          "D": "Organelle"
+        },
+        "correct_answer": "B",
+        "explanation": "Cells with related functions assemble into tissues, followed by organs and organ systems."
+      },
+      {
+        "type": "mcq",
+        "question": "Which pair of fluid compartments does the plasma membrane directly separate:",
+        "options": {
+          "A": "Blood plasma and lymph only",
+          "B": "Nucleoplasm and mitochondrial matrix",
+          "C": "Ectoplasm and endoplasm",
+          "D": "ICF and ECF"
+        },
+        "correct_answer": "D",
+        "explanation": "The plasma membrane separates intracellular fluid from extracellular fluid."
+      },
+      {
+        "type": "mcq",
+        "question": "Of the three molecular classes in the plasma membrane, which accounts for roughly 40%:",
+        "options": {
+          "A": "Lipid",
+          "B": "Protein",
+          "C": "Carbohydrate",
+          "D": "Nucleic acid"
+        },
+        "correct_answer": "A",
+        "explanation": "Plasma membranes comprise roughly 55% protein, 40% lipid, and 5% carbohydrate."
+      },
+      {
+        "type": "mcq",
+        "question": "Why do phospholipid bilayers form two opposing leaflets in watery environments:",
+        "options": {
+          "A": "Covalent bonds fuse proteins to water",
+          "B": "Hydrophilic heads face water on both sides while hydrophobic tails face inward",
+          "C": "Cholesterol repels all lipids outward",
+          "D": "Glycocalyx pulls tails outward"
+        },
+        "correct_answer": "B",
+        "explanation": "Amphipathic phospholipids orient hydrophilic heads toward water and hydrophobic tails toward the core."
+      },
+      {
+        "type": "mcq",
+        "question": "Which membrane proteins serve as aqueous channels, carriers, hormone receptors, enzymes, and antigens:",
+        "options": {
+          "A": "Cytosolic actin filaments",
+          "B": "Mitochondrial cristae",
+          "C": "Integral and surface membrane proteins",
+          "D": "Nuclear pores"
+        },
+        "correct_answer": "C",
+        "explanation": "Membrane proteins perform transport, receptor, catalytic, and antigenic roles."
+      },
+      {
+        "type": "mcq",
+        "question": "Cell-cell recognition and surface electrical properties are key roles of the:",
+        "options": {
+          "A": "Centrosome",
+          "B": "Smooth ER",
+          "C": "Nuclear envelope",
+          "D": "Glycocalyx"
+        },
+        "correct_answer": "D",
+        "explanation": "External glycolipids and glycoproteins make up the glycocalyx."
+      },
+      {
+        "type": "mcq",
+        "question": "Which organelle is MOST characteristic of steroid-secreting endocrine cells:",
+        "options": {
+          "A": "Rough endoplasmic reticulum",
+          "B": "Smooth endoplasmic reticulum",
+          "C": "Lysosome",
+          "D": "Centriole"
+        },
+        "correct_answer": "B",
+        "explanation": "Smooth ER synthesizes lipids, cholesterol, and steroid molecules."
+      },
+      {
+        "type": "mcq",
+        "question": "Dotted ribosomes on rough ER chiefly synthesize proteins destined for:",
+        "options": {
+          "A": "Secretion, membrane insertion, or specific intracellular compartments",
+          "B": "Purely free cytosolic glycolysis",
+          "C": "Mitochondrial matrix DNA replication",
+          "D": "Glycogenolysis"
+        },
+        "correct_answer": "A",
+        "explanation": "Rough ER processes proteins targeted for membranes, secretion, or organelles."
+      },
+      {
+        "type": "mcq",
+        "question": "In the Golgi apparatus, flattened membrane sacs are arranged between a receiving cis face and a shipping:",
+        "options": {
+          "A": "Apical pore",
+          "B": "Cristal fold",
+          "C": "Trans face",
+          "D": "Basal lamina"
+        },
+        "correct_answer": "C",
+        "explanation": "Golgi cisternae process cargo from cis face to trans face."
+      },
+      {
+        "type": "mcq",
+        "question": "Hydrolytic digestion of excess secretory cargo and damaged organelles is executed by:",
+        "options": {
+          "A": "Peroxisomes",
+          "B": "Lysosomes",
+          "C": "Ribosomes",
+          "D": "Microtubules"
+        },
+        "correct_answer": "B",
+        "explanation": "Lysosomes supply hydrolytic enzymes for intracellular breakdown."
+      },
+      {
+        "type": "mcq",
+        "question": "Detoxification of hydrogen peroxide via catalase is a hallmark of:",
+        "options": {
+          "A": "Peroxisomes",
+          "B": "Lysosomes",
+          "C": "Golgi cisternae",
+          "D": "Centrioles"
+        },
+        "correct_answer": "A",
+        "explanation": "Peroxisomes house oxidative enzymes such as catalase."
+      },
+      {
+        "type": "mcq",
+        "question": "Which organelle holds its OWN DNA in addition to synthesizing ATP:",
+        "options": {
+          "A": "Lysosome",
+          "B": "Golgi apparatus",
+          "C": "Smooth ER",
+          "D": "Mitochondrion"
+        },
+        "correct_answer": "D",
+        "explanation": "Mitochondria generate ATP on cristae and carry their own DNA."
+      },
+      {
+        "type": "mcq",
+        "question": "The cylindrical structures inside the centrosome that organize mitotic microtubules are:",
+        "options": {
+          "A": "Cristae",
+          "B": "Cisternae",
+          "C": "Centrioles",
+          "D": "Glycoproteins"
+        },
+        "correct_answer": "C",
+        "explanation": "Centrioles associate with centrosomal microtubule organization."
+      },
+      {
+        "type": "mcq",
+        "question": "Release of stored molecules when a secretory vesicle fuses with the plasma membrane is:",
+        "options": {
+          "A": "Autophagy",
+          "B": "Exocytosis",
+          "C": "Pinocytosis",
+          "D": "Translation"
+        },
+        "correct_answer": "B",
+        "explanation": "Secretory vesicles discharge contents outside the cell by exocytosis."
+      },
+      {
+        "type": "true_false",
+        "question": "Free cytosolic ribosomes primarily translate proteins destined to be secreted by exocytosis.",
+        "correct_answer": false,
+        "explanation": "ER-bound ribosomes supply secretory and membrane pathways; free ribosomes produce mainly cytosolic proteins."
+      },
+      {
+        "type": "mcq",
+        "question": "Which cytoskeletal polymers form intracellular transport tracks and cilia:",
+        "options": {
+          "A": "Microtubules",
+          "B": "Intermediate filaments",
+          "C": "Microfilaments",
+          "D": "Collagen fibrils"
+        },
+        "correct_answer": "A",
+        "explanation": "Tubulin microtubules build tracks, cilia, and the mitotic spindle."
+      },
+      {
+        "type": "mcq",
+        "question": "Fibrous cytoskeletal elements supporting mechanical strain and desmosomes are:",
+        "options": {
+          "A": "Microtubules",
+          "B": "Microfilaments",
+          "C": "Nuclear pores",
+          "D": "Intermediate filaments"
+        },
+        "correct_answer": "D",
+        "explanation": "Intermediate filaments resist mechanical tension and connect at desmosomes."
+      },
+      {
+        "type": "mcq",
+        "question": "Contraction, cell motion, and shape change depend chiefly on:",
+        "options": {
+          "A": "Tubulin microtubules",
+          "B": "Microfilaments (actin)",
+          "C": "Golgi cisternae",
+          "D": "Peroxisomal enzymes"
+        },
+        "correct_answer": "B",
+        "explanation": "Actin-based microfilaments mediate cell shape, motion, contraction, and division."
+      },
+      {
+        "type": "mcq",
+        "question": "Within the nucleus, ribosomal subunits are produced by one or more:",
+        "options": {
+          "A": "Nuclear pores",
+          "B": "Centrioles",
+          "C": "Nucleoli",
+          "D": "Cristae"
+        },
+        "correct_answer": "C",
+        "explanation": "Nucleoli assemble ribosomal subunits from rRNA and proteins."
+      },
+      {
+        "type": "mcq",
+        "question": "During mitosis, dispersed nuclear chromatin condenses visibly into:",
+        "options": {
+          "A": "Chromosomes",
+          "B": "Cristae",
+          "C": "Secretory vesicles",
+          "D": "Glycoproteins"
+        },
+        "correct_answer": "A",
+        "explanation": "Chromatin fibers compact into chromosomes during division."
+      },
+      {
+        "type": "mcq",
+        "question": "A cell dying after severe toxic exposure typically undergoes:",
+        "options": {
+          "A": "Apoptosis",
+          "B": "Necrosis",
+          "C": "Autophagy",
+          "D": "Exocytosis"
+        },
+        "correct_answer": "B",
+        "explanation": "Toxic injury, trauma, infection, or ischemia cause necrosis."
+      },
+      {
+        "type": "mcq",
+        "question": "Which physiological process relies on APOPTOSIS:",
+        "options": {
+          "A": "Removal of tissue between developing digits",
+          "B": "Elimination of excess neurons during maturation",
+          "C": "Inflammatory lysis after vessel rupture",
+          "D": "A and B"
+        },
+        "correct_answer": "D",
+        "explanation": "Apoptosis sculpts digits and refines neuronal and immune populations."
+      },
+      {
+        "type": "mcq",
+        "question": "Which comparison between free and ER-bound ribosomes is TRUE:",
+        "options": {
+          "A": "Free ribosomes make cytosolic proteins; ER-bound feed secretion",
+          "B": "Free ribosomes operate without mRNA templates",
+          "C": "ER-bound ribosomes synthesize membrane cholesterol",
+          "D": "None of the above"
+        },
+        "correct_answer": "A",
+        "explanation": "Ribosome location determines whether proteins stay in cytosol or enter ER secretory/membrane pathways."
+      },
+      {
+        "type": "mcq",
+        "question": "Which of the following is NOT part of the endomembrane protein shipping pathway:",
+        "options": {
+          "A": "Rough ER",
+          "B": "Golgi apparatus",
+          "C": "Mitochondrial cristae",
+          "D": "Secretory vesicle"
+        },
+        "correct_answer": "C",
+        "explanation": "Secretory proteins route through rough ER, Golgi, and secretory vesicles, not cristae."
+      },
+      {
+        "type": "mcq",
+        "question": "In cell biology, 'ectoplasm' refers specifically to:",
+        "options": {
+          "A": "Extracellular fluid",
+          "B": "Outer cytoplasm",
+          "C": "Nuclear chromatin",
+          "D": "Mitochondrial outer membrane"
+        },
+        "correct_answer": "B",
+        "explanation": "Cytoplasm can be divided descriptively into outer ectoplasm and deeper endoplasm."
+      },
+      {
+        "type": "true_false",
+        "question": "The nucleolus assembles ribosomal subunits inside the nucleus before export to the cytoplasm.",
+        "correct_answer": true,
+        "explanation": "One or more nucleoli produce ribosomal subunits from rRNA and proteins."
+      },
+      {
+        "type": "true_false",
+        "question": "Cholesterol in the plasma membrane helps regulate membrane stability and flexibility.",
+        "correct_answer": true,
+        "explanation": "Cholesterol stabilizes phospholipid packing and modulates flexibility."
+      },
+      {
+        "type": "true_false",
+        "question": "Skeletal muscle fibers are completely devoid of nuclei just like mature red blood cells.",
+        "correct_answer": false,
+        "explanation": "Skeletal muscle fibers contain multiple nuclei, whereas mature RBCs are anucleate."
+      },
+      {
+        "type": "true_false",
+        "question": "Peroxisomes primarily digest engulfed bacteria through hydrolytic enzymes.",
+        "correct_answer": false,
+        "explanation": "Lysosomes digest phagocytosed material via hydrolytic enzymes; peroxisomes oxidize peroxide and fatty acids."
+      },
+      {
+        "type": "true_false",
+        "question": "Pathological necrosis typically follows severe injury and promotes surrounding inflammation.",
+        "correct_answer": true,
+        "explanation": "Necrotic disruption releases cellular contents that provoke inflammation in adjacent tissues."
+      }
+    ]
+  }
+}
