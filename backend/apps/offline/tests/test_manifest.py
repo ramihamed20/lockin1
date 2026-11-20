@@ -64,9 +64,7 @@ def test_admin_block_removes_sheet_from_future_offline_download_manifests() -> N
     student = create_user(email="offline-blocked@example.com", cohort=own)
     _grant(student)
     path = "/api/v1/offline/manifest/"
-    assert any(
-        item["type"] == "sheet" for item in _client(student).get(path).json()["items"]
-    )
+    assert any(item["type"] == "sheet" for item in _client(student).get(path).json()["items"])
     sheet = document.version.learning_object
     sheet.block_file_export = True
     sheet.save(update_fields=["block_file_export"])
