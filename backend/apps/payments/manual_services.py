@@ -20,6 +20,7 @@ from apps.product_catalog.dentistry_terms import (
     LEGACY_DURATION_PLANS,
 )
 from apps.product_catalog.models import Price, fixed_period_end
+from apps.product_catalog.selectors import plan_version_available_to_user
 from apps.subscriptions.models import Subscription, SubscriptionTransition
 from apps.subscriptions.services import (
     lock_individual_account,
@@ -355,6 +356,8 @@ def submit_manual_recharge(
         )
     if price.currency != "LYD" or price.status != Price.Status.ACTIVE:
         raise ManualPaymentError("This plan is not available for Libyana payment.")
+    if not plan_version_available_to_user(version=price.plan_version, user=user):
+        raise ManualPaymentError("This question-only plan is for Tripoli Dentistry Year 2.")
     if price.first_subscription_only and not _first_subscription_offer_available(user=user):
         raise ManualPaymentError("The first-subscription offer has already been used.")
     if price.eligibility and price.eligibility not in price_eligibilities(user=user):
