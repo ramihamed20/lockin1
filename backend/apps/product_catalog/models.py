@@ -108,6 +108,9 @@ class Price(models.Model):
         EVERYONE = "", "Everyone"
         LOYALTY_2026 = "loyalty_2026", "Paid subscribers before the first-month offer ended"
         FOUR_MONTH_UPGRADE = "four_month_upgrade", "Four-month subscribers upgrading"
+        QUESTIONS_PRE_UPGRADE = "questions_pre_upgrade", "Upgrade pre-midterm questions to full"
+        QUESTIONS_POST_UPGRADE = "questions_post_upgrade", "Upgrade post-midterm questions to full"
+        QUESTIONS_YEAR_UPGRADE = "questions_year_upgrade", "Upgrade full-year questions to full"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plan_version = models.ForeignKey(PlanVersion, on_delete=models.PROTECT, related_name="prices")
