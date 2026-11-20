@@ -16,7 +16,7 @@ from apps.audit.models import AuditRecord
 from apps.audit.services import record_audit
 from apps.discovery.indexing import remove_search_entry
 from apps.education.models import EducationNode
-from apps.education.permissions import is_content_administrator
+from apps.education.policies import is_content_administrator
 from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
 from apps.notifications.models import Notification
