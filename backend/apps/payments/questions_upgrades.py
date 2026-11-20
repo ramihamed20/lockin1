@@ -15,6 +15,7 @@ from apps.product_catalog.dentistry_terms import (
     PRE_MIDTERM_ENDS_AT,
 )
 from apps.product_catalog.models import Price
+from apps.product_catalog.selectors import plan_version_available_to_user
 from apps.subscriptions.models import Subscription
 
 
@@ -81,6 +82,10 @@ def eligible_questions_upgrade(
     current = now or timezone.now()
     rule = UPGRADE_BY_SOURCE.get(subscription.plan_version.plan.code)
     if rule is None or not (subscription.plan_version.terms or {}).get("questions_only"):
+        return None
+    if not plan_version_available_to_user(
+        version=subscription.plan_version, user=subscription.account.primary_user
+    ):
         return None
     if (
         subscription.current_period_ends_at != rule.period_ends_at
