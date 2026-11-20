@@ -5,12 +5,12 @@ from rest_framework.test import APIClient
 
 from apps.accounts.tests.helpers import create_user
 from apps.audit.models import AuditRecord
+from apps.content.admin_services import replace_pdf
 from apps.content.models import LearningObject, LearningObjectAsset
 from apps.content.serializers import LearningObjectAssetSerializer
 from apps.content.tests.helpers import published_pdf
 from apps.education.tests.helpers import create_admin, pdf_upload, published_path
 from apps.files.services import create_managed_file
-from apps.content.admin_services import replace_pdf
 
 pytestmark = pytest.mark.django_db
 
