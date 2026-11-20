@@ -79,7 +79,7 @@ def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: 
         return is_content_administrator(user) or can_view_practice_image(
             user=user, managed_file_id=managed_file.id
         )
-    if is_content_administrator(user) or managed_file.owner_id == user.id:
+    if is_content_administrator(user):
         return True
     if not download and managed_file.personal_sheets.filter(owner=user).exists():
         # A copy of another student's marks points at the catalog file; its owner
@@ -97,6 +97,8 @@ def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: 
         # direct /download URL if any published sheet prohibits copying it,
         # even when another catalog reference would otherwise allow it.
         return False
+    if managed_file.owner_id == user.id:
+        return True
     assets = LearningObjectAsset.objects.filter(
         managed_file=managed_file,
         version__learning_object__archived_at__isnull=True,
