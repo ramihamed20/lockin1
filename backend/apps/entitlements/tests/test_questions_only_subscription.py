@@ -1,7 +1,8 @@
 """Question-only plans must never unlock PDFs or survive a rejected payment."""
 
 import base64
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 
 import pytest
 from django.utils import timezone
@@ -36,9 +37,7 @@ def payment_settings(settings):
 
 def _student(*, email, cohort_code="year-2"):
     user = create_user(email=email, username=email.split("@")[0].replace("-", "_")[:30])
-    user.cohort = StudentCohort.objects.get(
-        program__code="dentistry-tripoli", code=cohort_code
-    )
+    user.cohort = StudentCohort.objects.get(program__code="dentistry-tripoli", code=cohort_code)
     user.save(update_fields=["cohort", "updated_at"])
     return user
 
@@ -144,9 +143,10 @@ def test_questions_plan_unblocks_questions_but_not_pdf_or_workspace():
         assert client.get(url).status_code == 403, url
     # Unknown managed files may 404 before per-object permission is evaluated;
     # either is a denial, never a download.
-    assert client.get(
-        "/api/v1/files/00000000-0000-0000-0000-000000000001/view"
-    ).status_code in (403, 404)
+    assert client.get("/api/v1/files/00000000-0000-0000-0000-000000000001/view").status_code in (
+        403,
+        404,
+    )
 
     subscription.status = Subscription.Status.EXPIRED
     subscription.current_period_ends_at = timezone.now() - timedelta(seconds=1)

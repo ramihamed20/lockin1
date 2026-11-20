@@ -312,14 +312,12 @@ def entitlement_decision(
     grant = None
     for candidate in grants:
         scope = candidate.configuration or {}
-        if code == "questions.access" and (
-            scope.get("program_code") or scope.get("cohort_code")
-        ):
+        if code == "questions.access" and (scope.get("program_code") or scope.get("cohort_code")):
             cohort = user.cohort
-            if cohort is None or (
-                scope.get("cohort_code") and cohort.code != scope["cohort_code"]
-            ) or (
-                scope.get("program_code") and cohort.program.code != scope["program_code"]
+            if (
+                cohort is None
+                or (scope.get("cohort_code") and cohort.code != scope["cohort_code"])
+                or (scope.get("program_code") and cohort.program.code != scope["program_code"])
             ):
                 continue
         grant = candidate

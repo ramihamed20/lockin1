@@ -84,12 +84,11 @@ def active_libyana_price_for_plan(
         raise Price.DoesNotExist
     return price
 
+
 def plan_version_available_to_user(*, version: PlanVersion, user: Any) -> bool:
     """Cohort-restricted offers are verified server-side at checkout."""
     scope = (version.terms or {}).get("scope")
-    if not isinstance(scope, dict) or not (
-        scope.get("program_code") or scope.get("cohort_code")
-    ):
+    if not isinstance(scope, dict) or not (scope.get("program_code") or scope.get("cohort_code")):
         return True
     cohort = getattr(user, "cohort", None)
     if cohort is None:

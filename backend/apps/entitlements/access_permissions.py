@@ -50,17 +50,19 @@ PER_OBJECT_ENTITLEMENT_VIEWS = frozenset({"files:delivery"})
 
 # Only these content endpoints may be used by a questions-only subscriber.
 # Every PDF, study workspace, file delivery and admin path stays premium-gated.
-QUESTION_CONTENT_ROUTES = frozenset({
-    "catalog-questions",
-    "catalog-mixed-questions",
-    "catalog-sheet-questions",
-    "catalog-sheet-question-answer",
-    "catalog-sheet-question-retry",
-    "practice-directory",
-    "practice-set",
-    "practice-check",
-    "practice-hint",
-})
+QUESTION_CONTENT_ROUTES = frozenset(
+    {
+        "catalog-questions",
+        "catalog-mixed-questions",
+        "catalog-sheet-questions",
+        "catalog-sheet-question-answer",
+        "catalog-sheet-question-retry",
+        "practice-directory",
+        "practice-set",
+        "practice-check",
+        "practice-hint",
+    }
+)
 
 
 def subscription_access_decision(*, user: User, entitlement_code: str) -> EntitlementDecision:

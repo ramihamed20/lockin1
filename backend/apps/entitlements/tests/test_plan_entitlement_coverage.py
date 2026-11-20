@@ -83,6 +83,7 @@ def test_moving_a_subscription_onto_any_purchasable_plan_keeps_access() -> None:
         )
         if (version.terms or {}).get("questions_only"):
             from apps.education.models import StudentCohort
+
             user.cohort = StudentCohort.objects.get(
                 program__code="dentistry-tripoli", code="year-2"
             )
