@@ -159,10 +159,31 @@ class ManualLibyanaPaymentView(APIView):
             return limited
         idempotency_key = request.headers.get("Idempotency-Key", "")[:180]
         try:
-            price = active_libyana_price_for_plan(
-                plan_id=serializer.validated_data["plan_id"],
-                eligibilities=price_eligibilities(user=user),
+            # Replays must retain the original price. After a questions-only
+            # upgrade is submitted, the account is provisional and its cheap
+            # price is intentionally no longer offered to new purchases.
+            original = (
+                Payment.objects.filter(
+                    account__primary_user=user,
+                    idempotency_key=idempotency_key,
+                    method=Payment.Method.LIBYANA,
+                )
+                .select_related("price__plan_version")
+                .first()
+                if len(idempotency_key.strip()) >= 12
+                else None
             )
+            if (
+                original is not None
+                and original.price.plan_version.plan_id == serializer.validated_data["plan_id"]
+                and original.installment_number in (None, 1)
+            ):
+                price = original.price
+            else:
+                price = active_libyana_price_for_plan(
+                    plan_id=serializer.validated_data["plan_id"],
+                    eligibilities=price_eligibilities(user=user),
+                )
             result = submit_manual_recharge(
                 user=user,
                 price=price,
