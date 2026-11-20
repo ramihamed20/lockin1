@@ -392,6 +392,7 @@ def create_sheet(
     publish: bool,
     notify_students: bool,
     allow_download: bool,
+    block_file_export: bool = False,
 ) -> LearningObject:
     if subject.kind != EducationNode.Kind.SUBJECT:
         raise ContentRuleError("Sheets must be created inside a subject.")
@@ -409,7 +410,8 @@ def create_sheet(
         ),
     )
     sheet.active_study_page_bank_enabled = True
-    sheet.save(update_fields=("active_study_page_bank_enabled",))
+    sheet.block_file_export = block_file_export
+    sheet.save(update_fields=("active_study_page_bank_enabled", "block_file_export"))
     if publish:
         sheet = _publish_current(actor=actor, sheet=sheet)
         visible = _sync_catalog_document(sheet)
