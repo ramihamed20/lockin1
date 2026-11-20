@@ -528,7 +528,12 @@ def update_sheet(
             current.block_file_export = blocked
             current.revision += 1
             current.save(update_fields=("block_file_export", "revision", "updated_at"))
-        _audit(actor=actor, action="content.sheet_export_policy_updated", sheet=current, previous=before)
+        _audit(
+            actor=actor,
+            action="content.sheet_export_policy_updated",
+            sheet=current,
+            previous=before,
+        )
         return current
     current = LearningObject.objects.select_related("current_version__academic_node").get(
         id=sheet_id
