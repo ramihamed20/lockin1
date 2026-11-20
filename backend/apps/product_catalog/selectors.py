@@ -1,10 +1,11 @@
+from typing import Any
 from uuid import UUID
 
 from django.db import models
 from django.db.models import Prefetch, Q, QuerySet
 from django.utils import timezone
 
-from .models import Plan, Price, Product
+from .models import Plan, PlanVersion, Price, Product
 
 
 def available_products(*, region_code: str = "") -> QuerySet[Product]:
@@ -82,3 +83,18 @@ def active_libyana_price_for_plan(
     if price.plan_version.terms.get("availability") == "coming_soon":
         raise Price.DoesNotExist
     return price
+
+def plan_version_available_to_user(*, version: PlanVersion, user: Any) -> bool:
+    """Cohort-restricted offers are verified server-side at checkout."""
+    scope = (version.terms or {}).get("scope")
+    if not isinstance(scope, dict) or not (
+        scope.get("program_code") or scope.get("cohort_code")
+    ):
+        return True
+    cohort = getattr(user, "cohort", None)
+    if cohort is None:
+        return False
+    return bool(
+        (not scope.get("program_code") or cohort.program.code == scope["program_code"])
+        and (not scope.get("cohort_code") or cohort.code == scope["cohort_code"])
+    )
