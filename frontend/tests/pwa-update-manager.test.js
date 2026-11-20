@@ -322,10 +322,11 @@ test("activation that never takes control fails safely and can be retried", asyn
   assert.equal(manager.getSnapshot().status, UPDATE_STATUS.AVAILABLE);
   assert.equal(manager.getSnapshot().error, "activation-failed");
 
+  const requestsBeforeUserRetry = waiting.messages.length;
   const retry = manager.applyUpdate();
   assert.notEqual(retry, applying);
   await flush();
-  assert.equal(waiting.messages.length, 2);
+  assert.equal(waiting.messages.length, requestsBeforeUserRetry + 1);
   manager.stop();
 });
 
