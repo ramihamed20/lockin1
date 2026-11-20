@@ -19,6 +19,7 @@ from apps.payments.manual_services import (
     submit_manual_recharge,
 )
 from apps.payments.models import Payment
+from apps.payments.telegram import ManualPaymentTelegramMessage
 from apps.product_catalog.models import Plan, Price
 from apps.product_catalog.selectors import price_for_reader
 from apps.subscriptions.models import Subscription
@@ -266,3 +267,24 @@ def test_questions_upgrade_price_is_not_hidden_by_old_four_month_discount():
     )
     assert chosen is not None
     assert chosen.code == upgrade.code
+
+
+def test_telegram_labels_upgrade_as_upgrade_not_renewal(
+    django_capture_on_commit_callbacks,
+):
+    with patch("django.utils.timezone.now", return_value=PRE_DATE):
+        user = _student("upgrade-telegram-label@example.com")
+        _pay_questions(user, "tripoli_y2_questions_pre", "telegram")
+        price = Price.objects.get(code="dentistry_pre_midterm_questions_upgrade_15_lyd")
+        with patch("apps.payments.manual_services.notify_manual_payment") as notify:
+            with django_capture_on_commit_callbacks(execute=True):
+                submit_manual_recharge(
+                    user=user,
+                    price=price,
+                    recharge_codes=["5678901234567"],
+                    idempotency_key="upgrade-telegram-notice-00001",
+                )
+        message = notify.call_args.args[0]
+        assert message.event == ManualPaymentTelegramMessage.Event.UPGRADE
+        assert "ترقية" in message.render()
+        assert message.amount == "15 LYD"
