@@ -296,13 +296,16 @@ export function createUpdateManager(overrides = {}) {
     }
 
     const { window: win, navigator: nav } = environment();
+    const originalController = nav.serviceWorker?.controller;
     set({ status: UPDATE_STATUS.UPDATING, dismissed: false, error: "" });
     applying = new Promise((resolve) => {
       let settled = false;
+      let activationRequests = 0;
       const finish = (reload) => {
         if (settled) return;
         settled = true;
         win.clearTimeout(timer);
+        win.clearInterval(poll);
         nav.serviceWorker?.removeEventListener?.("controllerchange", onControllerChange);
         if (reload) {
           reloadOnce();
@@ -312,20 +315,36 @@ export function createUpdateManager(overrides = {}) {
         }
         resolve();
       };
+      const workerTookOver = () => {
+        // An event can be missed while a tab is backgrounded. The newly
+        // activated worker (or changed controller) is authoritative.
+        const controller = nav.serviceWorker?.controller;
+        return (Boolean(controller) && controller !== originalController)
+          || waiting.state === "activated" || waiting.state === "activating";
+      };
       const onControllerChange = () => finish(true);
-      const timer = win.setTimeout(() => {
-        // `controllerchange` can be missed if the worker was claimed before the
-        // listener existed. If it is active, the reload is still correct.
-        finish(waiting.state === "activated" || waiting.state === "activating");
-      }, ACTIVATION_TIMEOUT_MS);
+      const requestActivation = () => {
+        if (settled) return;
+        if (workerTookOver()) {
+          finish(true);
+        } else if (registration?.waiting === waiting && waiting.state === "installed" && activationRequests < 3) {
+          // Chromium can lose the first message during a simultaneous
+          // service-worker update check in another open tab. Retry briefly,
+          // never asking the other tab to reload.
+          activationRequests += 1;
+          try {
+            waiting.postMessage({ type: "SKIP_WAITING" });
+          } catch {
+            finish(false);
+          }
+        }
+      };
+      const timer = win.setTimeout(() => finish(workerTookOver()), ACTIVATION_TIMEOUT_MS);
+      const poll = win.setInterval(requestActivation, 2000);
       nav.serviceWorker?.addEventListener?.("controllerchange", onControllerChange);
-      // Talk to this registration's actual waiting worker. The plugin's
-      // updateSW callback can target an old Workbox instance when another
-      // window also has the app open, leaving this window waiting forever.
-      // Only the window that clicked Update now reloads on controllerchange.
-      Promise.resolve()
-        .then(() => waiting.postMessage({ type: "SKIP_WAITING" }))
-        .catch(() => finish(false));
+      // Send only to the waiting worker of our registration, not the plugin's
+      // possibly stale Workbox registration. Reload exclusively this tab.
+      Promise.resolve().then(requestActivation).catch(() => finish(false));
     });
     return applying;
   }
