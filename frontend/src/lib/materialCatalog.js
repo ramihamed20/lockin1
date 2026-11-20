@@ -123,7 +123,10 @@ export function getCohortMaterials(user) {
 
 /** @param {{cohort?: {code?: string, program?: {code?: string}}|null}|null|undefined} user */
 export function getCohortQuestionCategories(user) {
-  return getCohortCatalog(user?.cohort).questionCategories;
+  const categories = getCohortCatalog(user?.cohort).questionCategories;
+  return user?.cohort?.program?.code === "dentistry-tripoli" && user?.cohort?.code === "year-2"
+    ? [...categories, "lab"]
+    : categories;
 }
 
 /* global __E2E_CATALOG_MATERIALS__ */
