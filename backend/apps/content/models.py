@@ -235,6 +235,10 @@ class LearningObject(models.Model):
     published_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     active_study_page_bank_enabled = models.BooleanField(default=False, editable=False)
+    # Administrator switch applying to every edition and summary of this sheet.
+    # Stored on the logical sheet, so replacing or uploading a PDF cannot
+    # silently restore exports.
+    block_file_export = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
