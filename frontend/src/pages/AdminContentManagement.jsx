@@ -243,6 +243,7 @@ function AddSheetForm({ subject, onCreated }) {
   const [status, setStatus] = useState("published");
   const [notify, setNotify] = useState(true);
   const [allowDownload, setAllowDownload] = useState(false);
+  const [blockFileExport, setBlockFileExport] = useState(false);
   const [file, setFile] = useState(null);
   const [summaryFile, setSummaryFile] = useState(null);
   const [pending, setPending] = useState(false);
@@ -268,7 +269,8 @@ function AddSheetForm({ subject, onCreated }) {
         position: Number(position),
         publish: status === "published",
         notify_students: status === "published" && notify,
-        allow_download: allowDownload
+        allow_download: allowDownload,
+        block_file_export: blockFileExport
       });
       onCreated();
     } catch (requestError) {
@@ -317,7 +319,7 @@ function AddSheetForm({ subject, onCreated }) {
       <div className="admin-form-grid"><label className="field"><span>Sheet name</span><input value={title} maxLength={220} required onChange={(event) => setTitle(event.target.value)} placeholder="Cell" /></label><label className="field"><span>Order / position</span><input type="number" min="0" max="1000000" value={position} onChange={(event) => setPosition(Number(event.target.value))} /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="draft">Draft</option><option value="published">Published</option></select></label></div>
       <label className="admin-file-drop"><span className="stat-icon"><Icon name="file" /></span><span><strong>{file ? file.name : "Choose PDF"}</strong><small>{file ? `${bytes(file.size)} · application/pdf` : "PDF only · maximum 50 MB · server signature validation"}</small></span><input type="file" accept="application/pdf,.pdf" required onChange={choose} /></label>
       <label className="admin-file-drop admin-summary-file-drop"><span className="stat-icon"><Icon name="book-open" /></span><span><strong>{summaryFile ? summaryFile.name : "Choose Sheet Summary PDF"}</strong><small>{summaryFile ? `${bytes(summaryFile.size)} · application/pdf` : "Optional · Normal Mode only · no Active Study"}</small></span><input type="file" accept="application/pdf,.pdf" onChange={chooseSummary} /></label>
-      <div className="admin-form-checks"><label className="check-row"><input type="checkbox" checked={allowDownload} onChange={(event) => setAllowDownload(event.target.checked)} /> Allow student download</label><label className="check-row"><input type="checkbox" checked={notify} disabled={status !== "published"} onChange={(event) => setNotify(event.target.checked)} /> Notify students after publishing</label></div>
+      <div className="admin-form-checks"><label className="check-row"><input type="checkbox" checked={allowDownload} disabled={blockFileExport} onChange={(event) => setAllowDownload(event.target.checked)} /> Allow student download</label><label className="check-row"><input type="checkbox" checked={blockFileExport} onChange={(event) => setBlockFileExport(event.target.checked)} /> Block PDF downloads &amp; exports for this sheet and its future editions</label><label className="check-row"><input type="checkbox" checked={notify} disabled={status !== "published"} onChange={(event) => setNotify(event.target.checked)} /> Notify students after publishing</label></div>
       {pending && <div className="admin-upload-status" role="status"><progress />{phase}</div>}
       <AdminNotice error={error} />
       <button className="btn btn-primary" type="submit" disabled={!file || pending}>{pending ? "Working…" : status === "published" ? "Upload & publish" : "Save as draft"}</button>
