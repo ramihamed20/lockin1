@@ -310,6 +310,24 @@ test("a dropped activation message is retried without a second user tap", async 
   manager.stop();
 });
 
+test("Update now reloads the chosen tab when a different tab already activated the waiting worker", async () => {
+  const { env, manager, registration } = setup();
+  registration.waiting = fakeWorker("installed");
+  await manager.check();
+  assert.equal(manager.getSnapshot().status, UPDATE_STATUS.AVAILABLE);
+
+  // Activation in another tab removed the worker just before the click, but
+  // background throttling caused us to miss the controllerchange event.
+  registration.active = registration.waiting;
+  registration.waiting = null;
+  await manager.applyUpdate();
+
+  assert.equal(env.reloads, 1, "only the requesting tab reloads");
+  await manager.applyUpdate();
+  assert.equal(env.reloads, 1, "a second click cannot reload twice");
+  manager.stop();
+});
+
 test("activation that never takes control fails safely and can be retried", async () => {
   const { env, manager, registration } = setup();
   const waiting = fakeWorker("installed");
