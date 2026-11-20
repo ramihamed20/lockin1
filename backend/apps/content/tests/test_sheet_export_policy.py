@@ -35,7 +35,8 @@ def test_admin_blocks_download_without_unpublishing_or_hiding_reader(settings) -
     operator = APIClient()
     operator.force_authenticate(admin)
     response = operator.patch(
-        route, {"expected_revision": sheet.revision, "block_file_export": True},
+        route,
+        {"expected_revision": sheet.revision, "block_file_export": True},
         format="json",
     )
     assert response.status_code == 200, response.content
@@ -54,18 +55,21 @@ def test_admin_blocks_download_without_unpublishing_or_hiding_reader(settings) -
     ).exists()
 
     forbidden = reader.patch(
-        route, {"expected_revision": sheet.revision, "block_file_export": False},
+        route,
+        {"expected_revision": sheet.revision, "block_file_export": False},
         format="json",
     )
     assert forbidden.status_code == 403
     stale = operator.patch(
-        route, {"expected_revision": sheet.revision - 1, "block_file_export": False},
+        route,
+        {"expected_revision": sheet.revision - 1, "block_file_export": False},
         format="json",
     )
     assert stale.status_code == 409
 
     restored = operator.patch(
-        route, {"expected_revision": sheet.revision, "block_file_export": False},
+        route,
+        {"expected_revision": sheet.revision, "block_file_export": False},
         format="json",
     )
     assert restored.status_code == 200, restored.content
