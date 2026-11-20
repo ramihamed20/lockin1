@@ -68,7 +68,8 @@ class ManualPaymentTelegramMessage:
                 f"📄 Request: #{self.payment_id}",
                 *(
                     ("🟡 الدفع: تحت التدقيق", "🟡 الاشتراك: بانتظار اعتماد الدفع")
-                    if self.event in (
+                    if self.event
+                    in (
                         self.Event.NEW_SUBSCRIPTION,
                         self.Event.EARLY_RENEWAL,
                         self.Event.UPGRADE,
