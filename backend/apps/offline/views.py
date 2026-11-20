@@ -217,6 +217,12 @@ class OfflineManifestView(APIView):
             subject = subject_index.get(document.material_slug)
             if subject is None or not _within_subject(document, subject):
                 continue
+            if document.version.learning_object.block_file_export:
+                # Offline PDF download uses the protected /view URL because
+                # it also supplies the reader. Hide the download entirely
+                # from fresh offline manifests when Admin blocks this sheet.
+                # Published questions remain independently available.
+                continue
             for kind, role in (
                 ("sheet", primary_role(document.edition)),
                 ("summary", summary_role(document.edition)),
