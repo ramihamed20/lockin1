@@ -352,6 +352,16 @@ jobs:
       - name: Production-bundle browser regression
         working-directory: frontend
         run: pnpm run test:e2e --shard=${{ matrix.shard }}/6
+      # This real two-tab worker lifecycle failed intermittently after previous
+      # green PR checks. Repeat it on every CI run, without any test mocks or
+      # increased timeouts, so a one-off green result cannot hide the race.
+      - name: Repeat two-tab PWA update regression
+        if: matrix.shard == 5
+        working-directory: frontend
+        run: >-
+          pnpm exec playwright test e2e/pwa-update.spec.js
+          --grep "updating in one window never reloads another"
+          --repeat-each=3 --workers=1
       # Ordinary builds define the fixture catalogue as null. Exercise this
       # separately so the reader fixture build cannot hide production errors.
       - name: Ordinary production bootstrap and catalog recovery
