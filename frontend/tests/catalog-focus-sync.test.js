@@ -488,7 +488,9 @@ test("a PDF replacement is detected by the probe without discarding local work",
 
 test("only a protected same-origin file resolves as the sheet's document", () => {
   const document = { id: DOCUMENT_ID, document_version_id: VERSION_ID, view_url: `/api/v1/files/${DOCUMENT_ID}/view`, checksum_sha256: "abc123" };
-  assert.deepEqual(parseCatalogDocument({ document }), { id: DOCUMENT_ID, versionId: VERSION_ID, fileId: "", offline: false, viewUrl: document.view_url, checksum: "abc123" });
+  assert.deepEqual(parseCatalogDocument({ document }), { id: DOCUMENT_ID, versionId: VERSION_ID, fileId: "", offline: false, viewUrl: document.view_url, checksum: "abc123", allowExport: true });
+  assert.equal(parseCatalogDocument({ document: { ...document, allow_export: false } }).allowExport, false, "admin block disables exports");
+  assert.equal(parseCatalogDocument({ document: { ...document, offline: true } }).allowExport, false, "offline cache cannot bypass changed admin policy");
   assert.equal(parseCatalogDocument({ document: { ...document, view_url: "https://elsewhere.test/a.pdf" } }), null);
   assert.equal(parseCatalogDocument({ count: 0, results: [] }), null);
 });
