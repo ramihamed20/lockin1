@@ -531,6 +531,7 @@ class AdminSubjectSheetListView(_ContentPermissionView):
                 publish=bool(data["publish"]),
                 notify_students=bool(data["notify_students"]),
                 allow_download=bool(data["allow_download"]),
+                block_file_export=bool(data["block_file_export"]),
             )
         except ContentRuleError as error:
             _raise_rule(error)
