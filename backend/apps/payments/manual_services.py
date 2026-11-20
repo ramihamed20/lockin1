@@ -128,6 +128,8 @@ def _amount_label(payment: Payment) -> str:
 
 def _plan_label(payment: Payment) -> str:
     title = payment.price.plan_version.title
+    if payment.price.eligibility in UPGRADE_BY_ELIGIBILITY:
+        return f"ترقية الأسئلة إلى شيتات + أسئلة — {title}"
     agreement = payment.installment_agreement
     if agreement is None or payment.installment_number is None:
         return title
@@ -161,12 +163,16 @@ def _telegram_message(
             in (
                 ManualPaymentTelegramMessage.Event.NEW_SUBSCRIPTION,
                 ManualPaymentTelegramMessage.Event.EARLY_RENEWAL,
+                ManualPaymentTelegramMessage.Event.UPGRADE,
             )
             else None
         ),
         current_expiry=(
             submission.previous_subscription_end_at.isoformat()
-            if event == ManualPaymentTelegramMessage.Event.EARLY_RENEWAL
+            if event in (
+                ManualPaymentTelegramMessage.Event.EARLY_RENEWAL,
+                ManualPaymentTelegramMessage.Event.UPGRADE,
+            )
             and submission.previous_subscription_end_at
             else None
         ),
@@ -595,7 +601,9 @@ def submit_manual_recharge(
     )
     message = _telegram_message(
         event=(
-            ManualPaymentTelegramMessage.Event.EARLY_RENEWAL
+            ManualPaymentTelegramMessage.Event.UPGRADE
+            if upgrade
+            else ManualPaymentTelegramMessage.Event.EARLY_RENEWAL
             if is_early_renewal
             else ManualPaymentTelegramMessage.Event.NEW_SUBSCRIPTION
         ),
