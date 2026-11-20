@@ -43,6 +43,11 @@ from .models import (
     Payment,
     PaymentTransition,
 )
+from .questions_upgrades import (
+    UPGRADE_BY_ELIGIBILITY,
+    eligible_questions_upgrade,
+    questions_upgrade_for_price,
+)
 from .recharge_codes import (
     decrypt_recharge_code,
     encrypt_recharge_code,
@@ -215,16 +220,20 @@ def price_eligibilities(*, user: User) -> frozenset[str]:
     alone does not count.
     """
 
+    from apps.subscriptions.selectors import current_subscription_for_user
+
+    upgrade = eligible_questions_upgrade(subscription=current_subscription_for_user(user=user))
+    upgrades = {upgrade.price_eligibility} if upgrade else set()
     paid = Payment.objects.filter(account__primary_user=user, status=Payment.Status.SUCCEEDED)
     if paid.filter(price__plan_version__plan__code=FOUR_MONTHS).exists():
-        return frozenset({Price.Eligibility.FOUR_MONTH_UPGRADE})
+        return frozenset({Price.Eligibility.FOUR_MONTH_UPGRADE, *upgrades})
     eligibilities: set[str] = set()
     if paid.filter(
         created_at__lt=FIRST_MONTH_OFFER_ENDS_AT,
         price__plan_version__plan__code__in=LEGACY_DURATION_PLANS,
     ).exists():
         eligibilities.add(Price.Eligibility.LOYALTY_2026)
-    return frozenset(eligibilities)
+    return frozenset(eligibilities | upgrades)
 
 
 def purchase_block_reason(
@@ -236,6 +245,13 @@ def purchase_block_reason(
     path (which is the authority), so the two cannot disagree.
     """
 
+    # A feature upgrade retains the SAME paid period, so the generic
+    # "already covers this term" guard is not applicable. This exemption is
+    # granted only against the verified, paid matching questions-only period.
+    if price.eligibility in UPGRADE_BY_ELIGIBILITY:
+        if questions_upgrade_for_price(subscription=subscription, price=price, now=now):
+            return None
+        return "You must have a verified, paid questions-only subscription for this term."
     if subscription is None:
         return None
     if is_installment_suspension(subscription):
@@ -360,8 +376,6 @@ def submit_manual_recharge(
         raise ManualPaymentError("This question-only plan is for Tripoli Dentistry Year 2.")
     if price.first_subscription_only and not _first_subscription_offer_available(user=user):
         raise ManualPaymentError("The first-subscription offer has already been used.")
-    if price.eligibility and price.eligibility not in price_eligibilities(user=user):
-        raise ManualPaymentError("This price is not available for your account.")
     if price.amount_minor == 5 * (10**price.currency_exponent) and len(recharge_codes) != 1:
         raise ManualPaymentError("The 5 LYD plan accepts exactly one recharge card code.")
     if free_access_ends_at(user) is not None:
@@ -383,12 +397,18 @@ def submit_manual_recharge(
             raise ManualPaymentError(
                 "This idempotency key belongs to a different payment flow."
             ) from error
+        if existing_payment.price_id != price.id:
+            raise ManualPaymentError("This attempt was already used for another plan.")
         return ManualPaymentResult(
             payment=existing_payment,
             submission=submission,
             subscription=existing_payment.subscription,
             created=False,
         )
+    # Recheck eligibility after taking the account lock; another payment or
+    # admin change cannot leave an earlier quote valid for the wrong plan.
+    if price.eligibility and price.eligibility not in price_eligibilities(user=user):
+        raise ManualPaymentError("This price is not available for your account.")
     if ManualRechargeSubmission.objects.filter(
         user=user, status=ManualRechargeSubmission.Status.PENDING
     ).exists():
@@ -464,9 +484,16 @@ def submit_manual_recharge(
     )
     previous = _snapshot_subscription(subscription)
     previous_subscription_end_at = subscription.current_period_ends_at
-    paid_start, paid_end = paid_period_window(
-        subscription=subscription, price=price, effective_at=now
-    )
+    upgrade = questions_upgrade_for_price(subscription=subscription, price=price, now=now)
+    if upgrade:
+        # Full PDFs are added to the current term; no renewal, extra days,
+        # second term charge or change to its original calendar deadline.
+        paid_start = subscription.current_period_started_at or now
+        paid_end = upgrade.period_ends_at
+    else:
+        paid_start, paid_end = paid_period_window(
+            subscription=subscription, price=price, effective_at=now
+        )
     original_status = subscription.status
     subscription.plan_version = price.plan_version
     subscription.save(update_fields=("plan_version", "updated_at"))
