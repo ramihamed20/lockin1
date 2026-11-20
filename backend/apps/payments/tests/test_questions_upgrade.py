@@ -1,7 +1,8 @@
 """End-to-end Libyana questions-only -> same-term full-study upgrades."""
 
 import base64
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from unittest.mock import patch
 
 import pytest
@@ -70,9 +71,7 @@ def payment_settings(settings):
 
 def _student(email: str):
     user = create_user(email=email, username=email.split("@")[0].replace("-", "_")[:30])
-    user.cohort = StudentCohort.objects.get(
-        program__code="dentistry-tripoli", code="year-2"
-    )
+    user.cohort = StudentCohort.objects.get(program__code="dentistry-tripoli", code="year-2")
     user.save(update_fields=["cohort", "updated_at"])
     create_trial_for_user(user=user, source_reference="upgrade-test")
     return user
