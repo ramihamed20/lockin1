@@ -5,21 +5,32 @@ from django.utils import timezone
 
 TRIPOLI = dt_timezone(timedelta(hours=2))
 
-# Human Medicine is not on a paid plan yet; its students study free until the
-# end of 23 October 2026 (Tripoli) while pricing is arranged.
+# Preserve the historical Human Medicine promotion and its existing tests.
 FREE_ACCESS_PROGRAM_CODES = frozenset({"human-medicine"})
 FREE_ACCESS_ENDS_AT = datetime(2026, 10, 23, 23, 59, 59, tzinfo=TRIPOLI)
 
+# Benghazi Dentistry (both years) studies free through 25 December 2026,
+# inclusive, in Libya's local time. No subscription/payment record is changed.
+BENGHAZI_FREE_ACCESS_ENDS_AT = datetime(
+    2026, 12, 25, 23, 59, 59, 999999, tzinfo=TRIPOLI
+)
+PROGRAM_FREE_ACCESS_ENDS_AT = {
+    "human-medicine": FREE_ACCESS_ENDS_AT,
+    "dentistry-benghazi": BENGHAZI_FREE_ACCESS_ENDS_AT,
+}
+LAST_FREE_ACCESS_ENDS_AT = max(PROGRAM_FREE_ACCESS_ENDS_AT.values())
+
 
 def free_access_ends_at(user: object, at: datetime | None = None) -> datetime | None:
-    """When the free window of the user's program ends, or None if it does not apply now."""
+    """Return the applicable program's live free-access deadline, if any."""
 
-    # The clock first: this runs on every gated request, and once the window has
-    # closed reading the cohort and its program would be two queries for nothing.
-    if (at or timezone.now()) > FREE_ACCESS_ENDS_AT:
+    # Check the clock before loading the cohort and program on gated requests.
+    current = at or timezone.now()
+    if current > LAST_FREE_ACCESS_ENDS_AT:
         return None
     cohort = getattr(user, "cohort", None)
     program = getattr(cohort, "program", None)
-    if program is None or program.code not in FREE_ACCESS_PROGRAM_CODES:
+    if program is None:
         return None
-    return FREE_ACCESS_ENDS_AT
+    ends_at = PROGRAM_FREE_ACCESS_ENDS_AT.get(program.code)
+    return ends_at if ends_at is not None and current <= ends_at else None
