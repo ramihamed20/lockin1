@@ -67,9 +67,7 @@ def _prices_for_reader(*, products: list[Product], results: Any, user: Any) -> A
             if chosen is None:
                 version_data["prices"] = []
                 continue
-            upgrade = questions_upgrade_for_price(
-                subscription=subscription, price=chosen, now=now
-            )
+            upgrade = questions_upgrade_for_price(subscription=subscription, price=chosen, now=now)
             version_data["prices"] = [
                 {
                     **price_data,
