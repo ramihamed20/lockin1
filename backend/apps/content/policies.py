@@ -85,6 +85,15 @@ def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: 
         # A copy of another student's marks points at the catalog file; its owner
         # keeps reading it after the catalog publishes a newer edition.
         return True
+    if download and LearningObjectAsset.objects.filter(
+        managed_file=managed_file,
+        version__learning_object__block_file_export=True,
+        version__learning_object__published_version_id=F("version_id"),
+    ).exists():
+        # The same PDF may be shared by multiple editions or sheets. Deny a
+        # direct /download URL if any published sheet prohibits copying it,
+        # even when another catalog reference would otherwise allow it.
+        return False
     assets = LearningObjectAsset.objects.filter(
         managed_file=managed_file,
         version__learning_object__archived_at__isnull=True,
@@ -97,7 +106,7 @@ def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: 
         if (
             is_version_available(version)
             and can_view_learning_object(user=user, learning_object=version.learning_object)
-            and (not download or version.allow_download)
+            and (not download or (version.allow_download and not version.learning_object.block_file_export))
         ):
             return True
     return False
