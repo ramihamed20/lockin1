@@ -178,6 +178,7 @@ class CatalogDocumentResolveView(APIView):
                         "document_version_id": str(document.version_id),
                         "file_id": str(document.managed_file_id),
                         "view_url": f"/api/v1/files/{document.managed_file_id}/view",
+                        "allow_export": not document.version.learning_object.block_file_export,
                     }
                 }
             )
@@ -204,6 +205,7 @@ class CatalogDocumentResolveView(APIView):
                     "document_version_id": str(document.version_id),
                     "file_id": str(asset.managed_file_id),
                     "view_url": f"/api/v1/files/{asset.managed_file_id}/view",
+                    "allow_export": not document.version.learning_object.block_file_export,
                 }
             }
         )
