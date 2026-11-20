@@ -98,7 +98,7 @@ function MixedQuestions({ user = null }) {
   if (!questions.length) return <DirectoryState title={t("questions.mix")} {...back}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></DirectoryState>;
   return <Page width="reading" title={t("questions.mix")} headingHandled>
     <section className="question-session-shell">
-      <QuestionDirectoryHeader title={t("questions.mix")} backTo="/questions" backLabel={t("route.questions")} />
+      <QuestionDirectoryHeader id="mixed-questions-heading" title={t("questions.mix")} backTo="/questions" backLabel={t("route.questions")} />
       <QuestionPlayer key={questions.map((item) => item.id).join(":")} sheetId={null} userId={user?.id} source="" questions={questions} backTo="/questions" />
     </section>
   </Page>;
