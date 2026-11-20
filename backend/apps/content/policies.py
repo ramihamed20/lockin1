@@ -106,7 +106,10 @@ def can_access_managed_file(*, user: User, managed_file: ManagedFile, download: 
         if (
             is_version_available(version)
             and can_view_learning_object(user=user, learning_object=version.learning_object)
-            and (not download or (version.allow_download and not version.learning_object.block_file_export))
+            and (
+                not download
+                or (version.allow_download and not version.learning_object.block_file_export)
+            )
         ):
             return True
     return False
