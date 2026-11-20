@@ -92,8 +92,11 @@ def test_block_survives_replacing_pdf_and_missing_lockin_edition() -> None:
     sheet.refresh_from_db()
     replacement = create_managed_file(owner=admin, upload=pdf_upload(), kind="pdf")
     changed = replace_pdf(
-        actor=admin, sheet_id=sheet.id, expected_revision=sheet.revision,
-        managed_file=replacement, notify_students=False,
+        actor=admin,
+        sheet_id=sheet.id,
+        expected_revision=sheet.revision,
+        managed_file=replacement,
+        notify_students=False,
     )
     assert changed.block_file_export is True
     assert changed.workflow_status == LearningObject.WorkflowStatus.PUBLISHED
