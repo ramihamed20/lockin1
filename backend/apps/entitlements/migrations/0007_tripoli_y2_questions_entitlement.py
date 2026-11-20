@@ -1,4 +1,5 @@
 """Grant only question and review capabilities to the question-only offers."""
+
 from django.db import migrations
 
 
@@ -26,6 +27,11 @@ def seed_question_entitlements(apps, schema_editor):  # type: ignore[no-untyped-
     )
     for plan in Plan.objects.filter(code__in=PLAN_CODES).select_related("current_version"):
         if plan.current_version_id:
+            # Defense against a historical plan-rule backfill or a partial
+            # migration ordering; never grant premium PDFs for these offers.
+            Rule.objects.filter(plan_version_id=plan.current_version_id).exclude(
+                entitlement=entitlement
+            ).delete()
             Rule.objects.get_or_create(
                 plan_version_id=plan.current_version_id,
                 entitlement=entitlement,
