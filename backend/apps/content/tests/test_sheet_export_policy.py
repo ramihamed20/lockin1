@@ -49,6 +49,11 @@ def test_admin_blocks_download_without_unpublishing_or_hiding_reader(settings) -
     assert sheet.revision > 1
     assert reader.get(f"/api/v1/files/{file_id}/download").status_code == 404
     assert reader.get(f"/api/v1/files/{file_id}/view").status_code == 200
+    # Even if a published asset originally belonged to this student, its
+    # ownership must not bypass a new admin restriction.
+    asset.managed_file.owner = student
+    asset.managed_file.save(update_fields=["owner"])
+    assert reader.get(f"/api/v1/files/{file_id}/download").status_code == 404
     assert LearningObjectAssetSerializer(asset).data["download_url"] is None
     assert AuditRecord.objects.filter(
         target_id=str(sheet.id), action="content.sheet_export_policy_updated"
