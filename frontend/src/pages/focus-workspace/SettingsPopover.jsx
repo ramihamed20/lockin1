@@ -33,7 +33,7 @@ function StylusInputCheck({ drawingInput, onChange, t }) {
 /**
  * Workspace settings: drawing, canvas, view and other sections.
  */
-export function SettingsPopover({ openNotes, activeVirtualPage, activeVirtualPageId, addBlankPage, annotationsHidden, applyRestoredBackup, autoImproveHandwriting, backupBusy, backupInputRef, changeDrawingInput, changeVirtualPageBackground, circleToErase, clearPageAnnotations, closeSurfaceAndRestoreFocus, deleteBlankPage, drawAndHold, drawingInput, exportBusy, exportStudyDocument, exportWorkspaceBackup, includeWorkspacePages, keepScreenAwake, page, pageAnnotations, pdfDocumentReady, pendingImport, popover, readWorkspaceBackup, rememberLastPosition, rememberZoomLevel, saveErrorReason, saveState, scribbleToErase, setActiveTool, setAnnotationsHidden, setAutoImproveHandwriting, setCircleToErase, setDrawAndHold, setIncludeWorkspacePages, setKeepScreenAwake, setPendingImport, setRememberLastPosition, setRememberZoomLevel, setScribbleToErase, setSelectedIds, setSettingsTab, setShowPageNumber, settingsTab, sheet, showPageNumber, t, wakeLockSupported, workspaceReady }) {
+export function SettingsPopover({ canExport = true, openNotes, activeVirtualPage, activeVirtualPageId, addBlankPage, annotationsHidden, applyRestoredBackup, autoImproveHandwriting, backupBusy, backupInputRef, changeDrawingInput, changeVirtualPageBackground, circleToErase, clearPageAnnotations, closeSurfaceAndRestoreFocus, deleteBlankPage, drawAndHold, drawingInput, exportBusy, exportStudyDocument, exportWorkspaceBackup, includeWorkspacePages, keepScreenAwake, page, pageAnnotations, pdfDocumentReady, pendingImport, popover, readWorkspaceBackup, rememberLastPosition, rememberZoomLevel, saveErrorReason, saveState, scribbleToErase, setActiveTool, setAnnotationsHidden, setAutoImproveHandwriting, setCircleToErase, setDrawAndHold, setIncludeWorkspacePages, setKeepScreenAwake, setPendingImport, setRememberLastPosition, setRememberZoomLevel, setScribbleToErase, setSelectedIds, setSettingsTab, setShowPageNumber, settingsTab, sheet, showPageNumber, t, wakeLockSupported, workspaceReady }) {
   return <>
     {workspaceReady && popover("settings").shown && <section {...popover("settings").props} id="workspace-settings-popover" className="workspace-v2-settings-popover workspace-v8-settings" role="dialog" aria-label={t("focus.workspaceSettings")} onPointerDown={(event) => event.stopPropagation()}>
       <header className="workspace-v8-settings-head"><strong>{t("focus.settings")}</strong><button type="button" aria-label={t("focus.closeWorkspaceSettings")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
@@ -99,8 +99,11 @@ export function SettingsPopover({ openNotes, activeVirtualPage, activeVirtualPag
         </>}
         {settingsTab === "other" && <>
           <div className="workspace-v8-settings-group">
-            <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>{t("focus.exportAsPDF")}</strong><small>{t("focus.yourPagesWithEveryMark")}</small></span></button>
-            <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>{t("focus.exportThisPageAsAn")}</strong><small>{t("focus.pngOfThePageYou")}</small></span></button>
+            {canExport && <>
+              <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("annotated")} disabled={exportBusy}><FileText size={18} /><span><strong>{t("focus.exportAsPDF")}</strong><small>{t("focus.yourPagesWithEveryMark")}</small></span></button>
+              <button type="button" className="workspace-v2-settings-action" onClick={() => exportStudyDocument("png")} disabled={exportBusy}><ImageIcon size={18} /><span><strong>{t("focus.exportThisPageAsAn")}</strong><small>{t("focus.pngOfThePageYou")}</small></span></button>
+            </>}
+            {!canExport && <p className="workspace-v2-settings-note" role="status">PDF downloads and exports are disabled by the administrator for this sheet.</p>}
             <SettingsToggle icon={BookOpen} label={t("focus.includeAddedPages")} description={t("focus.putPagesYouAddedInto")} checked={includeWorkspacePages} onChange={setIncludeWorkspacePages} />
           </div>
           <div className="workspace-v8-settings-group">
