@@ -127,7 +127,9 @@ class SubscriptionProtectedPermission(BasePermission):
         if subscription_access_decision(user=user, entitlement_code=entitlement).allowed:
             return True
         if app_name in {"assessments", "review"} or (
-            app_name == "content" and match is not None and match.url_name in QUESTION_CONTENT_ROUTES
+            app_name == "content"
+            and match is not None
+            and match.url_name in QUESTION_CONTENT_ROUTES
         ):
             return subscription_access_decision(
                 user=user, entitlement_code="questions.access"
