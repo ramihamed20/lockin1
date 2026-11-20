@@ -646,8 +646,11 @@ class CatalogMixedQuestionsView(APIView):
         }
         results = []
         for question in questions:
+            version = question.published_version
+            if version is None:
+                continue
             item = _student_question(question, answers.get(question.id))
-            item["sheet_id"] = str(question.published_version.source_learning_object_id)
+            item["sheet_id"] = str(version.source_learning_object_id)
             results.append(item)
         return Response({"count": len(results), "results": results})
 
