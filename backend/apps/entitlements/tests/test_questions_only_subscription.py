@@ -149,7 +149,10 @@ def test_questions_plan_unblocks_questions_but_not_pdf_or_workspace():
     )
 
     subscription.status = Subscription.Status.EXPIRED
-    subscription.current_period_ends_at = timezone.now() - timedelta(seconds=1)
+    # A valid expired period must still end after its start (database constraint).
+    subscription.current_period_started_at = timezone.now() - timedelta(days=2)
+    subscription.current_period_ends_at = timezone.now() - timedelta(days=1)
+    subscription.grace_ends_at = None
     subscription.save()
     sync_subscription_entitlements(subscription_id=subscription.id)
     assert client.get("/api/v1/catalog/questions").status_code == 403
