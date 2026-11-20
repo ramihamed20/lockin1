@@ -287,8 +287,12 @@ export function createUpdateManager(overrides = {}) {
     }
     const waiting = registration?.waiting;
     if (!waiting) {
-      // Another window may have activated it between the prompt and the tap.
-      if (controllerChanged) {
+      // Another tab may have activated the release before this click, and a
+      // backgrounded browser can miss its controllerchange event entirely.
+      // A still-visible "Update now" is an explicit request to move this tab
+      // to the newer build, not a request to download the update again.
+      // The global prompt and Settings never call applyUpdate automatically.
+      if (controllerChanged || snapshot.status === UPDATE_STATUS.AVAILABLE) {
         reloadOnce();
         return Promise.resolve();
       }
