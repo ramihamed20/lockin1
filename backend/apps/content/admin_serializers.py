@@ -20,6 +20,7 @@ class AdminSheetCreateSerializer(StrictSerializer):
     publish = serializers.BooleanField(default=False)
     notify_students = serializers.BooleanField(default=False)
     allow_download = serializers.BooleanField(default=False)
+    block_file_export = serializers.BooleanField(default=False)
 
 
 class AdminSheetUpdateSerializer(StrictSerializer):
