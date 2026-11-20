@@ -1,7 +1,6 @@
 """Question-only plans must never unlock PDFs or survive a rejected payment."""
 import base64
 from datetime import datetime, timedelta, timezone as dt_timezone
-from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -111,7 +110,9 @@ def test_question_only_prices_and_scoped_access_rules():
         assert price.currency == "LYD"
         assert plan_version_available_to_user(version=plan.current_version, user=year2)
         assert not plan_version_available_to_user(version=plan.current_version, user=year1)
-        granted = set(plan.current_version.entitlement_rules.values_list("entitlement__code", flat=True))
+        granted = set(
+            plan.current_version.entitlement_rules.values_list("entitlement__code", flat=True)
+        )
         assert granted == {"questions.access"}
         assert plan.current_version.terms["questions_only"] is True
     assert Price.objects.get(code="tripoli_y2_questions_post_35_lyd").valid_from == datetime(
