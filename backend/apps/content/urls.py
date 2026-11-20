@@ -74,6 +74,7 @@ from .views import (
     CatalogAddedSubjectCollectionView,
     CatalogDocumentResolveView,
     CatalogMaterialListView,
+    CatalogMixedQuestionsView,
     CatalogQuestionMaterialListView,
     CatalogSheetQuestionAnswerView,
     CatalogSheetQuestionListView,
@@ -241,6 +242,11 @@ urlpatterns = [
         "catalog/questions",
         CatalogQuestionMaterialListView.as_view(),
         name="catalog-questions",
+    ),
+    path(
+        "catalog/questions/mix",
+        CatalogMixedQuestionsView.as_view(),
+        name="catalog-mixed-questions",
     ),
     path(
         "catalog/sheets/<uuid:sheet_id>/questions",

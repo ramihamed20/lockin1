@@ -48,6 +48,22 @@ PROTECTED_APP_ENTITLEMENTS = {
 # name. ``apps.files.tests`` holds the regression that keeps premium closed.
 PER_OBJECT_ENTITLEMENT_VIEWS = frozenset({"files:delivery"})
 
+# Only these content endpoints may be used by a questions-only subscriber.
+# Every PDF, study workspace, file delivery and admin path stays premium-gated.
+QUESTION_CONTENT_ROUTES = frozenset(
+    {
+        "catalog-questions",
+        "catalog-mixed-questions",
+        "catalog-sheet-questions",
+        "catalog-sheet-question-answer",
+        "catalog-sheet-question-retry",
+        "practice-directory",
+        "practice-set",
+        "practice-check",
+        "practice-hint",
+    }
+)
+
 
 def subscription_access_decision(*, user: User, entitlement_code: str) -> EntitlementDecision:
     """Decide entitlement, reconciling the trial an eligible account should already hold.
@@ -110,7 +126,17 @@ class SubscriptionProtectedPermission(BasePermission):
         user = request.user
         if not isinstance(user, User) or not user.is_authenticated:
             return False
-        return subscription_access_decision(user=user, entitlement_code=entitlement).allowed
+        if subscription_access_decision(user=user, entitlement_code=entitlement).allowed:
+            return True
+        if app_name in {"assessments", "review"} or (
+            app_name == "content"
+            and match is not None
+            and match.url_name in QUESTION_CONTENT_ROUTES
+        ):
+            return subscription_access_decision(
+                user=user, entitlement_code="questions.access"
+            ).allowed
+        return False
 
 
 def require_subscription_access(*, user: User, entitlement_code: str) -> None:

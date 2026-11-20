@@ -13,7 +13,11 @@ from apps.accounts.services import (
     auth_attempt_fingerprint,
 )
 from apps.product_catalog.models import Price
-from apps.product_catalog.selectors import active_libyana_price_for_plan, active_price
+from apps.product_catalog.selectors import (
+    active_libyana_price_for_plan,
+    active_price,
+    plan_version_available_to_user,
+)
 from apps.provider_integrations.services import create_checkout_session
 from apps.subscriptions.serializers import SubscriptionSerializer
 from apps.subscriptions.services import (
@@ -77,6 +81,8 @@ class PaymentIntentView(APIView):
             raise ValidationError({"idempotency_key": ["A stable idempotency key is required."]})
         try:
             price = active_price(price_id=serializer.validated_data["price_id"])
+            if not plan_version_available_to_user(version=price.plan_version, user=user):
+                raise ValueError("This question-only plan is for Tripoli Dentistry Year 2.")
             account = get_or_create_individual_account(user=user)
             subscription, _ = create_pending_subscription(
                 account=account,

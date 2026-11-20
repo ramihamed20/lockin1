@@ -5,7 +5,8 @@ const ACCESS_RECHECK_MS = 30_000;
 const DIRECT_STUDY_ENTITLEMENTS = new Set([
   "focus.workspace",
   "content.premium",
-  "files.download"
+  "files.download",
+  "questions.access"
 ]);
 
 function sessionStorageOrNull() {

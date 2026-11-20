@@ -97,7 +97,7 @@
       "requirements": "A prepared sheet with published questions for the chosen difficulty. Customization and the Pomodoro style are available in the Focus reader only for new sheets prepared with a page-based question bank."
     },
     "questions": {
-      "requirements": "Only the sources and questions published for your study path appear; Mix is not available right now."
+      "requirements": "Only sources and published questions for your study path appear; Mix and Lab are available to Tripoli Dentistry Year 2 where published questions exist."
     },
     "review": {
       "requirements": "Your daily review selects up to 20 due questions from your mistake bank using the existing schedule, prioritising repeated mistakes. You can also choose a subject."
@@ -303,7 +303,7 @@
     },
     "mixed-questions": {
       "question": "Why can’t I open Mix?",
-      "shortAnswer": "The Mix source isn’t available right now. Use one of the question sources available for your study path in Questions.",
+      "shortAnswer": "Mix combines published questions for Tripoli Dentistry Year 2 students. Other study paths only show supported sources; Mix may still be unavailable.",
       "detailedSteps": []
     },
     "question-explanations": {
@@ -677,7 +677,7 @@
         [
           "Choose an available source.",
           [
-            "Questions shows practice sources, past years and sheet questions depending on your study path and the published content. Some subjects may include image or locate-the-spot questions, while Mix is not available right now."
+            "Questions shows practice, past exams and sheet questions by study path and published content. Mix and Lab sources are offered to Tripoli Dentistry Year 2 students when suitable questions are published."
           ]
         ],
         [

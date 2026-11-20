@@ -34,6 +34,10 @@ export const catalogWorkspaceApi = {
   questionMaterials(source = "", userId = "") {
     return resolveStored(userId, `question-directory:${source}`, () => request("/catalog/questions" + (source ? `?source=${encodeURIComponent(source)}` : "")));
   },
+  /** @param {{ signal?: AbortSignal }} [options] */
+  mixedQuestions({ signal } = {}) {
+    return request("/catalog/questions/mix", { signal });
+  },
   /**
    * One Material sheet's published questions.
    * @param {string} sheetId

@@ -23,6 +23,7 @@ from apps.subscriptions.services import create_trial_for_user
 pytestmark = pytest.mark.django_db
 
 STUDY_ENTITLEMENTS = {"focus.workspace", "content.premium", "files.download"}
+QUESTIONS_ONLY_ENTITLEMENTS = {"questions.access"}
 
 
 def _purchasable_versions():
@@ -45,8 +46,15 @@ def test_every_purchasable_plan_version_grants_the_study_entitlements() -> None:
                 plan_version=version, entitlement__is_active=True
             ).values_list("entitlement__code", flat=True)
         )
-        if not granted >= STUDY_ENTITLEMENTS:
-            missing[version.plan.code] = sorted(STUDY_ENTITLEMENTS - granted)
+        required = (
+            QUESTIONS_ONLY_ENTITLEMENTS
+            if (version.terms or {}).get("questions_only")
+            else STUDY_ENTITLEMENTS
+        )
+        if not granted >= required:
+            missing[version.plan.code] = sorted(required - granted)
+        if (version.terms or {}).get("questions_only") and granted.intersection(STUDY_ENTITLEMENTS):
+            missing[version.plan.code] = ["Unexpected full-study entitlement"]
 
     assert missing == {}, (
         f"These purchasable plans grant no study access, so paying for one revokes it: {missing}"
@@ -68,7 +76,19 @@ def test_moving_a_subscription_onto_any_purchasable_plan_keeps_access() -> None:
         subscription.save(update_fields=("plan_version", "status", "updated_at"))
         sync_subscription_entitlements(subscription_id=subscription.id)
 
-        for code in sorted(STUDY_ENTITLEMENTS):
+        required = (
+            QUESTIONS_ONLY_ENTITLEMENTS
+            if (version.terms or {}).get("questions_only")
+            else STUDY_ENTITLEMENTS
+        )
+        if (version.terms or {}).get("questions_only"):
+            from apps.education.models import StudentCohort
+
+            user.cohort = StudentCohort.objects.get(
+                program__code="dentistry-tripoli", code="year-2"
+            )
+            user.save(update_fields=["cohort", "updated_at"])
+        for code in sorted(required):
             decision = entitlement_decision(user=user, entitlement_code=code)
             assert decision.allowed is True, (
                 f"paying for {version.plan.code} revoked {code} ({decision.reason})"

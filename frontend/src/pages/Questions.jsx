@@ -21,13 +21,18 @@ const QUESTION_CATEGORIES = [
   { id: "practice", titleKey: "questions.practice", metaKey: "questions.practiceMeta", icon: "brain", available: true },
   { id: "years", titleKey: "questions.years", metaKey: "questions.yearsMeta", icon: "calendar", available: true },
   { id: "ai-sheet", titleKey: "questions.aiSheet", metaKey: "questions.aiSheetMeta", icon: "file-question", available: true },
+  { id: "lab", titleKey: "questions.lab", metaKey: "questions.labMeta", icon: "microscope", available: true },
   { id: "mix", titleKey: "questions.mix", metaKey: "questions.mixMeta", icon: "shuffle", available: false }
 ];
 
 /** A category the cohort is not enrolled in is not reachable at all. */
 function cohortCategories(user) {
   const allowed = getCohortQuestionCategories(user);
-  return QUESTION_CATEGORIES.filter((category) => allowed.includes(category.id));
+  return QUESTION_CATEGORIES.filter((category) => allowed.includes(category.id)).map((category) => (
+    category.id === "mix" && user?.cohort?.program?.code === "dentistry-tripoli" && user?.cohort?.code === "year-2"
+      ? { ...category, available: true }
+      : category
+  ));
 }
 
 function categoryEmptyState(category, t) {
@@ -44,7 +49,7 @@ function categoryEmptyState(category, t) {
  * appears here under the exact title Materials and the Questions admin show,
  * for the cohort that owns it and no other.
  */
-function sourceForCategory(categoryId) { return categoryId === "years" ? "exam" : "ai-sheet"; }
+function sourceForCategory(categoryId) { return categoryId === "years" ? "exam" : categoryId === "lab" ? "lab" : "ai-sheet"; }
 
 function useQuestionMaterials(user, categoryId) {
   const key = [user?.id || "", user?.cohort?.id || "", categoryId].join("|");
@@ -77,7 +82,26 @@ function CategoryCard({ category }) {
 export function QuestionCategory({ user = null }) {
   const { categoryId } = useParams();
   if (categoryId === "practice") return <PracticeCategory user={user} category={cohortCategories(user).find((item) => item.id === "practice")} />;
+  if (categoryId === "mix") return <MixedQuestions user={user} />;
   return <ExamCategory user={user} />;
+}
+
+function MixedQuestions({ user = null }) {
+  const { t } = useI18n();
+  const allowed = cohortCategories(user).find((item) => item.id === "mix")?.available;
+  const data = useAsyncData((signal) => catalogWorkspaceApi.mixedQuestions({ signal }), [user?.id]);
+  const questions = Array.isArray(data.data?.results) ? data.data.results : [];
+  const back = { backTo: "/questions", backLabel: t("route.questions") };
+  if (!allowed) return <DirectoryState title={t("questions.mix")} {...back}><ErrorPanel message={t("questions.subjectUnavailable")} /></DirectoryState>;
+  if (data.loading) return <DirectoryState title={t("questions.mix")} {...back}><LoadingPanel variant="quiz" /></DirectoryState>;
+  if (data.error) return <DirectoryState title={t("questions.mix")} {...back}><ErrorPanel message={data.error} onRetry={data.reload} /></DirectoryState>;
+  if (!questions.length) return <DirectoryState title={t("questions.mix")} {...back}><EmptyState icon="study" title={t("questions.noQuestionsTitle")} text={t("questions.noQuestionsText")} /></DirectoryState>;
+  return <Page width="reading" title={t("questions.mix")} headingHandled>
+    <section className="question-session-shell">
+      <QuestionDirectoryHeader id="mixed-questions-heading" title={t("questions.mix")} backTo="/questions" backLabel={t("route.questions")} />
+      <QuestionPlayer key={questions.map((item) => item.id).join(":")} sheetId={null} userId={user?.id} source="" questions={questions} backTo="/questions" />
+    </section>
+  </Page>;
 }
 
 function ExamCategory({ user = null }) {
@@ -349,7 +373,7 @@ function QuestionPlayer({ sheetId, userId, source, questions, backTo }) {
       {replay && <p className="save-hint question-replay-note" role="status">{t("questions.restartNote")}</p>}
       <PracticeItem
         key={`${round}:${question.id}`}
-        sheetId={sheetId}
+        sheetId={question.sheet_id || sheetId}
         userId={userId}
         source={source}
         question={question}

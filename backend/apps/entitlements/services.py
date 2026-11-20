@@ -136,6 +136,13 @@ def sync_subscription_entitlements(*, subscription_id: UUID) -> list[Entitlement
         plan_version_id=rule_version_id,
         entitlement__is_active=True,
     )
+    # Fail closed even if a later migration or manual admin edit accidentally
+    # adds premium rules to a question-only plan version. Full plans and valid
+    # previous paid/trial access remain unaffected.
+    if subscription.plan_version_id == rule_version_id and (
+        subscription.plan_version.terms or {}
+    ).get("questions_only"):
+        rules = rules.filter(entitlement__code="questions.access")
     grants_by_entitlement = {grant.entitlement_id: grant for grant in existing}
     active_ids: set[UUID] = set()
     for rule in rules:
@@ -308,7 +315,20 @@ def entitlement_decision(
         return EntitlementDecision(
             code=code, allowed=True, reason="free_access_window", expires_at=free_until
         )
-    grant = effective_grants_for_user(user=user, at=current).filter(entitlement__code=code).first()
+    grants = effective_grants_for_user(user=user, at=current).filter(entitlement__code=code)
+    grant = None
+    for candidate in grants:
+        scope = candidate.configuration or {}
+        if code == "questions.access" and (scope.get("program_code") or scope.get("cohort_code")):
+            cohort = user.cohort
+            if (
+                cohort is None
+                or (scope.get("cohort_code") and cohort.code != scope["cohort_code"])
+                or (scope.get("program_code") and cohort.program.code != scope["program_code"])
+            ):
+                continue
+        grant = candidate
+        break
     if grant is None:
         return EntitlementDecision(code=code, allowed=False, reason="entitlement_required")
     return EntitlementDecision(

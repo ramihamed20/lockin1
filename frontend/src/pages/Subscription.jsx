@@ -195,7 +195,10 @@ const PLAN_COPY = {
   lockin_four_months: { en: ["Four months", "Four-month subscription"], ar: ["4 أشهر", "اشتراك لمدة أربعة أشهر"] },
   dentistry_pre_midterm: { en: ["Pre-midterm", "Access until 25 January 2027"], ar: ["قبل النصفي", "اشتراك حتى 25 يناير 2027"] },
   dentistry_post_midterm: { en: ["Post-midterm", "Access until 21 May 2027"], ar: ["بعد النصفي", "اشتراك حتى 21 مايو 2027"] },
-  dentistry_full_year: { en: ["Full year", "Access until 21 May 2027"], ar: ["العام الكامل", "اشتراك حتى 21 مايو 2027"] }
+  dentistry_full_year: { en: ["Full year", "Access until 21 May 2027"], ar: ["العام الكامل", "اشتراك حتى 21 مايو 2027"] },
+  tripoli_y2_questions_pre: { en: ["Questions only — pre-midterm", "Tripoli Dentistry Year 2: questions and review until 25 January 2027"], ar: ["الأسئلة فقط — قبل النصفي", "طب أسنان طرابلس سنة ثانية: الأسئلة والمراجعة حتى 25 يناير 2027"] },
+  tripoli_y2_questions_post: { en: ["Questions only — post-midterm", "Tripoli Dentistry Year 2: questions and review until 21 May 2027"], ar: ["الأسئلة فقط — بعد النصفي", "طب أسنان طرابلس سنة ثانية: الأسئلة والمراجعة حتى 21 مايو 2027"] },
+  tripoli_y2_questions_year: { en: ["Questions only — full year", "Tripoli Dentistry Year 2: questions and review until 21 May 2027"], ar: ["الأسئلة فقط — العام الكامل", "طب أسنان طرابلس سنة ثانية: الأسئلة والمراجعة حتى 21 مايو 2027"] }
 };
 
 function priceBadge(price, t) {

@@ -9,7 +9,12 @@ from apps.entitlements.services import entitlement_decision
 
 from .models import Subscription, SubscriptionTransition
 
-DIRECT_STUDY_ENTITLEMENTS = ("focus.workspace", "content.premium", "files.download")
+DIRECT_STUDY_ENTITLEMENTS = (
+    "focus.workspace",
+    "content.premium",
+    "files.download",
+    "questions.access",
+)
 
 
 def free_access_snapshot(ends_at: datetime) -> dict[str, object]:

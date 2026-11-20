@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from apps.accounts.policies import policy_effective_at
 
 from .models import Price, Product
-from .selectors import available_products, price_for_reader
+from .selectors import available_products, plan_version_available_to_user, price_for_reader
 from .serializers import ProductSerializer
 
 
@@ -53,8 +53,14 @@ def _prices_for_reader(*, products: list[Product], results: Any, user: Any) -> A
             version_data = plan_data.get("current_version")
             if not version_data:
                 continue
+            candidate_prices = prices_by_plan.get(str(plan_data["id"]), [])
+            if candidate_prices and not plan_version_available_to_user(
+                version=candidate_prices[0].plan_version, user=user
+            ):
+                version_data["prices"] = []
+                continue
             chosen = price_for_reader(
-                prices=prices_by_plan.get(str(plan_data["id"]), []),
+                prices=candidate_prices,
                 eligibilities=eligibilities,
             )
             if chosen is None:

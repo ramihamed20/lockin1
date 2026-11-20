@@ -100,6 +100,16 @@ export function ProtectedRoute({ user, loading = false, operationsSession = null
   if (requiresSubscription(location.pathname) && subscriptionSession.ready && !subscriptionSession.canAccessNow()) {
     return <ExpiredAccess />;
   }
+  // Question-only subscribers arrive at a usable bank rather than landing in
+  // premium PDF/workspace screens that the server correctly refuses.
+  const questionsOnly = subscriptionSession.subscription?.plan_code?.startsWith("tripoli_y2_questions_");
+  const hasFullContentGrant = subscriptionSession.entitlements?.some((grant) => (
+    grant.code === "content.premium"
+  ));
+  if (questionsOnly && !hasFullContentGrant && !subscriptionSession.accessExempt && requiresSubscription(location.pathname)
+      && !["/questions", "/review"].some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))) {
+    return <Navigate to="/questions" replace />;
+  }
 
   return <Outlet />;
 }
