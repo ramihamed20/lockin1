@@ -138,9 +138,13 @@ def test_questions_plan_unblocks_questions_but_not_pdf_or_workspace():
     for url in (
         "/api/v1/catalog/materials",
         "/api/v1/catalog/workspaces/recent",
-        "/api/v1/files/00000000-0000-0000-0000-000000000001/view",
     ):
         assert client.get(url).status_code == 403, url
+    # Unknown managed files may 404 before per-object permission is evaluated;
+    # either is a denial, never a download.
+    assert client.get(
+        "/api/v1/files/00000000-0000-0000-0000-000000000001/view"
+    ).status_code in (403, 404)
 
     subscription.status = Subscription.Status.EXPIRED
     subscription.current_period_ends_at = timezone.now() - timedelta(seconds=1)
