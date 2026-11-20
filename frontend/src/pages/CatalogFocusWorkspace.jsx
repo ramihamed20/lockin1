@@ -54,6 +54,7 @@ import {
 
 } from "lucide-react";
 import { focusApi } from "../api/focus.js";
+import { catalogWorkspaceApi } from "../api/catalogWorkspace.js";
 import { progressApi } from "../api/progress.js";
 import { generateIdempotencyKey } from "../api/pagination.js";
 import { rememberLastOpenedCatalogSheet, resolveSheetEdition, withEditionPdfUrl } from "../lib/materialCatalog.js";
@@ -423,6 +424,9 @@ function CatalogSheetWorkspace({ user = null, variant = "study" }) {
 function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials = materials, materialSlug: materialSlugProp = "", sheetSlug: sheetSlugProp = "", whiteboard = false, personalBackTo = "", personalSubject = "", catalogDocument = null, documentScope = null, onDocumentChanged = () => {}, summaryMode = false, preferredMode = "", marksSet = null, onSelectMarks = /** @type {(marksId: string) => void} */ (() => {}) }) {
   // A student's own sheet: no Active Study and no reading credit.
   const personal = Boolean(personalBackTo);
+  // Personal sheets and the whiteboard are user-owned. The admin switch applies
+  // only to managed catalog PDFs, including summaries and both editions.
+  const canExport = whiteboard || personal || catalogDocument?.allowExport !== false;
   // A catalog sheet shares under its own document; a copy of someone's marks
   // shares under the catalog document it was copied from.
   const shareDocumentId = whiteboard || summaryMode || personal ? "" : (catalogDocument?.id || "");
@@ -6118,7 +6122,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
    * cannot be opened at the end of a multi-second render.
    */
   async function exportStudyDocument(kind, { share = false } = {}) {
-    if (exportBusy || !sheet?.pdfUrl) return;
+    if (exportBusy || !sheet?.pdfUrl || !canExport) return;
     if (kind === "original" && studyMode === "active") {
       setFocusMessage(t("focus.theOriginalPDFIsAvailable"));
       return;
@@ -6133,6 +6137,17 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
     let from = page;
     let to = page;
     try {
+      if (!personal && !whiteboard && catalogDocument?.id) {
+        // Re-read the current server policy for every export: an admin can
+        // block a sheet while its reader remains open in another tab.
+        // Do not trust the original catalog response or an offline PDF cache.
+        const latest = await catalogWorkspaceApi.resolve(materialSlug, sheetSlug, {
+          view: summaryMode ? "summary" : ""
+        });
+        if (latest?.document?.allow_export === false) {
+          throw new Error("PDF downloads and exports are disabled for this sheet.");
+        }
+      }
       let pdf = pdfDocumentProxyRef.current;
       if (!pdf) {
         const pdfjs = await loadPdfLibrary();
@@ -6198,7 +6213,7 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
   async function shareReadyExport() {
     const handle = exportHandleRef.current;
-    if (!handle) return;
+    if (!handle || !canExport) return;
     try {
       const outcome = await shareExportFile(handle.file, { title: sheet.title });
       setExportState((current) => current.status === "ready" ? { ...current, shared: outcome === "shared", shareError: "" } : current);
@@ -6556,16 +6571,16 @@ function CatalogFocusWorkspaceView({ user = null, materials = [], tabMaterials =
 
           <StudyMenu activeStudy={activeStudy} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} knowledgeNavigation={knowledgeNavigation} knowledgeOpen={knowledgeOpen} openStudyTool={openStudyTool} personal={personal} popover={popover} setMarksOpen={setMarksOpen} setModeDialogOpen={setModeDialogOpen} setOpenSurface={setOpenSurface} setSummaryDialogOpen={setSummaryDialogOpen} shareDocumentId={shareDocumentId} sheetSummaries={sheetSummaries} studyMode={studyMode} studyTools={studyTools} summariesEnabled={summariesEnabled} t={t} whiteboard={whiteboard} workspaceReady={workspaceReady} />
 
-          <MoreMenu openTranslation={() => setTranslationOpen(true)} openZoomWindow={openZoomWindow} activeVirtualPageId={activeVirtualPageId} allCoversRevealed={allCoversRevealed} annotationsHidden={annotationsHidden} bookmarkBusy={bookmarkBusy} bookmarked={bookmarked} chooseWritingTool={chooseWritingTool} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coverIds={coverIds} deleteBlankPage={deleteBlankPage} documentSearch={documentSearch} exportBusy={exportBusy} openNewWhiteboard={openNewWhiteboard} page={page} personal={personal} popover={popover} searchDocumentProxy={searchDocumentProxy} selectTool={selectTool} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setExportForShare={setExportForShare} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setMarksOpen={setMarksOpen} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} shareDocumentId={shareDocumentId} sheet={sheet} sheetEdition={sheetEdition} singleTab={singleTab} studyInProgress={studyInProgress} studyRangeLabel={studyRangeLabel} summaryMode={summaryMode} t={t} toggleAllCovers={toggleAllCovers} toggleBookmark={toggleBookmark} whiteboard={whiteboard} workspaceReady={workspaceReady} />
+          <MoreMenu canExport={canExport} openTranslation={() => setTranslationOpen(true)} openZoomWindow={openZoomWindow} activeVirtualPageId={activeVirtualPageId} allCoversRevealed={allCoversRevealed} annotationsHidden={annotationsHidden} bookmarkBusy={bookmarkBusy} bookmarked={bookmarked} chooseWritingTool={chooseWritingTool} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coverIds={coverIds} deleteBlankPage={deleteBlankPage} documentSearch={documentSearch} exportBusy={exportBusy} openNewWhiteboard={openNewWhiteboard} page={page} personal={personal} popover={popover} searchDocumentProxy={searchDocumentProxy} selectTool={selectTool} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setExportForShare={setExportForShare} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setMarksOpen={setMarksOpen} setOpenSurface={setOpenSurface} setSelectedIds={setSelectedIds} shareDocumentId={shareDocumentId} sheet={sheet} sheetEdition={sheetEdition} singleTab={singleTab} studyInProgress={studyInProgress} studyRangeLabel={studyRangeLabel} summaryMode={summaryMode} t={t} toggleAllCovers={toggleAllCovers} toggleBookmark={toggleBookmark} whiteboard={whiteboard} workspaceReady={workspaceReady} />
 
-          <ExportMenu accessiblePageCount={accessiblePageCount} exportBusy={exportBusy} exportForShare={exportForShare} exportRangeEnd={exportRangeEnd} exportRangeStart={exportRangeStart} exportStudyDocument={exportStudyDocument} popover={popover} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setOpenSurface={setOpenSurface} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
+          <ExportMenu canExport={canExport} accessiblePageCount={accessiblePageCount} exportBusy={exportBusy} exportForShare={exportForShare} exportRangeEnd={exportRangeEnd} exportRangeStart={exportRangeStart} exportStudyDocument={exportStudyDocument} popover={popover} setExportRangeEnd={setExportRangeEnd} setExportRangeStart={setExportRangeStart} setOpenSurface={setOpenSurface} studyMode={studyMode} t={t} workspaceReady={workspaceReady} />
 
           <SearchMenu closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} coveredMatchIds={coveredMatchIds} documentSearch={documentSearch} hideSearchMatches={hideSearchMatches} openSurface={openSurface} popover={popover} showSearchMatch={showSearchMatch} t={t} workspaceReady={workspaceReady} />
           {workspaceReady && openSurface !== "search" && <SearchNavigator search={documentSearch} onShowMatch={showSearchMatch} onOpen={() => setOpenSurface("search")} onHideMatch={() => documentSearch.activeMatch && hideSearchMatches([documentSearch.activeMatch], true)} covered={Boolean(documentSearch.activeMatch && coveredMatchIds.has(documentSearch.activeMatch.id))} />}
 
           <ToolOptionsPanel favoritesStrip={favoritePensStrip("is-panel")} activeColor={activeColor} activePenOption={activePenOption} activeTool={activeTool} activeToolLabel={activeToolLabel} activeToolOpacity={activeToolOpacity} brushSize={brushSize} changePenProfile={changePenProfile} chooseAnnotationColor={chooseAnnotationColor} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} commitCustomColor={commitCustomColor} customColorDraft={customColorDraft} customColorEditorOpen={customColorEditorOpen} customColorSet={customColorSet} deleteCustomColor={deleteCustomColor} displayedToolOptions={displayedToolOptions} drawAndHold={drawAndHold} eraserMode={eraserMode} eraserSize={eraserSize} favoriteColors={favoriteColors} inkToolActive={inkToolActive} lassoMode={lassoMode} pageAnnotations={pageAnnotations} paletteColors={paletteColors} penProfile={penProfile} recentColors={recentColors} selectedAnnotations={selectedAnnotations} setBrushSize={setBrushSize} setCircleToErase={setCircleToErase} setCustomColorDraft={setCustomColorDraft} setCustomColorEditorOpen={setCustomColorEditorOpen} setDrawAndHold={setDrawAndHold} setEraserMode={setEraserMode} setEraserSize={setEraserSize} setLassoMode={setLassoMode} setShapeAngle={setShapeAngle} setShapeDashed={setShapeDashed} setShapeFill={setShapeFill} setShapeFillColor={setShapeFillColor} setShapeSnapGrid={setShapeSnapGrid} setShapeStyle={setShapeStyle} shapeAngle={shapeAngle} shapeDashed={shapeDashed} shapeFill={shapeFill} shapeFillColor={shapeFillColor} shapeSnapGrid={shapeSnapGrid} shapeStyle={shapeStyle} showColorPalette={showColorPalette} t={t} toggleFavoriteColor={toggleFavoriteColor} toolOptionsOpen={toolOptionsOpen} toolOptionsRef={toolOptionsRef} updateActiveToolOpacity={updateActiveToolOpacity} workspaceReady={workspaceReady} />
 
-          <SettingsPopover openNotes={() => selectTool("note")} activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
+          <SettingsPopover canExport={canExport} openNotes={() => selectTool("note")} activeVirtualPage={activeVirtualPage} activeVirtualPageId={activeVirtualPageId} addBlankPage={addBlankPage} annotationsHidden={annotationsHidden} applyRestoredBackup={applyRestoredBackup} autoImproveHandwriting={autoImproveHandwriting} backupBusy={backupBusy} backupInputRef={backupInputRef} changeDrawingInput={changeDrawingInput} changeVirtualPageBackground={changeVirtualPageBackground} circleToErase={circleToErase} clearPageAnnotations={clearPageAnnotations} closeSurfaceAndRestoreFocus={closeSurfaceAndRestoreFocus} deleteBlankPage={deleteBlankPage} drawAndHold={drawAndHold} drawingInput={drawingInput} exportBusy={exportBusy} exportStudyDocument={exportStudyDocument} exportWorkspaceBackup={exportWorkspaceBackup} includeWorkspacePages={includeWorkspacePages} keepScreenAwake={keepScreenAwake} page={page} pageAnnotations={pageAnnotations} pdfDocumentReady={pdfDocumentReady} pendingImport={pendingImport} popover={popover} readWorkspaceBackup={readWorkspaceBackup} rememberLastPosition={rememberLastPosition} rememberZoomLevel={rememberZoomLevel} saveErrorReason={saveErrorReason} saveState={saveState} scribbleToErase={scribbleToErase} setActiveTool={setActiveTool} setAnnotationsHidden={setAnnotationsHidden} setAutoImproveHandwriting={setAutoImproveHandwriting} setCircleToErase={setCircleToErase} setDrawAndHold={setDrawAndHold} setIncludeWorkspacePages={setIncludeWorkspacePages} setKeepScreenAwake={setKeepScreenAwake} setPendingImport={setPendingImport} setRememberLastPosition={setRememberLastPosition} setRememberZoomLevel={setRememberZoomLevel} setScribbleToErase={setScribbleToErase} setSelectedIds={setSelectedIds} setSettingsTab={setSettingsTab} setShowPageNumber={setShowPageNumber} settingsTab={settingsTab} sheet={sheet} showPageNumber={showPageNumber} t={t} wakeLockSupported={wakeLockSupported} workspaceReady={workspaceReady} />
 
           <div
             className={`workspace-v2-document-stage is-tool-${activeTool}`}

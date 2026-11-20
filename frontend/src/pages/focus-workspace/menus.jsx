@@ -21,9 +21,9 @@ export function SearchMenu({ closeSurfaceAndRestoreFocus, coveredMatchIds, docum
 /**
  * Export (or Share): the original PDF, every page with marks, this page, a range, or an image.
  */
-export function ExportMenu({ accessiblePageCount, exportBusy, exportForShare, exportRangeEnd, exportRangeStart, exportStudyDocument, popover, setExportRangeEnd, setExportRangeStart, setOpenSurface, studyMode, t, workspaceReady }) {
+export function ExportMenu({ canExport = true, accessiblePageCount, exportBusy, exportForShare, exportRangeEnd, exportRangeStart, exportStudyDocument, popover, setExportRangeEnd, setExportRangeStart, setOpenSurface, studyMode, t, workspaceReady }) {
   return <>
-    {workspaceReady && popover("export").shown && <section {...popover("export").props} className="workspace-v2-action-popover is-more" role="dialog" aria-label={t("focus.exportWorkspace")} onPointerDown={(event) => event.stopPropagation()}>
+    {workspaceReady && canExport && popover("export").shown && <section {...popover("export").props} className="workspace-v2-action-popover is-more" role="dialog" aria-label={t("focus.exportWorkspace")} onPointerDown={(event) => event.stopPropagation()}>
       <header><strong>{exportForShare ? t("focus.share") : t("focus.export")}</strong><button type="button" aria-label={t("focus.closeExportMenu")} onClick={() => setOpenSurface("more")}><X size={17} /></button></header>
       <div className="workspace-v3-menu-list">
         <button type="button" onClick={() => exportStudyDocument("original", { share: exportForShare })} disabled={exportBusy || studyMode === "active"}><Download size={18} /><span><strong>{t("focus.originalPDF")}</strong></span></button>
@@ -39,7 +39,7 @@ export function ExportMenu({ accessiblePageCount, exportBusy, exportForShare, ex
 /**
  * The More menu: the sheet, study, notes, new tabs, search, sharing, bookmarks and settings.
  */
-export function MoreMenu({ openTranslation, openZoomWindow, activeVirtualPageId, allCoversRevealed, annotationsHidden, bookmarkBusy, bookmarked, chooseWritingTool, closeSurfaceAndRestoreFocus, coverIds, deleteBlankPage, documentSearch, exportBusy, openNewWhiteboard, page, personal, popover, searchDocumentProxy, selectTool, setActiveTool, setAnnotationsHidden, setExportForShare, setExportRangeEnd, setExportRangeStart, setMarksOpen, setOpenSurface, setSelectedIds, shareDocumentId, sheet, sheetEdition, singleTab, studyInProgress, studyRangeLabel, summaryMode, t, toggleAllCovers, toggleBookmark, whiteboard, workspaceReady }) {
+export function MoreMenu({ canExport = true, openTranslation, openZoomWindow, activeVirtualPageId, allCoversRevealed, annotationsHidden, bookmarkBusy, bookmarked, chooseWritingTool, closeSurfaceAndRestoreFocus, coverIds, deleteBlankPage, documentSearch, exportBusy, openNewWhiteboard, page, personal, popover, searchDocumentProxy, selectTool, setActiveTool, setAnnotationsHidden, setExportForShare, setExportRangeEnd, setExportRangeStart, setMarksOpen, setOpenSurface, setSelectedIds, shareDocumentId, sheet, sheetEdition, singleTab, studyInProgress, studyRangeLabel, summaryMode, t, toggleAllCovers, toggleBookmark, whiteboard, workspaceReady }) {
   return <>
     {workspaceReady && popover("more").shown && <section {...popover("more").props} id="workspace-more-popover" className="workspace-v2-action-popover is-more" role="dialog" aria-label={t("focus.moreWorkspaceActions")} onPointerDown={(event) => event.stopPropagation()}>
       <header><strong>{t("focus.workspace")}</strong><button type="button" aria-label={t("focus.closeWorkspaceActions")} onClick={() => closeSurfaceAndRestoreFocus('[data-workspace-surface="more"]')}><X size={17} /></button></header>
@@ -68,8 +68,10 @@ export function MoreMenu({ openTranslation, openZoomWindow, activeVirtualPageId,
         <button type="button" className="is-phone-entry" data-workspace-action="add" onClick={() => setOpenSurface("add")}><Plus size={18} /><span><strong>{t("focus.addToPage")}</strong></span></button>
         <hr className="workspace-v9-menu-separator" />
         {shareDocumentId && <button type="button" data-workspace-action="marks" onClick={() => { setOpenSurface(null); setMarksOpen(true); }}><Users size={18} /><span><strong>{t("marks.menu")}</strong><small>{t("marks.menuHint")}</small></span></button>}
-        <button type="button" onClick={() => { setExportRangeStart(page); setExportRangeEnd(page); setExportForShare(true); setOpenSurface("export"); }} disabled={exportBusy}><Share2 size={18} /><span><strong>{t("focus.share")}</strong></span></button>
-        <button type="button" data-drill="" onClick={() => { setExportRangeStart(page); setExportRangeEnd(page); setExportForShare(false); setOpenSurface("export"); }}><FileText size={18} /><span><strong>{t("focus.export")}</strong></span></button>
+        {canExport && <>
+          <button type="button" onClick={() => { setExportRangeStart(page); setExportRangeEnd(page); setExportForShare(true); setOpenSurface("export"); }} disabled={exportBusy}><Share2 size={18} /><span><strong>{t("focus.share")}</strong></span></button>
+          <button type="button" data-drill="" onClick={() => { setExportRangeStart(page); setExportRangeEnd(page); setExportForShare(false); setOpenSurface("export"); }}><FileText size={18} /><span><strong>{t("focus.export")}</strong></span></button>
+        </>}
         <hr className="workspace-v9-menu-separator" />
         {!personal && <button type="button" aria-pressed={bookmarked} onClick={toggleBookmark} disabled={bookmarkBusy}><Bookmark size={18} fill={bookmarked ? "currentColor" : "none"} /><span><strong>{bookmarked ? t("focus.removeFromBookmarks") : t("focus.saveToBookmarks")}</strong></span></button>}
         {coverIds.length > 0 && <button type="button" onClick={toggleAllCovers}>{allCoversRevealed ? <EyeOff size={18} /> : <Eye size={18} />}<span><strong>{allCoversRevealed ? t("focus.hideAllCovers") : t("focus.revealAllCovers")}</strong><small>{t("focus.hiddenOnPage")}: {coverIds.length}</small></span></button>}

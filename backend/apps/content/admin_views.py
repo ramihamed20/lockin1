@@ -378,6 +378,7 @@ def serialize_sheet(
             else is_student_visible(sheet)
         ),
         "revision": sheet.revision,
+        "block_file_export": sheet.block_file_export,
         "published_at": sheet.published_at,
         "archived_at": sheet.archived_at,
         "question_count": question_count,
@@ -530,6 +531,7 @@ class AdminSubjectSheetListView(_ContentPermissionView):
                 publish=bool(data["publish"]),
                 notify_students=bool(data["notify_students"]),
                 allow_download=bool(data["allow_download"]),
+                block_file_export=bool(data["block_file_export"]),
             )
         except ContentRuleError as error:
             _raise_rule(error)

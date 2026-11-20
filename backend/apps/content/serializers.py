@@ -36,7 +36,7 @@ class LearningObjectAssetSerializer(serializers.ModelSerializer[LearningObjectAs
     def get_download_url(self, asset: LearningObjectAsset) -> str | None:
         return (
             f"/api/v1/files/{asset.managed_file_id}/download"
-            if asset.version.allow_download
+            if asset.version.allow_download and not asset.version.learning_object.block_file_export
             else None
         )
 

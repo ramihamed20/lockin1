@@ -1,3 +1,31 @@
+## 20 November 2026 — Per-sheet download/export administration (pre-deployment)
+
+Reviewed the new logical-sheet `LearningObject.block_file_export` policy and the
+actual reader and delivery paths. This feature does **not** remove the ability to
+read a published PDF or write/erase private notes, change Active Study readiness,
+unlock unpublished questions, or publish student annotations. The new admin toggle
+applies to both University and Lock-in editions and their summary PDFs; it persists
+across document revisions and future uploads of secondary editions. On a blocked
+sheet, protected `/files/<uuid>/download` rejects student requests, and the Focus
+reader removes Share/Export UI and checks the current server policy again before
+assembling PDF or PNG exports. Personal user-owned documents remain separately
+exportable. Screenshots, developer access to already-delivered viewing bytes, and
+previously downloaded files cannot be revoked by a web application; this is an
+app-level export control, not DRM.
+
+Cross-checked the published public knowledge evidence that watches
+`frontend/src/pages/CatalogFocusWorkspace.jsx`: notes/pen/highlighter/eraser/text
+and private-note guidance remain accurate because editing/saving notes is not
+disabled; the `pdf-original` answer only states that marks do not modify the
+original, and does **not** promise unrestricted PDF export. The qualified
+Active Study, page-bank, Pomodoro, and readiness claims remain unchanged.
+No student-facing public knowledge copy, availability, or sitemap route needs
+expanding. Updated only the reviewed source SHA-256 digest (normalized LF) to
+`52f71c5c652ceb6ef1c6ab40432b3dcb0dd532fb6f830816adfd67e385ea9f14`
+in `frontend/content/public-knowledge.json`. The verifier remains enabled.
+This is code/evidence review; a production release still requires all backend,
+frontend, browser, and container CI gates to pass for the exact commit.
+
 ## 8 November 2026 — Follow-up Focus reader evidence verification
 
 The unified release changed `frontend/src/pages/CatalogFocusWorkspace.jsx` after the previous evidence review, mainly for responsive PDF zoom and its minimum zoom scale; the subsequent lint-only removal of an unused FIT_READING_WIDTH import changes no runtime behavior. The browser-width guard was then corrected so a 1280px desktop viewport retains the 120% zoom floor even when its document stage is narrower; this does not change the conditional public availability statements. Reviewed the current source against the existing published help inventory and relevant code paths before refreshing the single source digest. Normal Study remains available independently of server-gated Active Study; custom Active Study is still bounded to 10 pages, 30 questions, and per-page question inventory; Pomodoro remains conditional on a prepared run, with a 40-question page test maximum and its separate presets. Notes remain local-first with explicit error state and deferred server synchronization, not a guarantee of immediate multi-device sync. Reader annotations do not modify the original PDF and sharing still requires explicit action.

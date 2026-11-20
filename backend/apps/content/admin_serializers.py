@@ -20,6 +20,7 @@ class AdminSheetCreateSerializer(StrictSerializer):
     publish = serializers.BooleanField(default=False)
     notify_students = serializers.BooleanField(default=False)
     allow_download = serializers.BooleanField(default=False)
+    block_file_export = serializers.BooleanField(default=False)
 
 
 class AdminSheetUpdateSerializer(StrictSerializer):
@@ -27,6 +28,7 @@ class AdminSheetUpdateSerializer(StrictSerializer):
     title = serializers.CharField(max_length=220, trim_whitespace=True, required=False)
     summary = serializers.CharField(max_length=6000, trim_whitespace=True, required=False)
     position = serializers.IntegerField(min_value=0, max_value=1_000_000, required=False)
+    block_file_export = serializers.BooleanField(required=False)
 
     def validate(self, attrs):  # type: ignore[no-untyped-def]
         if len(attrs) == 1:
