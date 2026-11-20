@@ -38,7 +38,7 @@ const VIEW_URL_PATTERN = /^\/api\/v1\/files\/[0-9a-f-]+\/view$/i;
 
 /**
  * @param {unknown} payload
- * @returns {{ id: string, versionId: string, fileId: string, offline: boolean, viewUrl: string, checksum: string } | null}
+ * @returns {{ id: string, versionId: string, fileId: string, offline: boolean, viewUrl: string, checksum: string, allowExport: boolean } | null}
  */
 export function parseCatalogDocument(payload) {
   const document = payload && typeof payload === "object" ? /** @type {any} */ (payload).document : null;
@@ -50,7 +50,9 @@ export function parseCatalogDocument(payload) {
   ) {
     return null;
   }
-  return { id: document.id, versionId: document.document_version_id, fileId: String(document.file_id || ""), offline: document.offline === true, viewUrl: document.view_url, checksum: String(document.checksum_sha256 || "") };
+  // Offline copies cannot verify a newly changed admin policy. Keep reading
+  // available, but require a live authorization for fresh file exports.
+  return { id: document.id, versionId: document.document_version_id, fileId: String(document.file_id || ""), offline: document.offline === true, viewUrl: document.view_url, checksum: String(document.checksum_sha256 || ""), allowExport: document.offline !== true && document.allow_export !== false };
 }
 
 /**
