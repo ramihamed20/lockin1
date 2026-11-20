@@ -308,7 +308,22 @@ def entitlement_decision(
         return EntitlementDecision(
             code=code, allowed=True, reason="free_access_window", expires_at=free_until
         )
-    grant = effective_grants_for_user(user=user, at=current).filter(entitlement__code=code).first()
+    grants = effective_grants_for_user(user=user, at=current).filter(entitlement__code=code)
+    grant = None
+    for candidate in grants:
+        scope = candidate.configuration or {}
+        if code == "questions.access" and (
+            scope.get("program_code") or scope.get("cohort_code")
+        ):
+            cohort = user.cohort
+            if cohort is None or (
+                scope.get("cohort_code") and cohort.code != scope["cohort_code"]
+            ) or (
+                scope.get("program_code") and cohort.program.code != scope["program_code"]
+            ):
+                continue
+        grant = candidate
+        break
     if grant is None:
         return EntitlementDecision(code=code, allowed=False, reason="entitlement_required")
     return EntitlementDecision(
