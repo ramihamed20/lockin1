@@ -480,7 +480,7 @@ def _subject_for_path(subjects: list[CatalogSubject], path: str) -> CatalogSubje
 
 def _question_source(request: Request) -> str:
     source = request.query_params.get("source", "").strip()
-    if source not in {"", "ai-sheet", "exam"}:
+    if source not in {"", "ai-sheet", "exam", "lab"}:
         raise ValidationError("The question source is invalid.")
     return source
 
@@ -488,13 +488,13 @@ def _question_source(request: Request) -> str:
 def _filter_question_source(
     queryset: models.QuerySet[Question], source: str, *, version: str
 ) -> models.QuerySet[Question]:
-    if source == "exam":
-        return queryset.filter(**{f"{version}__metadata__source": "exam"})
+    if source in {"exam", "lab"}:
+        return queryset.filter(**{f"{version}__metadata__source": source})
     if source == "ai-sheet":
         return queryset.filter(
             models.Q(**{f"{version}__metadata__source__isnull": True})
             | ~models.Q(**{f"{version}__metadata__source": "exam"})
-        )
+        ).exclude(**{f"{version}__metadata__source": "lab"})
     return queryset
 
 
@@ -611,6 +611,44 @@ class CatalogQuestionMaterialListView(APIView):
                     "questionCount": subject_total,
                 }
             )
+        return Response({"count": len(results), "results": results})
+
+
+class CatalogMixedQuestionsView(APIView):
+    """A bounded random mix of the cohort's published sheet and exam questions.
+
+    The graded response uses the same per-sheet answer endpoint as an ordinary
+    question. No correct option or explanation is sent before an answer exists.
+    """
+
+    def get(self, request: Request) -> Response:
+        user = _user(request)
+        subjects = _catalog_subjects_for(user)
+        eligible = _question_sheets_by_subject(subjects)
+        sheet_ids = [sheet.id for sheets in eligible.values() for sheet in sheets]
+        if not sheet_ids:
+            return Response({"count": 0, "results": []})
+        questions = list(
+            Question.objects.filter(
+                published_version__source_learning_object_id__in=sheet_ids,
+                published_version__isnull=False,
+                retired_at__isnull=True,
+            )
+            .select_related("published_version")
+            .prefetch_related("published_version__options")
+            .order_by("?")[:40]
+        )
+        answers = {
+            answer.question_id: answer
+            for answer in QuestionAnswer.objects.filter(
+                user=user, question__in=questions
+            ).prefetch_related("version__options")
+        }
+        results = []
+        for question in questions:
+            item = _student_question(question, answers.get(question.id))
+            item["sheet_id"] = str(question.published_version.source_learning_object_id)
+            results.append(item)
         return Response({"count": len(results), "results": results})
 
 
