@@ -210,7 +210,7 @@ export const managementApi = {
     const body = new FormData();
     body.append("kind", compact(kind));
     body.append("file", file);
-    return objectWithId(await request("/management/files", { method: "POST", body }), "The file-upload response was incomplete.");
+    return objectWithId(await request("/management/files", { method: "POST", body, timeoutMs: 60_000 }), "The file-upload response was incomplete.");
   },
 
   async listQuestions(options = {}) {
