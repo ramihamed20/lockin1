@@ -169,7 +169,8 @@ def _telegram_message(
         ),
         current_expiry=(
             submission.previous_subscription_end_at.isoformat()
-            if event in (
+            if event
+            in (
                 ManualPaymentTelegramMessage.Event.EARLY_RENEWAL,
                 ManualPaymentTelegramMessage.Event.UPGRADE,
             )
