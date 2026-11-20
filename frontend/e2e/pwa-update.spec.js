@@ -334,6 +334,13 @@ test.describe("PWA updates", () => {
     const other = await context.newPage();
     await prepare(other);
     await openControlled(other);
+    // Opening the second Chromium tab puts the first in the background.
+    // Playwright can still dispatch a click there without focusing it, but
+    // Chromium may throttle its activation timers and cause a false failure.
+    // A person must foreground the tab before clicking Update now. Keep the
+    // other tab open so the multi-client lifecycle is still exercised.
+    await page.bringToFront();
+    await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
     edge.deploy();
 
     await discoverDeployment(page);

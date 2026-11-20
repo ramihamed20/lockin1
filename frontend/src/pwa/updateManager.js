@@ -310,6 +310,7 @@ export function createUpdateManager(overrides = {}) {
         settled = true;
         win.clearTimeout(timer);
         win.clearInterval(poll);
+        waiting.removeEventListener?.("statechange", onWorkerStateChange);
         nav.serviceWorker?.removeEventListener?.("controllerchange", onControllerChange);
         if (reload) {
           reloadOnce();
@@ -323,10 +324,20 @@ export function createUpdateManager(overrides = {}) {
         // An event can be missed while a tab is backgrounded. The newly
         // activated worker (or changed controller) is authoritative.
         const controller = nav.serviceWorker?.controller;
+        // "activating" is too early: a reload before activation completes
+        // can be served by the old worker. Wait for the new controller or
+        // the worker's actual "activated" state.
         return (Boolean(controller) && controller !== originalController)
-          || waiting.state === "activated" || waiting.state === "activating";
+          || waiting.state === "activated";
       };
       const onControllerChange = () => finish(true);
+      const onWorkerStateChange = () => {
+        // Browsers throttle setInterval in background tabs. A real user can
+        // click Update now and switch tabs while activation is in progress;
+        // listen to the worker directly instead of requiring another timer
+        // tick (or an occasionally missed controllerchange event).
+        if (workerTookOver()) finish(true);
+      };
       const requestActivation = () => {
         if (settled) return;
         if (workerTookOver()) {
@@ -345,6 +356,7 @@ export function createUpdateManager(overrides = {}) {
       };
       const timer = win.setTimeout(() => finish(workerTookOver()), ACTIVATION_TIMEOUT_MS);
       const poll = win.setInterval(requestActivation, 2000);
+      waiting.addEventListener?.("statechange", onWorkerStateChange);
       nav.serviceWorker?.addEventListener?.("controllerchange", onControllerChange);
       // Send only to the waiting worker of our registration, not the plugin's
       // possibly stale Workbox registration. Reload exclusively this tab.

@@ -276,7 +276,7 @@ test("Update now reloads a window that was uncontrolled at registration", async 
   manager.stop();
 });
 
-test("a missed controllerchange still reloads the window that chose the update", async () => {
+test("a missed controllerchange immediately reloads the chosen window on worker activation", async () => {
   const { env, manager, registration } = setup();
   const waiting = fakeWorker("installed");
   registration.waiting = waiting;
@@ -284,13 +284,27 @@ test("a missed controllerchange still reloads the window that chose the update",
   await flush();
   assert.deepEqual(waiting.messages, [{ type: "SKIP_WAITING" }]);
   waiting.setState("activated");
-  // Chromium occasionally omits controllerchange in a busy multi-tab update.
-  // The worker's state is sufficient to complete the user-requested reload.
-  env.advance(2000);
+  // A hidden tab may have its 2-second poll throttled for far longer.
+  // The statechange listener must reload without advancing any timers.
   await applying;
   assert.equal(env.reloads, 1);
   env.advance(2000);
   assert.equal(env.reloads, 1, "activation polling is torn down on completion");
+  manager.stop();
+});
+
+test("an activating worker does not reload until it becomes activated", async () => {
+  const { env, manager, registration } = setup();
+  const waiting = fakeWorker("installed");
+  registration.waiting = waiting;
+  const applying = manager.applyUpdate();
+  await flush();
+  waiting.setState("activating");
+  env.advance(2000);
+  assert.equal(env.reloads, 0, "activating is not yet safe to reload");
+  waiting.setState("activated");
+  await applying;
+  assert.equal(env.reloads, 1);
   manager.stop();
 });
 
