@@ -124,7 +124,18 @@ def sync_subscription_entitlements(*, subscription_id: UUID) -> list[Entitlement
                 "trial_started_at"
             )
             if previous_start:
-                start = parse_datetime(str(previous_start)) or start
+                restored_start = parse_datetime(str(previous_start))
+                if restored_start is not None:
+                    # A student can buy the questions term during a trial:
+                    # its paid anchor is in the future, but access already
+                    # started during the trial. Do not move the existing
+                    # questions grant's start into the future while an
+                    # upgrade card awaits admin approval.
+                    start = (
+                        min(start, restored_start)
+                        if pending.price.eligibility in UPGRADE_BY_ELIGIBILITY
+                        else restored_start
+                    )
     existing = list(
         EntitlementGrant.objects.select_for_update().filter(
             user=user,
