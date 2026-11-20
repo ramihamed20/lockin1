@@ -52,6 +52,7 @@ PER_OBJECT_ENTITLEMENT_VIEWS = frozenset({"files:delivery"})
 # Every PDF, study workspace, file delivery and admin path stays premium-gated.
 QUESTION_CONTENT_ROUTES = frozenset({
     "catalog-questions",
+    "catalog-mixed-questions",
     "catalog-sheet-questions",
     "catalog-sheet-question-answer",
     "catalog-sheet-question-retry",
