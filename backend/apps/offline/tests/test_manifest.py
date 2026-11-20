@@ -48,3 +48,31 @@ def test_manifest_exposes_only_owned_published_documents() -> None:
     document.is_active = False
     document.save(update_fields=["is_active"])
     assert _client(allowed).get("/api/v1/offline/manifest/").json()["items"] == []
+
+
+def test_admin_block_removes_sheet_from_future_offline_download_manifests() -> None:
+    document, own, _other = catalog_fixture()
+    CatalogSubject.objects.update_or_create(
+        source_node=document.version.academic_node.parent,
+        defaults={
+            "cohort": own,
+            "slug": "anatomy",
+            "title": "Anatomy",
+            "material_slug": "anatomy",
+        },
+    )
+    student = create_user(email="offline-blocked@example.com", cohort=own)
+    _grant(student)
+    path = "/api/v1/offline/manifest/"
+    assert any(
+        item["type"] == "sheet" for item in _client(student).get(path).json()["items"]
+    )
+    sheet = document.version.learning_object
+    sheet.block_file_export = True
+    sheet.save(update_fields=["block_file_export"])
+    current = _client(student).get(path)
+    assert current.status_code == 200
+    assert not any(
+        item["type"] in {"sheet", "summary", "active_study"}
+        for item in current.json()["items"]
+    )
