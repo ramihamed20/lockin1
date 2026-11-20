@@ -78,7 +78,12 @@ def seed_question_offers(apps, schema_editor):  # type: ignore[no-untyped-def]
 
 
 class Migration(migrations.Migration):
-    dependencies = [("product_catalog", "0008_dentistry_price_update")]
+    # The generic 0005 backfill grants full study permissions to any price
+    # without rules. Create questions-only prices only after that backfill ran.
+    dependencies = [
+        ("product_catalog", "0008_dentistry_price_update"),
+        ("entitlements", "0006_seed_term_plan_rules"),
+    ]
     operations = [
         migrations.RunPython(seed_question_offers, migrations.RunPython.noop),
     ]
