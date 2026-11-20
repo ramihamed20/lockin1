@@ -20,6 +20,7 @@ from apps.payments.manual_services import (
 )
 from apps.payments.models import Payment
 from apps.product_catalog.models import Plan, Price
+from apps.product_catalog.selectors import price_for_reader
 from apps.subscriptions.models import Subscription
 from apps.subscriptions.services import create_trial_for_user
 
@@ -251,3 +252,17 @@ def test_discount_requires_current_verified_fully_paid_questions_subscription():
         source_payment.refunded_amount_minor = source_payment.amount_minor
         source_payment.save(update_fields=["refunded_amount_minor"])
         assert price.eligibility not in price_eligibilities(user=user)
+
+
+def test_questions_upgrade_price_is_not_hidden_by_old_four_month_discount():
+    # The old 20 LYD full-year discount is intended for a different purchase
+    # and cannot replace the 30 LYD feature-only upgrade of an existing year.
+    upgrade = Price.objects.get(code="dentistry_full_year_questions_upgrade_30_lyd")
+    legacy = Price.objects.get(code="dentistry_full_year_upgrade_20_lyd")
+    standard = Price.objects.get(code="dentistry_full_year_80_lyd")
+    chosen = price_for_reader(
+        prices=[standard, legacy, upgrade],
+        eligibilities=frozenset({legacy.eligibility, upgrade.eligibility}),
+    )
+    assert chosen is not None
+    assert chosen.code == upgrade.code
