@@ -519,7 +519,7 @@ def update_sheet(
             raise ContentRuleError("Only an administrator can change sheet export restrictions.")
         if current.revision != expected_revision:
             raise ContentConflictError("This sheet changed. Reload and try again.")
-        before = {
+        before: dict[str, object] = {
             "revision": current.revision,
             "block_file_export": current.block_file_export,
         }
