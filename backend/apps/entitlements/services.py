@@ -136,6 +136,13 @@ def sync_subscription_entitlements(*, subscription_id: UUID) -> list[Entitlement
         plan_version_id=rule_version_id,
         entitlement__is_active=True,
     )
+    # Fail closed even if a later migration or manual admin edit accidentally
+    # adds premium rules to a question-only plan version. Full plans and valid
+    # previous paid/trial access remain unaffected.
+    if subscription.plan_version_id == rule_version_id and (
+        subscription.plan_version.terms or {}
+    ).get("questions_only"):
+        rules = rules.filter(entitlement__code="questions.access")
     grants_by_entitlement = {grant.entitlement_id: grant for grant in existing}
     active_ids: set[UUID] = set()
     for rule in rules:
