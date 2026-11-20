@@ -21,7 +21,7 @@ const QUESTION_CATEGORIES = [
   { id: "practice", titleKey: "questions.practice", metaKey: "questions.practiceMeta", icon: "brain", available: true },
   { id: "years", titleKey: "questions.years", metaKey: "questions.yearsMeta", icon: "calendar", available: true },
   { id: "ai-sheet", titleKey: "questions.aiSheet", metaKey: "questions.aiSheetMeta", icon: "file-question", available: true },
-  { id: "lab", titleKey: "questions.lab", metaKey: "questions.labMeta", icon: "flask-conical", available: true },
+  { id: "lab", titleKey: "questions.lab", metaKey: "questions.labMeta", icon: "microscope", available: true },
   { id: "mix", titleKey: "questions.mix", metaKey: "questions.mixMeta", icon: "shuffle", available: false }
 ];
 
