@@ -56,7 +56,6 @@ jobs:
         run: |
           python -m pip_audit . --strict
           python -m ruff check .
-          python -m ruff format --diff apps/payments/manual_services.py apps/payments/telegram.py || true
           python -m ruff format --check .
           python -m mypy .
           python manage.py makemigrations --check --dry-run
