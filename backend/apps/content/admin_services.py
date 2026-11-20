@@ -16,6 +16,7 @@ from apps.audit.models import AuditRecord
 from apps.audit.services import record_audit
 from apps.discovery.indexing import remove_search_entry
 from apps.education.models import EducationNode
+from apps.education.permissions import is_content_administrator
 from apps.files.models import ManagedFile
 from apps.files.services import managed_file_delivery_size
 from apps.notifications.models import Notification
@@ -106,6 +107,7 @@ def _audit(
             "position": sheet.position,
             "current_version_id": str(sheet.current_version_id or ""),
             "published_version_id": str(sheet.published_version_id or ""),
+            "block_file_export": sheet.block_file_export,
         },
     )
 
@@ -505,6 +507,27 @@ def edition_summary_file(sheet: LearningObject, edition: str) -> ManagedFile | N
 def update_sheet(
     *, actor: User, sheet_id: UUID, expected_revision: int, changes: dict[str, object]
 ) -> LearningObject:
+    # A policy toggle must take effect immediately without creating a new
+    # content version, unpublishing the sheet, or resetting saved student work.
+    if "block_file_export" in changes:
+        if len(changes) != 1:
+            raise ContentRuleError("Update the export restriction separately from sheet details.")
+        current = LearningObject.objects.select_for_update().get(id=sheet_id)
+        if not is_content_administrator(actor):
+            raise ContentRuleError("Only an administrator can change sheet export restrictions.")
+        if current.revision != expected_revision:
+            raise ContentConflictError("This sheet changed. Reload and try again.")
+        before = {
+            "revision": current.revision,
+            "block_file_export": current.block_file_export,
+        }
+        blocked = bool(changes["block_file_export"])
+        if current.block_file_export != blocked:
+            current.block_file_export = blocked
+            current.revision += 1
+            current.save(update_fields=("block_file_export", "revision", "updated_at"))
+        _audit(actor=actor, action="content.sheet_export_policy_updated", sheet=current, previous=before)
+        return current
     current = LearningObject.objects.select_related("current_version__academic_node").get(
         id=sheet_id
     )
