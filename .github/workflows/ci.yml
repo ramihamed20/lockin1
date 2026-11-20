@@ -55,8 +55,6 @@ jobs:
         working-directory: backend
         run: |
           python -m pip_audit . --strict
-          python -m ruff check --select I001 --diff apps/payments/tests/test_questions_upgrade.py || true
-          python -m ruff format --diff apps/payments/tests/test_questions_upgrade.py apps/payments/questions_upgrades.py apps/payments/manual_services.py apps/product_catalog/views.py || true
           python -m ruff check .
           python -m ruff format --check .
           python -m mypy .
