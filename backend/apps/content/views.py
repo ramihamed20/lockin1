@@ -491,10 +491,13 @@ def _filter_question_source(
     if source in {"exam", "lab"}:
         return queryset.filter(**{f"{version}__metadata__source": source})
     if source == "ai-sheet":
-        return queryset.filter(
-            models.Q(**{f"{version}__metadata__source__isnull": True})
-            | ~models.Q(**{f"{version}__metadata__source": "exam"})
-        ).exclude(**{f"{version}__metadata__source": "lab"})
+        # Missing JSON source tags must still count as AI-sheet questions.
+        # An exclude() on a JSON key also drops absent keys on PostgreSQL,
+        # because SQL NULL comparisons are not True.
+        source_is_missing = models.Q(**{f"{version}__metadata__source__isnull": True})
+        is_exam = models.Q(**{f"{version}__metadata__source": "exam"})
+        is_lab = models.Q(**{f"{version}__metadata__source": "lab"})
+        return queryset.filter(source_is_missing | (~is_exam & ~is_lab))
     return queryset
 
 
