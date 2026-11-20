@@ -276,6 +276,40 @@ test("Update now reloads a window that was uncontrolled at registration", async 
   manager.stop();
 });
 
+test("a missed controllerchange still reloads the window that chose the update", async () => {
+  const { env, manager, registration } = setup();
+  const waiting = fakeWorker("installed");
+  registration.waiting = waiting;
+  const applying = manager.applyUpdate();
+  await flush();
+  assert.deepEqual(waiting.messages, [{ type: "SKIP_WAITING" }]);
+  waiting.setState("activated");
+  // Chromium occasionally omits controllerchange in a busy multi-tab update.
+  // The worker's state is sufficient to complete the user-requested reload.
+  env.advance(2000);
+  await applying;
+  assert.equal(env.reloads, 1);
+  env.advance(2000);
+  assert.equal(env.reloads, 1, "activation polling is torn down on completion");
+  manager.stop();
+});
+
+test("a dropped activation message is retried without a second user tap", async () => {
+  const { env, manager, registration } = setup();
+  const waiting = fakeWorker("installed");
+  registration.waiting = waiting;
+  const applying = manager.applyUpdate();
+  await flush();
+  assert.equal(waiting.messages.length, 1);
+  env.advance(2000);
+  assert.equal(waiting.messages.length, 2);
+  waiting.setState("activated");
+  env.advance(2000);
+  await applying;
+  assert.equal(env.reloads, 1);
+  manager.stop();
+});
+
 test("activation that never takes control fails safely and can be retried", async () => {
   const { env, manager, registration } = setup();
   const waiting = fakeWorker("installed");
@@ -288,10 +322,11 @@ test("activation that never takes control fails safely and can be retried", asyn
   assert.equal(manager.getSnapshot().status, UPDATE_STATUS.AVAILABLE);
   assert.equal(manager.getSnapshot().error, "activation-failed");
 
+  const requestsBeforeUserRetry = waiting.messages.length;
   const retry = manager.applyUpdate();
   assert.notEqual(retry, applying);
   await flush();
-  assert.equal(waiting.messages.length, 2);
+  assert.equal(waiting.messages.length, requestsBeforeUserRetry + 1);
   manager.stop();
 });
 
