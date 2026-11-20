@@ -1,4 +1,5 @@
 """Question-only plans must never unlock PDFs or survive a rejected payment."""
+
 import base64
 from datetime import datetime, timedelta, timezone as dt_timezone
 
