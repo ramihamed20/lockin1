@@ -33,6 +33,7 @@ def _prices_for_reader(*, products: list[Product], results: Any, user: Any) -> A
     # this direction would close the loop.
     from apps.payments.installments import installments_available
     from apps.payments.manual_services import price_eligibilities, purchase_block_reason
+    from apps.payments.questions_upgrades import questions_upgrade_for_price
     from apps.subscriptions.selectors import current_subscription_for_user
 
     now = timezone.now()
@@ -66,9 +67,20 @@ def _prices_for_reader(*, products: list[Product], results: Any, user: Any) -> A
             if chosen is None:
                 version_data["prices"] = []
                 continue
+            upgrade = questions_upgrade_for_price(subscription=subscription, price=chosen, now=now)
             version_data["prices"] = [
                 {
                     **price_data,
+                    **(
+                        {
+                            "upgrade_offer": {
+                                "already_paid_minor": upgrade.already_paid_minor,
+                                "full_price_minor": upgrade.full_price_minor,
+                            }
+                        }
+                        if upgrade
+                        else {}
+                    ),
                     "purchase_blocked_reason": purchase_block_reason(
                         subscription=subscription, price=chosen, now=now
                     ),

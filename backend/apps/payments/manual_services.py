@@ -43,6 +43,11 @@ from .models import (
     Payment,
     PaymentTransition,
 )
+from .questions_upgrades import (
+    UPGRADE_BY_ELIGIBILITY,
+    eligible_questions_upgrade,
+    questions_upgrade_for_price,
+)
 from .recharge_codes import (
     decrypt_recharge_code,
     encrypt_recharge_code,
@@ -123,6 +128,8 @@ def _amount_label(payment: Payment) -> str:
 
 def _plan_label(payment: Payment) -> str:
     title = payment.price.plan_version.title
+    if payment.price.eligibility in UPGRADE_BY_ELIGIBILITY:
+        return f"ترقية الأسئلة إلى شيتات + أسئلة — {title}"
     agreement = payment.installment_agreement
     if agreement is None or payment.installment_number is None:
         return title
@@ -142,6 +149,11 @@ def _telegram_message(
     subscription: Subscription,
     recharge_codes: tuple[str, ...] = (),
 ) -> ManualPaymentTelegramMessage:
+    current_expiry = None
+    if event == ManualPaymentTelegramMessage.Event.UPGRADE:
+        current_expiry = submission.subscription_period_ends_at
+    elif event == ManualPaymentTelegramMessage.Event.EARLY_RENEWAL:
+        current_expiry = submission.previous_subscription_end_at
     return ManualPaymentTelegramMessage(
         event=event,
         payment_id=str(payment.id),
@@ -156,15 +168,11 @@ def _telegram_message(
             in (
                 ManualPaymentTelegramMessage.Event.NEW_SUBSCRIPTION,
                 ManualPaymentTelegramMessage.Event.EARLY_RENEWAL,
+                ManualPaymentTelegramMessage.Event.UPGRADE,
             )
             else None
         ),
-        current_expiry=(
-            submission.previous_subscription_end_at.isoformat()
-            if event == ManualPaymentTelegramMessage.Event.EARLY_RENEWAL
-            and submission.previous_subscription_end_at
-            else None
-        ),
+        current_expiry=current_expiry.isoformat() if current_expiry else None,
         recharge_codes=recharge_codes,
     )
 
@@ -215,16 +223,20 @@ def price_eligibilities(*, user: User) -> frozenset[str]:
     alone does not count.
     """
 
+    from apps.subscriptions.selectors import current_subscription_for_user
+
+    upgrade = eligible_questions_upgrade(subscription=current_subscription_for_user(user=user))
+    upgrades = {upgrade.price_eligibility} if upgrade else set()
     paid = Payment.objects.filter(account__primary_user=user, status=Payment.Status.SUCCEEDED)
     if paid.filter(price__plan_version__plan__code=FOUR_MONTHS).exists():
-        return frozenset({Price.Eligibility.FOUR_MONTH_UPGRADE})
+        return frozenset({Price.Eligibility.FOUR_MONTH_UPGRADE, *upgrades})
     eligibilities: set[str] = set()
     if paid.filter(
         created_at__lt=FIRST_MONTH_OFFER_ENDS_AT,
         price__plan_version__plan__code__in=LEGACY_DURATION_PLANS,
     ).exists():
         eligibilities.add(Price.Eligibility.LOYALTY_2026)
-    return frozenset(eligibilities)
+    return frozenset(eligibilities | upgrades)
 
 
 def purchase_block_reason(
@@ -236,6 +248,13 @@ def purchase_block_reason(
     path (which is the authority), so the two cannot disagree.
     """
 
+    # A feature upgrade retains the SAME paid period, so the generic
+    # "already covers this term" guard is not applicable. This exemption is
+    # granted only against the verified, paid matching questions-only period.
+    if price.eligibility in UPGRADE_BY_ELIGIBILITY:
+        if questions_upgrade_for_price(subscription=subscription, price=price, now=now):
+            return None
+        return "You must have a verified, paid questions-only subscription for this term."
     if subscription is None:
         return None
     if is_installment_suspension(subscription):
@@ -360,8 +379,6 @@ def submit_manual_recharge(
         raise ManualPaymentError("This question-only plan is for Tripoli Dentistry Year 2.")
     if price.first_subscription_only and not _first_subscription_offer_available(user=user):
         raise ManualPaymentError("The first-subscription offer has already been used.")
-    if price.eligibility and price.eligibility not in price_eligibilities(user=user):
-        raise ManualPaymentError("This price is not available for your account.")
     if price.amount_minor == 5 * (10**price.currency_exponent) and len(recharge_codes) != 1:
         raise ManualPaymentError("The 5 LYD plan accepts exactly one recharge card code.")
     if free_access_ends_at(user) is not None:
@@ -383,12 +400,18 @@ def submit_manual_recharge(
             raise ManualPaymentError(
                 "This idempotency key belongs to a different payment flow."
             ) from error
+        if existing_payment.price_id != price.id:
+            raise ManualPaymentError("This attempt was already used for another plan.")
         return ManualPaymentResult(
             payment=existing_payment,
             submission=submission,
             subscription=existing_payment.subscription,
             created=False,
         )
+    # Recheck eligibility after taking the account lock; another payment or
+    # admin change cannot leave an earlier quote valid for the wrong plan.
+    if price.eligibility and price.eligibility not in price_eligibilities(user=user):
+        raise ManualPaymentError("This price is not available for your account.")
     if ManualRechargeSubmission.objects.filter(
         user=user, status=ManualRechargeSubmission.Status.PENDING
     ).exists():
@@ -451,22 +474,32 @@ def submit_manual_recharge(
     installment_amounts = [int(value) for value in price.installment_amounts_minor or []]
     if pay_in_installments and not installments_available(price=price, now=now):
         raise ManualPaymentError("This plan cannot be paid in installments now.")
+    upgrade = questions_upgrade_for_price(subscription=subscription, price=price, now=now)
     # Buying a later term while one is running extends it, and is rolled back
     # exactly like an early renewal if the card is rejected.
-    is_early_renewal = _early_renewal_allowed(subscription=subscription, now=now) or bool(
-        fixed_period_end(price.plan_version) is not None
-        and subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
-        and subscription.current_period_ends_at
-        and (
-            subscription.current_period_ends_at > now
-            or (subscription.grace_ends_at and now <= subscription.grace_ends_at)
+    is_early_renewal = upgrade is None and (
+        _early_renewal_allowed(subscription=subscription, now=now)
+        or bool(
+            fixed_period_end(price.plan_version) is not None
+            and subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
+            and subscription.current_period_ends_at
+            and (
+                subscription.current_period_ends_at > now
+                or (subscription.grace_ends_at and now <= subscription.grace_ends_at)
+            )
         )
     )
     previous = _snapshot_subscription(subscription)
     previous_subscription_end_at = subscription.current_period_ends_at
-    paid_start, paid_end = paid_period_window(
-        subscription=subscription, price=price, effective_at=now
-    )
+    if upgrade:
+        # Full PDFs are added to the current term; no renewal, extra days,
+        # second term charge or change to its original calendar deadline.
+        paid_start = subscription.current_period_started_at or now
+        paid_end = upgrade.period_ends_at
+    else:
+        paid_start, paid_end = paid_period_window(
+            subscription=subscription, price=price, effective_at=now
+        )
     original_status = subscription.status
     subscription.plan_version = price.plan_version
     subscription.save(update_fields=("plan_version", "updated_at"))
@@ -568,7 +601,9 @@ def submit_manual_recharge(
     )
     message = _telegram_message(
         event=(
-            ManualPaymentTelegramMessage.Event.EARLY_RENEWAL
+            ManualPaymentTelegramMessage.Event.UPGRADE
+            if upgrade
+            else ManualPaymentTelegramMessage.Event.EARLY_RENEWAL
             if is_early_renewal
             else ManualPaymentTelegramMessage.Event.NEW_SUBSCRIPTION
         ),
@@ -816,17 +851,25 @@ def review_manual_recharge(
         subscription.current_period_ends_at == submission.subscription_period_ends_at
     )
     if decision == "approve":
+        is_questions_upgrade = payment.price.eligibility in UPGRADE_BY_ELIGIBILITY
+        if is_questions_upgrade and now >= submission.subscription_period_ends_at:
+            raise ManualPaymentError(
+                "This paid term can no longer be activated. Record any actual collection "
+                "on rejection so the student can receive it back."
+            )
         submission.status = ManualRechargeSubmission.Status.APPROVED
         payment.status = Payment.Status.SUCCEEDED
         payment.succeeded_at = now
         payment.failure_code = ""
         if (
             owns_subscription_state
+            and not is_questions_upgrade
             and payment.price_snapshot.get("policy_version") == USER_POLICY_VERSION
         ):
             # Reserve at submission, but start the paid duration at approval.
             # Fixed term plans retain their advertised end; a delay never silently
             # consumes days from a new rolling-duration purchase.
+            # Questions upgrades already have a paid period with both dates set.
             prior = submission.previous_subscription_state
             for field in (
                 "status",

@@ -35,6 +35,7 @@ from .manual_services import (
     submit_manual_recharge,
 )
 from .models import Payment
+from .questions_upgrades import UPGRADE_BY_ELIGIBILITY
 from .selectors import payments_for_user
 from .serializers import (
     ManualInstallmentRequestSerializer,
@@ -81,6 +82,8 @@ class PaymentIntentView(APIView):
             raise ValidationError({"idempotency_key": ["A stable idempotency key is required."]})
         try:
             price = active_price(price_id=serializer.validated_data["price_id"])
+            if price.eligibility in UPGRADE_BY_ELIGIBILITY:
+                raise ValueError("This upgrade requires manual Libyana payment.")
             if not plan_version_available_to_user(version=price.plan_version, user=user):
                 raise ValueError("This question-only plan is for Tripoli Dentistry Year 2.")
             account = get_or_create_individual_account(user=user)
@@ -159,10 +162,31 @@ class ManualLibyanaPaymentView(APIView):
             return limited
         idempotency_key = request.headers.get("Idempotency-Key", "")[:180]
         try:
-            price = active_libyana_price_for_plan(
-                plan_id=serializer.validated_data["plan_id"],
-                eligibilities=price_eligibilities(user=user),
+            # Replays must retain the original price. After a questions-only
+            # upgrade is submitted, the account is provisional and its cheap
+            # price is intentionally no longer offered to new purchases.
+            original = (
+                Payment.objects.filter(
+                    account__primary_user=user,
+                    idempotency_key=idempotency_key,
+                    method=Payment.Method.LIBYANA,
+                )
+                .select_related("price__plan_version")
+                .first()
+                if len(idempotency_key.strip()) >= 12
+                else None
             )
+            if (
+                original is not None
+                and original.price.plan_version.plan_id == serializer.validated_data["plan_id"]
+                and original.installment_number in (None, 1)
+            ):
+                price = original.price
+            else:
+                price = active_libyana_price_for_plan(
+                    plan_id=serializer.validated_data["plan_id"],
+                    eligibilities=price_eligibilities(user=user),
+                )
             result = submit_manual_recharge(
                 user=user,
                 price=price,

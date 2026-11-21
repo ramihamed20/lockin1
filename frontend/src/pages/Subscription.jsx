@@ -204,7 +204,7 @@ const PLAN_COPY = {
 function priceBadge(price, t) {
   if (price.first_subscription_only) return t("subscription.firstOffer");
   if (price.eligibility === "loyalty_2026") return t("subscription.loyaltyPrice");
-  if (price.eligibility === "four_month_upgrade") return t("subscription.upgradePrice");
+  if (price.eligibility === "four_month_upgrade" || String(price.eligibility).startsWith("questions_")) return t("subscription.upgradePrice");
   return "";
 }
 
@@ -285,6 +285,7 @@ export default function Subscription({ onPoliciesAccepted }) {
   const coveredOffers = useMemo(() => details.data ? lydOffers(details.data.catalog).length - offers.length : 0, [details.data, offers]);
   const comingSoon = useMemo(() => details.data ? comingSoonOffers(details.data.catalog) : [], [details.data]);
   const effectivePlan = offers.find(({ plan }) => plan.id === selectedPlan)?.plan.id || offers[0]?.plan.id || "";
+  const questionsUpgrade = offers.find(({ price }) => price.upgrade_offer);
   const review = subscriptionSession.manualPaymentReview;
 
   useEffect(() => {
@@ -438,6 +439,16 @@ export default function Subscription({ onPoliciesAccepted }) {
             <span>{t("subscription.currentPlan")}</span>
             <strong>{PLAN_COPY[subscription?.plan_code]?.[locale]?.[0] || subscription?.plan_title || t("subscription.noPlan")}</strong>
             <SubscriptionStatus subscription={subscription} compact />
+            {questionsUpgrade && !pendingManualReview && <div className="subscription-upgrade-prompt">
+              <p>{locale === "ar"
+                ? "اشتركت في الأسئلة فقط؟ أضف الشيتات والملاحظات بدفع فرق السعر فقط، مع الاحتفاظ بتاريخ انتهاء اشتراكك."
+                : "Already have questions only? Add sheets and notes by paying only the difference, without changing your expiration date."}</p>
+              <a href="#libyana-payment" className="btn btn-primary compact" onClick={() => { setSelectedPlan(questionsUpgrade.plan.id); setCheckoutStep(0); }}>
+                {locale === "ar"
+                  ? `ترقية إلى شيتات + أسئلة — ${money(questionsUpgrade.price.amount_minor, questionsUpgrade.price.currency, questionsUpgrade.price.currency_exponent, locale)}`
+                  : `Upgrade to sheets + questions — ${money(questionsUpgrade.price.amount_minor, questionsUpgrade.price.currency, questionsUpgrade.price.currency_exponent, locale)}`}
+              </a>
+            </div>}
             {subscription && <dl className="subscription-v2-facts">
               <div><dt>{subscription.status === "trialing" ? t("subscription.trialExpiration") : t("subscription.subscriptionExpiration")}</dt><dd>{periodEnd ? formatDate(periodEnd, { dateStyle: "medium" }) : "—"}</dd></div>
               <div><dt>{t("subscription.remaining")}</dt><dd>{t("subscription.daysRemaining", { count: subscription.remaining_days || 0 })}</dd></div>
@@ -489,16 +500,23 @@ export default function Subscription({ onPoliciesAccepted }) {
                   {offers.map(({ plan, version, price }) => {
                     const copy = offerCopy(plan, version, locale);
                     return (
-                    <label className={effectivePlan === plan.id ? "selected" : ""} key={plan.id}>
+                    <label className={`${effectivePlan === plan.id ? "selected" : ""}${price.upgrade_offer ? " is-upgrade" : ""}`.trim()} key={plan.id}>
                       <input type="radio" name="subscription-plan" value={plan.id} aria-label={copy.title} checked={effectivePlan === plan.id} onChange={() => { setSelectedPlan(plan.id); setCodes([""]); setPayInInstallments(false); setAccepted(false); setError(""); }} />
                       <span className="subscription-plan-copy">
                         <strong>{copy.title}</strong>
                         <small>{copy.description}</small>
+                        {price.upgrade_offer && <small>{locale === "ar" ? "ترقية من الأسئلة إلى الشيتات لنفس الفترة" : "Upgrade from questions to full study for the same term"}</small>}
                       </span>
                       <span className="subscription-plan-price">
                         {PREVIOUS_PRICE_MINOR[price.code] && <s className="subscription-plan-was"><span className="visually-hidden">{t("subscription.wasPrice")} </span>{money(PREVIOUS_PRICE_MINOR[price.code], price.currency, price.currency_exponent, locale)}</s>}
                         <b>{money(price.amount_minor, price.currency, price.currency_exponent, locale)}</b>
                         {priceBadge(price, t) && <small>{priceBadge(price, t)}</small>}
+                        {price.upgrade_offer && <small className="subscription-upgrade-math">
+                          {locale === "ar" ? "دفعت " : "Already paid "}
+                          {money(price.upgrade_offer.already_paid_minor, price.currency, price.currency_exponent, locale)}
+                          {" + "}{money(price.amount_minor, price.currency, price.currency_exponent, locale)}
+                          {" = "}{money(price.upgrade_offer.full_price_minor, price.currency, price.currency_exponent, locale)}
+                        </small>}
                       </span>
                       <span className="subscription-plan-check" aria-hidden="true">✓</span>
                     </label>
@@ -517,6 +535,11 @@ export default function Subscription({ onPoliciesAccepted }) {
                     <span>{t("subscription.selectedPlan")}</span>
                     <h3>{offerCopy(selectedOffer.plan, selectedOffer.version, locale).title}</h3>
                     <p>{offerCopy(selectedOffer.plan, selectedOffer.version, locale).description}</p>
+                    {selectedOffer.price.upgrade_offer && <p className="subscription-upgrade-note" role="status">
+                      {locale === "ar"
+                        ? "هذه ترقية للشيتات، تدفع فرق السعر فقط. لا تتغير مدة اشتراكك الحالية، وتُفتح الشيتات بعد اعتماد الدفع."
+                        : "This upgrade adds sheets for the difference only. Your current expiry date stays the same, and full access begins after payment approval."}
+                    </p>}
                     {selectedOffer.version.fixed_period_ends_at && <p>{t("subscription.accessEnd", { date: formatDate(selectedOffer.version.fixed_period_ends_at, { dateStyle: "long" }) })}</p>}
                   </div>
                   <div className="subscription-order-price">

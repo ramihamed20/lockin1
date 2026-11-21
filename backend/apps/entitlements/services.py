@@ -91,13 +91,21 @@ def sync_subscription_entitlements(*, subscription_id: UUID) -> list[Entitlement
 
         from apps.accounts.policies import USER_POLICY_VERSION
         from apps.payments.models import Payment
+        from apps.payments.questions_upgrades import UPGRADE_BY_ELIGIBILITY
 
         pending = (
             Payment.objects.filter(id=subscription.provisional_payment_id)
-            .select_related("manual_submission")
+            .select_related("manual_submission", "price")
             .first()
         )
-        if pending and pending.price_snapshot.get("policy_version") == USER_POLICY_VERSION:
+        # A questions->full upgrade is NEVER authorized by a submitted card.
+        # Older accounts can have a legacy policy_version in the price snapshot;
+        # even for them, preserve the previous questions-only permissions until
+        # manual approval. Other historical purchase rules are unchanged.
+        if pending and (
+            pending.price_snapshot.get("policy_version") == USER_POLICY_VERSION
+            or pending.price.eligibility in UPGRADE_BY_ELIGIBILITY
+        ):
             previous = pending.manual_submission.previous_subscription_state
             allowed = previous.get("status") in {
                 Subscription.Status.TRIALING,
@@ -116,7 +124,18 @@ def sync_subscription_entitlements(*, subscription_id: UUID) -> list[Entitlement
                 "trial_started_at"
             )
             if previous_start:
-                start = parse_datetime(str(previous_start)) or start
+                restored_start = parse_datetime(str(previous_start))
+                if restored_start is not None:
+                    # A student can buy the questions term during a trial:
+                    # its paid anchor is in the future, but access already
+                    # started during the trial. Do not move the existing
+                    # questions grant's start into the future while an
+                    # upgrade card awaits admin approval.
+                    start = (
+                        min(start, restored_start)
+                        if pending.price.eligibility in UPGRADE_BY_ELIGIBILITY
+                        else restored_start
+                    )
     existing = list(
         EntitlementGrant.objects.select_for_update().filter(
             user=user,

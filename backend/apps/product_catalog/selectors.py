@@ -51,8 +51,21 @@ def price_for_reader(*, prices: list[Price], eligibilities: frozenset[str]) -> P
     """One price per plan: a restricted price the reader holds wins over the general one."""
 
     restricted = [p for p in prices if p.eligibility and p.eligibility in eligibilities]
+    # A user may qualify for an old four-month discount *and* a new same-term
+    # questions->full upgrade. The old discount would be blocked by the
+    # covered-term rule, so never let it hide the valid feature upgrade.
+    questions_upgrades = [
+        p
+        for p in restricted
+        if p.eligibility
+        in {
+            Price.Eligibility.QUESTIONS_PRE_UPGRADE,
+            Price.Eligibility.QUESTIONS_POST_UPGRADE,
+            Price.Eligibility.QUESTIONS_YEAR_UPGRADE,
+        }
+    ]
     general = [p for p in prices if not p.eligibility]
-    pool = restricted or general
+    pool = questions_upgrades or restricted or general
     return min(pool, key=lambda p: (p.amount_minor, str(p.id))) if pool else None
 
 

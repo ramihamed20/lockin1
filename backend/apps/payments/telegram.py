@@ -18,6 +18,7 @@ class ManualPaymentTelegramMessage:
     class Event:
         NEW_SUBSCRIPTION = "new_subscription"
         EARLY_RENEWAL = "early_renewal"
+        UPGRADE = "upgrade"
         APPROVED = "approved"
         REJECTED = "rejected"
 
@@ -36,6 +37,7 @@ class ManualPaymentTelegramMessage:
         return {
             self.Event.NEW_SUBSCRIPTION: "🔔 طلب اشتراك جديد",
             self.Event.EARLY_RENEWAL: "🔔 طلب تجديد مبكر",
+            self.Event.UPGRADE: "🔔 طلب ترقية من الأسئلة إلى الشيتات",
             self.Event.APPROVED: "✅ تمت الموافقة على الدفع",
             self.Event.REJECTED: "❌ تم رفض الدفع",
         }[self.event]
@@ -44,6 +46,7 @@ class ManualPaymentTelegramMessage:
         event_label = {
             self.Event.NEW_SUBSCRIPTION: "New Subscription",
             self.Event.EARLY_RENEWAL: "Early Renewal",
+            self.Event.UPGRADE: "Questions to Full Upgrade",
             self.Event.APPROVED: "Approved",
             self.Event.REJECTED: "Rejected",
         }[self.event]
@@ -65,7 +68,12 @@ class ManualPaymentTelegramMessage:
                 f"📄 Request: #{self.payment_id}",
                 *(
                     ("🟡 الدفع: تحت التدقيق", "🟡 الاشتراك: بانتظار اعتماد الدفع")
-                    if self.event in (self.Event.NEW_SUBSCRIPTION, self.Event.EARLY_RENEWAL)
+                    if self.event
+                    in (
+                        self.Event.NEW_SUBSCRIPTION,
+                        self.Event.EARLY_RENEWAL,
+                        self.Event.UPGRADE,
+                    )
                     else ()
                 ),
             )
