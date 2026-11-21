@@ -756,7 +756,7 @@ test("the workspace, service worker and route guard keep their offline contracts
   assert.match(guard, /leaseExpiry \* 1000 - Date\.now\(\)/);
   // A single failed request ("reconnecting") must not swap the open reader for
   // a loading or expired screen; only a definitive offline state does.
-  assert.match(guard, /return !navigator\.onLine \|\| getConnectionSnapshot\(\)\.status === "offline";/);
+  assert.match(guard, /setOnline\(!isDefinitelyOffline\(\)\)/);
   assert.doesNotMatch(guard, /status === "connected"/);
 });
 

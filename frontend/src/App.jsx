@@ -19,7 +19,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { TokenActionPage } from "./components/auth/TokenActionPage.jsx";
 import { setSessionMarker } from "./api/client.js";
 import { lazyWithRecovery } from "./lib/lazyWithRecovery.js";
-import { reportConnectionFailure } from "./lib/connectionState.js";
+import { getConnectionSnapshot, isDefinitelyOffline, reportBrowserOffline, reportConnectionFailure, retryConnectionNow, subscribeConnection } from "./lib/connectionState.js";
 import { useVisibleNow } from "./hooks/useVisibleNow.js";
 import { useI18n } from "./components/I18nProvider.jsx";
 import { DeferredLoadingPanel, NotFoundPage } from "./components/ui/index.jsx";
@@ -140,7 +140,7 @@ function App() {
   const [booting, setBooting] = useState(() => !user);
   const [bootError, setBootError] = useState(null);
   const [bootRetrying, setBootRetrying] = useState(false);
-  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
+  const [online, setOnline] = useState(() => !isDefinitelyOffline());
   const bootRetryAttemptsRef = useRef(0);
   const bootErrorRef = useRef(null);
   const bootingRef = useRef(true);
@@ -230,7 +230,7 @@ function App() {
     // App open, resume and focus are throttled inside the coordinator; a
     // regained connection or newly queued work always syncs.
     const sync = (force) => {
-      if (!disposed && navigator.onLine && document.visibilityState !== "hidden") {
+      if (!disposed && !isDefinitelyOffline() && document.visibilityState !== "hidden") {
         void synchronizeOffline(user.id, undefined, { force, backgroundDownloads: true }).catch(() => undefined);
       }
     };
@@ -242,7 +242,7 @@ function App() {
       queuedTimer = window.setTimeout(() => sync(true), 2_000);
     };
     // Account cleanup finishes before the first download captures its owner.
-    if (navigator.onLine) void rememberOfflineUser(user).then(() => sync(true)).catch(() => undefined);
+    if (!isDefinitelyOffline()) void rememberOfflineUser(user).then(() => sync(true)).catch(() => undefined);
     // Discover newly published sheets even while the student keeps reading.
     const contentTimer = window.setInterval(() => {
       void refreshAutomaticDownloads(user.id).catch(() => undefined);
@@ -252,8 +252,10 @@ function App() {
     window.addEventListener("pageshow", resume);
     document.addEventListener("visibilitychange", resume);
     window.addEventListener("lock-in:offline-queued", queued);
+    const unsubscribe = subscribeConnection(({ status }) => { if (status === "connected") reconnect(); });
     return () => {
       disposed = true;
+      unsubscribe();
       window.clearTimeout(queuedTimer);
       window.clearInterval(contentTimer);
       window.removeEventListener("online", reconnect);
@@ -434,16 +436,46 @@ function App() {
   }, [bootError, online]);
 
   useEffect(() => {
+    let retriedOnRecovery = false;
+    const retrySessionIfWaiting = () => {
+      if (retriedOnRecovery || bootingRef.current) return;
+      if (bootErrorRef.current || window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) {
+        retriedOnRecovery = true;
+        retryBootstrap();
+      }
+    };
+    const resumeConnection = () => {
+      retriedOnRecovery = false;
+      if (getConnectionSnapshot().status === "connected" && !isDefinitelyOffline()) retrySessionIfWaiting();
+      else void retryConnectionNow();
+    };
+    const probeWhenVisible = () => {
+      if (document.visibilityState !== "hidden") resumeConnection();
+    };
     const goOnline = () => {
       setOnline(true);
-      if ((bootErrorRef.current || window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) && !bootingRef.current) retryBootstrap();
+      resumeConnection();
     };
-    const goOffline = () => setOnline(false);
+    const goOffline = () => {
+      setOnline(false);
+      reportBrowserOffline();
+    };
+    const unsubscribe = subscribeConnection(({ status }) => {
+      if (status === "connected") {
+        setOnline(true);
+        retrySessionIfWaiting();
+      }
+    });
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
+    window.addEventListener("pageshow", probeWhenVisible);
+    document.addEventListener("visibilitychange", probeWhenVisible);
     return () => {
+      unsubscribe();
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
+      window.removeEventListener("pageshow", probeWhenVisible);
+      document.removeEventListener("visibilitychange", probeWhenVisible);
     };
   }, [retryBootstrap]);
 
@@ -460,7 +492,7 @@ function App() {
       // Without a usable lease there is nothing to open, so the normal start
       // runs and explains that the device is offline rather than showing a
       // sign-in form that cannot work without a connection.
-      if (navigator.onLine === false) {
+      if (navigator.onLine === false && isDefinitelyOffline()) {
         if (window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) return { user: null, offline: true };
         const offlineUser = await restoreOfflineUser().catch(() => null);
         if (offlineUser) return { user: offlineUser, offline: true };

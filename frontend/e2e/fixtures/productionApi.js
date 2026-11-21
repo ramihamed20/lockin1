@@ -31,6 +31,10 @@ export function studentSession(overrides = {}) {
 }
 
 export async function fulfillAccessContract(route, pathname) {
+  if (pathname === "/api/v1/health/live") {
+    await route.fulfill({ json: { status: "ok", service: "lockin-api" } });
+    return true;
+  }
   if (pathname === "/api/v1/subscriptions/current") {
     await route.fulfill({
       contentType: "application/json",

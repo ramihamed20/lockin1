@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "../components/I18nProvider.jsx";
 import { offlineAccessStatus } from "./lease.js";
-import { getConnectionSnapshot, subscribeConnection } from "../lib/connectionState.js";
+import { isDefinitelyOffline, subscribeConnection } from "../lib/connectionState.js";
 
 export default function OfflineIndicator({ userId, inline = false }) {
   const { t } = useI18n();
-  const [online, setOnline] = useState(() => navigator.onLine && getConnectionSnapshot().status === "connected");
+  const [online, setOnline] = useState(() => !isDefinitelyOffline());
   const [state, setState] = useState("");
   const [remaining, setRemaining] = useState(0);
 
   useEffect(() => {
     let active = true;
     const update = async () => {
-      const connected = navigator.onLine && getConnectionSnapshot().status === "connected";
+      const connected = !isDefinitelyOffline();
       setOnline(connected);
       if (!connected) {
         const status = await offlineAccessStatus(userId).catch(() => /** @type {{available: boolean, claims?: {exp: number}}} */ ({ available: false }));

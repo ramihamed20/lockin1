@@ -522,13 +522,20 @@ export async function request(path, options = {}) {
   }
 }
 
-configureConnectionProbe(async () => {
+configureConnectionProbe(async (probeSignal) => {
   // A probe that can hang would leave the state "reconnecting" forever on a
   // radio that reports a connection but carries nothing.
   const deadline = timeoutSignal(UNREACHABLE_READ_TIMEOUT_MS);
+  const signal = combineSignals(probeSignal, deadline?.signal);
   try {
-    const response = await fetch(apiPath("/auth/csrf"), { credentials: "include", headers: { Accept: "application/json" }, signal: deadline?.signal });
-    if (!response) throw new Error("No response");
+    const response = await withinSignal(fetch(apiPath("/health/live"), {
+      cache: "no-store", headers: { Accept: "application/json" }, signal
+    }), signal);
+    if (!response.ok) throw new Error("Lock-in health check failed");
+    const health = await withinSignal(response.json(), signal);
+    if (health?.status !== "ok" || health?.service !== "lockin-api") {
+      throw new Error("Unexpected Lock-in health response");
+    }
   } finally {
     deadline?.clear();
   }

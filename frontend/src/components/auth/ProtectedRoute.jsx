@@ -8,7 +8,7 @@ import { ForbiddenState } from "../shared/ForbiddenState.jsx";
 import { ExpiredAccess } from "../subscription/ExpiredAccess.jsx";
 import { offlineAccessStatus } from "../../offline/lease.js";
 import { synchronizeOffline } from "../../offline/coordinator.js";
-import { getConnectionSnapshot, subscribeConnection } from "../../lib/connectionState.js";
+import { isDefinitelyOffline, subscribeConnection } from "../../lib/connectionState.js";
 import OfflineExpiredScreen from "../../offline/OfflineExpiredScreen.jsx";
 
 const SUBSCRIPTION_PROTECTED_PATHS = [
@@ -16,10 +16,6 @@ const SUBSCRIPTION_PROTECTED_PATHS = [
   "/questions", "/review", "/bookmarks", "/progress", "/progression",
   "/achievements", "/whiteboards"
 ];
-
-function isDefinitelyOffline() {
-  return !navigator.onLine || getConnectionSnapshot().status === "offline";
-}
 
 function requiresSubscription(pathname) {
   if (pathname === "/") return true;
