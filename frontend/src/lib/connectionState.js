@@ -32,7 +32,7 @@ function stopProbing() {
 
 function scheduleProbe() {
   if (retryTimer !== null || activeProbe || !probe) return;
-  if (browserReportsOffline()) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
   const delay = CONNECTION_RETRY_DELAYS[Math.min(failures, CONNECTION_RETRY_DELAYS.length - 1)];
   retryTimer = setTimeout(() => {
     retryTimer = null;
