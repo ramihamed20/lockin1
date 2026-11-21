@@ -446,6 +446,28 @@ test("an offline start explains itself and recovers when the connection returns"
   expect(captured.sessionRequests).toBe(2);
 });
 
+test("the standalone PWA rechecks its session on foreground after a network handoff", async ({ page }) => {
+  let disconnected = true;
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    localStorage.setItem("lock-in.locale", "en");
+  });
+  const captured = await mockAuth(page, { sessionUser: userPayload(), isDisconnected: () => disconnected });
+  await page.route("**/api/v1/health/live", (route) => disconnected
+    ? route.abort("internetdisconnected")
+    : route.fulfill({ json: { status: "ok", service: "lockin-api" } }));
+  await page.goto("/#/");
+  const shell = page.locator(".startup-shell");
+  await expect(shell).toContainText("You appear to be offline");
+  expect(captured.sessionRequests).toBe(1);
+
+  disconnected = false;
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await expect(shell).toHaveCount(0);
+  expect(captured.sessionRequests).toBe(2);
+});
+
 // Registration hands the reader a code screen. These cover what that screen is
 // for: the six digits, how they are submitted, and what a wrong one does.
 async function signUpToCodeScreen(page) {

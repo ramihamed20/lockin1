@@ -10,7 +10,7 @@ import { clearOfflineDownloads, downloadOfflineItem, fetchOfflineManifest, offli
 import { DEFAULT_OFFLINE_PREFERENCES, readOfflinePreferences, saveOfflinePreferences, synchronizeOffline } from "./coordinator.js";
 import { offlineAccessStatus } from "./lease.js";
 import { dismissFailedOperation, offlineOperationConflicts, pendingOfflineOperations } from "./queue.js";
-import { getConnectionSnapshot, subscribeConnection } from "../lib/connectionState.js";
+import { isDefinitelyOffline, subscribeConnection } from "../lib/connectionState.js";
 
 const CONTENT_TYPES = [["sheet", "offline.sheets"], ["summary", "offline.summaries"], ["active_study", "offline.activeStudy"], ["questions", "offline.questions"]];
 const EDITIONS = [["university", "offline.universityEdition"], ["lockin", "offline.lockinEdition"]];
@@ -63,7 +63,7 @@ export default function OfflineSettings({ userId }) {
   // One confirmation at a time, in the app's own dialog rather than the
   // browser's: { message, run }.
   const [confirming, setConfirming] = useState(/** @type {{ message: string, run: () => Promise<void> } | null} */ (null));
-  const [online, setOnline] = useState(() => navigator.onLine && getConnectionSnapshot().status === "connected");
+  const [online, setOnline] = useState(() => !isDefinitelyOffline());
 
   const refresh = useCallback(async () => {
     const [nextPreferences, nextManifest, nextDownloads, nextLease, nextSync, nextPending, nextConflicts] = await Promise.all([
@@ -84,7 +84,7 @@ export default function OfflineSettings({ userId }) {
   useEffect(() => {
     let active = true;
     refresh().catch((cause) => { if (active) setError(cause.message); });
-    const handleOnline = () => setOnline(navigator.onLine && getConnectionSnapshot().status === "connected");
+    const handleOnline = () => setOnline(!isDefinitelyOffline());
     const handleSync = (event) => {
       if (event.detail?.userId !== userId) return;
       setSyncState(event.detail.state);
