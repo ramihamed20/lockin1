@@ -35,6 +35,7 @@ from .manual_services import (
     submit_manual_recharge,
 )
 from .models import Payment
+from .questions_upgrades import UPGRADE_BY_ELIGIBILITY
 from .selectors import payments_for_user
 from .serializers import (
     ManualInstallmentRequestSerializer,
@@ -81,6 +82,8 @@ class PaymentIntentView(APIView):
             raise ValidationError({"idempotency_key": ["A stable idempotency key is required."]})
         try:
             price = active_price(price_id=serializer.validated_data["price_id"])
+            if price.eligibility in UPGRADE_BY_ELIGIBILITY:
+                raise ValueError("This upgrade requires manual Libyana payment.")
             if not plan_version_available_to_user(version=price.plan_version, user=user):
                 raise ValueError("This question-only plan is for Tripoli Dentistry Year 2.")
             account = get_or_create_individual_account(user=user)

@@ -149,6 +149,11 @@ def _telegram_message(
     subscription: Subscription,
     recharge_codes: tuple[str, ...] = (),
 ) -> ManualPaymentTelegramMessage:
+    current_expiry = None
+    if event == ManualPaymentTelegramMessage.Event.UPGRADE:
+        current_expiry = submission.subscription_period_ends_at
+    elif event == ManualPaymentTelegramMessage.Event.EARLY_RENEWAL:
+        current_expiry = submission.previous_subscription_end_at
     return ManualPaymentTelegramMessage(
         event=event,
         payment_id=str(payment.id),
@@ -167,16 +172,7 @@ def _telegram_message(
             )
             else None
         ),
-        current_expiry=(
-            submission.previous_subscription_end_at.isoformat()
-            if event
-            in (
-                ManualPaymentTelegramMessage.Event.EARLY_RENEWAL,
-                ManualPaymentTelegramMessage.Event.UPGRADE,
-            )
-            and submission.previous_subscription_end_at
-            else None
-        ),
+        current_expiry=current_expiry.isoformat() if current_expiry else None,
         recharge_codes=recharge_codes,
     )
 
@@ -478,20 +474,23 @@ def submit_manual_recharge(
     installment_amounts = [int(value) for value in price.installment_amounts_minor or []]
     if pay_in_installments and not installments_available(price=price, now=now):
         raise ManualPaymentError("This plan cannot be paid in installments now.")
+    upgrade = questions_upgrade_for_price(subscription=subscription, price=price, now=now)
     # Buying a later term while one is running extends it, and is rolled back
     # exactly like an early renewal if the card is rejected.
-    is_early_renewal = _early_renewal_allowed(subscription=subscription, now=now) or bool(
-        fixed_period_end(price.plan_version) is not None
-        and subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
-        and subscription.current_period_ends_at
-        and (
-            subscription.current_period_ends_at > now
-            or (subscription.grace_ends_at and now <= subscription.grace_ends_at)
+    is_early_renewal = upgrade is None and (
+        _early_renewal_allowed(subscription=subscription, now=now)
+        or bool(
+            fixed_period_end(price.plan_version) is not None
+            and subscription.status in (Subscription.Status.ACTIVE, Subscription.Status.GRACE)
+            and subscription.current_period_ends_at
+            and (
+                subscription.current_period_ends_at > now
+                or (subscription.grace_ends_at and now <= subscription.grace_ends_at)
+            )
         )
     )
     previous = _snapshot_subscription(subscription)
     previous_subscription_end_at = subscription.current_period_ends_at
-    upgrade = questions_upgrade_for_price(subscription=subscription, price=price, now=now)
     if upgrade:
         # Full PDFs are added to the current term; no renewal, extra days,
         # second term charge or change to its original calendar deadline.
@@ -852,17 +851,25 @@ def review_manual_recharge(
         subscription.current_period_ends_at == submission.subscription_period_ends_at
     )
     if decision == "approve":
+        is_questions_upgrade = payment.price.eligibility in UPGRADE_BY_ELIGIBILITY
+        if is_questions_upgrade and now >= submission.subscription_period_ends_at:
+            raise ManualPaymentError(
+                "This paid term can no longer be activated. Record any actual collection "
+                "on rejection so the student can receive it back."
+            )
         submission.status = ManualRechargeSubmission.Status.APPROVED
         payment.status = Payment.Status.SUCCEEDED
         payment.succeeded_at = now
         payment.failure_code = ""
         if (
             owns_subscription_state
+            and not is_questions_upgrade
             and payment.price_snapshot.get("policy_version") == USER_POLICY_VERSION
         ):
             # Reserve at submission, but start the paid duration at approval.
             # Fixed term plans retain their advertised end; a delay never silently
             # consumes days from a new rolling-duration purchase.
+            # Questions upgrades already have a paid period with both dates set.
             prior = submission.previous_subscription_state
             for field in (
                 "status",

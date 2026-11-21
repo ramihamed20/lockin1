@@ -6,8 +6,10 @@ from datetime import timezone as dt_timezone
 from unittest.mock import patch
 
 import pytest
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.accounts.policies import USER_POLICY_VERSION
 from apps.accounts.tests.helpers import create_user
 from apps.education.models import StudentCohort
 from apps.education.tests.helpers import create_admin
@@ -122,11 +124,18 @@ def _pay_questions(user, plan_code: str, label: str):
 @pytest.mark.parametrize(
     ("source", "target", "upgrade_code", "previous", "full", "end", "moment"), CASES
 )
+@pytest.mark.parametrize("current_policy", [False, True], ids=["legacy-policy", "current-policy"])
 def test_upgrade_charges_only_the_difference_and_unlocks_sheets_after_review(
-    source, target, upgrade_code, previous, full, end, moment
+    source, target, upgrade_code, previous, full, end, moment, current_policy, settings
 ):
     with patch("django.utils.timezone.now", return_value=moment):
         user = _student(f"upgrade-{source}@example.com")
+        if current_policy:
+            settings.ACCOUNT_POLICY_VERSION = USER_POLICY_VERSION
+            settings.USER_POLICY_EFFECTIVE_AT = "2026-11-08T19:05:35Z"
+            user.policy_version = USER_POLICY_VERSION
+            user.policy_accepted_at = timezone.now()
+            user.save(update_fields=["policy_version", "policy_accepted_at"])
         assert _catalog_price(user, target)["amount_minor"] == full
         _pay_questions(user, source, source)
         client = _client(user)
@@ -226,6 +235,36 @@ def test_rejected_upgrade_retains_paid_questions_and_allows_a_new_attempt():
         assert _catalog_price(user, "dentistry_pre_midterm")["amount_minor"] == 15_000
 
 
+def test_pending_upgrade_cannot_be_approved_after_the_original_term_ends():
+    with patch("django.utils.timezone.now", return_value=PRE_DATE):
+        user = _student("expired-questions-upgrade@example.com")
+        admin = create_admin(email="expired-questions-review@example.com")
+        _pay_questions(user, "tripoli_y2_questions_pre", "expired")
+        price = Price.objects.get(code="dentistry_pre_midterm_questions_upgrade_15_lyd")
+        result = submit_manual_recharge(
+            user=user,
+            price=price,
+            recharge_codes=["3456789012345"],
+            idempotency_key="upgrade-after-expiry-00001",
+        )
+
+    with (
+        patch("django.utils.timezone.now", return_value=PRE_END + timedelta(seconds=1)),
+        pytest.raises(ManualPaymentError, match="can no longer be activated"),
+    ):
+        review_manual_recharge(
+            payment_id=result.payment.id,
+            actor=admin,
+            decision="approve",
+            reason="Card reviewed after expiry",
+            idempotency_key="upgrade-after-expiry-review-00001",
+        )
+
+    result.payment.refresh_from_db()
+    assert result.payment.status == Payment.Status.PENDING
+    assert result.payment.subscription.current_period_ends_at == PRE_END
+
+
 def test_discount_requires_current_verified_fully_paid_questions_subscription():
     with patch("django.utils.timezone.now", return_value=PRE_DATE):
         user = _student("questions-upgrade-not-paid@example.com")
@@ -269,6 +308,22 @@ def test_questions_upgrade_price_is_not_hidden_by_old_four_month_discount():
     assert chosen.code == upgrade.code
 
 
+def test_provider_checkout_cannot_use_a_manual_upgrade_price():
+    with patch("django.utils.timezone.now", return_value=PRE_DATE):
+        user = _student("upgrade-provider@example.com")
+        price = Price.objects.get(code="dentistry_pre_midterm_questions_upgrade_15_lyd")
+        with patch("apps.payments.views.create_checkout_session") as checkout:
+            response = _client(user).post(
+                "/api/v1/payments/intents",
+                {"price_id": str(price.id)},
+                format="json",
+                HTTP_IDEMPOTENCY_KEY="upgrade-provider-attempt-00001",
+            )
+        assert response.status_code == 400, response.data
+        checkout.assert_not_called()
+        assert not Payment.objects.filter(account__primary_user=user).exists()
+
+
 def test_telegram_labels_upgrade_as_upgrade_not_renewal(
     django_capture_on_commit_callbacks,
 ):
@@ -280,7 +335,7 @@ def test_telegram_labels_upgrade_as_upgrade_not_renewal(
             patch("apps.payments.manual_services.notify_manual_payment") as notify,
             django_capture_on_commit_callbacks(execute=True),
         ):
-            submit_manual_recharge(
+            result = submit_manual_recharge(
                 user=user,
                 price=price,
                 recharge_codes=["5678901234567"],
@@ -290,3 +345,5 @@ def test_telegram_labels_upgrade_as_upgrade_not_renewal(
         assert message.event == ManualPaymentTelegramMessage.Event.UPGRADE
         assert "ترقية" in message.render()
         assert message.amount == "15 LYD"
+        assert datetime.fromisoformat(message.current_expiry) == PRE_END
+        assert not result.submission.is_early_renewal
