@@ -32,7 +32,7 @@ function stopProbing() {
 
 function scheduleProbe() {
   if (retryTimer !== null || activeProbe || !probe) return;
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  if (browserReportsOffline()) return;
   const delay = CONNECTION_RETRY_DELAYS[Math.min(failures, CONNECTION_RETRY_DELAYS.length - 1)];
   retryTimer = setTimeout(() => {
     retryTimer = null;
@@ -65,11 +65,12 @@ export async function retryConnectionNow() {
 export function configureConnectionProbe(nextProbe) { probe = nextProbe; }
 export function getConnectionSnapshot() { return snapshot; }
 export function isOffline() { return snapshot.status === "offline"; }
-// A live server response takes precedence over a stale browser hint. A new
-// offline event or a confirmed transport failure invalidates that response.
-export function isDefinitelyOffline() {
-  return isOffline() || (!snapshot.serverConfirmed && typeof navigator !== "undefined" && navigator.onLine === false);
+// A live server response takes precedence over a stale browser hint. Keep
+// this separate from API reachability for jobs that must retry server outages.
+export function browserReportsOffline() {
+  return !snapshot.serverConfirmed && typeof navigator !== "undefined" && navigator.onLine === false;
 }
+export function isDefinitelyOffline() { return isOffline() || browserReportsOffline(); }
 export function subscribeConnection(listener) {
   listeners.add(listener);
   return () => { listeners.delete(listener); };

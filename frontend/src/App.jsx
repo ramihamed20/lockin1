@@ -19,7 +19,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { TokenActionPage } from "./components/auth/TokenActionPage.jsx";
 import { setSessionMarker } from "./api/client.js";
 import { lazyWithRecovery } from "./lib/lazyWithRecovery.js";
-import { getConnectionSnapshot, isDefinitelyOffline, reportBrowserOffline, reportConnectionFailure, retryConnectionNow, subscribeConnection } from "./lib/connectionState.js";
+import { browserReportsOffline, getConnectionSnapshot, isDefinitelyOffline, reportBrowserOffline, reportConnectionFailure, retryConnectionNow, subscribeConnection } from "./lib/connectionState.js";
 import { useVisibleNow } from "./hooks/useVisibleNow.js";
 import { useI18n } from "./components/I18nProvider.jsx";
 import { DeferredLoadingPanel, NotFoundPage } from "./components/ui/index.jsx";
@@ -230,7 +230,7 @@ function App() {
     // App open, resume and focus are throttled inside the coordinator; a
     // regained connection or newly queued work always syncs.
     const sync = (force) => {
-      if (!disposed && !isDefinitelyOffline() && document.visibilityState !== "hidden") {
+      if (!disposed && !browserReportsOffline() && document.visibilityState !== "hidden") {
         void synchronizeOffline(user.id, undefined, { force, backgroundDownloads: true }).catch(() => undefined);
       }
     };
@@ -242,7 +242,7 @@ function App() {
       queuedTimer = window.setTimeout(() => sync(true), 2_000);
     };
     // Account cleanup finishes before the first download captures its owner.
-    if (!isDefinitelyOffline()) void rememberOfflineUser(user).then(() => sync(true)).catch(() => undefined);
+    if (!browserReportsOffline()) void rememberOfflineUser(user).then(() => sync(true)).catch(() => undefined);
     // Discover newly published sheets even while the student keeps reading.
     const contentTimer = window.setInterval(() => {
       void refreshAutomaticDownloads(user.id).catch(() => undefined);
@@ -492,7 +492,7 @@ function App() {
       // Without a usable lease there is nothing to open, so the normal start
       // runs and explains that the device is offline rather than showing a
       // sign-in form that cannot work without a connection.
-      if (navigator.onLine === false && isDefinitelyOffline()) {
+      if (browserReportsOffline()) {
         if (window.localStorage.getItem(OFFLINE_PENDING_LOGOUT_KEY)) return { user: null, offline: true };
         const offlineUser = await restoreOfflineUser().catch(() => null);
         if (offlineUser) return { user: offlineUser, offline: true };
